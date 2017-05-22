@@ -1,0 +1,186 @@
+// Copyright
+
+syntax = "proto3";
+
+package controldb_proto;
+
+// The control db service definition.
+service ControlDBService {
+  rpc CreateDevice (Device) returns (CreateDeviceResponse) {}
+  rpc GetDevice (DeviceKey) returns (Device) {}
+  rpc DeleteDevice (DeviceKey) returns (DeleteDeviceResponse) {}
+  rpc ListDevices (ListDeviceRequest) returns (stream Device) {}
+
+  rpc CreateService (Service) returns (CreateServiceResponse) {}
+  rpc GetService (ServiceKey) returns (Service) {}
+  rpc DeleteService (ServiceKey) returns (DeleteServiceResponse) {}
+  rpc ListServices (ListServiceRequest) returns (stream Service) {}
+
+  rpc CreateServiceAttr (ServiceAttr) returns (CreateServiceAttrResponse) {}
+  rpc GetServiceAttr (ServiceAttrKey) returns (ServiceAttr) {}
+  rpc DeleteServiceAttr (ServiceAttrKey) returns (DeleteServiceAttrResponse) {}
+  rpc UpdateServiceAttr (UpdateServiceAttrRequest) returns (UpdateServiceAttrResponse) {}
+
+  rpc CreateVolume (Volume) returns (CreateVolumeResponse) {}
+  rpc GetVolume (VolumeKey) returns (Volume) {}
+  rpc DeleteVolume (VolumeKey) returns (DeleteVolumeResponse) {}
+  rpc ListVolumes (ListVolumeRequest) returns (stream Volume) {}
+  rpc UpdateVolume (UpdateVolumeRequest) returns (UpdateVolumeResponse) {}
+
+  rpc CreateConfigFile (ConfigFile) returns (CreateConfigFileResponse) {}
+  rpc GetConfigFile (ConfigFileKey) returns (ConfigFile) {}
+  rpc DeleteConfigFile (ConfigFileKey) returns (DeleteConfigFileResponse) {}
+}
+
+message DeviceKey {
+  string clusterName = 1;
+  string deviceName = 2;
+}
+
+message Device {
+  string clusterName = 1;
+  string deviceName = 2;
+  string serviceName = 3;
+}
+
+message CreateDeviceResponse {
+}
+
+message DeleteDeviceResponse {
+}
+
+message AllDevices {
+  repeated Device devices = 1;
+}
+
+message ListDeviceRequest {
+  string clusterName = 1;
+}
+
+message ServiceKey {
+  string clusterName = 1;
+  string serviceName = 2;
+}
+
+message Service {
+  string clusterName = 1;
+  string serviceName = 2;
+  string serviceUUID = 3;
+}
+
+message CreateServiceResponse {
+}
+
+message DeleteServiceResponse {
+}
+
+message AllServices {
+  repeated Service services = 1;
+}
+
+message ListServiceRequest {
+  string clusterName = 1;
+}
+
+message ServiceAttrKey {
+  string serviceUUID = 1;
+}
+
+message ServiceAttr {
+  string serviceUUID = 1;
+
+  // same with db.ServiceAttr.ServiceStatus: CREATING, ACTIVE, DELETING, DELETED
+  string serviceStatus = 2;
+  int64 lastModified = 3;
+  int64 replicas = 4;
+  int64 volumeSizeGB = 5;
+  string clusterName = 6;
+  string serviceName = 7;
+  string deviceName = 8;
+
+  // whether the service has the strict membership, such as database replicas.
+  // if yes, each volume will be assigned a member name and registered to DNS.
+  // in aws, DNS will be Route53.
+  bool hasStrictMembership = 9;
+  string domainName = 10;
+  string hostedZoneID = 11;
+}
+
+message CreateServiceAttrResponse {
+}
+
+message DeleteServiceAttrResponse {
+}
+
+message UpdateServiceAttrRequest {
+  ServiceAttr oldAttr = 1;
+  ServiceAttr newAttr = 2;
+}
+
+message UpdateServiceAttrResponse {
+}
+
+message VolumeKey {
+  string serviceUUID = 1;
+  string volumeID = 2;
+}
+
+message Volume {
+  string serviceUUID = 1;
+  string volumeID = 2;
+
+  int64 lastModified = 3;
+  string deviceName = 4;
+  string availableZone = 5;
+  string taskID = 6;
+  string containerInstanceID = 7;
+  string serverInstanceID = 8;
+
+  // MemberName would be empty if service doesn't require the strict membership
+  string memberName = 9;
+  repeated MemberConfig configs = 10;
+}
+
+message CreateVolumeResponse {
+}
+
+message DeleteVolumeResponse {
+}
+
+message ListVolumeRequest {
+  string serviceUUID = 1;
+}
+
+message UpdateVolumeRequest {
+  Volume oldVol = 1;
+  Volume newVol = 2;
+}
+
+message UpdateVolumeResponse {
+}
+
+message MemberConfig {
+  string fileName = 1;
+  string fileID = 2;
+  string fileMD5 = 3;
+}
+
+message ConfigFileKey {
+  string serviceUUID = 1;
+  string fileID = 2;
+}
+
+message ConfigFile {
+  string serviceUUID = 1;
+  string fileID = 2;
+  string fileMD5 = 3;
+  string fileName = 4;
+  int64 lastModified = 5;
+  string content = 6;
+}
+
+message CreateConfigFileResponse {
+}
+
+message DeleteConfigFileResponse {
+}
