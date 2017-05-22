@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/openconnectio/openmanage/api"
+	"github.com/openconnectio/openmanage/common"
 	"github.com/openconnectio/openmanage/server"
 )
 
@@ -40,7 +40,7 @@ func GenDNSName(svcMemberName string, domainName string) string {
 // GenDefaultDomainName generates the default domain name for the cluster
 // example: cluster-openmanage.com
 func GenDefaultDomainName(clusterName string) string {
-	return clusterName + api.NameSeparator + api.DomainNameSuffix + api.DomainSeparator + api.DomainCom
+	return clusterName + common.NameSeparator + common.DomainNameSuffix + common.DomainSeparator + common.DomainCom
 }
 
 // RegisterDNSName registers the dns name
@@ -77,11 +77,11 @@ func GetDomainNameFromDNSName(dnsname string) (string, error) {
 // example: https://openmanage-manageserver.cluster-openmanage.com:27040/
 func GetDefaultMgtServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)
-	dnsname := GenDNSName(api.ManageServiceName, domain)
+	dnsname := GenDNSName(common.ManageServiceName, domain)
 	if tlsEnabled {
-		return "https://" + dnsname + ":" + strconv.Itoa(api.ManageHTTPServerPort) + "/"
+		return "https://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
 	}
-	return "http://" + dnsname + ":" + strconv.Itoa(api.ManageHTTPServerPort) + "/"
+	return "http://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
 }
 
 // FormatMgtServiceURL formats the url to like https://openmanage-manageserver.cluster-openmanage.com:31021/
@@ -105,6 +105,6 @@ func FormatMgtServiceURL(surl string, tlsEnabled bool) string {
 // example: openmanage-controldb.cluster-openmanage.com:27030
 func GetDefaultControlDBAddr(cluster string) string {
 	domain := GenDefaultDomainName(cluster)
-	dnsname := GenDNSName(api.ControlDBServiceName, domain)
-	return dnsname + ":" + strconv.Itoa(api.ControlDBServerPort)
+	dnsname := GenDNSName(common.ControlDBServiceName, domain)
+	return dnsname + ":" + strconv.Itoa(common.ControlDBServerPort)
 }

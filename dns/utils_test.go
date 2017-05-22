@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/openconnectio/openmanage/api"
+	"github.com/openconnectio/openmanage/common"
 )
 
 func TestDomain(t *testing.T) {
@@ -24,7 +24,7 @@ func TestDomain(t *testing.T) {
 func TestMgt(t *testing.T) {
 	cluster := "c1"
 	tlsEnabled := true
-	portStr := strconv.Itoa(api.ManageHTTPServerPort)
+	portStr := strconv.Itoa(common.ManageHTTPServerPort)
 	expect := "https://openmanage-manageserver.c1-openmanage.com:" + portStr + "/"
 	url := GetDefaultMgtServiceURL(cluster, tlsEnabled)
 	if url != expect {
@@ -65,7 +65,7 @@ func TestMgt(t *testing.T) {
 
 func TestControldb(t *testing.T) {
 	cluster := "cluster"
-	portStr := strconv.Itoa(api.ControlDBServerPort)
+	portStr := strconv.Itoa(common.ControlDBServerPort)
 	expect := "openmanage-controldb.cluster-openmanage.com:" + portStr
 	addr := GetDefaultControlDBAddr(cluster)
 	if addr != expect {

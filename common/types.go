@@ -1,4 +1,4 @@
-package api
+package common
 
 const (
 	ContainerPlatformECS   = "ecs"

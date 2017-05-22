@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
+	"golang.org/x/net/context"
+
+	"github.com/openconnectio/openmanage/common"
 )
 
 func SetLogDir() {
@@ -20,7 +21,7 @@ func SetLogDir() {
 	f := flag.Lookup("log_dir")
 	if f.Value.String() == "" {
 		// set the default log dir
-		flag.Set("log_dir", DefaultLogDir)
+		flag.Set("log_dir", common.DefaultLogDir)
 	}
 
 	err := CreateDirIfNotExist(f.Value.String())
@@ -63,24 +64,24 @@ func GenCallerID() string {
 }
 
 func GenServiceMemberName(serviceName string, index int64) string {
-	return serviceName + NameSeparator + strconv.FormatInt(index, 10)
+	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }
 
 func GenServiceMemberConfigID(memberName string, configFileName string, version int64) string {
-	return memberName + NameSeparator + configFileName + NameSeparator + strconv.FormatInt(version, 10)
+	return memberName + common.NameSeparator + configFileName + common.NameSeparator + strconv.FormatInt(version, 10)
 }
 
 func GenControlDBServiceUUID(volID string) string {
-	return ControlDBUUIDPrefix + volID
+	return common.ControlDBUUIDPrefix + volID
 }
 
 func IsControlDBService(serviceUUID string) bool {
-	return strings.HasPrefix(serviceUUID, ControlDBUUIDPrefix)
+	return strings.HasPrefix(serviceUUID, common.ControlDBUUIDPrefix)
 }
 
 // GetControlDBVolumeID extracts the volume id from the controldb serviceUUID
 func GetControlDBVolumeID(controldbServiceUUID string) string {
-	return strings.TrimPrefix(controldbServiceUUID, ControlDBUUIDPrefix)
+	return strings.TrimPrefix(controldbServiceUUID, common.ControlDBUUIDPrefix)
 }
 
 // The key type is unexported to prevent collisions with context keys defined in

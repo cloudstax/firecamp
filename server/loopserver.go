@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/openconnectio/openmanage/api"
+	"github.com/openconnectio/openmanage/common"
 )
 
 const LoopFileDir = "/tmp/"
@@ -39,14 +39,14 @@ func (s *LoopServer) AttachVolume(volID string, instanceID string, devName strin
 	ok := strings.HasPrefix(devName, LoopDevPrefix)
 	if !ok {
 		glog.Errorln("unsupported devName", devName)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	// check if volume exists
 	dev, ok := s.volumes[volID]
 	if !ok || len(dev) != 0 {
 		glog.Errorln("no such volume or already attached", volID, "dev", dev)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	// attach loopfile to dev
@@ -79,7 +79,7 @@ func (s *LoopServer) GetVolumeState(volID string) (state string, err error) {
 	dev, ok := s.volumes[volID]
 	if !ok {
 		glog.Errorln("no such volume", volID)
-		return "error", api.ErrInternal
+		return "error", common.ErrInternal
 	}
 
 	if len(dev) == 0 {
@@ -98,7 +98,7 @@ func (s *LoopServer) GetVolumeInfo(volID string) (info VolumeInfo, err error) {
 	dev, ok := s.volumes[volID]
 	if !ok {
 		glog.Errorln("no such volume", volID)
-		return info, api.ErrInternal
+		return info, common.ErrInternal
 	}
 
 	info = VolumeInfo{
@@ -121,7 +121,7 @@ func (s *LoopServer) DetachVolume(volID string, instanceID string, devName strin
 	dev, ok := s.volumes[volID]
 	if !ok {
 		glog.Errorln("no such volume, volID", volID, "dev", dev)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 	if len(dev) == 0 {
 		glog.Errorln("volume not attached, volID", volID, "dev", dev)
@@ -131,7 +131,7 @@ func (s *LoopServer) DetachVolume(volID string, instanceID string, devName strin
 	// check devName
 	if dev != devName {
 		glog.Errorln("wrong devName", devName, "for volume", volID, dev)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	// detach loop device
@@ -189,7 +189,7 @@ func (s *LoopServer) DeleteVolume(volID string) error {
 	devName, ok := s.volumes[volID]
 	if !ok || len(devName) != 0 {
 		glog.Errorln("no such volume or in-use", volID, "devName", devName)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	// delete the loopfile
@@ -220,14 +220,14 @@ func (s *LoopServer) GetNextDeviceName(lastDev string) (devName string, err erro
 
 	if !strings.HasPrefix(lastDev, devicePrefix) {
 		glog.Errorln("device should have prefix", devicePrefix, "lastDev", lastDev)
-		return "", api.ErrInternal
+		return "", common.ErrInternal
 	}
 
 	devSeq := strings.TrimPrefix(lastDev, devicePrefix)
 
 	if len(devSeq) != 1 || devSeq == "z" {
 		glog.Errorln("invalid or last lastDev", lastDev)
-		return "", api.ErrInternal
+		return "", common.ErrInternal
 	}
 
 	if devSeq == "9" {
@@ -269,7 +269,7 @@ func (s *LoopServer) checkAndCreateLoopFile(loopfile string) error {
 	// loopfile exists
 	if fi == nil || fi.IsDir() {
 		glog.Errorln("loopfile", loopfile, "is at wrong stat", fi)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	glog.Infoln("loopfile", loopfile, "stat", fi)

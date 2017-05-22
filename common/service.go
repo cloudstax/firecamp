@@ -1,4 +1,4 @@
-package service
+package common
 
 const (
 	// The status of one service
@@ -19,6 +19,9 @@ const (
 	TaskStatusPending = "PENDING"
 	TaskStatusRunning = "RUNNING"
 	TaskStatusStopped = "STOPPED"
+
+	// Task types
+	TaskTypeInit = "init"
 )
 
 // Resources contains the service/task resources, cpu and memory.

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/openconnectio/openmanage/api"
+	"github.com/openconnectio/openmanage/common"
 )
 
 const devPrefix = "/dev/memd"
@@ -28,27 +28,27 @@ func NewMemServer() *MemServer {
 }
 
 func (s *MemServer) AttachVolume(volID string, instanceID string, devName string) error {
-	return api.ErrInternal
+	return common.ErrInternal
 }
 
 func (s *MemServer) WaitVolumeAttached(volID string) error {
-	return api.ErrInternal
+	return common.ErrInternal
 }
 
 func (s *MemServer) GetVolumeState(volID string) (state string, err error) {
-	return "", api.ErrInternal
+	return "", common.ErrInternal
 }
 
 func (s *MemServer) GetVolumeInfo(volID string) (info VolumeInfo, err error) {
-	return info, api.ErrInternal
+	return info, common.ErrInternal
 }
 
 func (s *MemServer) DetachVolume(volID string, instanceID string, devName string) error {
-	return api.ErrInternal
+	return common.ErrInternal
 }
 
 func (s *MemServer) WaitVolumeDetached(volID string) error {
-	return api.ErrInternal
+	return common.ErrInternal
 }
 
 func (s *MemServer) CreateVolume(az string, volSizeGB int64) (volID string, err error) {
@@ -77,7 +77,7 @@ func (s *MemServer) DeleteVolume(volID string) error {
 	devName, ok := s.volumes[volID]
 	if !ok {
 		glog.Errorln("no such volume", volID)
-		return api.ErrInternal
+		return common.ErrInternal
 	}
 
 	delete(s.volumes, volID)
