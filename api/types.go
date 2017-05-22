@@ -53,7 +53,7 @@ const (
 	ControlDBVolumeSizeGB = int64(1)
 
 	ManageHTTPServerPort = 27040
-	ManageName           = "managehttpserver"
+	ManageName           = "manageserver"
 	ManageServiceName    = SystemName + NameSeparator + ManageName
 	ManageContainerImage = OrgName + "/" + ManageServiceName
 	ManageCPUUnits       = 64
