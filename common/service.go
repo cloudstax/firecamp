@@ -37,7 +37,8 @@ type Resources struct {
 	ReserveMemMB    int64
 }
 
-// ServiceStatus represents the service's running status
+// ServiceStatus represents the service's running status.
+// TODO add more status. For example, the members are running on which nodes.
 type ServiceStatus struct {
 	RunningCount int64
 	DesiredCount int64

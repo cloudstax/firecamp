@@ -1,10 +1,8 @@
 # [OpenManage](https://github.com/openconnectio/openmanage)
 
-*OpenManage* is an open source platform to easily setup, manage and scale the Dockerized stateful services. The platform deeply integrates with the popular open source stateful services, such as MongoDB, Cassandra, MySQl, PostgreSQL, etc. The platform manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different host, the platform will move the data volume as well.
+*OpenManage* is an open source platform to easily setup, manage and scale the Dockerized stateful services. The platform deeply integrates with the popular open source stateful services, such as MongoDB, Cassandra, MySQl, PostgreSQL, etc. The platform manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different node, the platform will maintain the membership and move the data volume as well.
 
-Currently the platform has built-in integrations for MongoDB and PostgreSQL. MySQL and Cassandra are coming soon. More services will be integrated in the future.
-
-Cloud First.
+The OpenManage platform is one step towards the free serverless computing. The customer could easily run any service with no management overhead. Currently the platform has built-in integrations for MongoDB and PostgreSQL. MySQL and Cassandra are coming soon. More services will be integrated in the future.
 
 ## Key Features
 
@@ -41,8 +39,6 @@ The OpenManage platform has 4 basic components:
 - **The DNS server**. Every service member will have a unique DNS name. No matter where the container runs at, the platform will keep the DNS server updated. So the members could always talk with each other.
 - **The volume driver**. The platform assigns a uuid for every service. When creating the service in the underline container orchestraction framework, the service uuid is passed to the volume driver. When a container starts, the volume driver will talk with the database to find out which member the container serves, updates the DNS record, and mounts the data volume. By this, the service will recognize the new container as the original member.
 - **The manage service**. The manage service handles the different requirements of different services. So the customer could easily deploy a service by a single command.
-
-TODO add a picture.
 
 ## Installation
 
