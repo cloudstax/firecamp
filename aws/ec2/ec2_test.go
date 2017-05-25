@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/openconnectio/openmanage/common"
 	"github.com/openconnectio/openmanage/server"
@@ -18,7 +19,7 @@ var az1bIns2 string
 var az1cIns1 string
 var az1bVol1 string
 
-func createInstancesAndVolume() error {
+func createInstancesAndVolume(ctx context.Context) error {
 	cfg := aws.NewConfig().WithRegion("us-west-1")
 	sess, err := session.NewSession(cfg)
 	if err != nil {
@@ -32,48 +33,48 @@ func createInstancesAndVolume() error {
 	}
 
 	// launch 3 instances at 2 az and create one volume
-	az1bIns1, err = e.LaunchOneInstance("us-west-1b")
+	az1bIns1, err = e.LaunchOneInstance(ctx, "us-west-1b")
 	if err != nil {
 		glog.Errorln("failed to launch instance at us-west-1b, error", err)
 		return err
 	}
 
-	az1bIns2, err = e.LaunchOneInstance("us-west-1b")
+	az1bIns2, err = e.LaunchOneInstance(ctx, "us-west-1b")
 	if err != nil {
 		glog.Errorln("failed to launch instance at us-west-1b, error", err)
 		return err
 	}
 
-	az1cIns1, err = e.LaunchOneInstance("us-west-1c")
+	az1cIns1, err = e.LaunchOneInstance(ctx, "us-west-1c")
 	if err != nil {
 		glog.Errorln("failed to launch instance at us-west-1c, error", err)
 		return err
 	}
 
 	// create one volume
-	az1bVol1, err = e.CreateVolume("us-west-1b", 1)
+	az1bVol1, err = e.CreateVolume(ctx, "us-west-1b", 1)
 	if err != nil {
 		glog.Errorln("failed to create volume at us-west-1b, error", err)
 		return err
 	}
 
-	err = e.WaitVolumeCreated(az1bVol1)
+	err = e.WaitVolumeCreated(ctx, az1bVol1)
 	if err != nil {
 		glog.Errorln("WaitVolumeCreated error", err)
 		return err
 	}
 
-	err = e.WaitInstanceRunning(az1bIns1)
+	err = e.WaitInstanceRunning(ctx, az1bIns1)
 	if err != nil {
 		glog.Errorln("WaitInstanceRunning error", err)
 		return err
 	}
-	err = e.WaitInstanceRunning(az1bIns2)
+	err = e.WaitInstanceRunning(ctx, az1bIns2)
 	if err != nil {
 		glog.Errorln("WaitInstanceRunning error", err)
 		return err
 	}
-	err = e.WaitInstanceRunning(az1cIns1)
+	err = e.WaitInstanceRunning(ctx, az1cIns1)
 	if err != nil {
 		glog.Errorln("WaitInstanceRunning error", err)
 		return err
@@ -82,81 +83,85 @@ func createInstancesAndVolume() error {
 	return nil
 }
 
-func cleanup() {
+func cleanup(ctx context.Context) {
 	// terminate the created instances and volume
 	if len(az1bIns1) != 0 {
-		e.TerminateInstance(az1bIns1)
+		e.TerminateInstance(ctx, az1bIns1)
 	}
 	if len(az1bIns2) != 0 {
-		e.TerminateInstance(az1bIns2)
+		e.TerminateInstance(ctx, az1bIns2)
 	}
 	if len(az1cIns1) != 0 {
-		e.TerminateInstance(az1cIns1)
+		e.TerminateInstance(ctx, az1cIns1)
 	}
 	if len(az1bVol1) != 0 {
-		e.DeleteVolume(az1bVol1)
+		e.DeleteVolume(ctx, az1bVol1)
 	}
 }
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	err := createInstancesAndVolume()
+	ctx := context.Background()
+
+	err := createInstancesAndVolume(ctx)
 	if err != nil {
-		cleanup()
+		cleanup(ctx)
 		return
 	}
 
 	m.Run()
 
-	cleanup()
+	cleanup(ctx)
 }
 
 func TestVolume(t *testing.T) {
 	var err error
 	devName := "/dev/xvdf"
 
+	ctx := context.Background()
+
 	// negative case - detach available volume
-	err = e.DetachVolume(az1bVol1, az1bIns1, devName)
+	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, devName)
 	if err == nil && err != server.ErrVolumeIncorrectState {
 		t.Fatalf("detach available volume, expected ErrVolumeIncorrectState but got %s, vol %s instance %s", err, az1bVol1, az1bIns1)
 	}
 
 	// negative case - attach volume to instance at differnt az
-	err = e.AttachVolume(az1bVol1, az1cIns1, devName)
+	err = e.AttachVolume(ctx, az1bVol1, az1cIns1, devName)
 	if err == nil {
 		t.Fatalf("attach volume to instance at different az, expected fail but success, vol %s instance %s", az1bVol1, az1cIns1)
 	}
 
 	// attach volume
-	err = e.AttachVolume(az1bVol1, az1bIns1, devName)
+	err = e.AttachVolume(ctx, az1bVol1, az1bIns1, devName)
 	if err != nil {
 		t.Fatalf("attach volume, expected success but fail, vol %s instance %s", az1bVol1, az1bIns1)
 	}
-	err = e.WaitVolumeAttached(az1bVol1)
+	err = e.WaitVolumeAttached(ctx, az1bVol1)
 	if err != nil {
 		t.Fatalf("wait volume in-use, error %s", err)
 	}
 
 	// negative case - detach volume from wrong instanceID
-	err = e.DetachVolume(az1bVol1, az1bIns2, devName)
+	err = e.DetachVolume(ctx, az1bVol1, az1bIns2, devName)
 	if err == nil {
 		t.Fatalf("detach volume from wrong instance, expected fail but success, vol %s instance %s", az1bVol1, az1bIns2)
 	}
 
 	// negative case - detach volume with wrong devName
-	err = e.DetachVolume(az1bVol1, az1bIns1, "/dev/xvdx")
+	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, "/dev/xvdx")
 	if err == nil {
 		t.Fatalf("detach volume with wrong devName, expected fail but success, vol %s instance %s devName %s", az1bVol1, az1bIns1, devName)
 	}
 
 	// detach volume
-	err = e.DetachVolume(az1bVol1, az1bIns1, devName)
+	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, devName)
 	if err != nil {
 		t.Fatalf("detach volume, expected success but failed, vol %s instance %s", az1bVol1, az1bIns1)
 	}
 
-	err = e.WaitVolumeDetached(az1bVol1)
+	err = e.WaitVolumeDetached(ctx, az1bVol1)
 	if err != nil && err != common.ErrTimeout {
 		glog.Errorln("wait volume available, error %s", err)
 	}

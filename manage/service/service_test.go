@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/openconnectio/openmanage/aws/ec2"
 	"github.com/openconnectio/openmanage/db"
@@ -36,6 +37,8 @@ func TestDeviceName(t *testing.T) {
 	dnsIns := dns.NewMockDNS()
 	s := NewSCService(dbIns, serverIns, dnsIns)
 
+	ctx := context.Background()
+
 	cluster := "cluster1"
 	servicePrefix := "service-"
 
@@ -44,7 +47,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		service := servicePrefix + strconv.Itoa(i)
 		expectDev := "/dev/xvd" + devSeq
-		dev, err := s.createDevice(cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service)
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -56,7 +59,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 26; i++ {
 		service := servicePrefix + "b" + strconv.Itoa(i)
 		expectDev := "/dev/xvdb" + devSeq
-		dev, err := s.createDevice(cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service)
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -68,7 +71,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 26; i++ {
 		service := servicePrefix + "c" + strconv.Itoa(i)
 		expectDev := "/dev/xvdc" + devSeq
-		dev, err := s.createDevice(cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service)
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -77,7 +80,7 @@ func TestDeviceName(t *testing.T) {
 
 	// create device item for the existing service
 	service := servicePrefix + "b0"
-	dev, err := s.createDevice(cluster, service)
+	dev, err := s.createDevice(ctx, cluster, service)
 	if err != nil || dev != "/dev/xvdba" {
 		t.Fatalf("create service %s again, expectDev /dev/xvdba, get %s, error %s", service, dev, err)
 	}

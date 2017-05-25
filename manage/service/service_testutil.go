@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/openconnectio/openmanage/db"
 	"github.com/openconnectio/openmanage/dns"
@@ -29,6 +30,8 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 
 	max := 10
 	idx := 0
+
+	ctx := context.Background()
 
 	// service map, key: service name, value: ""
 	svcMap := make(map[string]string)
@@ -59,7 +62,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 			ReplicaConfigs: replicaCfgs,
 		}
 
-		svcUUID, err := s.CreateService(req, domain, vpcID)
+		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
 		if err != nil {
 			t.Fatalf("CreateService error %s, cluster %s, service %s taskCount1 %d",
 				err, cluster, service, taskCount1)
@@ -67,7 +70,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 
 		glog.Infoln("created service", service, "uuid", svcUUID)
 
-		err = s.SetServiceInitialized(cluster, service)
+		err = s.SetServiceInitialized(ctx, cluster, service)
 		if err != nil {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount1 %d",
 				err, cluster, service, taskCount1)
@@ -77,11 +80,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 		idx++
 	}
 	// verify the Device, Service, ServiceAttr and Volume
-	deviceItems, err := dbIns.ListDevices(cluster)
+	deviceItems, err := dbIns.ListDevices(ctx, cluster)
 	if err != nil || len(deviceItems) != 3 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
 	}
-	serviceItems, err := dbIns.ListServices(cluster)
+	serviceItems, err := dbIns.ListServices(ctx, cluster)
 	if err != nil || len(serviceItems) != 3 {
 		t.Fatalf("ListServices error %s, serviceItems %s", err, serviceItems)
 	}
@@ -90,11 +93,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 		if !ok {
 			t.Fatalf("unexpected service %s, items %d", svc, serviceItems)
 		}
-		attr, err := dbIns.GetServiceAttr(svc.ServiceUUID)
+		attr, err := dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 		if err != nil || attr.ServiceName != svc.ServiceName {
 			t.Fatalf("get service attr error %s service %s attr %s, expect ", err, svc, attr)
 		}
-		volItems, err := dbIns.ListVolumes(svc.ServiceUUID)
+		volItems, err := dbIns.ListVolumes(ctx, svc.ServiceUUID)
 		if err != nil || len(volItems) != taskCount1 {
 			t.Fatalf("got %d, expect %d volumes for service %s attr %s", len(volItems), taskCount1, svc, attr)
 		}
@@ -127,7 +130,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 			ReplicaConfigs: replicaCfgs,
 		}
 
-		svcUUID, err := s.CreateService(req, domain, vpcID)
+		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
 		if err != nil {
 			t.Fatalf("CreateService error %s, cluster %s, service %s taskCount2 %d",
 				err, cluster, service, taskCount2)
@@ -135,7 +138,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 
 		glog.Infoln("created service", service, "uuid", svcUUID)
 
-		err = s.SetServiceInitialized(cluster, service)
+		err = s.SetServiceInitialized(ctx, cluster, service)
 		if err != nil {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount2 %d",
 				err, cluster, service, taskCount2)
@@ -145,11 +148,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 		idx++
 	}
 	// verify the Device, Service and Volume
-	deviceItems, err = dbIns.ListDevices(cluster)
+	deviceItems, err = dbIns.ListDevices(ctx, cluster)
 	if err != nil || len(deviceItems) != 5 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
 	}
-	serviceItems, err = dbIns.ListServices(cluster)
+	serviceItems, err = dbIns.ListServices(ctx, cluster)
 	if err != nil || len(serviceItems) != 5 {
 		t.Fatalf("ListServices error %s, serviceItems %s", err, serviceItems)
 	}
@@ -158,11 +161,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 		if !ok {
 			t.Fatalf("unexpected service %s, items %d", svc, serviceItems)
 		}
-		attr, err := dbIns.GetServiceAttr(svc.ServiceUUID)
+		attr, err := dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 		if err != nil || attr.ServiceName != svc.ServiceName {
 			t.Fatalf("get service attr error %s service %s attr %s, expect ", err, svc, attr)
 		}
-		volItems, err := dbIns.ListVolumes(svc.ServiceUUID)
+		volItems, err := dbIns.ListVolumes(ctx, svc.ServiceUUID)
 		if err != nil {
 			t.Fatalf("ListVolumes error %s, serviceUUID %s", err, svc.ServiceUUID)
 		}
@@ -213,13 +216,13 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 			ReplicaConfigs: replicaCfgs,
 		}
 
-		_, err := s.CreateService(req, domain, vpcID)
+		_, err := s.CreateService(ctx, req, domain, vpcID)
 		if err != nil {
 			t.Fatalf("CreateService error %s, cluster %s, service %s taskCount3 %d",
 				err, cluster, service, taskCount3)
 		}
 
-		err = s.SetServiceInitialized(cluster, service)
+		err = s.SetServiceInitialized(ctx, cluster, service)
 		if err != nil {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount3 %d",
 				err, cluster, service, taskCount3)
@@ -230,13 +233,13 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 
 	// list volumes of the service
 	service = servicePrefix + strconv.Itoa(idx-1)
-	vols, err := s.ListVolumes(cluster, service)
+	vols, err := s.ListVolumes(ctx, cluster, service)
 	if err != nil || len(vols) != taskCount3 {
 		t.Fatalf("ListVolumes %s error % vols %s", service, err, vols)
 	}
 
 	// test service deletion
-	err = s.DeleteService(cluster, service)
+	err = s.DeleteService(ctx, cluster, service)
 	if err != nil {
 		t.Fatalf("DeleteService %s error % vols %s", service, err, vols)
 	}
@@ -256,6 +259,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	domain := "example.com"
 	vpcID := "vpc-1"
 	region := "us-west-1"
+
+	ctx := context.Background()
 
 	service := servicePrefix + strconv.Itoa(idx)
 
@@ -283,11 +288,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 
 	// TODO test more cases. for example, service at different status, config file exists.
 	// 1. device item exist
-	dev, err := s.createDevice(cluster, service)
+	dev, err := s.createDevice(ctx, cluster, service)
 	if err != nil || dev != "/dev/loop1" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop1, got %s", err, dev)
 	}
-	svcUUID, err := s.CreateService(req, domain, vpcID)
+	svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
 	if err != nil {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d",
 			err, cluster, service, taskCount)
@@ -296,13 +301,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// 2. device and service item exist
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service)
 	if err != nil || dev != "/dev/loop2" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop2, got %s", err, dev)
 	}
 
 	serviceItem := db.CreateService(cluster, service, "uuid"+service)
-	err = dbIns.CreateService(serviceItem)
+	err = dbIns.CreateService(ctx, serviceItem)
 	if err != nil {
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
@@ -310,7 +315,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// update the ServiceName in CreateServiceRequest
 	req.Service.ServiceName = service
 
-	svcUUID, err = s.CreateService(req, domain, vpcID)
+	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
@@ -319,25 +324,25 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// 3. device and service item exist, the 3rd device, service attr is at creating
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service)
 	if err != nil || dev != "/dev/loop3" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop3, got %s", err, dev)
 	}
 
 	serviceItem = db.CreateService(cluster, service, "uuid"+service)
-	err = dbIns.CreateService(serviceItem)
+	err = dbIns.CreateService(ctx, serviceItem)
 	if err != nil {
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
 
-	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(domain, vpcID, region, true)
+	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(ctx, domain, vpcID, region, true)
 	if err != nil {
 		t.Fatalf("GetOrCreateHostedZoneIDByName error %s, domain %s, vpc %s %s", err, domain, vpcID, region)
 	}
 
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
 		cluster, service, dev, hasMembership, domain, hostedZoneID)
-	err = dbIns.CreateServiceAttr(serviceAttr)
+	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
 	}
@@ -345,7 +350,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// update the ServiceName in CreateServiceRequest
 	req.Service.ServiceName = service
 
-	svcUUID, err = s.CreateService(req, domain, vpcID)
+	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
@@ -354,31 +359,31 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// 4. device and service item exist, the 4th device, service attr is at creating, and one volume created
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service)
 	if err != nil || dev != "/dev/loop4" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop4, got %s", err, dev)
 	}
 
 	serviceItem = db.CreateService(cluster, service, "uuid"+service)
-	err = dbIns.CreateService(serviceItem)
+	err = dbIns.CreateService(ctx, serviceItem)
 	if err != nil {
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
 
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
 		cluster, service, dev, hasMembership, domain, hostedZoneID)
-	err = dbIns.CreateServiceAttr(serviceAttr)
+	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
 	}
 
 	memberName := utils.GenServiceMemberName(service, 0)
-	cfgs, err := s.checkAndCreateConfigFile("uuid"+service, memberName, replicaCfgs[0])
+	cfgs, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, memberName, replicaCfgs[0])
 	if err != nil {
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}
 
-	_, err = s.createServiceVolume("uuid"+service, volSize, az, dev, memberName, cfgs)
+	_, err = s.createServiceVolume(ctx, "uuid"+service, volSize, az, dev, memberName, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceVolume error %s, serviceItem %s", err, serviceItem)
 	}
@@ -386,7 +391,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsI
 	// update the ServiceName in CreateServiceRequest
 	req.Service.ServiceName = service
 
-	svcUUID, err = s.CreateService(req, domain, vpcID)
+	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)

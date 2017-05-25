@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/openconnectio/openmanage/common"
 	"github.com/openconnectio/openmanage/server"
 )
@@ -44,7 +46,7 @@ func GenDefaultDomainName(clusterName string) string {
 }
 
 // RegisterDNSName registers the dns name
-func RegisterDNSName(domainName string, dnsName string, serverInfo server.Info, dnsIns DNS) error {
+func RegisterDNSName(ctx context.Context, domainName string, dnsName string, serverInfo server.Info, dnsIns DNS) error {
 	if !strings.HasSuffix(dnsName, domainName) {
 		return ErrDomainNotFound
 	}
@@ -52,13 +54,13 @@ func RegisterDNSName(domainName string, dnsName string, serverInfo server.Info, 
 	private := true
 	vpcID := serverInfo.GetLocalVpcID()
 	vpcRegion := serverInfo.GetLocalRegion()
-	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(domainName, vpcID, vpcRegion, private)
+	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, vpcRegion, private)
 	if err != nil {
 		return err
 	}
 
 	hostname := serverInfo.GetLocalHostname()
-	return dnsIns.UpdateServiceDNSRecord(dnsName, hostname, hostedZoneID)
+	return dnsIns.UpdateServiceDNSRecord(ctx, dnsName, hostname, hostedZoneID)
 }
 
 // GetDomainNameFromDNSName extracts the domain name from the dns name.

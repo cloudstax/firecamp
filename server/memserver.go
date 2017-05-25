@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
+
 	"github.com/openconnectio/openmanage/common"
 )
 
@@ -27,31 +29,31 @@ func NewMemServer() *MemServer {
 	return s
 }
 
-func (s *MemServer) AttachVolume(volID string, instanceID string, devName string) error {
+func (s *MemServer) AttachVolume(ctx context.Context, volID string, instanceID string, devName string) error {
 	return common.ErrInternal
 }
 
-func (s *MemServer) WaitVolumeAttached(volID string) error {
+func (s *MemServer) WaitVolumeAttached(ctx context.Context, volID string) error {
 	return common.ErrInternal
 }
 
-func (s *MemServer) GetVolumeState(volID string) (state string, err error) {
+func (s *MemServer) GetVolumeState(ctx context.Context, volID string) (state string, err error) {
 	return "", common.ErrInternal
 }
 
-func (s *MemServer) GetVolumeInfo(volID string) (info VolumeInfo, err error) {
+func (s *MemServer) GetVolumeInfo(ctx context.Context, volID string) (info VolumeInfo, err error) {
 	return info, common.ErrInternal
 }
 
-func (s *MemServer) DetachVolume(volID string, instanceID string, devName string) error {
+func (s *MemServer) DetachVolume(ctx context.Context, volID string, instanceID string, devName string) error {
 	return common.ErrInternal
 }
 
-func (s *MemServer) WaitVolumeDetached(volID string) error {
+func (s *MemServer) WaitVolumeDetached(ctx context.Context, volID string) error {
 	return common.ErrInternal
 }
 
-func (s *MemServer) CreateVolume(az string, volSizeGB int64) (volID string, err error) {
+func (s *MemServer) CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -66,11 +68,11 @@ func (s *MemServer) CreateVolume(az string, volSizeGB int64) (volID string, err 
 	return volID, nil
 }
 
-func (s *MemServer) WaitVolumeCreated(volID string) error {
+func (s *MemServer) WaitVolumeCreated(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *MemServer) DeleteVolume(volID string) error {
+func (s *MemServer) DeleteVolume(ctx context.Context, volID string) error {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 

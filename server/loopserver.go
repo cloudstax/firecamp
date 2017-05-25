@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
+
 	"github.com/openconnectio/openmanage/common"
 )
 
@@ -31,7 +33,7 @@ func NewLoopServer() *LoopServer {
 	return s
 }
 
-func (s *LoopServer) AttachVolume(volID string, instanceID string, devName string) error {
+func (s *LoopServer) AttachVolume(ctx context.Context, volID string, instanceID string, devName string) error {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -68,11 +70,11 @@ func (s *LoopServer) AttachVolume(volID string, instanceID string, devName strin
 	return nil
 }
 
-func (s *LoopServer) WaitVolumeAttached(volID string) error {
+func (s *LoopServer) WaitVolumeAttached(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *LoopServer) GetVolumeState(volID string) (state string, err error) {
+func (s *LoopServer) GetVolumeState(ctx context.Context, volID string) (state string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -91,7 +93,7 @@ func (s *LoopServer) GetVolumeState(volID string) (state string, err error) {
 	return VolumeStateInUse, nil
 }
 
-func (s *LoopServer) GetVolumeInfo(volID string) (info VolumeInfo, err error) {
+func (s *LoopServer) GetVolumeInfo(ctx context.Context, volID string) (info VolumeInfo, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -114,7 +116,7 @@ func (s *LoopServer) GetVolumeInfo(volID string) (info VolumeInfo, err error) {
 	return info, nil
 }
 
-func (s *LoopServer) DetachVolume(volID string, instanceID string, devName string) error {
+func (s *LoopServer) DetachVolume(ctx context.Context, volID string, instanceID string, devName string) error {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -151,11 +153,11 @@ func (s *LoopServer) DetachVolume(volID string, instanceID string, devName strin
 	return nil
 }
 
-func (s *LoopServer) WaitVolumeDetached(volID string) error {
+func (s *LoopServer) WaitVolumeDetached(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *LoopServer) CreateVolume(az string, volSizeGB int64) (volID string, err error) {
+func (s *LoopServer) CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
@@ -178,11 +180,11 @@ func (s *LoopServer) CreateVolume(az string, volSizeGB int64) (volID string, err
 	return volID, nil
 }
 
-func (s *LoopServer) WaitVolumeCreated(volID string) error {
+func (s *LoopServer) WaitVolumeCreated(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *LoopServer) DeleteVolume(volID string) error {
+func (s *LoopServer) DeleteVolume(ctx context.Context, volID string) error {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 

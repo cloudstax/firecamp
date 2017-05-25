@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 type vpc struct {
@@ -29,7 +31,7 @@ func NewMockDNS() *MockDNS {
 	}
 }
 
-func (m *MockDNS) GetOrCreateHostedZoneIDByName(domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {
+func (m *MockDNS) GetOrCreateHostedZoneIDByName(ctx context.Context, domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {
 	m.mlock.Lock()
 	defer m.mlock.Unlock()
 
@@ -54,15 +56,15 @@ func (m *MockDNS) GetOrCreateHostedZoneIDByName(domainName string, vpcID string,
 	return zone.ID, nil
 }
 
-func (m *MockDNS) UpdateServiceDNSRecord(dnsName string, hostname string, hostedZoneID string) error {
+func (m *MockDNS) UpdateServiceDNSRecord(ctx context.Context, dnsName string, hostname string, hostedZoneID string) error {
 	return nil
 }
 
-func (m *MockDNS) WaitDNSRecordUpdated(dnsName string, hostname string, hostedZoneID string) (dnsHostname string, err error) {
+func (m *MockDNS) WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostname string, hostedZoneID string) (dnsHostname string, err error) {
 	return hostname, nil
 }
 
-func (m *MockDNS) GetHostedZoneIDByName(domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {
+func (m *MockDNS) GetHostedZoneIDByName(ctx context.Context, domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {
 	m.mlock.Lock()
 	defer m.mlock.Unlock()
 

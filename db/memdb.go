@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/openconnectio/openmanage/common"
 )
@@ -29,19 +30,19 @@ func NewMemDB() *MemDB {
 	return d
 }
 
-func (d *MemDB) CreateSystemTables() error {
+func (d *MemDB) CreateSystemTables(ctx context.Context) error {
 	return nil
 }
 
-func (d *MemDB) SystemTablesReady() (tableStatus string, ready bool, err error) {
+func (d *MemDB) SystemTablesReady(ctx context.Context) (tableStatus string, ready bool, err error) {
 	return TableStatusActive, true, nil
 }
 
-func (d *MemDB) DeleteSystemTables() error {
+func (d *MemDB) DeleteSystemTables(ctx context.Context) error {
 	return nil
 }
 
-func (d *MemDB) CreateDevice(dev *common.Device) error {
+func (d *MemDB) CreateDevice(ctx context.Context, dev *common.Device) error {
 	key := dev.ClusterName + dev.DeviceName
 
 	d.mlock.Lock()
@@ -57,7 +58,7 @@ func (d *MemDB) CreateDevice(dev *common.Device) error {
 	return nil
 }
 
-func (d *MemDB) GetDevice(clusterName string, deviceName string) (dev *common.Device, err error) {
+func (d *MemDB) GetDevice(ctx context.Context, clusterName string, deviceName string) (dev *common.Device, err error) {
 	key := clusterName + deviceName
 
 	d.mlock.Lock()
@@ -71,7 +72,7 @@ func (d *MemDB) GetDevice(clusterName string, deviceName string) (dev *common.De
 	return copyDevice(&cdev), nil
 }
 
-func (d *MemDB) DeleteDevice(clusterName string, deviceName string) error {
+func (d *MemDB) DeleteDevice(ctx context.Context, clusterName string, deviceName string) error {
 	key := clusterName + deviceName
 
 	d.mlock.Lock()
@@ -87,11 +88,11 @@ func (d *MemDB) DeleteDevice(clusterName string, deviceName string) error {
 	return nil
 }
 
-func (d *MemDB) ListDevices(clusterName string) (devs []*common.Device, err error) {
-	return d.listDevicesWithLimit(clusterName, 0)
+func (d *MemDB) ListDevices(ctx context.Context, clusterName string) (devs []*common.Device, err error) {
+	return d.listDevicesWithLimit(ctx, clusterName, 0)
 }
 
-func (d *MemDB) listDevicesWithLimit(clusterName string, limit int64) (devs []*common.Device, err error) {
+func (d *MemDB) listDevicesWithLimit(ctx context.Context, clusterName string, limit int64) (devs []*common.Device, err error) {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -104,7 +105,7 @@ func (d *MemDB) listDevicesWithLimit(clusterName string, limit int64) (devs []*c
 	return devs, nil
 }
 
-func (d *MemDB) CreateService(svc *common.Service) error {
+func (d *MemDB) CreateService(ctx context.Context, svc *common.Service) error {
 	key := svc.ClusterName + svc.ServiceName
 
 	d.mlock.Lock()
@@ -120,7 +121,7 @@ func (d *MemDB) CreateService(svc *common.Service) error {
 	return nil
 }
 
-func (d *MemDB) GetService(clusterName string, serviceName string) (svc *common.Service, err error) {
+func (d *MemDB) GetService(ctx context.Context, clusterName string, serviceName string) (svc *common.Service, err error) {
 	key := clusterName + serviceName
 
 	d.mlock.Lock()
@@ -134,7 +135,7 @@ func (d *MemDB) GetService(clusterName string, serviceName string) (svc *common.
 	return copyService(&csvc), nil
 }
 
-func (d *MemDB) DeleteService(clusterName string, serviceName string) error {
+func (d *MemDB) DeleteService(ctx context.Context, clusterName string, serviceName string) error {
 	key := clusterName + serviceName
 
 	d.mlock.Lock()
@@ -150,11 +151,11 @@ func (d *MemDB) DeleteService(clusterName string, serviceName string) error {
 	return nil
 }
 
-func (d *MemDB) ListServices(clusterName string) (svcs []*common.Service, err error) {
-	return d.listServicesWithLimit(clusterName, 0)
+func (d *MemDB) ListServices(ctx context.Context, clusterName string) (svcs []*common.Service, err error) {
+	return d.listServicesWithLimit(ctx, clusterName, 0)
 }
 
-func (d *MemDB) listServicesWithLimit(clusterName string, limit int64) (svcs []*common.Service, err error) {
+func (d *MemDB) listServicesWithLimit(ctx context.Context, clusterName string, limit int64) (svcs []*common.Service, err error) {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -167,7 +168,7 @@ func (d *MemDB) listServicesWithLimit(clusterName string, limit int64) (svcs []*
 	return svcs, nil
 }
 
-func (d *MemDB) CreateServiceAttr(attr *common.ServiceAttr) error {
+func (d *MemDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -181,7 +182,7 @@ func (d *MemDB) CreateServiceAttr(attr *common.ServiceAttr) error {
 	return nil
 }
 
-func (d *MemDB) UpdateServiceAttr(oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
+func (d *MemDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -195,7 +196,7 @@ func (d *MemDB) UpdateServiceAttr(oldAttr *common.ServiceAttr, newAttr *common.S
 	return nil
 }
 
-func (d *MemDB) GetServiceAttr(serviceUUID string) (attr *common.ServiceAttr, err error) {
+func (d *MemDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr *common.ServiceAttr, err error) {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -208,7 +209,7 @@ func (d *MemDB) GetServiceAttr(serviceUUID string) (attr *common.ServiceAttr, er
 	return copyServiceAttr(&cattr), nil
 }
 
-func (d *MemDB) DeleteServiceAttr(serviceUUID string) error {
+func (d *MemDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) error {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -222,7 +223,7 @@ func (d *MemDB) DeleteServiceAttr(serviceUUID string) error {
 	return nil
 }
 
-func (d *MemDB) CreateVolume(vol *common.Volume) error {
+func (d *MemDB) CreateVolume(ctx context.Context, vol *common.Volume) error {
 	key := vol.ServiceUUID + vol.VolumeID
 
 	d.mlock.Lock()
@@ -238,7 +239,7 @@ func (d *MemDB) CreateVolume(vol *common.Volume) error {
 	return nil
 }
 
-func (d *MemDB) UpdateVolume(oldVol *common.Volume, newVol *common.Volume) error {
+func (d *MemDB) UpdateVolume(ctx context.Context, oldVol *common.Volume, newVol *common.Volume) error {
 	key := oldVol.ServiceUUID + oldVol.VolumeID
 
 	d.mlock.Lock()
@@ -258,7 +259,7 @@ func (d *MemDB) UpdateVolume(oldVol *common.Volume, newVol *common.Volume) error
 	return nil
 }
 
-func (d *MemDB) GetVolume(serviceUUID string, volumeID string) (vol *common.Volume, err error) {
+func (d *MemDB) GetVolume(ctx context.Context, serviceUUID string, volumeID string) (vol *common.Volume, err error) {
 	key := serviceUUID + volumeID
 
 	d.mlock.Lock()
@@ -273,11 +274,11 @@ func (d *MemDB) GetVolume(serviceUUID string, volumeID string) (vol *common.Volu
 	return copyVolume(&cvol), nil
 }
 
-func (d *MemDB) ListVolumes(serviceUUID string) (vols []*common.Volume, err error) {
-	return d.listVolumesWithLimit(serviceUUID, 0)
+func (d *MemDB) ListVolumes(ctx context.Context, serviceUUID string) (vols []*common.Volume, err error) {
+	return d.listVolumesWithLimit(ctx, serviceUUID, 0)
 }
 
-func (d *MemDB) listVolumesWithLimit(serviceUUID string, limit int64) (vols []*common.Volume, err error) {
+func (d *MemDB) listVolumesWithLimit(ctx context.Context, serviceUUID string, limit int64) (vols []*common.Volume, err error) {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
@@ -289,7 +290,7 @@ func (d *MemDB) listVolumesWithLimit(serviceUUID string, limit int64) (vols []*c
 	return vols, nil
 }
 
-func (d *MemDB) DeleteVolume(serviceUUID string, volumeID string) error {
+func (d *MemDB) DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error {
 	key := serviceUUID + volumeID
 
 	d.mlock.Lock()
@@ -305,7 +306,7 @@ func (d *MemDB) DeleteVolume(serviceUUID string, volumeID string) error {
 	return nil
 }
 
-func (d *MemDB) CreateConfigFile(cfg *common.ConfigFile) error {
+func (d *MemDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error {
 	key := cfg.ServiceUUID + cfg.FileID
 
 	d.mlock.Lock()
@@ -321,7 +322,7 @@ func (d *MemDB) CreateConfigFile(cfg *common.ConfigFile) error {
 	return nil
 }
 
-func (d *MemDB) GetConfigFile(serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
+func (d *MemDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
 	key := serviceUUID + fileID
 
 	d.mlock.Lock()
@@ -336,7 +337,7 @@ func (d *MemDB) GetConfigFile(serviceUUID string, fileID string) (cfg *common.Co
 	return copyConfigFile(&c), nil
 }
 
-func (d *MemDB) DeleteConfigFile(serviceUUID string, fileID string) error {
+func (d *MemDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error {
 	key := serviceUUID + fileID
 
 	d.mlock.Lock()

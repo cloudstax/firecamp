@@ -133,26 +133,20 @@ func (c *ControlDBCli) checkAndConvertError(err error) error {
 	return err
 }
 
-func (c *ControlDBCli) CreateSystemTables() error {
+func (c *ControlDBCli) CreateSystemTables(ctx context.Context) error {
 	return nil
 }
 
-func (c *ControlDBCli) SystemTablesReady() (tableStatus string, ready bool, err error) {
+func (c *ControlDBCli) SystemTablesReady(ctx context.Context) (tableStatus string, ready bool, err error) {
 	return db.TableStatusActive, true, nil
 }
 
-func (c *ControlDBCli) DeleteSystemTables() error {
+func (c *ControlDBCli) DeleteSystemTables(ctx context.Context) error {
 	return nil
 }
 
-func (c *ControlDBCli) CreateDevice(dev *common.Device) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) CreateDevice(ctx context.Context, dev *common.Device) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	pbdev := controldb.GenPbDevice(dev)
@@ -176,14 +170,8 @@ func (c *ControlDBCli) CreateDevice(dev *common.Device) error {
 	return err
 }
 
-func (c *ControlDBCli) GetDevice(clusterName string, deviceName string) (dev *common.Device, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) GetDevice(ctx context.Context, clusterName string, deviceName string) (dev *common.Device, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.DeviceKey{
 		ClusterName: clusterName,
@@ -209,14 +197,8 @@ func (c *ControlDBCli) GetDevice(clusterName string, deviceName string) (dev *co
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteDevice(clusterName string, deviceName string) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) DeleteDevice(ctx context.Context, clusterName string, deviceName string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.DeviceKey{
@@ -242,7 +224,7 @@ func (c *ControlDBCli) DeleteDevice(clusterName string, deviceName string) error
 	return err
 }
 
-func (c *ControlDBCli) listDevices(clusterName string, cli *pbclient, ctx context.Context,
+func (c *ControlDBCli) listDevices(ctx context.Context, clusterName string, cli *pbclient,
 	req *pb.ListDeviceRequest, requuid string) (devs []*common.Device, err error) {
 	stream, err := cli.dbcli.ListDevices(ctx, req)
 	if err != nil {
@@ -274,21 +256,15 @@ func (c *ControlDBCli) listDevices(clusterName string, cli *pbclient, ctx contex
 	return devs, nil
 }
 
-func (c *ControlDBCli) ListDevices(clusterName string) (devs []*common.Device, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) ListDevices(ctx context.Context, clusterName string) (devs []*common.Device, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	req := &pb.ListDeviceRequest{
 		ClusterName: clusterName,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		devs, err = c.listDevices(clusterName, cli, ctx, req, requuid)
+		devs, err = c.listDevices(ctx, clusterName, cli, req, requuid)
 		if err == nil {
 			return devs, nil
 		}
@@ -304,14 +280,8 @@ func (c *ControlDBCli) ListDevices(clusterName string) (devs []*common.Device, e
 	return nil, err
 }
 
-func (c *ControlDBCli) CreateService(svc *common.Service) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) CreateService(ctx context.Context, svc *common.Service) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	pbsvc := controldb.GenPbService(svc)
@@ -334,14 +304,8 @@ func (c *ControlDBCli) CreateService(svc *common.Service) error {
 	return err
 }
 
-func (c *ControlDBCli) GetService(clusterName string, serviceName string) (svc *common.Service, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) GetService(ctx context.Context, clusterName string, serviceName string) (svc *common.Service, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.ServiceKey{
 		ClusterName: clusterName,
@@ -366,14 +330,8 @@ func (c *ControlDBCli) GetService(clusterName string, serviceName string) (svc *
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteService(clusterName string, serviceName string) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) DeleteService(ctx context.Context, clusterName string, serviceName string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.ServiceKey{
@@ -399,7 +357,7 @@ func (c *ControlDBCli) DeleteService(clusterName string, serviceName string) err
 	return err
 }
 
-func (c *ControlDBCli) listServices(clusterName string, cli *pbclient, ctx context.Context,
+func (c *ControlDBCli) listServices(ctx context.Context, clusterName string, cli *pbclient,
 	req *pb.ListServiceRequest, requuid string) (svcs []*common.Service, err error) {
 	stream, err := cli.dbcli.ListServices(ctx, req)
 	if err != nil {
@@ -431,14 +389,8 @@ func (c *ControlDBCli) listServices(clusterName string, cli *pbclient, ctx conte
 	return svcs, nil
 }
 
-func (c *ControlDBCli) ListServices(clusterName string) (svcs []*common.Service, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) ListServices(ctx context.Context, clusterName string) (svcs []*common.Service, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	req := &pb.ListServiceRequest{
 		ClusterName: clusterName,
@@ -446,7 +398,7 @@ func (c *ControlDBCli) ListServices(clusterName string) (svcs []*common.Service,
 
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		svcs, err = c.listServices(clusterName, cli, ctx, req, requuid)
+		svcs, err = c.listServices(ctx, clusterName, cli, req, requuid)
 		if err == nil {
 			return svcs, nil
 		}
@@ -462,14 +414,8 @@ func (c *ControlDBCli) ListServices(clusterName string) (svcs []*common.Service,
 	return nil, err
 }
 
-func (c *ControlDBCli) CreateServiceAttr(attr *common.ServiceAttr) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	pbattr := controldb.GenPbServiceAttr(attr)
@@ -492,14 +438,8 @@ func (c *ControlDBCli) CreateServiceAttr(attr *common.ServiceAttr) error {
 	return err
 }
 
-func (c *ControlDBCli) UpdateServiceAttr(oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	req := &pb.UpdateServiceAttrRequest{
@@ -525,14 +465,8 @@ func (c *ControlDBCli) UpdateServiceAttr(oldAttr *common.ServiceAttr, newAttr *c
 	return err
 }
 
-func (c *ControlDBCli) GetServiceAttr(serviceUUID string) (attr *common.ServiceAttr, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) GetServiceAttr(ctx context.Context, serviceUUID string) (attr *common.ServiceAttr, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.ServiceAttrKey{
 		ServiceUUID: serviceUUID,
@@ -556,14 +490,8 @@ func (c *ControlDBCli) GetServiceAttr(serviceUUID string) (attr *common.ServiceA
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteServiceAttr(serviceUUID string) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) DeleteServiceAttr(ctx context.Context, serviceUUID string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.ServiceAttrKey{
@@ -588,14 +516,8 @@ func (c *ControlDBCli) DeleteServiceAttr(serviceUUID string) error {
 	return err
 }
 
-func (c *ControlDBCli) CreateVolume(vol *common.Volume) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) CreateVolume(ctx context.Context, vol *common.Volume) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	pbvol := controldb.GenPbVolume(vol)
@@ -618,14 +540,8 @@ func (c *ControlDBCli) CreateVolume(vol *common.Volume) error {
 	return err
 }
 
-func (c *ControlDBCli) UpdateVolume(oldVol *common.Volume, newVol *common.Volume) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) UpdateVolume(ctx context.Context, oldVol *common.Volume, newVol *common.Volume) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	req := &pb.UpdateVolumeRequest{
@@ -651,14 +567,8 @@ func (c *ControlDBCli) UpdateVolume(oldVol *common.Volume, newVol *common.Volume
 	return err
 }
 
-func (c *ControlDBCli) GetVolume(serviceUUID string, volumeID string) (vol *common.Volume, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) GetVolume(ctx context.Context, serviceUUID string, volumeID string) (vol *common.Volume, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.VolumeKey{
 		ServiceUUID: serviceUUID,
@@ -683,14 +593,8 @@ func (c *ControlDBCli) GetVolume(serviceUUID string, volumeID string) (vol *comm
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteVolume(serviceUUID string, volumeID string) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.VolumeKey{
@@ -716,7 +620,7 @@ func (c *ControlDBCli) DeleteVolume(serviceUUID string, volumeID string) error {
 	return err
 }
 
-func (c *ControlDBCli) listVolumes(serviceUUID string, cli *pbclient, ctx context.Context,
+func (c *ControlDBCli) listVolumes(ctx context.Context, serviceUUID string, cli *pbclient,
 	req *pb.ListVolumeRequest, requuid string) (vols []*common.Volume, err error) {
 	stream, err := cli.dbcli.ListVolumes(ctx, req)
 	if err != nil {
@@ -747,21 +651,15 @@ func (c *ControlDBCli) listVolumes(serviceUUID string, cli *pbclient, ctx contex
 	return vols, nil
 }
 
-func (c *ControlDBCli) ListVolumes(serviceUUID string) (vols []*common.Volume, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) ListVolumes(ctx context.Context, serviceUUID string) (vols []*common.Volume, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	req := &pb.ListVolumeRequest{
 		ServiceUUID: serviceUUID,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		vols, err = c.listVolumes(serviceUUID, cli, ctx, req, requuid)
+		vols, err = c.listVolumes(ctx, serviceUUID, cli, req, requuid)
 		if err == nil {
 			return vols, nil
 		}
@@ -777,14 +675,8 @@ func (c *ControlDBCli) ListVolumes(serviceUUID string) (vols []*common.Volume, e
 	return nil, err
 }
 
-func (c *ControlDBCli) CreateConfigFile(cfg *common.ConfigFile) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	pbcfg := controldb.GenPbConfigFile(cfg)
@@ -807,14 +699,8 @@ func (c *ControlDBCli) CreateConfigFile(cfg *common.ConfigFile) error {
 	return err
 }
 
-func (c *ControlDBCli) GetConfigFile(serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.ConfigFileKey{
 		ServiceUUID: serviceUUID,
@@ -839,14 +725,8 @@ func (c *ControlDBCli) GetConfigFile(serviceUUID string, fileID string) (cfg *co
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteConfigFile(serviceUUID string, fileID string) error {
-	requuid := utils.GenRequestUUID()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx = utils.NewRequestContext(ctx, requuid)
-	// call cancel before return. This is to ensure any resource derived
-	// from the context will be canceled.
-	defer cancel()
+func (c *ControlDBCli) DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.ConfigFileKey{

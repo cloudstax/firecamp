@@ -1,9 +1,15 @@
 package server
 
-import "errors"
+import (
+	"errors"
 
-var ErrVolumeIncorrectState = errors.New("IncorrectState")
-var ErrVolumeInUse = errors.New("VolumeInUse")
+	"golang.org/x/net/context"
+)
+
+var (
+	ErrVolumeIncorrectState = errors.New("IncorrectState")
+	ErrVolumeInUse          = errors.New("VolumeInUse")
+)
 
 // http://docs.aws.amazon.com/cli/latest/reference/ec2/describe-volumes.html
 // EBS volume has 2 states,
@@ -26,6 +32,7 @@ const (
 	VolumeTypeIOPSSSD = "io1"
 )
 
+// VolumeInfo records the volume's information.
 type VolumeInfo struct {
 	VolID string
 	State string
@@ -38,15 +45,15 @@ type VolumeInfo struct {
 
 // Server defines the volume and device related operations for one host such as EC2
 type Server interface {
-	AttachVolume(volID string, instanceID string, devName string) error
-	WaitVolumeAttached(volID string) error
-	GetVolumeState(volID string) (state string, err error)
-	GetVolumeInfo(volID string) (info VolumeInfo, err error)
-	DetachVolume(volID string, instanceID string, devName string) error
-	WaitVolumeDetached(volID string) error
-	CreateVolume(az string, volSizeGB int64) (volID string, err error)
-	WaitVolumeCreated(volID string) error
-	DeleteVolume(volID string) error
+	AttachVolume(ctx context.Context, volID string, instanceID string, devName string) error
+	WaitVolumeAttached(ctx context.Context, volID string) error
+	GetVolumeState(ctx context.Context, volID string) (state string, err error)
+	GetVolumeInfo(ctx context.Context, volID string) (info VolumeInfo, err error)
+	DetachVolume(ctx context.Context, volID string, instanceID string, devName string) error
+	WaitVolumeDetached(ctx context.Context, volID string) error
+	CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error)
+	WaitVolumeCreated(ctx context.Context, volID string) error
+	DeleteVolume(ctx context.Context, volID string) error
 
 	GetControlDBDeviceName() string
 	GetFirstDeviceName() string
