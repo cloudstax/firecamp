@@ -14,7 +14,7 @@ import (
 	"github.com/openconnectio/openmanage/utils"
 )
 
-func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
+func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 	cluster := "cluster1"
 	servicePrefix := "service-"
 	service := "service-0"
@@ -245,7 +245,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *SCService, dbIns db.DB) {
 	}
 }
 
-func TestUtil_ServiceCreationRetry(t *testing.T, s *SCService, dbIns db.DB, dnsIns dns.DNS) {
+func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS) {
 	cluster := "cluster1"
 	az := "az-west"
 	servicePrefix := "service-"

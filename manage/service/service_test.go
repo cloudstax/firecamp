@@ -35,7 +35,7 @@ func TestDeviceName(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverIns := awsec2.NewAWSEc2(sess)
 	dnsIns := dns.NewMockDNS()
-	s := NewSCService(dbIns, serverIns, dnsIns)
+	s := NewManageService(dbIns, serverIns, dnsIns)
 
 	ctx := context.Background()
 
@@ -92,7 +92,7 @@ func TestServiceCreation(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewSCService(dbIns, serverIns, dnsIns)
+	s := NewManageService(dbIns, serverIns, dnsIns)
 	TestUtil_ServiceCreateion(t, s, dbIns)
 }
 
@@ -103,6 +103,6 @@ func TestServiceCreationRetry(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewSCService(dbIns, serverIns, dnsIns)
+	s := NewManageService(dbIns, serverIns, dnsIns)
 	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns)
 }

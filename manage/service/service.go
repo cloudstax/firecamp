@@ -43,16 +43,16 @@ const (
 
 var errServiceHasDevice = errors.New("device is already assigned to service")
 
-// SCService implements the service creation detail
-type SCService struct {
+// ManageService implements the service operation details.
+type ManageService struct {
 	dbIns     db.DB
 	serverIns server.Server
 	dnsIns    dns.DNS
 }
 
-// NewSCService allocates a SCService instance
-func NewSCService(dbIns db.DB, serverIns server.Server, dnsIns dns.DNS) *SCService {
-	return &SCService{
+// NewManageService allocates a ManageService instance
+func NewManageService(dbIns db.DB, serverIns server.Server, dnsIns dns.DNS) *ManageService {
+	return &ManageService{
 		dbIns:     dbIns,
 		serverIns: serverIns,
 		dnsIns:    dnsIns,
@@ -61,7 +61,7 @@ func NewSCService(dbIns db.DB, serverIns server.Server, dnsIns dns.DNS) *SCServi
 
 // CreateService implements step 2.
 // The cfgFileContents could either be one content for all replicas or one for each replica.
-func (s *SCService) CreateService(ctx context.Context, req *manage.CreateServiceRequest,
+func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateServiceRequest,
 	domainName string, vpcID string) (serviceUUID string, err error) {
 	// check args
 	if len(req.Service.Cluster) == 0 || len(req.Service.ServiceName) == 0 ||
@@ -154,7 +154,7 @@ func (s *SCService) CreateService(ctx context.Context, req *manage.CreateService
 }
 
 // SetServiceInitialized updates the service status from INITIALIZING to ACTIVE
-func (s *SCService) SetServiceInitialized(ctx context.Context, cluster string, servicename string) error {
+func (s *ManageService) SetServiceInitialized(ctx context.Context, cluster string, servicename string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	svc, err := s.dbIns.GetService(ctx, cluster, servicename)
@@ -205,7 +205,7 @@ func (s *SCService) SetServiceInitialized(ctx context.Context, cluster string, s
 // ListVolumes return all volumes of the service. DeleteService will not delete the
 // actual volume in cloud, such as EBS. Customer should ListVolumes before DeleteService,
 // and delete the actual volume manually.
-func (s *SCService) ListVolumes(ctx context.Context, cluster string, service string) (volumes []string, err error) {
+func (s *ManageService) ListVolumes(ctx context.Context, cluster string, service string) (volumes []string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get service
@@ -232,12 +232,12 @@ func (s *SCService) ListVolumes(ctx context.Context, cluster string, service str
 }
 
 // DeleteVolume actually deletes one volume
-func (s *SCService) DeleteVolume(ctx context.Context, volID string) error {
+func (s *ManageService) DeleteVolume(ctx context.Context, volID string) error {
 	return s.serverIns.DeleteVolume(ctx, volID)
 }
 
 // GetServiceUUID gets the serviceUUID
-func (s *SCService) GetServiceUUID(ctx context.Context, cluster string, service string) (serviceUUID string, err error) {
+func (s *ManageService) GetServiceUUID(ctx context.Context, cluster string, service string) (serviceUUID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get service
@@ -250,12 +250,12 @@ func (s *SCService) GetServiceUUID(ctx context.Context, cluster string, service 
 }
 
 // ListClusters lists all clusters in the system
-func (s *SCService) ListClusters(ctx context.Context) ([]string, error) {
+func (s *ManageService) ListClusters(ctx context.Context) ([]string, error) {
 	return nil, nil
 }
 
 // ListServices lists all services of the cluster
-func (s *SCService) ListServices(ctx context.Context, cluster string) (svcs []*common.Service, err error) {
+func (s *ManageService) ListServices(ctx context.Context, cluster string) (svcs []*common.Service, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	svcs, err = s.dbIns.ListServices(ctx, cluster)
@@ -273,7 +273,7 @@ func (s *SCService) ListServices(ctx context.Context, cluster string) (svcs []*c
 //   - caller should check whether service is really stopped in ECS.
 //   - the actual cloud volumes of this service are not deleted, customer needs
 //     to delete them manually.
-func (s *SCService) DeleteService(ctx context.Context, cluster string, service string) error {
+func (s *ManageService) DeleteService(ctx context.Context, cluster string, service string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get service
@@ -371,12 +371,12 @@ func (s *SCService) DeleteService(ctx context.Context, cluster string, service s
 
 // DeleteSystemTables deletes all system tables.
 // User has to delete all services first.
-func (s *SCService) DeleteSystemTables(ctx context.Context) error {
+func (s *ManageService) DeleteSystemTables(ctx context.Context) error {
 	// TODO check if any service is still in system.
 	return s.dbIns.DeleteSystemTables(ctx)
 }
 
-func (s *SCService) checkAndCreateSystemTables(ctx context.Context) error {
+func (s *ManageService) checkAndCreateSystemTables(ctx context.Context) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get system table status
@@ -428,7 +428,7 @@ func (s *SCService) checkAndCreateSystemTables(ctx context.Context) error {
 
 // lists device items, assigns the next block device name to the service,
 // and creates the device item in DB.
-func (s *SCService) createDevice(ctx context.Context, cluster string, service string) (devName string, err error) {
+func (s *ManageService) createDevice(ctx context.Context, cluster string, service string) (devName string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	for i := 0; i < maxRetryCount; i++ {
@@ -467,7 +467,7 @@ func (s *SCService) createDevice(ctx context.Context, cluster string, service st
 	return "", common.ErrInternal
 }
 
-func (s *SCService) createService(ctx context.Context, cluster string, service string) (serviceUUID string, err error) {
+func (s *ManageService) createService(ctx context.Context, cluster string, service string) (serviceUUID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// generate service uuid
@@ -497,7 +497,7 @@ func (s *SCService) createService(ctx context.Context, cluster string, service s
 	return currItem.ServiceUUID, nil
 }
 
-func (s *SCService) assignDeviceName(ctx context.Context, cluster string, service string) (devName string, err error) {
+func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, service string) (devName string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list current device items
@@ -551,7 +551,7 @@ func (s *SCService) assignDeviceName(ctx context.Context, cluster string, servic
 	return s.serverIns.GetNextDeviceName(lastDev)
 }
 
-func (s *SCService) checkAndCreateServiceAttr(ctx context.Context, serviceUUID string, deviceName string,
+func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUUID string, deviceName string,
 	domainName string, hostedZoneID string, req *manage.CreateServiceRequest) (serviceCreated bool, sattr *common.ServiceAttr, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -616,7 +616,7 @@ func (s *SCService) checkAndCreateServiceAttr(ctx context.Context, serviceUUID s
 	}
 }
 
-func (s *SCService) checkAndCreateServiceVolumes(ctx context.Context, serviceUUID string, devName string,
+func (s *ManageService) checkAndCreateServiceVolumes(ctx context.Context, serviceUUID string, devName string,
 	req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -678,7 +678,7 @@ func (s *SCService) checkAndCreateServiceVolumes(ctx context.Context, serviceUUI
 	return nil
 }
 
-func (s *SCService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string, memberName string,
+func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string, memberName string,
 	replicaCfg *manage.ReplicaConfig) ([]*common.MemberConfig, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -698,7 +698,7 @@ func (s *SCService) checkAndCreateConfigFile(ctx context.Context, serviceUUID st
 	return configs, nil
 }
 
-func (s *SCService) createConfigFile(ctx context.Context, serviceUUID string, fileID string,
+func (s *ManageService) createConfigFile(ctx context.Context, serviceUUID string, fileID string,
 	cfg *manage.ReplicaConfigFile) (*common.ConfigFile, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -733,7 +733,7 @@ func (s *SCService) createConfigFile(ctx context.Context, serviceUUID string, fi
 	return currcfg, nil
 }
 
-func (s *SCService) createServiceVolume(ctx context.Context, serviceUUID string, volSize int64, az string,
+func (s *ManageService) createServiceVolume(ctx context.Context, serviceUUID string, volSize int64, az string,
 	devName string, memberName string, cfgs []*common.MemberConfig) (vol *common.Volume, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
