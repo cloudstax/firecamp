@@ -25,7 +25,7 @@ type CommonOptions struct {
 	ServiceName    string
 	ServiceUUID    string
 	ContainerImage string
-	Resource       common.Resources
+	Resource       *common.Resources
 }
 
 type CreateServiceOptions struct {

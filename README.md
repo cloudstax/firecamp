@@ -22,6 +22,10 @@ The OpenManage platform is one step towards the free serverless computing. The c
 
 **GEO access and protection**: The platform could manage the service membership across multiple Regions, and support backup data to the remote region.
 
+**Security**: The platform will automatically apply the best practices to achieve the better security. For example, in the same AWS region, the platform will restrict the access to the EC2 instances where the stateful services run on. Only the EC2 instances in the allowed security group could access the stateful services. The customer should have the application running on the EC2 of that security group.
+
+**Service Aware Monitoring**: No matter where the container of one service member moves and how many times it move, the platform keeps tracking the member's logs and metrics for the member. The platform will also track the containers of different services running on the same host, and correlate them for the troubleshooting.
+
 ## How does it work?
 
 The stateful services have 2 basic requirements: membership and data. When one member moves from one node to another, the member should be able to join back the cluster as the original member. Different services have different ways to achieve this. One common way is: every member keeps a well-known DNS name. When the member moves, the DNS record is updated to the new IP address.

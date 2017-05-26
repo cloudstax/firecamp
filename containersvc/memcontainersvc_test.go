@@ -38,7 +38,7 @@ func TestMemContainerSvc(t *testing.T) {
 		ServiceName:    service1,
 		ServiceUUID:    service1 + "uuid",
 		ContainerImage: TestBusyBoxContainerImage,
-		Resource: common.Resources{
+		Resource: &common.Resources{
 			MaxCPUUnits:     int64(0),
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
@@ -81,7 +81,7 @@ func serviceTest(ctx context.Context, t *testing.T, e *MemContainerSvc, cluster 
 		ServiceName:    service,
 		ServiceUUID:    service + "uuid",
 		ContainerImage: TestBusyBoxContainerImage,
-		Resource: common.Resources{
+		Resource: &common.Resources{
 			MaxCPUUnits:     int64(0),
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),

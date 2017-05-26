@@ -11,10 +11,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/aws/ec2"
 	"github.com/openconnectio/openmanage/db"
 	"github.com/openconnectio/openmanage/dns"
 	"github.com/openconnectio/openmanage/server"
+	"github.com/openconnectio/openmanage/server/awsec2"
 )
 
 // TODO more test to cover every function in service.go
