@@ -75,3 +75,23 @@ func (m *MockDNS) GetHostedZoneIDByName(ctx context.Context, domainName string, 
 	}
 	return "", ErrDomainNotFound
 }
+
+func (m *MockDNS) DeleteHostedZone(ctx context.Context, hostedZoneID string) error {
+	m.mlock.Lock()
+	defer m.mlock.Unlock()
+
+	key := ""
+	for k, v := range m.hostedZoneMap {
+		if v.ID == hostedZoneID {
+			key = k
+			break
+		}
+	}
+
+	if key == "" {
+		return ErrHostedZoneNotFound
+	}
+
+	delete(m.hostedZoneMap, key)
+	return nil
+}

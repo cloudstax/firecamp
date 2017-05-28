@@ -36,4 +36,14 @@ func TestDNS(t *testing.T) {
 		t.Fatalf("CreateHostedZone expected hostedZoneID %s, but got id %s error %s, for domain %s",
 			hostedZoneID, id1, err, domain)
 	}
+
+	err = d.DeleteHostedZone(ctx, hostedZoneID)
+	if err != nil {
+		t.Fatalf("DeleteHostedZone error %s", err)
+	}
+
+	err = d.DeleteHostedZone(ctx, hostedZoneID)
+	if err != ErrHostedZoneNotFound {
+		t.Fatalf("Delete unexist HostedZone, expect ErrHostedZoneNotFound, got error %s", err)
+	}
 }
