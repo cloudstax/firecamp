@@ -45,14 +45,13 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		for i := 0; i < taskCount1; i++ {
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
 				Region:      region,
-				Zone:        az,
 				Cluster:     cluster,
 				ServiceName: service,
 			},
@@ -120,7 +119,6 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
 				Region:      region,
-				Zone:        az,
 				Cluster:     cluster,
 				ServiceName: service,
 			},
@@ -206,7 +204,6 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
 				Region:      region,
-				Zone:        az,
 				Cluster:     cluster,
 				ServiceName: service,
 			},
@@ -276,7 +273,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
-			Zone:        az,
 			Cluster:     cluster,
 			ServiceName: service,
 		},

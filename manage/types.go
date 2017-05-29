@@ -8,6 +8,7 @@ const (
 	// special service operations
 	SpecialOpPrefix      = "?"
 	ListServiceOp        = SpecialOpPrefix + "List-Service"
+	ListVolumeOp         = SpecialOpPrefix + "List-Volume"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
 	RunTaskOp            = SpecialOpPrefix + "Run-Task"
@@ -21,23 +22,25 @@ const (
 	JsonContentType = "application/json"
 )
 
-// ReplicaConfig contains the required config files for one replica
+// ReplicaConfig contains the required config files for one replica.
 type ReplicaConfig struct {
+	// The availability zone this replica should run.
+	Zone string
+	// The detail config files for this replica.
 	Configs []*ReplicaConfigFile
 }
 
-// ReplicaConfigFile contains the detail config file name and content
+// ReplicaConfigFile contains the detail config file name and content.
 type ReplicaConfigFile struct {
 	FileName string
 	Content  string
 }
 
 // ServiceCommonRequest contains the common service parameters.
-// region, az and cluster are for the management service to verify
-// the request is sent to the correct server
+// region and cluster are for the management service to verify
+// the request is sent to the correct server.
 type ServiceCommonRequest struct {
 	Region      string
-	Zone        string
 	Cluster     string
 	ServiceName string
 }
@@ -73,13 +76,22 @@ type GetServiceStatusResponse struct {
 	Status *common.ServiceStatus
 }
 
+// ListVolumeRequest lists the volumes of one service
+type ListVolumeRequest struct {
+	Service *ServiceCommonRequest
+}
+
+// ListVolumeResponse returns the volumes of one service
+type ListVolumeResponse struct {
+	Volumes []*common.Volume
+}
+
 // ListServiceRequest lists the services according to the filter.
 // TODO change "Prefix" to the common filter.
 type ListServiceRequest struct {
 	// region, az and cluster are for the management service to verify
 	// the request is sent to the correct server
 	Region  string
-	Zone    string
 	Cluster string
 
 	// The prefix of the service name

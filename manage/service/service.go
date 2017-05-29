@@ -65,8 +65,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	domainName string, vpcID string) (serviceUUID string, err error) {
 	// check args
 	if len(req.Service.Cluster) == 0 || len(req.Service.ServiceName) == 0 ||
-		len(req.Service.Zone) == 0 || len(req.Service.Region) == 0 ||
-		req.Replicas <= 0 || req.VolumeSizeGB <= 0 || len(vpcID) == 0 {
+		len(req.Service.Region) == 0 || req.Replicas <= 0 || req.VolumeSizeGB <= 0 || len(vpcID) == 0 {
 		glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.VolumeSizeGB, "vpc", vpcID)
 		return "", common.ErrInvalidArgs
 	}
@@ -648,20 +647,23 @@ func (s *ManageService) checkAndCreateServiceVolumes(ctx context.Context, servic
 		replicaCfg := req.ReplicaConfigs[i]
 		cfgs, err := s.checkAndCreateConfigFile(ctx, serviceUUID, memberName, replicaCfg)
 		if err != nil {
-			glog.Errorln("checkAndCreateConfigFile error", err, "service", serviceUUID, "member", memberName, "requuid", requuid)
+			glog.Errorln("checkAndCreateConfigFile error", err, "service", serviceUUID,
+				"member", memberName, "requuid", requuid)
 			return err
 		}
 
-		vol, err := s.createServiceVolume(ctx, serviceUUID, req.VolumeSizeGB, req.Service.Zone, devName, memberName, cfgs)
+		vol, err := s.createServiceVolume(ctx, serviceUUID, req.VolumeSizeGB,
+			req.ReplicaConfigs[i].Zone, devName, memberName, cfgs)
 		if err != nil {
 			glog.Errorln("create volume failed, serviceUUID", serviceUUID, "member", memberName,
-				"az", req.Service.Zone, "error", err, "requuid", requuid)
+				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
 			return err
 		}
 		allVols[i] = vol
 	}
 
-	glog.Infoln("created", req.Replicas-int64(len(vols)), "volumes for serviceUUID", serviceUUID, req.Service, "requuid", requuid)
+	glog.Infoln("created", req.Replicas-int64(len(vols)), "volumes for serviceUUID",
+		serviceUUID, req.Service, "requuid", requuid)
 
 	// EBS volume creation is async in the background. volume state will be creating,
 	// then available. block waiting here, as EBS volume creation is pretty fast,

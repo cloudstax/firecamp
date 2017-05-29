@@ -1,0 +1,311 @@
+package client
+
+import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"net/http"
+
+	"golang.org/x/net/context"
+
+	"github.com/openconnectio/openmanage/common"
+	"github.com/openconnectio/openmanage/manage"
+)
+
+// ManageClient is the client to talk with the management service.
+type ManageClient struct {
+	serverURL string
+	cli       *http.Client
+}
+
+// NewManageClient creates a new ManageClient instance.
+// Example serverURL: https://www.scmanage.com:port/
+func NewManageClient(serverURL string, tlsConf *tls.Config) *ManageClient {
+	cli := &http.Client{}
+	if tlsConf != nil {
+		tr := &http.Transport{TLSClientConfig: tlsConf}
+		cli = &http.Client{Transport: tr}
+	}
+
+	c := &ManageClient{
+		serverURL: serverURL,
+		cli:       cli,
+	}
+	return c
+}
+
+func (c *ManageClient) closeRespBody(resp *http.Response) {
+	if resp.Body != nil {
+		resp.Body.Close()
+	}
+}
+
+// CreateService creates a new service
+func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServiceRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + r.Service.ServiceName
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
+// GetServiceAttr gets the service details information
+func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + r.ServiceName
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.GetServiceAttributesResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.Service, err
+}
+
+// GetServiceStatus gets the service running status.
+func (c *ManageClient) GetServiceStatus(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceStatus, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.GetServiceStatusOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &common.ServiceStatus{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res, err
+}
+
+// IsServiceInitialized checks whether the service is initialized
+func (c *ManageClient) IsServiceInitialized(ctx context.Context, r *manage.ServiceCommonRequest) (bool, error) {
+	attr, err := c.GetServiceAttr(ctx, r)
+	if err != nil {
+		return false, err
+	}
+
+	if attr.ServiceStatus == common.ServiceStatusActive {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// SetServiceInitialized updates the service status to active
+func (c *ManageClient) SetServiceInitialized(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.ServiceInitializedOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return manage.ConvertHTTPError(resp.StatusCode)
+	}
+	return nil
+}
+
+// ListVolume lists all volumes of the service.
+func (c *ManageClient) ListVolume(ctx context.Context, r *manage.ListVolumeRequest) ([]*common.Volume, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.ListVolumeOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.ListVolumeResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.Volumes, err
+}
+
+// ListService lists all services that match the required conditions
+func (c *ManageClient) ListService(ctx context.Context, r *manage.ListServiceRequest) ([]*common.ServiceAttr, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.ListServiceOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.ListServiceResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.Services, err
+}
+
+// DeleteService deletes one service
+func (c *ManageClient) DeleteService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + r.ServiceName
+	req, err := http.NewRequest(http.MethodDelete, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	return nil
+}
+
+// RunTask runs a task
+func (c *ManageClient) RunTask(ctx context.Context, r *manage.RunTaskRequest) (taskID string, err error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+
+	urlStr := c.serverURL + manage.RunTaskOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.RunTaskResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.TaskID, err
+}
+
+// GetTaskStatus gets a task's status.
+func (c *ManageClient) GetTaskStatus(ctx context.Context, r *manage.GetTaskStatusRequest) (*common.TaskStatus, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.GetTaskStatusOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.GetTaskStatusResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.Status, err
+}
+
+// DeleteTask deletes the service task.
+func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.DeleteTaskOp
+	req, err := http.NewRequest(http.MethodDelete, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
