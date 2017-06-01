@@ -68,8 +68,8 @@ type OpenManageVolumeDriver struct {
 	containerInfo   containersvc.Info
 }
 
-// NewOpenManageVolumeDriver creates a new OpenManageVolumeDriver instance
-func NewOpenManageVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serverInfo server.Info,
+// NewVolumeDriver creates a new OpenManageVolumeDriver instance
+func NewVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serverInfo server.Info,
 	containersvcIns containersvc.ContainerSvc, containerInfo containersvc.Info) *OpenManageVolumeDriver {
 	d := &OpenManageVolumeDriver{
 		root:            defaultRoot,

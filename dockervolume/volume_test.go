@@ -37,7 +37,7 @@ func TestVolumeDriver(t *testing.T) {
 
 	mgsvc := manageservice.NewManageService(dbIns, serverIns, mockDNS)
 
-	driver := NewOpenManageVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 
 	cluster := "cluster1"
 	taskCounts := 1
@@ -115,7 +115,7 @@ func TestVolumeDriver(t *testing.T) {
 	vol := vols[0]
 	vol.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
 
-	driver2 := NewOpenManageVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+	driver2 := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, vol)
 
 	// check the device is umounted.
