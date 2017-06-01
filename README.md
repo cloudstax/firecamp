@@ -24,7 +24,7 @@ The OpenManage platform is one step towards the free serverless computing. The c
 
 **Security**: The platform will automatically apply the best practices to achieve the better security. For example, in the same AWS region, the platform will restrict the access to the EC2 instances where the stateful services run on. Only the EC2 instances in the allowed security group could access the stateful services. The customer should have the application running on the EC2 of that security group.
 
-**Service Aware Monitoring**: No matter where the container of one service member moves and how many times it move, the platform keeps tracking the member's logs and metrics for the member. The platform will also track the containers of different services running on the same host, and correlate them for the troubleshooting.
+**Service Aware Monitoring**: No matter where the container of one service member moves and how many times it move, the platform keeps tracking a member's logs and metrics for the member. The platform will also track the containers of different services running on the same host, and correlate them for the troubleshooting.
 
 ## How does it work?
 
@@ -33,10 +33,10 @@ The stateful services have 2 basic requirements: membership and data. When one m
 The OpenManage platform follows the DNS way. Every member has a DNS name and a data volume. The OpenManage platform binds the DNS name and data volume with the service member.
 
 The OpenManage platform has 4 basic components:
-- **A key-value database**. The database keeps the service's attributes, including the service uuid, the number of members, every member's data volume and config files, etc. There are 2 requirements for the database: 1) conditional creation/update (create-if-not-exist and update-if-match). 2) strong consistency on get/list. The customer is free to use the databases they are familiar with, as long as the database supports these 2 requirements. The platform has built-in support for a simple controldb and AWS DynamoDB. More databases will be supported in the future.
-- **The DNS server**. Every service member will have a unique DNS name. No matter where the container runs at, the platform will keep the DNS server updated. So the members could always talk with each other.
-- **The volume driver**. The platform assigns a uuid for every service. When creating the service in the underline container orchestraction framework, the service uuid is passed to the volume driver. When a container starts, the volume driver will talk with the database to find out which member the container serves, updates the DNS record, and mounts the data volume. By this, the service will recognize the new container as the original member.
-- **The manage service**. The manage service handles the different requirements of different services. So the customer could easily deploy a service by a single command.
+- **A Key-Value Database**. The database keeps the service's attributes, including the service uuid, the number of members, every member's data volume and config files, etc. There are 2 requirements for the database: 1) conditional creation/update (create-if-not-exist and update-if-match). 2) strong consistency on get/list. The customer is free to use the databases they are familiar with, as long as the database supports these 2 requirements. The platform has built-in support for a simple controldb and AWS DynamoDB. More databases will be supported in the future.
+- **The DNS Server**. Every service member will have a unique DNS name. No matter where the container runs at, the platform will keep the DNS server updated. So the members could always talk with each other.
+- **The Volume Driver**. The platform assigns a uuid for every service. When creating the service in the underline container orchestraction framework, the service uuid is passed to the volume driver. When a container starts, the volume driver will talk with the database to find out which member the container serves, updates the DNS record, and mounts the data volume. By this, the service will recognize the new container as the original member.
+- **The Catalog Service**. The platform provides a catalog of built-in services, that could be easily deployed by a single command. For example, the catalog service supports MongoDB ReplicaSet. The customer could click to deploy a 3 replicas MongoDB cluster on 3 availability zones of one AWS region.
 
 ## Installation
 
