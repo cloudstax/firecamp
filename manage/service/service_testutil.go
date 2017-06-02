@@ -8,10 +8,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/manage"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {

@@ -1,7 +1,7 @@
 package manage
 
 import (
-	"github.com/openconnectio/openmanage/common"
+	"github.com/cloudstax/openmanage/common"
 )
 
 const (

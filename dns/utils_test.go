@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/openconnectio/openmanage/common"
+	"github.com/cloudstax/openmanage/common"
 )
 
 func TestDomain(t *testing.T) {

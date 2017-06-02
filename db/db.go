@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/openconnectio/openmanage/common"
+	"github.com/cloudstax/openmanage/common"
 	"golang.org/x/net/context"
 )
 

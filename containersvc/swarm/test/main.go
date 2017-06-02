@@ -9,10 +9,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/containersvc/swarm"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/containersvc/swarm"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 var (

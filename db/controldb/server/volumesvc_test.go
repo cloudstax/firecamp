@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/db/controldb"
-	pb "github.com/openconnectio/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/db/controldb"
+	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
 )
 
 func TestVolumeReadWriter(t *testing.T) {

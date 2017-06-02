@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/manage"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/manage"
 )
 
 // ManageClient is the client to talk with the management service.

@@ -3,9 +3,9 @@ package controldb
 import (
 	"fmt"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/db"
-	pb "github.com/openconnectio/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/db"
+	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
 )
 
 func GenPbDevice(dev *common.Device) *pb.Device {

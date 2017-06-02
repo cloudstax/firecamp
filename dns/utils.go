@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/server"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/server"
 )
 
 // AWS DNS (Route53) supports 10,000 resource record sets per hosted zone.

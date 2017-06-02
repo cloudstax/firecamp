@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 // versionfilestore implements the file version feature. Every write will generate a new version.

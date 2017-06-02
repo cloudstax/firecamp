@@ -11,14 +11,14 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/manage"
-	"github.com/openconnectio/openmanage/manage/service"
-	"github.com/openconnectio/openmanage/server"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/openmanage/manage/service"
+	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 // The ManageHTTPServer is the management http server for the service management.

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func TestUtils(t *testing.T) {

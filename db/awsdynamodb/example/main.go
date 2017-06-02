@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/golang/glog"
 
-	"github.com/openconnectio/openmanage/db"
+	"github.com/cloudstax/openmanage/db"
 )
 
 func main() {

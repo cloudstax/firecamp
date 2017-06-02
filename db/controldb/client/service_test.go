@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/manage/service"
-	"github.com/openconnectio/openmanage/server"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/manage/service"
+	"github.com/cloudstax/openmanage/server"
 )
 
 func TestServiceWithControlDB(t *testing.T) {

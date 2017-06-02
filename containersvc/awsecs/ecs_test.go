@@ -7,9 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func TestTaskDef(t *testing.T) {

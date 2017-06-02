@@ -9,8 +9,8 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
 
-	pb "github.com/openconnectio/openmanage/db/controldb/protocols"
-	"github.com/openconnectio/openmanage/db/controldb/server"
+	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/openmanage/db/controldb/server"
 )
 
 type TestControlDBServer struct {

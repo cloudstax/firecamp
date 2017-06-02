@@ -1,4 +1,4 @@
-# [OpenManage](https://github.com/openconnectio/openmanage)
+# [OpenManage](https://github.com/cloudstax/openmanage)
 
 *OpenManage* is an open source platform to easily setup, manage and scale the Dockerized stateful services. The platform deeply integrates with the popular open source stateful services, such as MongoDB, Cassandra, MySQl, PostgreSQL, etc. The platform manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different node, the platform will maintain the membership and move the data volume as well.
 

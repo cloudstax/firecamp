@@ -11,9 +11,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/server"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 // AWSEc2 handles the ec2 related functions

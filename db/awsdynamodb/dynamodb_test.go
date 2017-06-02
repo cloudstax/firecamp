@@ -10,9 +10,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 var region = flag.String("region", "us-west-1", "The target AWS region for DynamoDB")

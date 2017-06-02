@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/server/awsec2"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/server/awsec2"
 )
 
 const ecsMetadataURLSuffix = ":51678/v1/metadata"

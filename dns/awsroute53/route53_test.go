@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/server/awsec2"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/server/awsec2"
 )
 
 func TestRoute53(t *testing.T) {

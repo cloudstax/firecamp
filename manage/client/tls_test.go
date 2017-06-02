@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/manage/server"
-	"github.com/openconnectio/openmanage/server"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/manage/server"
+	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func TestTLSMgrOperationsWithMemDB(t *testing.T) {

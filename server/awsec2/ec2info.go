@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/golang/glog"
 
-	"github.com/openconnectio/openmanage/common"
+	"github.com/cloudstax/openmanage/common"
 )
 
 // Ec2Info implements server.Info

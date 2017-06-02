@@ -7,7 +7,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/common"
+	"github.com/cloudstax/openmanage/common"
 )
 
 const devPrefix = "/dev/memd"

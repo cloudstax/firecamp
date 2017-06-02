@@ -6,9 +6,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/db"
-	pb "github.com/openconnectio/openmanage/db/controldb/protocols"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/db"
+	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 // ControlDBServer implements DBService server.

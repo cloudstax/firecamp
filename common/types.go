@@ -5,7 +5,7 @@ const (
 	ContainerPlatformSwarm = "swarm"
 
 	SystemName = "openmanage"
-	OrgName    = "openconnectio"
+	OrgName    = "cloudstax"
 
 	// VolumeDriverName is the name for docker volume driver
 	// If this name is changed, please change aws/taskengine/sc_task_engine.go as well.

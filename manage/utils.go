@@ -3,8 +3,8 @@ package manage
 import (
 	"net/http"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/db"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/db"
 )
 
 func ConvertToHTTPError(err error) (errmsg string, errcode int) {

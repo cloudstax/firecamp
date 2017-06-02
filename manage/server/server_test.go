@@ -18,15 +18,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
 
-	"github.com/openconnectio/openmanage/common"
-	"github.com/openconnectio/openmanage/containersvc"
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/db/awsdynamodb"
-	"github.com/openconnectio/openmanage/db/controldb/client"
-	"github.com/openconnectio/openmanage/dns"
-	"github.com/openconnectio/openmanage/manage"
-	"github.com/openconnectio/openmanage/server"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/db/awsdynamodb"
+	"github.com/cloudstax/openmanage/db/controldb/client"
+	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 var region = flag.String("region", "us-west-1", "The target AWS region for DynamoDB")

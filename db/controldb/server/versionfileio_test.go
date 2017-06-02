@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func TestVersionFileIO(t *testing.T) {

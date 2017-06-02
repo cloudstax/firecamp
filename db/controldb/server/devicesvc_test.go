@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconnectio/openmanage/db"
-	"github.com/openconnectio/openmanage/db/controldb"
-	pb "github.com/openconnectio/openmanage/db/controldb/protocols"
-	"github.com/openconnectio/openmanage/utils"
+	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/openmanage/db/controldb"
+	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/openmanage/utils"
 	"golang.org/x/net/context"
 )
 

@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/openconnectio/openmanage/db"
+	"github.com/cloudstax/openmanage/db"
 )
 
 // DynamoDB implements DB interfae on dynamodb
