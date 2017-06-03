@@ -55,7 +55,7 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	go s.Serve(lis)
 
 	tlsEnabled := false
-	surl := dns.FormatMgtServiceURL(addr, tlsEnabled)
+	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
 	cli := NewManageClient(surl, nil)
 	serviceNum := 23
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
@@ -96,7 +96,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 	go s.Serve(lis)
 
 	tlsEnabled := false
-	surl := dns.FormatMgtServiceURL(addr, tlsEnabled)
+	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
 	cli := NewManageClient(surl, nil)
 	serviceNum := 14
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
@@ -151,7 +151,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	go s.Serve(lis)
 
 	tlsEnabled := false
-	surl := dns.FormatMgtServiceURL(addr, tlsEnabled)
+	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
 	cli := NewManageClient(surl, nil)
 	serviceNum := 6
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)

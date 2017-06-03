@@ -19,7 +19,7 @@ type ManageClient struct {
 }
 
 // NewManageClient creates a new ManageClient instance.
-// Example serverURL: https://www.scmanage.com:port/
+// Example serverURL: https://openmanage-manageserver.cluster-openmanage.com:27040/
 func NewManageClient(serverURL string, tlsConf *tls.Config) *ManageClient {
 	cli := &http.Client{}
 	if tlsConf != nil {

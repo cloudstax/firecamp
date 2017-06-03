@@ -4,13 +4,14 @@ const (
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
 
-	SystemName = "openmanage"
-	OrgName    = "cloudstax"
+	SystemName          = "openmanage"
+	OrgName             = "cloudstax"
+	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
 	// VolumeDriverName is the name for docker volume driver
-	// If this name is changed, please change aws/taskengine/sc_task_engine.go as well.
-	// Has the separate definition in sc_task_engine.go aims to avoid the dependency of
-	// ecs-agent on sc code.
+	// If this name is changed, please change aws/taskengine/openmanage_task_engine.go as well.
+	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
+	// ecs-agent on openmanage code.
 	VolumeDriverName = "OpenManageVolumeDriver"
 
 	DefaultLogDir = "/var/log/" + SystemName
@@ -34,18 +35,20 @@ const (
 
 	ContainerNameSuffix = NameSeparator + SystemName
 
+	DefaultContainerMountPath = "/data"
+
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
 
 	ControlDBServerPort  = 27030
 	ControlDBName        = "controldb"
 	ControlDBServiceName = SystemName + NameSeparator + ControlDBName
-	ControlDBDefaultDir  = "/data/" + ControlDBName
+	ControlDBDefaultDir  = DefaultContainerMountPath + "/" + ControlDBName
 	// ControlDBUUIDPrefix defines the prefix of the controldb server id.
 	// The service uuid of the controldb service would be ControlDBUUIDPrefix + volumeID.
 	// The volumeID is the ID of the volume created for the controldb service.
-	ControlDBUUIDPrefix        = ControlDBName + NameSeparator
-	AWSControlDBContainerImage = OrgName + "/" + ControlDBServiceName
+	ControlDBUUIDPrefix     = ControlDBName + NameSeparator
+	ControlDBContainerImage = OrgName + "/" + ControlDBServiceName
 	// A ECS container instance has 1,024 cpu units for every CPU core
 	ControlDBCPUUnits     = 128
 	ControlDBMaxMemMB     = 1024
@@ -71,7 +74,6 @@ const (
 	ENV_VALUE_SEPARATOR = ","
 
 	ENV_REGION            = "REGION"
-	ENV_ZONE              = "ZONE"
 	ENV_CLUSTER           = "CLUSTER"
 	ENV_MANAGE_SERVER_URL = "MANAGE_SERVER_URL"
 	ENV_OP                = "OP"

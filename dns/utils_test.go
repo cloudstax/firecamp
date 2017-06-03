@@ -26,40 +26,40 @@ func TestMgt(t *testing.T) {
 	tlsEnabled := true
 	portStr := strconv.Itoa(common.ManageHTTPServerPort)
 	expect := "https://openmanage-manageserver.c1-openmanage.com:" + portStr + "/"
-	url := GetDefaultMgtServiceURL(cluster, tlsEnabled)
+	url := GetDefaultManageServiceURL(cluster, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL(expect, tlsEnabled)
+	url = FormatManageServiceURL(expect, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL("https://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("https://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
 
 	tlsEnabled = false
 	expect = "http://openmanage-manageserver.c1-openmanage.com:" + portStr + "/"
-	url = GetDefaultMgtServiceURL(cluster, tlsEnabled)
+	url = GetDefaultManageServiceURL(cluster, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL(expect, tlsEnabled)
+	url = FormatManageServiceURL(expect, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatMgtServiceURL("http://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("http://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
 	if url != expect {
-		t.Fatalf("GetDefaultMgtServiceURL expect %s, got %s", expect, url)
+		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
 }
 

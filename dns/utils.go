@@ -19,7 +19,7 @@ import (
 // For one cluster, the default domain name would be cluster-DomainNameSuffix.com,
 // which will be used to create the hosted zone.
 // For one service in the cluster, the dns name of one service member would be
-// serviceMember.cluster-DomainNameSuffix.com. For example, db-0.cluster-scservice.com
+// serviceMember.cluster-DomainNameSuffix.com. For example, db-0.cluster-openmanage.com
 //
 // AWS VPC belongs to one region. The EC2 instances in different AZs could use the same VPC.
 //
@@ -75,9 +75,9 @@ func GetDomainNameFromDNSName(dnsname string) (string, error) {
 	return domain, nil
 }
 
-// GetDefaultMgtServiceURL returns the default management service address,
+// GetDefaultManageServiceURL returns the default management service address,
 // example: https://openmanage-manageserver.cluster-openmanage.com:27040/
-func GetDefaultMgtServiceURL(cluster string, tlsEnabled bool) string {
+func GetDefaultManageServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.ManageServiceName, domain)
 	if tlsEnabled {
@@ -86,8 +86,8 @@ func GetDefaultMgtServiceURL(cluster string, tlsEnabled bool) string {
 	return "http://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
 }
 
-// FormatMgtServiceURL formats the url to like https://openmanage-manageserver.cluster-openmanage.com:31021/
-func FormatMgtServiceURL(surl string, tlsEnabled bool) string {
+// FormatManageServiceURL formats the url to like https://openmanage-manageserver.cluster-openmanage.com:27040/
+func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	if !strings.HasPrefix(surl, "http") {
 		// add http prefix
 		if tlsEnabled {

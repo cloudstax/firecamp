@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	defaultRoot   = "/mnt/sc"
+	defaultRoot   = "/mnt/" + common.SystemName
 	defaultFStype = "ext4"
 )
 
@@ -45,7 +45,7 @@ type driverVolume struct {
 
 // OpenManageVolumeDriver is the docker volume plugin.
 type OpenManageVolumeDriver struct {
-	// the default root dir, volume will be mounted to /mnt/sc/serviceUUID
+	// the default root dir, volume will be mounted to /mnt/openmanage/serviceUUID
 	root string
 
 	// the local mounted volumes, key: serviceUUID
