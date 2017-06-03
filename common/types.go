@@ -4,8 +4,8 @@ const (
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
 
-	SystemName          = "openmanage"
 	OrgName             = "cloudstax"
+	SystemName          = "openmanage"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
 	// VolumeDriverName is the name for docker volume driver

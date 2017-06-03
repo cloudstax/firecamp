@@ -54,14 +54,13 @@ func TestVolumeDriver(t *testing.T) {
 	for i := 0; i < taskCounts; i++ {
 		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
-			Zone:        az,
 			Cluster:     cluster,
 			ServiceName: service1,
 		},
