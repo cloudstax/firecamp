@@ -3,7 +3,7 @@ set -e
 
 # see supported platforms and db types in types.go
 #CONTAINER_PLATFORM="ecs"
-#DB_TYPE="controldb"
+#DB_TYPE="clouddb"
 
 if [ -n "$CONTAINER_PLATFOMR" ] || [ -n "$DB_TYPE" ]
 then
@@ -11,4 +11,4 @@ then
   echo "CONTAINER_PLATFORM $CONTAINER_PLATFORM, DB_TYPE $DB_TYPE" >&2
 fi
 
-exec "/openmanage-aws-managehttpserver" "-container-platform=$CONTAINER_PLATFORM" "-dbtype=$DB_TYPE"
+exec "/openmanage-manageserver" "-container-platform=$CONTAINER_PLATFORM" "-dbtype=$DB_TYPE"

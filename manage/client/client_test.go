@@ -39,7 +39,7 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := managehttpserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort)
 
 	lis, err := net.Listen("tcp", addr)
@@ -80,7 +80,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := managehttpserver.NewManageHTTPServer(cluster, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)
@@ -135,7 +135,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	cluster := "cluster1"
-	mgtsvc := managehttpserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)

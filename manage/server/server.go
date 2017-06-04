@@ -1,4 +1,4 @@
-package managehttpserver
+package manageserver
 
 import (
 	"encoding/json"

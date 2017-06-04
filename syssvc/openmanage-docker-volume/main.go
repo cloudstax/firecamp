@@ -26,7 +26,7 @@ import (
 
 var (
 	platform  = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
-	dbtype    = flag.String("dbtype", common.DBTypeControlDB, "the type of DB to store the management data")
+	dbtype    = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	tlsVerify = flag.Bool("tlsverify", false, "Whether enable tls verify to talk with swarm manager")
 	caFile    = flag.String("tlscacert", "", "The CA file")
 	certFile  = flag.String("tlscert", "", "The TLS server certificate file")
@@ -88,10 +88,10 @@ func main() {
 	}
 
 	var dbIns db.DB
-	if *dbtype == common.DBTypeCloudDB {
+	switch *dbtype {
+	case common.DBTypeCloudDB:
 		dbIns = awsdynamodb.NewDynamoDB(sess)
-	} else {
-		// common.DBTypeControlDB
+	case common.DBTypeControlDB:
 		addr := dns.GetDefaultControlDBAddr(info.GetContainerClusterID())
 		dbIns = controldbcli.NewControlDBCli(addr)
 	}

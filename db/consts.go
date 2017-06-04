@@ -1,22 +1,26 @@
 package db
 
+import (
+	"github.com/cloudstax/openmanage/common"
+)
+
 const (
 	// Device table
-	DeviceTableName = "SC-DeviceTable"
+	DeviceTableName = common.SystemName + "-DeviceTable"
 	// Service table
-	ServiceTableName = "SC-ServiceTable"
+	ServiceTableName = common.SystemName + "-ServiceTable"
 	// ServiceAttr table
-	ServiceAttrTableName = "SC-ServiceAttrTable"
+	ServiceAttrTableName = common.SystemName + "-ServiceAttrTable"
 	// Volume table
-	VolumeTableName = "SC-VolumeTable"
+	VolumeTableName = common.SystemName + "-VolumeTable"
 	// ConfigFile table
-	ConfigTableName = "SC-ConfigTable"
+	ConfigTableName = common.SystemName + "-ConfigTable"
 
 	ClusterName         = "ClusterName"
 	ServiceName         = "ServiceName"
 	ServiceStatus       = "ServiceStatus"
 	ServiceUUID         = "ServiceUUID"
-	Replicas   = "Replicas"
+	Replicas            = "Replicas"
 	HasStrictMembership = "HasStrictMembership"
 	DomainName          = "DomainName"
 	HostedZoneID        = "HostedZoneID"

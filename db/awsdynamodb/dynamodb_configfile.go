@@ -47,11 +47,13 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 	resp, err := dbsvc.PutItem(params)
 
 	if err != nil {
-		glog.Errorln("failed to create config file", cfg, "error", err, "requuid", requuid)
+		glog.Errorln("failed to create config file", cfg.FileName, cfg.FileID,
+			"serviceUUID", cfg.ServiceUUID, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created config file", cfg, "requuid", requuid, "resp", resp)
+	glog.Infoln("created config file", cfg.FileName, cfg.FileID,
+		"serviceUUID", cfg.ServiceUUID, "requuid", requuid, "resp", resp)
 	return nil
 }
 
@@ -102,7 +104,7 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		return nil, err
 	}
 
-	glog.Infoln("get config file", cfg, "requuid", requuid)
+	glog.Infoln("get config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return cfg, nil
 }
 

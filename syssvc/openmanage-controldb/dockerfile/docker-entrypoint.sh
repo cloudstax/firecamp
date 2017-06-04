@@ -9,4 +9,4 @@ then
   echo "CONTAINER_PLATFORM $CONTAINER_PLATFORM" >&2
 fi
 
-exec "/openmanage-aws-controldb" "-container-platform=$CONTAINER_PLATFORM"
+exec "/openmanage-controldb" "-container-platform=$CONTAINER_PLATFORM"

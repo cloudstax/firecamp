@@ -23,7 +23,7 @@ var (
 	cluster = flag.String("cluster", "default", "The ECS cluster")
 	region  = flag.String("region", "", "The AWS region")
 	az      = flag.String("availability-zone", "", "The AWS availability zone")
-	dbType  = flag.String("dbtype", common.DBTypeControlDB, "The control db type, such as the default controldb or AWS DynamoDB")
+	dbtype  = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 )
 
 func main() {
@@ -68,18 +68,18 @@ func main() {
 	}
 
 	// create the db service
-	createDBService(ctx, *cluster, *dbType, sess, ecsIns, awsAz)
+	createDBService(ctx, *cluster, *dbtype, sess, ecsIns, awsAz)
 
 	// create the manage service
-	createManageService(ctx, ecsIns, *cluster, *dbType)
+	createManageService(ctx, ecsIns, *cluster, *dbtype)
 
 	// wait till the db and manage services ready
-	waitServiceReady(ctx, sess, ecsIns, *dbType, *cluster)
+	waitServiceReady(ctx, sess, ecsIns, *dbtype, *cluster)
 }
 
-func createDBService(ctx context.Context, cluster string, dbType string,
+func createDBService(ctx context.Context, cluster string, dbtype string,
 	sess *session.Session, ecsIns *awsecs.AWSEcs, awsAz string) {
-	switch dbType {
+	switch dbtype {
 	case common.DBTypeControlDB:
 		createControlDB(ctx, cluster, sess, ecsIns, awsAz)
 	case common.DBTypeCloudDB:
@@ -96,7 +96,7 @@ func createDBService(ctx context.Context, cluster string, dbType string,
 			}
 		}
 	default:
-		glog.Fatalln("unknown db type", dbType)
+		glog.Fatalln("unknown db type", dbtype)
 	}
 }
 
@@ -164,7 +164,7 @@ func createControlDB(ctx context.Context, cluster string, sess *session.Session,
 	fmt.Println("created the controlDB service")
 }
 
-func createManageService(ctx context.Context, ecsIns *awsecs.AWSEcs, cluster string, dbType string) {
+func createManageService(ctx context.Context, ecsIns *awsecs.AWSEcs, cluster string, dbtype string) {
 	exist, err := ecsIns.IsServiceExist(ctx, cluster, common.ManageServiceName)
 	if err != nil {
 		glog.Fatalln("check the manage http service exist error", err, common.ManageServiceName)
@@ -181,7 +181,7 @@ func createManageService(ctx context.Context, ecsIns *awsecs.AWSEcs, cluster str
 	}
 	kv2 := &common.EnvKeyValuePair{
 		Name:  common.ENV_DB_TYPE,
-		Value: dbType,
+		Value: dbtype,
 	}
 	envkvs := []*common.EnvKeyValuePair{kv1, kv2}
 
@@ -215,7 +215,7 @@ func createManageService(ctx context.Context, ecsIns *awsecs.AWSEcs, cluster str
 	fmt.Println("created the manage http service")
 }
 
-func waitServiceReady(ctx context.Context, sess *session.Session, ecsIns *awsecs.AWSEcs, dbType string, cluster string) {
+func waitServiceReady(ctx context.Context, sess *session.Session, ecsIns *awsecs.AWSEcs, dbtype string, cluster string) {
 	maxWaitSeconds := int64(120)
 
 	// wait the manage http container running
@@ -227,7 +227,7 @@ func waitServiceReady(ctx context.Context, sess *session.Session, ecsIns *awsecs
 	fmt.Println("The management http service is ready")
 
 	// wait the db service ready
-	switch dbType {
+	switch dbtype {
 	case common.DBTypeControlDB:
 		// wait the controldb container running
 		err := ecsIns.WaitServiceRunning(ctx, cluster, common.ControlDBServiceName, 1, maxWaitSeconds)
@@ -248,6 +248,6 @@ func waitServiceReady(ctx context.Context, sess *session.Session, ecsIns *awsecs
 		fmt.Println("The DynamoDB is ready")
 
 	default:
-		glog.Fatalln("unknown db type", dbType)
+		glog.Fatalln("unknown db type", dbtype)
 	}
 }

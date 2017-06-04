@@ -27,7 +27,7 @@ var (
 	platform      = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
 	manageDNSName = flag.String("dnsname", "", "the dns name of the management service. Default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	managePort    = flag.Int("port", common.ManageHTTPServerPort, "port that the manage http service listens on")
-	dbtype        = flag.String("dbtype", common.DBTypeControlDB, "the type of DB to store the management data")
+	dbtype        = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	tlsEnabled    = flag.Bool("tlsverify", false, "whether TLS is enabled")
 	caFile        = flag.String("tlscacert", "", "The CA file")
 	certFile      = flag.String("tlscert", "", "The TLS server certificate file")
@@ -87,7 +87,7 @@ func main() {
 		}
 
 		cluster = info.GetContainerClusterID()
-		// use the same tls configs with the managehttpserver.
+		// use the same tls configs with the manageserver.
 		// TODO separate tls configs for swarm.
 		containersvcIns = swarmsvc.NewSwarmSvc(info.GetSwarmManagers(),
 			*tlsEnabled, *caFile, *certFile, *keyFile)
@@ -97,15 +97,15 @@ func main() {
 	}
 
 	var dbIns db.DB
-	if *dbtype == common.DBTypeCloudDB {
+	switch *dbtype {
+	case common.DBTypeCloudDB:
 		dbIns = awsdynamodb.NewDynamoDB(sess)
-	} else {
-		// common.DBTypeControlDB
+	case common.DBTypeControlDB:
 		addr := dns.GetDefaultControlDBAddr(cluster)
 		dbIns = controldbcli.NewControlDBCli(addr)
 	}
 
-	err = managehttpserver.StartServer(cluster, *manageDNSName, *managePort, containersvcIns,
+	err = manageserver.StartServer(cluster, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 
 	glog.Fatalln("StartServer error", err)
