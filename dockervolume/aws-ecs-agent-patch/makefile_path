@@ -1,0 +1,29 @@
+diff --git a/Makefile b/Makefile
+index 8e4ba2f..75bbcb8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -13,7 +13,7 @@
+ 
+ .PHONY: all gobuild static docker release certs test clean netkitten test-registry run-functional-tests gremlin benchmark-test gogenerate run-integ-tests image-cleanup-test-images
+ 
+-all: docker
++all: openmanagedocker
+ 
+ # Dynamic go build; useful in that it does not have -a so it won't recompile
+ # everything every time
+@@ -40,6 +40,15 @@ docker: certs build-in-docker
+ 	@docker build -f scripts/dockerfiles/Dockerfile.release -t "amazon/amazon-ecs-agent:make" .
+ 	@echo "Built Docker image \"amazon/amazon-ecs-agent:make\""
+ 
++
++# 'openmanagedocker' builds the agent dockerfile from the current sourcecode tree, dirty
++# or not
++openmanagedocker: certs build-in-docker
++	@cd scripts && ./create-amazon-ecs-scratch
++	@docker build -f scripts/dockerfiles/Dockerfile.release -t "cloudstax/openmanage-amazon-ecs-agent:latest" .
++	@echo "Built Docker image \"cloudstax/openmanage-amazon-ecs-agent:latest\""
++
++
+ # 'docker-release' builds the agent from a clean snapshot of the git repo in
+ # 'RELEASE' mode
+ docker-release:
