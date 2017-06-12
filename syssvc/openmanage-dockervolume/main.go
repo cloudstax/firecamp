@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -54,11 +55,21 @@ func main() {
 
 	var info containersvc.Info
 	var containersvcIns containersvc.ContainerSvc
+
 	switch *platform {
 	case common.ContainerPlatformECS:
 		info, err = awsecs.NewEcsInfo()
 		if err != nil {
-			glog.Fatalln("NewEcsInfo error", err)
+			// The volume driver service will start after the ECS agent service starts.
+			// But the ECS agent service start does NOT mean the ecs agent container is started.
+			// Retry after sleep.
+			glog.Errorln("NewEcsInfo error", err)
+			sleepSeconds := time.Duration(5) * time.Second
+			time.Sleep(sleepSeconds)
+			info, err = awsecs.NewEcsInfo()
+			if err != nil {
+				glog.Fatalln("NewEcsInfo error", err)
+			}
 		}
 
 		containersvcIns = awsecs.NewAWSEcs(sess)

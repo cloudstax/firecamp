@@ -33,7 +33,7 @@ const (
 	DomainNameSuffix = SystemName
 	DomainCom        = "com"
 
-	ContainerNameSuffix = NameSeparator + SystemName
+	ContainerNameSuffix = "container"
 
 	DefaultContainerMountPath = "/data"
 
@@ -50,8 +50,8 @@ const (
 	ControlDBUUIDPrefix     = ControlDBName + NameSeparator
 	ControlDBContainerImage = OrgName + "/" + ControlDBServiceName
 	// A ECS container instance has 1,024 cpu units for every CPU core
-	ControlDBCPUUnits     = 128
-	ControlDBMaxMemMB     = 1024
+	ControlDBCPUUnits     = 256
+	ControlDBMaxMemMB     = 2048
 	ControlDBReserveMemMB = 128
 	ControlDBVolumeSizeGB = int64(1)
 
@@ -59,8 +59,8 @@ const (
 	ManageName           = "manageserver"
 	ManageServiceName    = SystemName + NameSeparator + ManageName
 	ManageContainerImage = OrgName + "/" + ManageServiceName
-	ManageCPUUnits       = 64
-	ManageMaxMemMB       = 512
+	ManageCPUUnits       = 256
+	ManageMaxMemMB       = 2048
 	ManageReserveMemMB   = 128
 )
 
