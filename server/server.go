@@ -68,4 +68,5 @@ type Info interface {
 	GetLocalRegion() string
 	GetLocalInstanceID() string
 	GetLocalVpcID() string
+	GetLocalRegionAZs() []string
 }

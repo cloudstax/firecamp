@@ -29,7 +29,6 @@ var (
 	certFile   = flag.String("cert-file", "", "the cert file")
 	keyFile    = flag.String("key-file", "", "the key file")
 	region     = flag.String("region", "", "The target AWS region")
-	az         = flag.String("availability-zone", "", "The avaibility zone in which to create the volume")
 	service    = flag.String("service", "", "The target service name in ECS")
 	replicas   = flag.Int64("replicas", 1, "The number of replicas for the service")
 	// The mongodb replicaSetName. If not set, use service name
@@ -77,18 +76,10 @@ func main() {
 
 	var err error
 	awsRegion := *region
-	awsAz := *az
 	if awsRegion == "" {
 		awsRegion, err = awsec2.GetLocalEc2Region()
 		if err != nil {
 			fmt.Println("please input the correct AWS region")
-			os.Exit(-1)
-		}
-	}
-	if awsAz == "" {
-		awsAz, err = awsec2.GetLocalEc2AZ()
-		if err != nil {
-			fmt.Println("please input the correct AWS availability zone")
 			os.Exit(-1)
 		}
 	}
@@ -97,6 +88,16 @@ func main() {
 	sess, err := session.NewSession(config)
 	if err != nil {
 		glog.Fatalln("failed to create aws session, error", err)
+	}
+
+	// make sure one replica per az
+	azs, err := awsec2.GetRegionAZs(awsRegion, sess)
+	if err != nil {
+		glog.Fatalln(err)
+	}
+	if len(azs) < int(*replicas) {
+		fmt.Println("region ", awsRegion, " only has ", len(azs), " availability zones")
+		os.Exit(-1)
 	}
 
 	ecsIns := awsecs.NewAWSEcs(sess)
@@ -110,7 +111,7 @@ func main() {
 	ctx := context.Background()
 
 	// generate service ReplicaConfigs
-	replicaCfgs := genReplicaConfigs(*replicas, awsAz, replSetName, *port)
+	replicaCfgs := genReplicaConfigs(azs, *replicas, replSetName, *port)
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -167,8 +168,7 @@ func main() {
 	fmt.Println("The mongodb replicaset are successfully initialized")
 }
 
-func genReplicaConfigs(replicas int64, az string, replSetName string, port int64) []*manage.ReplicaConfig {
-	// TODO distribute replicas to different zones
+func genReplicaConfigs(azs []string, replicas int64, replSetName string, port int64) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := int64(0); i < replicas; i++ {
 		netcontent := fmt.Sprintf(mongoDBConfNetwork, port)
@@ -176,7 +176,7 @@ func genReplicaConfigs(replicas int64, az string, replSetName string, port int64
 		content := mongoDBConfHead + mongoDBConfStorage + mongoDBConfLog + netcontent + replcontent + mongoDBConfEnd
 		cfg := &manage.ReplicaConfigFile{FileName: mongoDBConfFileName, Content: content}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: azs[i], Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs

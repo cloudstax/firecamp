@@ -4,6 +4,10 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/cloudstax/openmanage/common"
 	"github.com/golang/glog"
 )
 
@@ -79,4 +83,34 @@ func getEc2Metadata(url string) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+// GetRegionAZs gets the AvailabilityZones in one region
+func GetRegionAZs(region string, sess *session.Session) ([]string, error) {
+	svc := ec2.New(sess)
+	// describe AvailabilityZones in the region
+	params := &ec2.DescribeAvailabilityZonesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String(regionFilterName),
+				Values: []*string{
+					aws.String(region),
+				},
+			},
+		},
+	}
+	res, err := svc.DescribeAvailabilityZones(params)
+	if err != nil {
+		glog.Errorln("DescribeAvailabilityZones error", err)
+		return nil, err
+	}
+	if len(res.AvailabilityZones) == 0 {
+		glog.Errorln("No AvailabilityZones in region", region)
+		return nil, common.ErrInternal
+	}
+	azs := make([]string, len(res.AvailabilityZones))
+	for i, zone := range res.AvailabilityZones {
+		azs[i] = *(zone.ZoneName)
+	}
+	return azs, nil
 }

@@ -441,6 +441,13 @@ func (s *AWSEcs) CreateService(ctx context.Context, opts *containersvc.CreateSer
 			MaximumPercent:        aws.Int64(maxHealthyPercent),
 			MinimumHealthyPercent: aws.Int64(minHealthyPercent),
 		},
+		// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement-strategies.html
+		PlacementStrategy: []*ecs.PlacementStrategy{
+			{
+				Field: aws.String("attribute:ecs.availability-zone"),
+				Type:  aws.String("spread"),
+			},
+		},
 	}
 
 	svc := ecs.New(s.sess)

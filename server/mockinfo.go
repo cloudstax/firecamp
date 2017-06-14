@@ -26,3 +26,7 @@ func (m *MockServerInfo) GetLocalInstanceID() string {
 func (m *MockServerInfo) GetLocalVpcID() string {
 	return "local-vpc"
 }
+
+func (m *MockServerInfo) GetLocalRegionAZs() []string {
+	return []string{"local-az1", "local-az2", "local-az3"}
+}

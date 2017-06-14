@@ -134,10 +134,11 @@ func (d *OpenManageVolumeDriver) Get(r volume.Request) volume.Response {
 		return volume.Response{Volume: &volume.Volume{Name: serviceUUID, Mountpoint: mountPath}}
 	}
 
-	// Q: if volume is not mounted locally, should we fetch from DB?
-	errmsg := fmt.Sprintf("service %s volume is not mounted on %s", serviceUUID, mountPath)
-	glog.Infoln(errmsg)
-	return volume.Response{Err: errmsg}
+	// volume is not mounted locally, return success. If the service doesn't exist,
+	// the later mount will fail.
+	// could not return error here, or else, amazon-ecs-agent may not start the container.
+	glog.Infoln("volume is not mounted for service", serviceUUID)
+	return volume.Response{Volume: &volume.Volume{Name: serviceUUID}}
 }
 
 // Path returns the volume mountPath
@@ -194,63 +195,17 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 		return volume.Response{Mountpoint: mountPath}
 	}
 
-	var serviceAttr *common.ServiceAttr
-	var err error
-	// check if the volume is for the controldb service
-	if utils.IsControlDBService(serviceUUID) {
-		// get the hostedZoneID
-		domainName := dns.GenDefaultDomainName(d.containerInfo.GetContainerClusterID())
-		vpcID := d.serverInfo.GetLocalVpcID()
-		vpcRegion := d.serverInfo.GetLocalRegion()
-		private := true
-		hostedZoneID, err := d.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, vpcRegion, private)
-		if err != nil {
-			errmsg := fmt.Sprintf("GetOrCreateHostedZoneIDByName error %s domain %s vpc %s %s, service %s, requuid %s",
-				err, domainName, vpcID, vpcRegion, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-		glog.Infoln("get hostedZoneID", hostedZoneID, "for service", serviceUUID,
-			"domain", domainName, "vpc", vpcID, vpcRegion, "requuid", requuid)
-
-		// detach the volume from the last owner
-		err = d.detachControlDBVolume(ctx, utils.GetControlDBVolumeID(serviceUUID), requuid)
-		if err != nil {
-			errmsg := fmt.Sprintf("detachControlDBVolume error %s service %s, requuid %s", err, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-
-		// get the volume and serviceAttr for the controldb service
-		vol, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
-
-		glog.Infoln("get controldb service volume", vol, "serviceAttr", serviceAttr, "requuid", requuid)
-	} else {
-		// the application service, talks with the controldb service for volume
-		// get cluster and service names by serviceUUID
-		serviceAttr, err = d.dbIns.GetServiceAttr(ctx, serviceUUID)
-		if err != nil {
-			errmsg := fmt.Sprintf("GetServiceAttr error %s serviceUUID %s requuid %s", err, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-		glog.Infoln("get application service attr", serviceAttr, "requuid", requuid)
-
-		// get one volume for this mount
-		vol, err = d.getVolumeForTask(ctx, serviceAttr, requuid)
-		if err != nil {
-			errmsg := fmt.Sprintf("Mount failed, get volume error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-		glog.Infoln("get application service volume", vol, "requuid", requuid)
+	// get the service attr and the volume for the current container
+	serviceAttr, vol, errmsg := d.getServiceAttrAndVolume(ctx, serviceUUID, requuid)
+	if errmsg != "" {
+		return volume.Response{Err: errmsg}
 	}
 
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
 	if serviceAttr.HasStrictMembership {
 		dnsName := dns.GenDNSName(vol.MemberName, serviceAttr.DomainName)
 		hostname := d.serverInfo.GetLocalHostname()
-		err = d.dnsIns.UpdateServiceDNSRecord(ctx, dnsName, hostname, serviceAttr.HostedZoneID)
+		err := d.dnsIns.UpdateServiceDNSRecord(ctx, dnsName, hostname, serviceAttr.HostedZoneID)
 		if err != nil {
 			errmsg := fmt.Sprintf("UpdateServiceDNSRecord error %s service %s volume %s, requuid %s",
 				err, serviceAttr, vol, requuid)
@@ -271,7 +226,7 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// create the mountPath if necessary
-	err = d.checkAndCreateMountPath(mountPath)
+	err := d.checkAndCreateMountPath(mountPath)
 	if err != nil {
 		errmsg := fmt.Sprintf("Mount failed, check/create mount path %s error %s, requuid %s", mountPath, err, requuid)
 		glog.Errorln(errmsg)
@@ -407,6 +362,63 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 	return volume.Response{}
 }
 
+func (d *OpenManageVolumeDriver) getServiceAttrAndVolume(ctx context.Context,
+	serviceUUID string, requuid string) (serviceAttr *common.ServiceAttr, vol *common.Volume, errmsg string) {
+	var err error
+	// check if the volume is for the controldb service
+	if utils.IsControlDBService(serviceUUID) {
+		// get the hostedZoneID
+		domainName := dns.GenDefaultDomainName(d.containerInfo.GetContainerClusterID())
+		vpcID := d.serverInfo.GetLocalVpcID()
+		vpcRegion := d.serverInfo.GetLocalRegion()
+		private := true
+		hostedZoneID, err := d.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, vpcRegion, private)
+		if err != nil {
+			errmsg = fmt.Sprintf("GetOrCreateHostedZoneIDByName error %s domain %s vpc %s %s, service %s, requuid %s",
+				err, domainName, vpcID, vpcRegion, serviceUUID, requuid)
+			glog.Errorln(errmsg)
+			return nil, nil, errmsg
+		}
+		glog.Infoln("get hostedZoneID", hostedZoneID, "for service", serviceUUID,
+			"domain", domainName, "vpc", vpcID, vpcRegion, "requuid", requuid)
+
+		// detach the volume from the last owner
+		err = d.detachControlDBVolume(ctx, utils.GetControlDBVolumeID(serviceUUID), requuid)
+		if err != nil {
+			errmsg = fmt.Sprintf("detachControlDBVolume error %s service %s, requuid %s", err, serviceUUID, requuid)
+			glog.Errorln(errmsg)
+			return nil, nil, errmsg
+		}
+
+		// get the volume and serviceAttr for the controldb service
+		vol, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
+
+		glog.Infoln("get controldb service volume", vol, "serviceAttr", serviceAttr, "requuid", requuid)
+		return serviceAttr, vol, ""
+	}
+
+	// the application service, talks with the controldb service for volume
+	// get cluster and service names by serviceUUID
+	serviceAttr, err = d.dbIns.GetServiceAttr(ctx, serviceUUID)
+	if err != nil {
+		errmsg := fmt.Sprintf("GetServiceAttr error %s serviceUUID %s requuid %s", err, serviceUUID, requuid)
+		glog.Errorln(errmsg)
+		return nil, nil, errmsg
+	}
+	glog.Infoln("get application service attr", serviceAttr, "requuid", requuid)
+
+	// get one volume for this mount
+	vol, err = d.getVolumeForTask(ctx, serviceAttr, requuid)
+	if err != nil {
+		errmsg := fmt.Sprintf("Mount failed, get volume error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
+		glog.Errorln(errmsg)
+		return nil, nil, errmsg
+	}
+
+	glog.Infoln("get application service volume", vol, "requuid", requuid)
+	return serviceAttr, vol, ""
+}
+
 func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath string, vol *common.Volume, requuid string) error {
 	// if the service does not need the config file, return
 	if len(vol.Configs) == 0 {
@@ -533,7 +545,9 @@ func (d *OpenManageVolumeDriver) getVolumeForTask(ctx context.Context, serviceAt
 
 	glog.Infoln("got and detached volume", vol, "requuid", requuid)
 
-	// get localTaskID
+	// get taskID of the local task.
+	// assume only one task on one node for one service. It does not make sense to run
+	// like mongodb primary and standby on the same node.
 	localTaskID, err := d.containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName,
 		serviceAttr.ServiceName, d.containerInfo.GetLocalContainerInstanceID())
 	if err != nil {
@@ -608,8 +622,7 @@ func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID st
 }
 
 func (d *OpenManageVolumeDriver) findIdleVolume(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (volume *common.Volume, err error) {
-	// list all tasks of the service and get taskID of the current task,
-	// assume only one task on one node for one service
+	// list all tasks of the service
 	// docker swarm: docker node ps -f name=serviceName node
 	// aws ecs: ListTasks with cluster, serviceName, containerInstance
 	//   - driver could get the local node ServerInstanceID by curl -s http://169.254.169.254/latest/metadata/instance-id,
@@ -634,6 +647,13 @@ func (d *OpenManageVolumeDriver) findIdleVolume(ctx context.Context, serviceAttr
 
 	// find one idle volume, the volume's taskID not in the task list
 	for _, volume := range volumes {
+		// TODO filter out non local zone volumes at ListVolumes
+		zone := d.serverInfo.GetLocalAvailabilityZone()
+		if volume.AvailableZone != zone {
+			glog.V(1).Infoln("volume is not in local zone", zone, volume)
+			continue
+		}
+
 		// TODO better to get all idle volumes and randomly select one, as multiple tasks may
 		// try to find the idle volume around the same time.
 		_, ok := taskIDs[volume.TaskID]

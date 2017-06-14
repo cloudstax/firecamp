@@ -251,7 +251,7 @@ func (d *DynamoDB) listVolumesWithLimit(ctx context.Context, serviceUUID string,
 		}
 
 		glog.Infoln("list volumes succeeded, serviceUUID",
-			serviceUUID, "limit", limit, "requuid", requuid, "resp", resp)
+			serviceUUID, "limit", limit, "requuid", requuid, "resp count", resp.Count)
 
 		lastEvaluatedKey = resp.LastEvaluatedKey
 
@@ -271,7 +271,7 @@ func (d *DynamoDB) listVolumesWithLimit(ctx context.Context, serviceUUID string,
 		for _, item := range resp.Items {
 			vol, err := d.attrsToVolume(item)
 			if err != nil {
-				glog.Errorln("ListVolume convert dynamodb attributes to volume error", err, "requuid", requuid, "resp", resp)
+				glog.Errorln("ListVolume convert dynamodb attributes to volume error", err, "requuid", requuid, "item", item)
 				return nil, err
 			}
 			volumes = append(volumes, vol)

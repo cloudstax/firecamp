@@ -41,8 +41,8 @@ func TestVolumeDriver(t *testing.T) {
 
 	cluster := "cluster1"
 	taskCounts := 1
-	region := "us-west-1"
-	az := "az-west"
+	region := "local-region"
+	az := "local-az"
 	domain := "test.com"
 	vpcID := "vpc1"
 
@@ -123,6 +123,77 @@ func TestVolumeDriver(t *testing.T) {
 		t.Fatalf("device is still mounted to %s", mountpath)
 		runlsblk()
 		rundf()
+	}
+}
+
+func TestVolumeInDifferentZone(t *testing.T) {
+	flag.Parse()
+	//flag.Set("stderrthreshold", "INFO")
+
+	// create OpenManageVolumeDriver
+	dbIns := db.NewMemDB()
+	mockDNS := dns.NewMockDNS()
+	serverIns := server.NewLoopServer()
+	mockServerInfo := server.NewMockServerInfo()
+	contSvcIns := containersvc.NewMemContainerSvc()
+	mockContInfo := containersvc.NewMockContainerSvcInfo()
+
+	requuid := utils.GenRequestUUID()
+	ctx := context.Background()
+	ctx = utils.NewRequestContext(ctx, requuid)
+
+	mgsvc := manageservice.NewManageService(dbIns, serverIns, mockDNS)
+
+	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+
+	cluster := "cluster1"
+	taskCounts := 1
+	region := "local-region"
+	az := "another-az"
+	domain := "test.com"
+	vpcID := "vpc1"
+
+	// create the 1st service
+	service1 := "service1"
+
+	// create the config files for replicas
+	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
+	for i := 0; i < taskCounts; i++ {
+		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
+		configs := []*manage.ReplicaConfigFile{cfg}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfgs[i] = replicaCfg
+	}
+
+	req := &manage.CreateServiceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      region,
+			Cluster:     cluster,
+			ServiceName: service1,
+		},
+		Replicas:       int64(taskCounts),
+		VolumeSizeGB:   int64(taskCounts + 1),
+		HasMembership:  true,
+		ReplicaConfigs: replicaCfgs,
+	}
+
+	uuid1, err := mgsvc.CreateService(ctx, req, domain, vpcID)
+	if err != nil {
+		t.Fatalf("CreateService error", err)
+	}
+
+	// create one task on the container instance
+	task1 := "task1"
+	err = contSvcIns.AddServiceTask(ctx, cluster, service1, task1, mockContInfo.GetLocalContainerInstanceID())
+	if err != nil {
+		t.Fatalf("AddServiceTask error", err)
+	}
+
+	// mount the volume, expect fail as no volume at the same zone
+	mreq := volume.MountRequest{Name: uuid1}
+	mresp := driver.Mount(mreq)
+	if len(mresp.Err) == 0 {
+		t.Fatalf("expect error but mount volume succeed, service uuid", uuid1)
 	}
 }
 

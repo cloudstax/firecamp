@@ -9,6 +9,10 @@ import (
 	"github.com/cloudstax/openmanage/common"
 )
 
+const (
+	regionFilterName = "region-name"
+)
+
 // Ec2Info implements server.Info
 type Ec2Info struct {
 	instanceID string
@@ -16,6 +20,7 @@ type Ec2Info struct {
 	vpcID      string
 	az         string
 	region     string
+	regionAZs  []string
 }
 
 // NewEc2Info creates a Ec2Info instance
@@ -47,15 +52,22 @@ func NewEc2Info(sess *session.Session) (*Ec2Info, error) {
 	}
 
 	instance := resp.Reservations[0].Instances[0]
-
 	az := *(instance.Placement.AvailabilityZone)
+	// az must be like us-west-1c, get region from it
+	region := az[:len(az)-1]
+
+	azs, err := GetRegionAZs(region, sess)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Ec2Info{
 		instanceID: instanceID,
 		hostname:   *(instance.PrivateDnsName),
 		vpcID:      *(instance.VpcId),
 		az:         az,
-		// az must be like us-west-1c, get region from it
-		region: az[:len(az)-1],
+		region:     region,
+		regionAZs:  azs,
 	}
 	return s, nil
 }
@@ -78,4 +90,8 @@ func (s *Ec2Info) GetLocalInstanceID() string {
 
 func (s *Ec2Info) GetLocalVpcID() string {
 	return s.vpcID
+}
+
+func (s *Ec2Info) GetLocalRegionAZs() []string {
+	return s.regionAZs
 }
