@@ -1,0 +1,286 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template will create an AutoScalingGroup for the ECS clusster.",
+  "Parameters":{
+    "ECSClusterName":{
+      "Type":"String",
+      "Description":"Name of the ECS cluster.",
+      "Default":"default",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+    },
+    "SubnetId":{
+      "Type":"List<AWS::EC2::Subnet::Id>",
+      "Description":"Select at two subnets in your selected VPC."
+    },
+    "DesiredCapacityPerAZ":{
+      "Type":"Number",
+      "Default":"1",
+      "Description":"Number of instances to launch in your ECS cluster."
+    },
+    "MaxSizePerAZ":{
+      "Type":"Number",
+      "Default":"1",
+      "Description":"Maximum number of instances that can be launched in your ECS cluster."
+    },
+    "EcsSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The SecurityGroup to access the services in ECS cluster."
+    },
+    "EcsInternalSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The internal SecurityGroup for ECS nodes to access each other."
+    },
+    "InstanceType":{
+      "Description":"EC2 instance type",
+      "Type":"String",
+      "Default":"t2.micro",
+      "AllowedValues":[
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge"
+      ],
+      "ConstraintDescription":"Please choose a valid instance type."
+    }
+  },
+  "Mappings": {
+    "AWSAMIRegionMap": {
+      "AMI": {
+        "AMIID": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
+      },
+      "ap-northeast-1": {
+        "AMIID": "ami-923d12f5"
+      },
+      "ap-northeast-2": {
+        "AMIID": "ami-9d15c7f3"
+      },
+      "ap-south-1": {
+        "AMIID": "ami-52c7b43d"
+      },
+      "ap-southeast-1": {
+        "AMIID": "ami-fc5ae39f"
+      },
+      "ap-southeast-2": {
+        "AMIID": "ami-162c2575"
+      },
+      "ca-central-1": {
+        "AMIID": "ami-0bd66a6f"
+      },
+      "eu-central-1": {
+        "AMIID": "ami-b968bad6"
+      },
+      "eu-west-1": {
+        "AMIID": "ami-01ccc867"
+      },
+      "eu-west-2": {
+        "AMIID": "ami-b6daced2"
+      },
+      "sa-east-1": {
+        "AMIID": "ami-37cfad5b"
+      },
+      "us-east-1": {
+        "AMIID": "ami-c58c1dd3"
+      },
+      "us-east-2": {
+        "AMIID": "ami-4191b524"
+      },
+      "us-west-1": {
+        "AMIID": "ami-7a85a01a"
+      },
+      "us-west-2": {
+        "AMIID": "ami-4836a428"
+      }
+    }
+  },
+  "Resources":{
+    "ECSAutoScalingGroup":{
+      "Type":"AWS::AutoScaling::AutoScalingGroup",
+      "Properties":{
+        "VPCZoneIdentifier":{
+          "Ref":"SubnetId"
+        },
+        "LaunchConfigurationName":{
+          "Ref":"ContainerInstances"
+        },
+        "MinSize":"1",
+        "MaxSize":{
+          "Ref":"MaxSizePerAZ"
+        },
+        "DesiredCapacity":{
+          "Ref":"DesiredCapacityPerAZ"
+        }
+      },
+      "CreationPolicy":{
+        "ResourceSignal":{
+          "Timeout":"PT10M"
+        }
+      },
+      "UpdatePolicy":{
+        "AutoScalingReplacingUpdate":{
+          "WillReplace":"true"
+        }
+      }
+    },
+    "ContainerInstances":{
+      "Type":"AWS::AutoScaling::LaunchConfiguration",
+      "Properties":{
+        "ImageId":{
+          "Fn::FindInMap":[
+            "AWSAMIRegionMap",
+            {
+              "Ref":"AWS::Region"
+            },
+            "AMIID"
+          ]
+        },
+        "SecurityGroups":[
+          {
+            "Ref":"EcsSecurityGroup"
+          },
+          {
+            "Ref": "EcsInternalSecurityGroup"
+          }
+        ],
+        "InstanceType":{
+          "Ref":"InstanceType"
+        },
+        "IamInstanceProfile":{
+          "Ref":"EC2InstanceProfile"
+        },
+        "KeyName":{
+          "Ref":"KeyPairName"
+        },
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[
+              "",
+              [
+                "#!/bin/bash -x\n",
+
+                "# install docker\n",
+                "yum install -y docker\n",
+                "service docker start\n",
+
+                "# install cloudstax ecs init\n",
+                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://raw.github.com/cloudstax/openmanage-packages/master/amazon-linux-ami/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
+                "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
+                "echo ECS_CLUSTER=",
+                {
+                  "Ref":"ECSClusterName"
+                },
+                " >> /etc/ecs/ecs.config\n",
+                "start ecs\n",
+
+                "# install openmanage docker volume driver\n",
+                "wget -O /tmp/openmanage-dockervolume-0.5-1.amzn1.x86_64.rpm https://raw.github.com/cloudstax/openmanage-packages/master/amazon-linux-ami/openmanage-dockervolume-0.5-1.amzn1.x86_64.rpm\n",
+                "rpm -ivh /tmp/openmanage-dockervolume-0.5-1.amzn1.x86_64.rpm\n",
+                "start openmanage-dockervolume\n",
+
+                "yum install -y aws-cfn-bootstrap\n",
+                "# Signal success\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                "         --stack ",
+                {
+                  "Ref":"AWS::StackName"
+                },
+                "         --resource ECSAutoScalingGroup ",
+                "         --region ",
+                {
+                  "Ref":"AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "EC2Role":{
+      "Type":"AWS::IAM::Role",
+      "Properties":{
+        "AssumeRolePolicyDocument":{
+          "Statement":[
+            {
+              "Effect":"Allow",
+              "Principal":{
+                "Service":[
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action":[
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path":"/",
+        "Policies":[
+          {
+            "PolicyName":"openmanage-ecs-service",
+            "PolicyDocument":{
+              "Statement":[
+                {
+                  "Effect":"Allow",
+                  "Action":[
+                    "autoscaling:*",
+                    "ecs:*",
+                    "dynamodb:*",
+                    "ec2:*",
+                    "route53:*"
+                  ],
+                  "Resource":"*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "EC2InstanceProfile":{
+      "Type":"AWS::IAM::InstanceProfile",
+      "Properties":{
+        "Path":"/",
+        "Roles":[
+          {
+            "Ref":"EC2Role"
+          }
+        ]
+      }
+    }
+  }
+}
