@@ -67,13 +67,16 @@ func (s *ServiceOp) CreateService(ctx context.Context, r *manage.CreateServiceRe
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		status, err := s.cli.GetServiceStatus(ctx, r.Service)
 		if err != nil {
+			// The service is successfully created. It may be possible there are some
+			// temporary error, such as network error. For example, ECS may return MISSING
+			// for the GET right after the service creation.
+			// Here just log the GetServiceStatus error and retry.
 			glog.Errorln("GetServiceStatus error", err, r.Service)
-			return err
-		}
-
-		if status.RunningCount == status.DesiredCount {
-			fmt.Println("All service containers are running")
-			return nil
+		} else {
+			if status.RunningCount == status.DesiredCount {
+				fmt.Println("All service containers are running")
+				return nil
+			}
 		}
 
 		time.Sleep(time.Duration(common.DefaultRetryWaitSeconds) * time.Second)

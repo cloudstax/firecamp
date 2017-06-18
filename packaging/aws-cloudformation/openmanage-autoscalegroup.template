@@ -15,7 +15,7 @@
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
     },
-    "SubnetId":{
+    "SubnetID":{
       "Type":"List<AWS::EC2::Subnet::Id>",
       "Description":"Select at two subnets in your selected VPC."
     },
@@ -29,15 +29,19 @@
       "Default":"1",
       "Description":"Maximum number of instances that can be launched in your ECS cluster."
     },
-    "EcsSecurityGroup": {
+    "EcsSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
       "Description": "The SecurityGroup to access the services in ECS cluster."
     },
-    "EcsInternalSecurityGroup": {
+    "EcsInternalSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
       "Description": "The internal SecurityGroup for ECS nodes to access each other."
     },
-    "InstanceType":{
+    "NodeInstanceProfileID": {
+      "Description": "ID of the instance IAM Profile",
+      "Type": "String"
+    },
+    "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
       "Default":"t2.micro",
@@ -132,7 +136,7 @@
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
         "VPCZoneIdentifier":{
-          "Ref":"SubnetId"
+          "Ref":"SubnetID"
         },
         "LaunchConfigurationName":{
           "Ref":"ContainerInstances"
@@ -170,17 +174,17 @@
         },
         "SecurityGroups":[
           {
-            "Ref":"EcsSecurityGroup"
+            "Ref":"EcsSecurityGroupID"
           },
           {
-            "Ref": "EcsInternalSecurityGroup"
+            "Ref":"EcsInternalSecurityGroupID"
           }
         ],
         "InstanceType":{
-          "Ref":"InstanceType"
+          "Ref":"NodeInstanceType"
         },
         "IamInstanceProfile":{
-          "Ref":"EC2InstanceProfile"
+          "Ref":"NodeInstanceProfileID"
         },
         "KeyName":{
           "Ref":"KeyPairName"
@@ -228,58 +232,6 @@
             ]
           }
         }
-      }
-    },
-    "EC2Role":{
-      "Type":"AWS::IAM::Role",
-      "Properties":{
-        "AssumeRolePolicyDocument":{
-          "Statement":[
-            {
-              "Effect":"Allow",
-              "Principal":{
-                "Service":[
-                  "ec2.amazonaws.com"
-                ]
-              },
-              "Action":[
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path":"/",
-        "Policies":[
-          {
-            "PolicyName":"openmanage-ecs-service",
-            "PolicyDocument":{
-              "Statement":[
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "autoscaling:*",
-                    "ecs:*",
-                    "dynamodb:*",
-                    "ec2:*",
-                    "route53:*"
-                  ],
-                  "Resource":"*"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    },
-    "EC2InstanceProfile":{
-      "Type":"AWS::IAM::InstanceProfile",
-      "Properties":{
-        "Path":"/",
-        "Roles":[
-          {
-            "Ref":"EC2Role"
-          }
-        ]
       }
     }
   }
