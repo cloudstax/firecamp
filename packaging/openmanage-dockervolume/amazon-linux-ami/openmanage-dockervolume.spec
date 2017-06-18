@@ -1,6 +1,6 @@
 Name:           openmanage-dockervolume
 Version:        0.5
-Release:        1%{?dist}
+Release:        1
 Vendor:         CloudStax
 License:        Apache 2.0
 Summary:        CloudStax docker volume driver
@@ -8,7 +8,7 @@ Summary:        CloudStax docker volume driver
 Source0:        openmanage-dockervolume.tgz
 
 %global init_dir %{_sysconfdir}/init
-%global bin_dir %{_libexecdir}
+%global bin_dir %{_bindir}
 
 %description
 openmanage-dockervolume is the docker volume driver on the openmanage platform.
