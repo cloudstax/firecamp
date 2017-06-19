@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/openmanage/catalog"
-	"github.com/cloudstax/openmanage/containersvc/awsecs"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/server/awsec2"
 )
@@ -60,16 +57,7 @@ func main() {
 		}
 	}
 
-	config := aws.NewConfig().WithRegion(awsRegion)
-	sess, err := session.NewSession(config)
-	if err != nil {
-		glog.Fatalln("failed to create aws session, error", err)
-	}
-
-	ecsIns := awsecs.NewAWSEcs(sess)
-
-	sop, err := serviceop.NewServiceOp(ecsIns, awsRegion,
-		mgtserverurl, *tlsEnabled, *caFile, *certFile, *keyFile)
+	sop, err := serviceop.NewServiceOp(awsRegion, mgtserverurl, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln(err)
 	}

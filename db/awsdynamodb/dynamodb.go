@@ -341,15 +341,13 @@ func (d *DynamoDB) createConfigTable(dbsvc *dynamodb.DynamoDB) error {
 func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, ready bool, err error) {
 	dbsvc := dynamodb.New(d.sess)
 
-	TableActive := "ACTIVE"
-
 	// check device table status
 	tableStatus, err = d.getTableStatus(dbsvc, d.deviceTableName)
 	if err != nil {
 		glog.Errorln("get device table status failed", err)
 		return tableStatus, false, err
 	}
-	if tableStatus != TableActive {
+	if tableStatus != db.TableStatusActive {
 		glog.Infoln("device table not ready, status", tableStatus)
 		return tableStatus, false, nil
 	}
@@ -360,7 +358,7 @@ func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, r
 		glog.Errorln("get service table status failed", err)
 		return tableStatus, false, err
 	}
-	if tableStatus != TableActive {
+	if tableStatus != db.TableStatusActive {
 		glog.Infoln("service table not ready, status", tableStatus)
 		return tableStatus, false, nil
 	}
@@ -371,7 +369,7 @@ func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, r
 		glog.Errorln("get service attr table status failed", err)
 		return tableStatus, false, err
 	}
-	if tableStatus != TableActive {
+	if tableStatus != db.TableStatusActive {
 		glog.Infoln("service attr table not ready, status", tableStatus)
 		return tableStatus, false, nil
 	}
@@ -382,7 +380,7 @@ func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, r
 		glog.Errorln("get volume table status failed", err)
 		return tableStatus, false, err
 	}
-	if tableStatus != TableActive {
+	if tableStatus != db.TableStatusActive {
 		glog.Infoln("service table not ready, status", tableStatus)
 		return tableStatus, false, nil
 	}
@@ -393,7 +391,7 @@ func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, r
 		glog.Errorln("get config table status failed", err)
 		return tableStatus, false, err
 	}
-	if tableStatus != TableActive {
+	if tableStatus != db.TableStatusActive {
 		glog.Infoln("service table not ready, status", tableStatus)
 		return tableStatus, false, nil
 	}

@@ -9,22 +9,18 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/manage/client"
 	"github.com/cloudstax/openmanage/utils"
 )
 
 type ServiceOp struct {
-	region          string
-	mgtserverurl    string
-	cli             *client.ManageClient
-	containersvcIns containersvc.ContainerSvc
+	region       string
+	mgtserverurl string
+	cli          *client.ManageClient
 }
 
-func NewServiceOp(containersvcIns containersvc.ContainerSvc, region string, mgtserverurl string,
-	tlsEnabled bool, caFile string, certFile string, keyFile string) (*ServiceOp, error) {
-
+func NewServiceOp(region string, mgtserverurl string, tlsEnabled bool, caFile string, certFile string, keyFile string) (*ServiceOp, error) {
 	var cli *client.ManageClient
 	if tlsEnabled {
 		// TODO how to pass the ca/cert/key files to container? one option is: store them in S3.
@@ -46,10 +42,9 @@ func NewServiceOp(containersvcIns containersvc.ContainerSvc, region string, mgts
 	}
 
 	s := &ServiceOp{
-		region:          region,
-		mgtserverurl:    mgtserverurl,
-		cli:             cli,
-		containersvcIns: containersvcIns,
+		region:       region,
+		mgtserverurl: mgtserverurl,
+		cli:          cli,
 	}
 
 	return s, nil
@@ -115,7 +110,7 @@ func (s *ServiceOp) InitializeService(ctx context.Context, req *manage.RunTaskRe
 		TaskID:  "",
 	}
 
-	// run the init task to set up mongodb replicaset
+	// run the init task
 	for i := 0; i < common.DefaultTaskRetryCounts; i++ {
 		taskID, err := s.cli.RunTask(ctx, req)
 		if err != nil {
@@ -127,7 +122,7 @@ func (s *ServiceOp) InitializeService(ctx context.Context, req *manage.RunTaskRe
 		getReq.TaskID = taskID
 		s.waitTask(ctx, getReq)
 
-		// check if mongodb service is initialized
+		// check if service is initialized
 		initialized, err := s.cli.IsServiceInitialized(ctx, req.Service)
 		if err != nil {
 			glog.Errorln("check service initialized error", err, req.Service)
@@ -198,20 +193,6 @@ func (s *ServiceOp) ListServiceVolumes(ctx context.Context, cluster string, serv
 }
 
 func (s *ServiceOp) DeleteService(ctx context.Context, cluster string, service string) error {
-	// delete the service from the container platform
-	// TODO move StopService to the manage server side
-	err := s.containersvcIns.StopService(ctx, cluster, service)
-	if err != nil {
-		glog.Errorln("StopService error", err, "service", service, "cluster", cluster)
-		return err
-	}
-
-	err = s.containersvcIns.DeleteService(ctx, cluster, service)
-	if err != nil {
-		glog.Errorln("delete service from container platform error", err, "service", service, "cluster", cluster)
-		return err
-	}
-
 	// delete the service from the control plane.
 	serviceReq := &manage.ServiceCommonRequest{
 		Region:      s.region,
@@ -219,7 +200,7 @@ func (s *ServiceOp) DeleteService(ctx context.Context, cluster string, service s
 		ServiceName: service,
 	}
 
-	err = s.cli.DeleteService(ctx, serviceReq)
+	err := s.cli.DeleteService(ctx, serviceReq)
 	if err != nil {
 		glog.Errorln("DeleteService error", err, serviceReq)
 		return err

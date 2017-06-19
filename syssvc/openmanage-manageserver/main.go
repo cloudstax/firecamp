@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
@@ -19,6 +21,7 @@ import (
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/dns/awsroute53"
 	"github.com/cloudstax/openmanage/manage/server"
+	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/server/awsec2"
 	"github.com/cloudstax/openmanage/utils"
 )
@@ -96,17 +99,151 @@ func main() {
 		glog.Fatalln("unsupport container platform", *platform)
 	}
 
+	ctx := context.Background()
 	var dbIns db.DB
 	switch *dbtype {
 	case common.DBTypeCloudDB:
 		dbIns = awsdynamodb.NewDynamoDB(sess)
+
+		tableStatus, ready, err := dbIns.SystemTablesReady(ctx)
+		if err != nil && err != db.ErrDBResourceNotFound {
+			glog.Fatalln("check dynamodb SystemTablesReady error", err, tableStatus)
+		}
+		if !ready {
+			// create system tables
+			err = dbIns.CreateSystemTables(ctx)
+			if err != nil {
+				glog.Fatalln("dynamodb CreateSystemTables error", err)
+			}
+
+			// wait the system tables ready
+			waitSystemTablesReady(ctx, dbIns)
+		}
+
 	case common.DBTypeControlDB:
 		addr := dns.GetDefaultControlDBAddr(cluster)
 		dbIns = controldbcli.NewControlDBCli(addr)
+
+		createControlDB(ctx, cluster, containersvcIns, serverIns, serverInfo)
+		waitControlDBReady(ctx, cluster, containersvcIns)
+
+	default:
+		glog.Fatalln("unknown db type", dbtype)
 	}
 
 	err = manageserver.StartServer(cluster, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 
 	glog.Fatalln("StartServer error", err)
+}
+
+func createControlDB(ctx context.Context, cluster string, containersvcIns containersvc.ContainerSvc, serverIns server.Server, serverInfo server.Info) {
+	// check if the controldb service exists.
+	exist, err := containersvcIns.IsServiceExist(ctx, cluster, common.ControlDBServiceName)
+	if err != nil {
+		glog.Fatalln("check the controlDB service exist error", err, common.ControlDBServiceName)
+	}
+	if exist {
+		glog.Infoln("The controlDB service is already created")
+		return
+	}
+
+	// create the controldb volume
+	az := serverInfo.GetLocalAvailabilityZone()
+	// TODO if some step fails, the volume may not be deleted.
+	//      add tag to EBS volume, so the old volume could be deleted.
+	volID, err := serverIns.CreateVolume(ctx, az, common.ControlDBVolumeSizeGB)
+	if err != nil {
+		glog.Fatalln("failed to create the controldb volume", err)
+	}
+
+	glog.Infoln("create the controldb volume", volID)
+
+	err = serverIns.WaitVolumeCreated(ctx, volID)
+	if err != nil {
+		serverIns.DeleteVolume(ctx, volID)
+		glog.Fatalln("volume is not at available status", err, volID)
+	}
+
+	// create the controldb service
+	serviceUUID := utils.GenControlDBServiceUUID(volID)
+
+	commonOpts := &containersvc.CommonOptions{
+		Cluster:        cluster,
+		ServiceName:    common.ControlDBServiceName,
+		ServiceUUID:    serviceUUID,
+		ContainerImage: common.ControlDBContainerImage,
+		Resource: &common.Resources{
+			MaxCPUUnits:     int64(0),
+			ReserveCPUUnits: common.ControlDBCPUUnits,
+			MaxMemMB:        common.ControlDBMaxMemMB,
+			ReserveMemMB:    common.ControlDBReserveMemMB,
+		},
+	}
+
+	kv := &common.EnvKeyValuePair{
+		Name:  common.ENV_CONTAINER_PLATFORM,
+		Value: *platform,
+	}
+
+	createOpts := &containersvc.CreateServiceOptions{
+		Common:        commonOpts,
+		ContainerPath: common.ControlDBDefaultDir,
+		Port:          common.ControlDBServerPort,
+		Replicas:      int64(1),
+		Envkvs:        []*common.EnvKeyValuePair{kv},
+	}
+
+	err = containersvcIns.CreateService(ctx, createOpts)
+	if err != nil {
+		glog.Fatalln("create controlDB service error", err, common.ControlDBServiceName, "serviceUUID", serviceUUID)
+	}
+
+	glog.Infoln("created the controlDB service")
+}
+
+func waitControlDBReady(ctx context.Context, cluster string, containersvcIns containersvc.ContainerSvc) {
+	// wait the controldb service is running
+	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
+		status, err := containersvcIns.GetServiceStatus(ctx, cluster, common.ControlDBServiceName)
+		if err != nil {
+			// The service is successfully created. It may be possible there are some
+			// temporary error, such as network error. For example, ECS may return MISSING
+			// for the GET right after the service creation.
+			// Here just log the GetServiceStatus error and retry.
+			glog.Errorln("GetServiceStatus error", err)
+		} else {
+			if status.RunningCount == status.DesiredCount {
+				glog.Infoln("The controldb service is ready")
+				return
+			}
+		}
+
+		time.Sleep(time.Duration(common.DefaultRetryWaitSeconds) * time.Second)
+	}
+
+	glog.Fatalln("Wait the controldb service ready timeout")
+}
+
+func waitSystemTablesReady(ctx context.Context, dbIns db.DB) {
+	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
+		tableStatus, ready, err := dbIns.SystemTablesReady(ctx)
+		if err != nil {
+			glog.Errorln("SystemTablesReady check failed", err)
+		} else {
+			if ready {
+				glog.Infoln("system tables are ready")
+				return
+			}
+
+			if tableStatus != db.TableStatusCreating {
+				glog.Fatalln("unexpected table status", tableStatus)
+			}
+		}
+
+		glog.Infoln("tables are not ready, sleep and check again")
+		time.Sleep(time.Duration(common.DefaultRetryWaitSeconds) * time.Second)
+	}
+
+	glog.Fatalln("Wait the SystemTablesReady timeout")
 }

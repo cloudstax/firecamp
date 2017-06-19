@@ -47,7 +47,11 @@ type ContainerSvc interface {
 	IsServiceExist(ctx context.Context, cluster string, service string) (bool, error)
 	CreateService(ctx context.Context, opts *CreateServiceOptions) error
 	GetServiceStatus(ctx context.Context, cluster string, service string) (*common.ServiceStatus, error)
+	// StopService stops the service on the container platform.
+	// Expect no error (nil) If service is already stopped or does not exist.
 	StopService(ctx context.Context, cluster string, service string) error
+	// DeleteService deletes the service on the container platform.
+	// Expect no error (nil) If service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error
 	// list the active (pending and running) tasks of the service.
 	ListActiveServiceTasks(ctx context.Context, cluster string, service string) (serviceTaskIDs map[string]bool, err error)

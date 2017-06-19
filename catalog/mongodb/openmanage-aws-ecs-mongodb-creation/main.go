@@ -13,7 +13,6 @@ import (
 
 	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc/awsecs"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/server/awsec2"
@@ -100,10 +99,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	ecsIns := awsecs.NewAWSEcs(sess)
-
-	sop, err := serviceop.NewServiceOp(ecsIns, awsRegion,
-		mgtserverurl, *tlsEnabled, *caFile, *certFile, *keyFile)
+	sop, err := serviceop.NewServiceOp(awsRegion, mgtserverurl, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln(err)
 	}

@@ -33,10 +33,20 @@
       "Default":"1",
       "Description":"Maximum number of instances that can be launched in your ECS cluster."
     },
+    "OpenManageDBType": {
+			"AllowedValues": [
+				"clouddb",
+				"controldb"
+			],
+			"Default": "clouddb",
+		  "Description": "The openmanage db type",
+			"Type": "String"
+		},
+
     "InstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
-      "Default":"m4.large",
+      "Default":"t2.micro",
       "AllowedValues":[
         "t2.micro",
         "t2.small",
@@ -231,7 +241,9 @@
               },
               {
                 "Name": "DB_TYPE",
-                "Value": "clouddb"
+                "Value": {
+                  "Ref": "OpenManageDBType"
+                }
               }
             ]
           }
@@ -239,6 +251,7 @@
       }
     },
     "ECSAutoScalingGroup":{
+      "DependsOn": "ECSCluster",
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
         "VPCZoneIdentifier":{

@@ -285,6 +285,20 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	// delete the service on the container platform
+	err = s.containersvcIns.StopService(ctx, s.cluster, servicename)
+	if err != nil {
+		glog.Errorln("StopService error", err, "service", servicename, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	err = s.containersvcIns.DeleteService(ctx, s.cluster, servicename)
+	if err != nil {
+		glog.Errorln("delete service from container platform error", err,
+			"service", servicename, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
 	err = s.dbIns.DeleteService(ctx, s.cluster, servicename)
 	if err != nil {
 		glog.Errorln("DeleteService error", err, servicename, "requuid", requuid)
