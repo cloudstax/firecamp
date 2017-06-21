@@ -309,3 +309,51 @@ func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskReque
 
 	return manage.ConvertHTTPError(resp.StatusCode)
 }
+
+// CatalogCreateService creates a new catalog service.
+func (c *ManageClient) CatalogCreateService(ctx context.Context, r *manage.CatalogCreateServiceRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
+// CatalogCheckServiceInit checks if a catalog service is initialized.
+func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (bool, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return false, err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCheckServiceInitOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return false, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCheckServiceInitResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.Initialized, err
+}

@@ -4,7 +4,7 @@
 install:
 	./scripts/install.sh
 
-docker:
+docker: install
 	./scripts/builddocker.sh
 
 test:

@@ -36,6 +36,7 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 	//flag.Set("stderrthreshold", "FATAL")
 
 	cluster := "cluster1"
+	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
 	serverIns := server.NewMemServer()
@@ -44,7 +45,7 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 29
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -55,6 +56,7 @@ func TestServerMgrOperationsWithControlDB(t *testing.T) {
 
 	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
 	cluster := "cluster1"
+	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
 
 	s := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 2}
 	go s.RunControldbTestServer(cluster)
@@ -68,7 +70,7 @@ func TestServerMgrOperationsWithControlDB(t *testing.T) {
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(cluster, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 15
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -93,7 +95,7 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 		t.Fatalf("create system table error", err, "region", *region, "tableNameSuffix", tableNameSuffix)
 	}
 
-	err = dbIns.WaitSystemTablesReady(ctx, 60)
+	err = dbIns.WaitSystemTablesReady(ctx, 120)
 	if err != nil {
 		t.Fatalf("WaitSystemTablesReady error", err)
 	}
@@ -104,7 +106,8 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	cluster := "cluster1"
-	mgtsvc := NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
+	mgtsvc := NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 7
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }

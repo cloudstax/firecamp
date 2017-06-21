@@ -75,7 +75,22 @@ func GetDomainNameFromDNSName(dnsname string) (string, error) {
 	return domain, nil
 }
 
-// GetDefaultManageServiceURL returns the default management service address,
+// GetDefaultManageServiceDNSName returns the default management service dnsname.
+// example: openmanage-manageserver.cluster-openmanage.com
+func GetDefaultManageServiceDNSName(cluster string) string {
+	domain := GenDefaultDomainName(cluster)
+	return GenDNSName(common.ManageServiceName, domain)
+}
+
+// GetManageServiceURL returns the manage server url.
+func GetManageServiceURL(dnsname string, tlsEnabled bool) string {
+	if tlsEnabled {
+		return "https://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
+	}
+	return "http://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
+}
+
+// GetDefaultManageServiceURL returns the default management service address.
 // example: https://openmanage-manageserver.cluster-openmanage.com:27040/
 func GetDefaultManageServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)

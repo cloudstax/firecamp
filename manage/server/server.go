@@ -40,26 +40,30 @@ import (
 // hosted zone. One federation HostedZone is created for all clusters.
 // Note: the federation HostedZone could include multiple VPCs at multiple Regions.
 type ManageHTTPServer struct {
-	region  string
-	cluster string
+	region    string
+	cluster   string
+	manageurl string
 
 	dbIns           db.DB
 	serverInfo      server.Info
 	containersvcIns containersvc.ContainerSvc
 	svc             *manageservice.ManageService
+	catalogSvcInit  *catalogServiceInit
 }
 
 // NewManageHTTPServer creates a ManageHTTPServer instance
-func NewManageHTTPServer(cluster string, dbIns db.DB, dnsIns dns.DNS, serverIns server.Server,
+func NewManageHTTPServer(cluster string, managedns string, dbIns db.DB, dnsIns dns.DNS, serverIns server.Server,
 	serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
 	svc := manageservice.NewManageService(dbIns, serverIns, dnsIns)
 	s := &ManageHTTPServer{
 		region:          serverInfo.GetLocalRegion(),
 		cluster:         cluster,
+		manageurl:       dns.GetManageServiceURL(managedns, false),
 		dbIns:           dbIns,
 		serverInfo:      serverInfo,
 		containersvcIns: containersvcIns,
 		svc:             svc,
+		catalogSvcInit:  newCatalogServiceInit(cluster, containersvcIns, dbIns),
 	}
 	return s
 }
@@ -118,6 +122,12 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //   PUT /servicename, create a service.
 //   PUT /?SetServiceInitialized, mark a service initialized.
 func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
+	// check if the request is the catalog service request.
+	if strings.HasPrefix(trimURL, manage.CatalogOpPrefix) {
+		return s.putCatalogServiceOp(ctx, w, r, requuid)
+	}
+
+	// check if the request is other special request.
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
 		case manage.ServiceInitializedOp:
@@ -127,9 +137,10 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
-	} else {
-		return s.createService(ctx, w, r, trimURL, requuid)
 	}
+
+	// the common service creation request.
+	return s.createService(ctx, w, r, trimURL, requuid)
 }
 
 func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -182,33 +193,42 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	_, err = s.createCommonService(ctx, req, requuid)
+	if err != nil {
+		return manage.ConvertToHTTPError(err)
+	}
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) createCommonService(ctx context.Context,
+	req *manage.CreateServiceRequest, requuid string) (serviceUUID string, err error) {
 	// create the service in the control plane
 	domain := dns.GenDefaultDomainName(s.cluster)
 	vpcID := s.serverInfo.GetLocalVpcID()
 
-	serviceUUID, err := s.svc.CreateService(ctx, req, domain, vpcID)
+	serviceUUID, err = s.svc.CreateService(ctx, req, domain, vpcID)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return "", err
 	}
 
 	// create the service in the container platform
 	exist, err := s.containersvcIns.IsServiceExist(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("check container service exist error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return serviceUUID, err
 	}
 	if !exist {
 		opts := s.genCreateServiceOptions(req, serviceUUID)
 		err = s.containersvcIns.CreateService(ctx, opts)
 		if err != nil {
 			glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-			return manage.ConvertToHTTPError(err)
+			return serviceUUID, err
 		}
 	}
 
 	glog.Infoln("create service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
-	return "", http.StatusOK
+	return serviceUUID, nil
 }
 
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest, serviceUUID string) *containersvc.CreateServiceOptions {
@@ -233,6 +253,11 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 // Get one service, GET /servicename. Or list services, Get / or /?list-type=1, and additional parameters in headers
 func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
+	// check if the request is the catalog service request.
+	if strings.HasPrefix(trimURL, manage.CatalogOpPrefix) {
+		return s.getCatalogServiceOp(ctx, w, r, requuid)
+	}
+
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
 		case manage.ListServiceOp:

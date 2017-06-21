@@ -33,13 +33,14 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	//flag.Set("stderrthreshold", "FATAL")
 
 	cluster := "cluster1"
+	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort)
 
 	lis, err := net.Listen("tcp", addr)
@@ -69,6 +70,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 
 	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
 	cluster := "cluster1"
+	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 
 	testdb := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 1}
 	go testdb.RunControldbTestServer(cluster)
@@ -80,7 +82,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)
@@ -135,7 +137,8 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	cluster := "cluster1"
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)

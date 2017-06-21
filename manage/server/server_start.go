@@ -41,7 +41,7 @@ func StartServer(cluster string, manageDNSName string, managePort int,
 	}
 
 	// create the management http server
-	serv := NewManageHTTPServer(cluster, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	serv := NewManageHTTPServer(cluster, dnsname, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 
 	// listen on all ips, as manageserver runs inside the container
 	addr := ":" + strconv.Itoa(managePort)

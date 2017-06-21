@@ -15,6 +15,10 @@ const (
 	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"
 	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
 
+	CatalogOpPrefix           = SpecialOpPrefix + "Catalog-"
+	CatalogCreateServiceOp    = CatalogOpPrefix + "Create-Service"
+	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
+
 	// response headers
 	RequestID       = "x-RequestId"
 	Server          = "Server"
@@ -132,4 +136,29 @@ type GetTaskStatusResponse struct {
 type DeleteTaskRequest struct {
 	Service  *ServiceCommonRequest
 	TaskType string
+}
+
+// The integrated catalog services supported by the system.
+
+// CatalogCreateServiceRequest creates a service supported by catalog.
+type CatalogCreateServiceRequest struct {
+	// ServiceType is defined in catalog/types.go
+	ServiceType string
+
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+
+	VolumeSizeGB int64
+}
+
+// CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
+type CatalogCheckServiceInitRequest struct {
+	ServiceType string
+
+	Service *ServiceCommonRequest
+}
+
+// CatalogCheckServiceInitResponse returns the service init status
+type CatalogCheckServiceInitResponse struct {
+	Initialized bool
 }

@@ -28,7 +28,7 @@ import (
 
 var (
 	platform      = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
-	manageDNSName = flag.String("dnsname", "", "the dns name of the management service. Default: "+dns.GetDefaultManageServiceURL("cluster", false))
+	manageDNSName = flag.String("dnsname", "", "the dns name of the management service. Default: "+dns.GetDefaultManageServiceDNSName("cluster"))
 	managePort    = flag.Int("port", common.ManageHTTPServerPort, "port that the manage http service listens on")
 	dbtype        = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	tlsEnabled    = flag.Bool("tlsverify", false, "whether TLS is enabled")

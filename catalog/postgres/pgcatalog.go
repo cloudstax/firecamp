@@ -1,47 +1,19 @@
-package main
+package pgcatalog
 
 import (
-	"flag"
 	"fmt"
-	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/golang/glog"
-	"golang.org/x/net/context"
-
-	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/server/awsec2"
+	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
 )
 
-// The script is a simple demo for how to create the postgres service, the ECS task definition and service.
-var (
-	service      = flag.String("service", "", "The target service name in ECS")
-	replicas     = flag.Int64("replicas", 1, "The number of replicas for the service")
-	volSizeGB    = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	region       = flag.String("region", "", "The target AWS region")
-	cluster      = flag.String("cluster", "default", "The ECS cluster")
-	serverURL    = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
-	tlsEnabled   = flag.Bool("tlsEnabled", false, "whether tls is enabled")
-	caFile       = flag.String("ca-file", "", "the ca file")
-	certFile     = flag.String("cert-file", "", "the cert file")
-	keyFile      = flag.String("key-file", "", "the key file")
-	cpuUnits     = flag.Int64("cpu-units", 128, "The number of cpu units to reserve for the container")
-	maxMemMB     = flag.Int64("max-memory", 128, "The hard limit for memory, unit: MB")
-	reserveMemMB = flag.Int64("soft-memory", 128, "The memory reserved for the container, unit: MB")
-	port         = flag.Int64("port", 5432, "The PostgreSQL listening port, default: 5432")
-	pgpasswd     = flag.String("passwd", "password", "The PostgreSQL DB password")
-	replUser     = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
-	replPasswd   = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
-)
-
 const (
-	ContainerImage = common.ContainerNamePrefix + "postgres"
-	ContainerPath  = common.DefaultContainerMountPath
+	ContainerImage  = common.ContainerNamePrefix + "postgres"
+	DefaultPort     = 5432
+	defaultReplicas = 3
 
 	ContainerRolePrimary = "primary"
 	ContainerRoleStandby = "standby"
@@ -51,103 +23,43 @@ const (
 	RecoveryConfFileName = "recovery.conf"
 )
 
-func usage() {
-	fmt.Println("usage: openmanage-aws-postgres-creation -op=create-service -region=us-west-1")
-}
+// The default PostgreSQL catalog service. By default,
+// 1) One PostgreSQL has 1 primary and 2 secondary replicas across 3 availability zones.
+// 2) Listen on the standard MongoDB port, 5432.
 
-func main() {
-	flag.Parse()
-	defer glog.Flush()
-
-	if *service == "" || *replicas == 0 || *volSizeGB == 0 {
-		fmt.Println("please specify the valid service name, replicas, volume size")
-		os.Exit(-1)
-	}
-
-	mgtserverurl := *serverURL
-	if mgtserverurl == "" {
-		// use default server url
-		mgtserverurl = dns.GetDefaultManageServiceURL(*cluster, *tlsEnabled)
-	} else {
-		// format url
-		mgtserverurl = dns.FormatManageServiceURL(mgtserverurl, *tlsEnabled)
-	}
-
-	var err error
-	awsRegion := *region
-	if awsRegion == "" {
-		awsRegion, err = awsec2.GetLocalEc2Region()
-		if err != nil {
-			fmt.Println("please input the correct AWS region")
-			os.Exit(-1)
-		}
-	}
-
-	config := aws.NewConfig().WithRegion(awsRegion)
-	sess, err := session.NewSession(config)
-	if err != nil {
-		glog.Fatalln("failed to create aws session, error", err)
-	}
-
-	// make sure one replica per az
-	azs, err := awsec2.GetRegionAZs(awsRegion, sess)
-	if err != nil {
-		glog.Fatalln(err)
-	}
-	if len(azs) < int(*replicas) {
-		fmt.Println("region ", awsRegion, " only has ", len(azs), " availability zones")
-		os.Exit(-1)
-	}
-
-	sop, err := serviceop.NewServiceOp(awsRegion, mgtserverurl, *tlsEnabled, *caFile, *certFile, *keyFile)
-	if err != nil {
-		glog.Fatalln(err)
-	}
-
-	ctx := context.Background()
+// GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
+func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB int64,
+	pgpasswd string, replUser string, replPasswd string,
+	res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
+	azs := serverInfo.GetLocalRegionAZs()
 
 	// generate service ReplicaConfigs
-	replicaCfgs := genReplicaConfigs(*cluster, *service, azs, *replicas, *port, *pgpasswd, *replUser, *replPasswd)
+	replicaCfgs := GenReplicaConfigs(cluster, service, azs, defaultReplicas, DefaultPort, pgpasswd, replUser, replPasswd)
 
-	req := &manage.CreateServiceRequest{
+	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      awsRegion,
-			Cluster:     *cluster,
-			ServiceName: *service,
+			Region:      serverInfo.GetLocalRegion(),
+			Cluster:     cluster,
+			ServiceName: service,
 		},
 
-		Resource: &common.Resources{
-			MaxCPUUnits:     *cpuUnits,
-			ReserveCPUUnits: *cpuUnits,
-			MaxMemMB:        *maxMemMB,
-			ReserveMemMB:    *reserveMemMB,
-		},
+		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       *replicas,
-		VolumeSizeGB:   *volSizeGB,
-		ContainerPath:  ContainerPath,
-		Port:           *port,
+		Replicas:       defaultReplicas,
+		VolumeSizeGB:   volSizeGB,
+		ContainerPath:  common.DefaultContainerMountPath,
+		Port:           DefaultPort,
 
 		HasMembership:  true,
 		ReplicaConfigs: replicaCfgs,
 	}
-
-	err = sop.CreateService(ctx, req, common.DefaultTaskWaitSeconds)
-	if err != nil {
-		glog.Fatalln("create service error", err, "cluster", *cluster, "service", *service)
-	}
-
-	// postgres does not require the special cluster membership setup. set the service initialized
-	err = sop.SetServiceInitialized(ctx, req.Service)
-	if err != nil {
-		glog.Fatalln("SetServiceInitialized error", err, req.Service)
-	}
-
-	fmt.Println("The PostgreSQL cluster are successfully initialized")
 }
 
-func genReplicaConfigs(cluster string, service string, azs []string, replicas int64, port int64, pgpasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
+// GenReplicaConfigs generates the replica configs.
+// Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
+func GenReplicaConfigs(cluster string, service string, azs []string, replicas int64,
+	port int64, pgpasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 
 	// generate the primary configs
@@ -158,8 +70,9 @@ func genReplicaConfigs(cluster string, service string, azs []string, replicas in
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
-	for i := int64(1); i < replicas; i++ {
-		replicaCfgs[i] = genStandbyConfig(azs[i], primaryHost, port, pgpasswd, replUser, replPasswd)
+	for i := 1; i < int(replicas); i++ {
+		index := i % len(azs)
+		replicaCfgs[i] = genStandbyConfig(azs[index], primaryHost, port, pgpasswd, replUser, replPasswd)
 	}
 
 	return replicaCfgs

@@ -21,7 +21,7 @@ const (
 	ServiceMemberDomainNameTTLSeconds = 10
 
 	DefaultCpuUnits        = 64
-	DefaultMemoryMBMax     = 128
+	DefaultMemoryMBMax     = 1024
 	DefaultMemoryMBReserve = 128
 
 	DefaultServiceWaitSeconds = 120

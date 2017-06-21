@@ -3,7 +3,7 @@ set -x
 set -e
 
 # run all unit tests
-gotest="go test -short -v -cover"
+gotest="go test -short -cover"
 
 $gotest ./containersvc/...
 $gotest ./db/...
