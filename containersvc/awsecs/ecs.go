@@ -490,33 +490,45 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 
 	containerName := taskDefFamily + common.NameSeparator + common.ContainerNameSuffix
 
+	containerDef := &ecs.ContainerDefinition{
+		Name:       aws.String(containerName),
+		Image:      aws.String(commonOpts.ContainerImage),
+		Essential:  aws.Bool(true),
+		Privileged: aws.Bool(false),
+		//Environment: []*ecs.KeyValuePair{
+		//	{ // Required
+		//		Name:  aws.String("String"),
+		//		Value: aws.String("String"),
+		//	},
+		// More values...
+		//},
+		// LogConfiguration: &ecs.LogConfiguration{
+		//  LogDriver: aws.String("LogDriver"),
+		//  Options: map[string]*string{
+		//    "Key": aws.String("String"),
+		//  },
+		//},
+	}
+	if commonOpts.Resource != nil {
+		if commonOpts.Resource.ReserveCPUUnits != -1 {
+			containerDef.Cpu = aws.Int64(commonOpts.Resource.ReserveCPUUnits)
+		}
+		if commonOpts.Resource.ReserveMemMB != -1 {
+			// soft limit
+			containerDef.MemoryReservation = aws.Int64(commonOpts.Resource.ReserveMemMB)
+		}
+		if commonOpts.Resource.MaxMemMB != -1 {
+			// hard limit
+			containerDef.Memory = aws.Int64(commonOpts.Resource.MaxMemMB)
+		}
+	}
+
 	params := &ecs.RegisterTaskDefinitionInput{
 		Family: aws.String(taskDefFamily),
 		//TaskRoleArn: aws.String("String"),
 
 		ContainerDefinitions: []*ecs.ContainerDefinition{
-			{
-				Name:              aws.String(containerName),
-				Image:             aws.String(commonOpts.ContainerImage),
-				Cpu:               aws.Int64(commonOpts.Resource.ReserveCPUUnits),
-				Memory:            aws.Int64(commonOpts.Resource.MaxMemMB),     // hard limit
-				MemoryReservation: aws.Int64(commonOpts.Resource.ReserveMemMB), // soft limit
-				Essential:         aws.Bool(true),
-				Privileged:        aws.Bool(false),
-				//Environment: []*ecs.KeyValuePair{
-				//	{ // Required
-				//		Name:  aws.String("String"),
-				//		Value: aws.String("String"),
-				//	},
-				// More values...
-				//},
-				// LogConfiguration: &ecs.LogConfiguration{
-				//  LogDriver: aws.String("LogDriver"),
-				//  Options: map[string]*string{
-				//    "Key": aws.String("String"),
-				//  },
-				//},
-			},
+			containerDef,
 		},
 	}
 	return params

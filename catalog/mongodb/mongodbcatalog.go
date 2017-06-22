@@ -63,10 +63,10 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 		ServiceUUID:    serviceUUID,
 		ContainerImage: InitContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     common.DefaultCpuUnits,
-			ReserveCPUUnits: common.DefaultCpuUnits,
-			MaxMemMB:        common.DefaultMemoryMBMax,
-			ReserveMemMB:    common.DefaultMemoryMBReserve,
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
 	}
 

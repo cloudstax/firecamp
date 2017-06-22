@@ -19,7 +19,7 @@ docker push $image
 target=$system"-manageserver"
 image=$org$target
 binfile=$target
-path="${TOPWD}/syssvc/openmanage-manageserver/dockerfile/"
+path="${TOPWD}/syscmds/openmanage-manageserver/dockerfile/"
 echo
 cp $GOPATH/bin/$binfile $path
 docker build -t $image $path
@@ -31,7 +31,7 @@ docker push $image
 target=$system"-controldb"
 image=$org$target
 binfile=$target
-path="${TOPWD}/syssvc/openmanage-controldb/dockerfile/"
+path="${TOPWD}/syscmds/openmanage-controldb/dockerfile/"
 echo
 cp $GOPATH/bin/$binfile $path
 docker build -t $image $path

@@ -95,9 +95,9 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		ServiceUUID:    service + "-serviceUUID",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(128),
+			MaxCPUUnits:     -1,
 			ReserveCPUUnits: int64(16),
-			MaxMemMB:        int64(128),
+			MaxMemMB:        -1,
 			ReserveMemMB:    int64(16),
 		},
 	}
@@ -214,9 +214,9 @@ func testTask(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		ServiceUUID:    taskName + "-UUID",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(128),
+			MaxCPUUnits:     -1,
 			ReserveCPUUnits: int64(16),
-			MaxMemMB:        int64(128),
+			MaxMemMB:        -1,
 			ReserveMemMB:    int64(16),
 		},
 	}

@@ -175,7 +175,7 @@ func createControlDB(ctx context.Context, cluster string, containersvcIns contai
 		ContainerImage: common.ControlDBContainerImage,
 		Resource: &common.Resources{
 			MaxCPUUnits:     int64(0),
-			ReserveCPUUnits: common.ControlDBCPUUnits,
+			ReserveCPUUnits: common.ControlDBReserveCPUUnits,
 			MaxMemMB:        common.ControlDBMaxMemMB,
 			ReserveMemMB:    common.ControlDBReserveMemMB,
 		},

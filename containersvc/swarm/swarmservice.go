@@ -90,15 +90,41 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 		mounts = []mounttypes.Mount{mount}
 	}
 
-	res := &swarm.ResourceRequirements{
-		Limits: &swarm.Resources{
-			NanoCPUs:    s.cpuUnits2NanoCPUs(opts.Common.Resource.MaxCPUUnits),
-			MemoryBytes: opts.Common.Resource.MaxMemMB * 1024 * 1024,
+	taskTemplate := swarm.TaskSpec{
+		ContainerSpec: swarm.ContainerSpec{
+			Image:  opts.Common.ContainerImage,
+			Mounts: mounts,
 		},
-		Reservations: &swarm.Resources{
-			NanoCPUs:    s.cpuUnits2NanoCPUs(opts.Common.Resource.ReserveCPUUnits),
-			MemoryBytes: opts.Common.Resource.ReserveMemMB * 1024 * 1024,
-		},
+		//LogDriver: opts.logDriver.toLogDriver(),
+	}
+	if opts.Common.Resource != nil {
+		res := &swarm.ResourceRequirements{}
+		setRes := false
+		if opts.Common.Resource.MaxCPUUnits != -1 || opts.Common.Resource.MaxMemMB != -1 {
+			limits := &swarm.Resources{}
+			if opts.Common.Resource.MaxCPUUnits != -1 {
+				limits.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.MaxCPUUnits)
+			}
+			if opts.Common.Resource.MaxMemMB != -1 {
+				limits.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.MaxMemMB)
+			}
+			res.Limits = limits
+			setRes = true
+		}
+		if opts.Common.Resource.ReserveCPUUnits != -1 || opts.Common.Resource.ReserveMemMB != -1 {
+			reserve := &swarm.Resources{}
+			if opts.Common.Resource.ReserveCPUUnits != -1 {
+				reserve.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.ReserveCPUUnits)
+			}
+			if opts.Common.Resource.ReserveMemMB != -1 {
+				reserve.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.ReserveMemMB)
+			}
+			res.Reservations = reserve
+			setRes = true
+		}
+		if setRes {
+			taskTemplate.Resources = res
+		}
 	}
 
 	replicas := uint64(opts.Replicas)
@@ -106,15 +132,7 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 		Annotations: swarm.Annotations{
 			Name: opts.Common.ServiceName,
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: swarm.ContainerSpec{
-				Image:  opts.Common.ContainerImage,
-				Mounts: mounts,
-			},
-			Resources: res,
-			//LogDriver: opts.logDriver.toLogDriver(),
-		},
-
+		TaskTemplate: taskTemplate,
 		//Networks: convertNetworks(opts.networks),
 		Mode: swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{Replicas: &replicas},
@@ -125,7 +143,7 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 
 	resp, err := cli.ServiceCreate(ctx, serviceSpec, serviceOpts)
 	if err != nil {
-		glog.Errorln("CreateService error", err, res.Limits, res.Reservations, "options", opts)
+		glog.Errorln("CreateService error", err, "service spec", serviceSpec, "options", opts)
 		return err
 	}
 
@@ -451,17 +469,6 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 	// create the container
 	containerName := s.genTaskContainerName(opts.Common.Cluster, opts.Common.ServiceName, opts.TaskType)
 
-	resources := container.Resources{
-		Memory:            opts.Common.Resource.MaxMemMB * 1024 * 1024,
-		MemoryReservation: opts.Common.Resource.ReserveMemMB * 1024 * 1024,
-		CPUShares:         opts.Common.Resource.ReserveCPUUnits,
-		CPUPeriod:         defaultCPUPeriod,
-		CPUQuota:          (defaultCPUPeriod * opts.Common.Resource.MaxCPUUnits) / defaultCPUUnitsPerCore,
-		//BlkioWeight:          copts.blkioWeight,
-		//IOMaximumIOps:        copts.ioMaxIOps,
-		//IOMaximumBandwidth:   uint64(maxIOBandwidth),
-	}
-
 	env := make([]string, len(opts.Envkvs))
 	for i, e := range opts.Envkvs {
 		env[i] = e.Name + envKVSep + e.Value
@@ -483,7 +490,26 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 		DNSSearch:  make([]string, 0),
 		DNSOptions: make([]string, 0),
 		// LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
-		Resources: resources,
+	}
+
+	res := opts.Common.Resource
+	if res != nil && (res.MaxMemMB != -1 || res.ReserveMemMB != -1 || res.MaxCPUUnits != -1 || res.ReserveCPUUnits != -1) {
+		resources := container.Resources{
+			CPUPeriod: defaultCPUPeriod,
+		}
+		if res.MaxMemMB != -1 {
+			resources.Memory = s.memoryMB2Bytes(res.MaxMemMB)
+		}
+		if res.ReserveMemMB != -1 {
+			resources.MemoryReservation = s.memoryMB2Bytes(res.ReserveMemMB)
+		}
+		if res.ReserveCPUUnits != -1 {
+			resources.CPUShares = res.ReserveCPUUnits
+		}
+		if res.MaxCPUUnits != -1 {
+			resources.CPUQuota = (defaultCPUPeriod * opts.Common.Resource.MaxCPUUnits) / defaultCPUUnitsPerCore
+		}
+		hostConfig.Resources = resources
 	}
 
 	netConfig := &network.NetworkingConfig{}
@@ -491,7 +517,7 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 	// TODO the container may exist, if the previous task is not deleted.
 	body, err := cli.ContainerCreate(ctx, config, hostConfig, netConfig, containerName)
 	if err != nil {
-		glog.Errorln("ContainerCreate error", err, config, resources, opts.Common)
+		glog.Errorln("ContainerCreate error", err, config, hostConfig, opts.Common)
 		return "", err
 	}
 
@@ -620,4 +646,8 @@ func (s *SwarmSvc) newClient() (*client.Client, error) {
 	}
 
 	return client.NewClient(s.managerAddrs[0], client.DefaultVersion, httpclient, nil)
+}
+
+func (s *SwarmSvc) memoryMB2Bytes(size int64) int64 {
+	return size * 1024 * 1024
 }

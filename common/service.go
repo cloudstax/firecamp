@@ -31,6 +31,7 @@ type Resources struct {
 	// MaxCPUUnits specifies how much of the available CPU resources a container can use.
 	// This will set docker's --cpu-period and --cpu-quota.
 	// ReserveCPUUnits is docker's --cpu-share, same with the ECS cpu units.
+	// The value could be -1, which means no limit on the resource.
 	MaxCPUUnits     int64
 	ReserveCPUUnits int64
 	MaxMemMB        int64

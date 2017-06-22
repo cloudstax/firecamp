@@ -20,9 +20,11 @@ const (
 
 	ServiceMemberDomainNameTTLSeconds = 10
 
-	DefaultCpuUnits        = 64
-	DefaultMemoryMBMax     = 1024
-	DefaultMemoryMBReserve = 128
+	// A ECS container instance has 1,024 cpu units for every CPU core
+	DefaultMaxCPUUnits     = -1
+	DefaultReserveCPUUnits = 256
+	DefaultMaxMemoryMB     = -1
+	DefaultReserveMemoryMB = 256
 
 	DefaultServiceWaitSeconds = 120
 	DefaultTaskWaitSeconds    = 120
@@ -47,21 +49,20 @@ const (
 	// ControlDBUUIDPrefix defines the prefix of the controldb server id.
 	// The service uuid of the controldb service would be ControlDBUUIDPrefix + volumeID.
 	// The volumeID is the ID of the volume created for the controldb service.
-	ControlDBUUIDPrefix     = ControlDBName + NameSeparator
-	ControlDBContainerImage = OrgName + "/" + ControlDBServiceName
-	// A ECS container instance has 1,024 cpu units for every CPU core
-	ControlDBCPUUnits     = 256
-	ControlDBMaxMemMB     = 2048
-	ControlDBReserveMemMB = 128
-	ControlDBVolumeSizeGB = int64(1)
+	ControlDBUUIDPrefix      = ControlDBName + NameSeparator
+	ControlDBContainerImage  = OrgName + "/" + ControlDBServiceName
+	ControlDBReserveCPUUnits = 256
+	ControlDBMaxMemMB        = 4096
+	ControlDBReserveMemMB    = 256
+	ControlDBVolumeSizeGB    = int64(4)
 
-	ManageHTTPServerPort = 27040
-	ManageName           = "manageserver"
-	ManageServiceName    = SystemName + NameSeparator + ManageName
-	ManageContainerImage = OrgName + "/" + ManageServiceName
-	ManageCPUUnits       = 256
-	ManageMaxMemMB       = 2048
-	ManageReserveMemMB   = 128
+	ManageHTTPServerPort  = 27040
+	ManageName            = "manageserver"
+	ManageServiceName     = SystemName + NameSeparator + ManageName
+	ManageContainerImage  = OrgName + "/" + ManageServiceName
+	ManageReserveCPUUnits = 256
+	ManageMaxMemMB        = 4096
+	ManageReserveMemMB    = 256
 )
 
 type EnvKeyValuePair struct {

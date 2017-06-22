@@ -103,9 +103,9 @@ func genCreateOptions(cluster string, dbtype string) *containersvc.CreateService
 		ServiceUUID:    "",
 		ContainerImage: common.ManageContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
-			ReserveCPUUnits: common.ManageCPUUnits,
-			MaxMemMB:        common.ManageReserveMemMB, // FIXME: set ReserveMemMB for demo only
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.ManageReserveCPUUnits,
+			MaxMemMB:        common.ManageMaxMemMB,
 			ReserveMemMB:    common.ManageReserveMemMB,
 		},
 	}
