@@ -16,7 +16,6 @@ const (
 	InitContainerImage = common.ContainerNamePrefix + "mongodb-init"
 	EnvReplicaSetName  = "REPLICA_SET_NAME"
 	DefaultPort        = int64(27017)
-	defaultReplicas    = int64(3)
 )
 
 // The default MongoDB ReplicaSet catalog service. By default,
@@ -25,13 +24,13 @@ const (
 // 3) The ReplicaSetName is the service name.
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
-func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB int64,
-	res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
+func GenDefaultCreateServiceRequest(cluster string, service string, replicas int64,
+	volSizeGB int64, res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
 	azs := serverInfo.GetLocalRegionAZs()
 
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs := GenReplicaConfigs(azs, defaultReplicas, replSetName, DefaultPort)
+	replicaCfgs := GenReplicaConfigs(azs, replicas, replSetName, DefaultPort)
 
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -43,7 +42,7 @@ func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB in
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       defaultReplicas,
+		Replicas:       replicas,
 		VolumeSizeGB:   volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
 		Port:           DefaultPort,
@@ -54,9 +53,9 @@ func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB in
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID string, manageurl string) *containersvc.RunTaskOptions {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID string, replicas int64, manageurl string) *containersvc.RunTaskOptions {
 	replSetName := req.ServiceName
-	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, replSetName, defaultReplicas, manageurl)
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, replSetName, replicas, manageurl)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,

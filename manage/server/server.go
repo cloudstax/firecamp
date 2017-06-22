@@ -124,14 +124,14 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
 	if strings.HasPrefix(trimURL, manage.CatalogOpPrefix) {
-		return s.putCatalogServiceOp(ctx, w, r, requuid)
+		return s.putCatalogServiceOp(ctx, w, r, trimURL, requuid)
 	}
 
 	// check if the request is other special request.
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
 		case manage.ServiceInitializedOp:
-			return s.setServiceInitialized(ctx, w, r, requuid)
+			return s.putServiceInitialized(ctx, w, r, requuid)
 		case manage.RunTaskOp:
 			return s.runTask(ctx, w, r, requuid)
 		default:
@@ -143,36 +143,37 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 	return s.createService(ctx, w, r, trimURL, requuid)
 }
 
-func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		glog.Errorln("setServiceInitialized read body error", err, "requuid", requuid)
+		glog.Errorln("putServiceInitialized read body error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
 	req := &manage.ServiceCommonRequest{}
 	err = json.Unmarshal(b, req)
 	if err != nil {
-		glog.Errorln("setServiceInitialized decode request error", err, "requuid", requuid, string(b[:]))
+		glog.Errorln("putServiceInitialized decode request error", err, "requuid", requuid, string(b[:]))
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
 	if req.Cluster != s.cluster || req.Region != s.region {
-		glog.Errorln("setServiceInitialized invalid request, local cluster", s.cluster,
+		glog.Errorln("putServiceInitialized invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.svc.SetServiceInitialized(ctx, s.cluster, req.ServiceName)
+	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service string, requuid string) (errmsg string, errcode int) {
+	err := s.svc.SetServiceInitialized(ctx, s.cluster, service)
 	if err != nil {
-		glog.Errorln("setServiceInitialized error", err, "service", req.ServiceName, "requuid", requuid)
+		glog.Errorln("setServiceInitialized error", err, "service", service, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("set service", req.ServiceName, "initialized, requuid", requuid)
-
-	w.WriteHeader(http.StatusOK)
-
+	glog.Infoln("set service", service, "initialized, requuid", requuid)
 	return "", http.StatusOK
 }
 

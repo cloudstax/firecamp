@@ -2,6 +2,6 @@ package catalog
 
 const (
 	// The supported catalog services
-	CatalogService_MongoDBReplicaSet = "MongoDBReplicaSet"
-	CatalogService_PostgreSQL        = "PostgreSQL"
+	CatalogService_MongoDB    = "mongodb"
+	CatalogService_PostgreSQL = "postgresql"
 )

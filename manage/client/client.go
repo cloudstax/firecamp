@@ -310,14 +310,34 @@ func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskReque
 	return manage.ConvertHTTPError(resp.StatusCode)
 }
 
-// CatalogCreateService creates a new catalog service.
-func (c *ManageClient) CatalogCreateService(ctx context.Context, r *manage.CatalogCreateServiceRequest) error {
+// CatalogCreateMongoDBService creates a new catalog MongoDB ReplicaSet service.
+func (c *ManageClient) CatalogCreateMongoDBService(ctx context.Context, r *manage.CatalogCreateMongoDBRequest) error {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return err
 	}
 
-	urlStr := c.serverURL + manage.CatalogCreateServiceOp
+	urlStr := c.serverURL + manage.CatalogCreateMongoDBOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
+// CatalogCreatePostgreSQLService creates a new catalog PostgreSQL service.
+func (c *ManageClient) CatalogCreatePostgreSQLService(ctx context.Context, r *manage.CatalogCreatePostgreSQLRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreatePostgreSQLOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err

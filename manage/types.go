@@ -16,7 +16,8 @@ const (
 	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
 
 	CatalogOpPrefix           = SpecialOpPrefix + "Catalog-"
-	CatalogCreateServiceOp    = CatalogOpPrefix + "Create-Service"
+	CatalogCreateMongoDBOp    = CatalogOpPrefix + "Create-MongoDB"
+	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 
 	// response headers
@@ -140,15 +141,27 @@ type DeleteTaskRequest struct {
 
 // The integrated catalog services supported by the system.
 
-// CatalogCreateServiceRequest creates a service supported by catalog.
-type CatalogCreateServiceRequest struct {
-	// ServiceType is defined in catalog/types.go
-	ServiceType string
-
+// CatalogCreateMongoDBRequest creates a MongoDB ReplicaSet service.
+type CatalogCreateMongoDBRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 
+	Replicas     int64
 	VolumeSizeGB int64
+}
+
+// CatalogCreatePostgreSQLRequest creates a PostgreSQL service.
+type CatalogCreatePostgreSQLRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+
+	Replicas     int64
+	VolumeSizeGB int64
+
+	DBAdmin        string
+	AdminPasswd    string
+	DBReplUser     string
+	ReplUserPasswd string
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

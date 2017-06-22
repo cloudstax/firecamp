@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	ContainerImage  = common.ContainerNamePrefix + "postgres"
-	DefaultPort     = 5432
-	defaultReplicas = 3
+	ContainerImage = common.ContainerNamePrefix + "postgres"
+	DefaultPort    = 5432
 
 	ContainerRolePrimary = "primary"
 	ContainerRoleStandby = "standby"
@@ -28,13 +27,13 @@ const (
 // 2) Listen on the standard MongoDB port, 5432.
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
-func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB int64,
-	pgpasswd string, replUser string, replPasswd string,
+func GenDefaultCreateServiceRequest(cluster string, service string, replicas int64,
+	volSizeGB int64, pgpasswd string, replUser string, replPasswd string,
 	res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
 	azs := serverInfo.GetLocalRegionAZs()
 
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, defaultReplicas, DefaultPort, pgpasswd, replUser, replPasswd)
+	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, DefaultPort, pgpasswd, replUser, replPasswd)
 
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -46,7 +45,7 @@ func GenDefaultCreateServiceRequest(cluster string, service string, volSizeGB in
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       defaultReplicas,
+		Replicas:       replicas,
 		VolumeSizeGB:   volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
 		Port:           DefaultPort,
