@@ -133,8 +133,8 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.cluster,
-		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource, s.serverInfo)
+	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -179,8 +179,8 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.cluster, req.Service.ServiceName,
-		req.Replicas, req.VolumeSizeGB, req.AdminPasswd, req.DBReplUser, req.ReplUserPasswd, req.Resource, s.serverInfo)
+	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster, req.Service.ServiceName,
+		req.Replicas, req.VolumeSizeGB, req.AdminPasswd, req.DBReplUser, req.ReplUserPasswd, req.Resource)
 	_, err = s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

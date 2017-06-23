@@ -6,7 +6,6 @@ import (
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
 )
 
@@ -27,17 +26,15 @@ const (
 // 2) Listen on the standard MongoDB port, 5432.
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
-func GenDefaultCreateServiceRequest(cluster string, service string, replicas int64,
-	volSizeGB int64, pgpasswd string, replUser string, replPasswd string,
-	res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
-	azs := serverInfo.GetLocalRegionAZs()
-
+func GenDefaultCreateServiceRequest(region string, azs []string,
+	cluster string, service string, replicas int64, volSizeGB int64,
+	pgpasswd string, replUser string, replPasswd string, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, DefaultPort, pgpasswd, replUser, replPasswd)
 
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      serverInfo.GetLocalRegion(),
+			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
 		},

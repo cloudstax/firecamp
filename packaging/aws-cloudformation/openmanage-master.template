@@ -424,6 +424,14 @@
               }
             ]
           },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
           "DesiredCapacityPerAZ": {
             "Ref": "DesiredCapacityPerAZ"
           },

@@ -16,7 +16,7 @@ import (
 	"github.com/cloudstax/openmanage/utils"
 )
 
-func StartServer(cluster string, manageDNSName string, managePort int,
+func StartServer(cluster string, azs []string, manageDNSName string, managePort int,
 	containersvcIns containersvc.ContainerSvc, dbIns db.DB, dnsIns dns.DNS, serverInfo server.Info,
 	serverIns server.Server, tlsEnabled bool, caFile, certFile, keyFile string) error {
 	// register the management service dnsname
@@ -41,7 +41,7 @@ func StartServer(cluster string, manageDNSName string, managePort int,
 	}
 
 	// create the management http server
-	serv := NewManageHTTPServer(cluster, dnsname, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	serv := NewManageHTTPServer(cluster, azs, dnsname, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 
 	// listen on all ips, as manageserver runs inside the container
 	addr := ":" + strconv.Itoa(managePort)
@@ -64,7 +64,7 @@ func StartServer(cluster string, manageDNSName string, managePort int,
 		s.TLSConfig = tlsConf
 	}
 
-	glog.Infoln("start the management service for cluster", cluster, "on", addr,
+	glog.Infoln("start the management service for cluster", cluster, azs, "on", addr,
 		"tlsEnabled", tlsEnabled, "ca file", caFile, "cert file", certFile, "key file", keyFile)
 	// not log error to std
 	flag.Set("stderrthreshold", "FATAL")

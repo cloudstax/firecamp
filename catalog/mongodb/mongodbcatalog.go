@@ -7,7 +7,6 @@ import (
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
 )
 
@@ -24,17 +23,15 @@ const (
 // 3) The ReplicaSetName is the service name.
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
-func GenDefaultCreateServiceRequest(cluster string, service string, replicas int64,
-	volSizeGB int64, res *common.Resources, serverInfo server.Info) *manage.CreateServiceRequest {
-	azs := serverInfo.GetLocalRegionAZs()
-
+func GenDefaultCreateServiceRequest(region string, azs []string, cluster string, service string, replicas int64,
+	volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
 	replSetName := service
 	replicaCfgs := GenReplicaConfigs(azs, replicas, replSetName, DefaultPort)
 
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      serverInfo.GetLocalRegion(),
+			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
 		},

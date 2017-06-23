@@ -43,6 +43,7 @@ type ManageHTTPServer struct {
 	region    string
 	cluster   string
 	manageurl string
+	azs       []string
 
 	dbIns           db.DB
 	serverInfo      server.Info
@@ -52,13 +53,14 @@ type ManageHTTPServer struct {
 }
 
 // NewManageHTTPServer creates a ManageHTTPServer instance
-func NewManageHTTPServer(cluster string, managedns string, dbIns db.DB, dnsIns dns.DNS, serverIns server.Server,
-	serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
+func NewManageHTTPServer(cluster string, azs []string, managedns string, dbIns db.DB, dnsIns dns.DNS,
+	serverIns server.Server, serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
 	svc := manageservice.NewManageService(dbIns, serverIns, dnsIns)
 	s := &ManageHTTPServer{
 		region:          serverInfo.GetLocalRegion(),
 		cluster:         cluster,
 		manageurl:       dns.GetManageServiceURL(managedns, false),
+		azs:             azs,
 		dbIns:           dbIns,
 		serverInfo:      serverInfo,
 		containersvcIns: containersvcIns,

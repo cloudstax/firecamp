@@ -147,7 +147,10 @@ func main() {
 
 	case opListVols:
 		vols := listServiceVolumes(ctx, cli)
-		fmt.Println(vols)
+		fmt.Printf("List %d volumes:\n", len(vols))
+		for _, vol := range vols {
+			fmt.Printf("\t%+v\n", *vol)
+		}
 
 	default:
 		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s\n",
@@ -278,7 +281,10 @@ func listServices(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println(services)
+	fmt.Printf("List %d services:\n", len(services))
+	for _, svc := range services {
+		fmt.Printf("\t%+v\n", *svc)
+	}
 }
 
 func getService(ctx context.Context, cli *client.ManageClient) {
@@ -294,10 +300,10 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println(attr)
+	fmt.Printf("%+v\n", *attr)
 }
 
-func listServiceVolumes(ctx context.Context, cli *client.ManageClient) (volIDs []string) {
+func listServiceVolumes(ctx context.Context, cli *client.ManageClient) []*common.Volume {
 	// list all volumes
 	serviceReq := &manage.ServiceCommonRequest{
 		Region:      *region,
@@ -315,16 +321,17 @@ func listServiceVolumes(ctx context.Context, cli *client.ManageClient) (volIDs [
 		os.Exit(-1)
 	}
 
-	volIDs = make([]string, len(vols))
-	for i, vol := range vols {
-		volIDs[i] = vol.VolumeID
-	}
-	return volIDs
+	return vols
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {
 	// list all volumes
-	volIDs := listServiceVolumes(ctx, cli)
+	vols := listServiceVolumes(ctx, cli)
+
+	volIDs := make([]string, len(vols))
+	for i, vol := range vols {
+		volIDs[i] = vol.VolumeID
+	}
 
 	// delete the service from the control plane.
 	serviceReq := &manage.ServiceCommonRequest{

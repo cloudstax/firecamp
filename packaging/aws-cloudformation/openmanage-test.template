@@ -19,9 +19,9 @@
       "Type":"AWS::EC2::VPC::Id",
       "Description":"Select a VPC that allows instances to access the Internet."
     },
-    "SubnetId":{
-      "Type":"List<AWS::EC2::Subnet::Id>",
-      "Description":"Select at one subnet in your selected VPC."
+    "AvailabilityZone": {
+      "Type": "AWS::EC2::AvailabilityZone::Name",
+      "Description": "The Availability Zone to deploy the ECS instances."
     },
     "DesiredCapacity":{
       "Type":"Number",
@@ -244,6 +244,12 @@
                 "Value": {
                   "Ref": "OpenManageDBType"
                 }
+              },
+              {
+                "Name": "AVAILABILITY_ZONES",
+                "Value": {
+                  "Ref": "AvailabilityZone"
+                }
               }
             ]
           }
@@ -254,9 +260,11 @@
       "DependsOn": "ECSCluster",
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
-        "VPCZoneIdentifier":{
-          "Ref":"SubnetId"
-        },
+        "AvailabilityZones":[
+          {
+            "Ref": "AvailabilityZone"
+          }
+        ],
         "LaunchConfigurationName":{
           "Ref":"ContainerInstances"
         },

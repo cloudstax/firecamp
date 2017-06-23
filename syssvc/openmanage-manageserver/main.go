@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,14 +29,17 @@ import (
 
 var (
 	platform      = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
+	dbtype        = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
+	zones         = flag.String("availability-zones", "", "The availability zones for the system, example: us-east-1a,us-east-1b,us-east-1c")
 	manageDNSName = flag.String("dnsname", "", "the dns name of the management service. Default: "+dns.GetDefaultManageServiceDNSName("cluster"))
 	managePort    = flag.Int("port", common.ManageHTTPServerPort, "port that the manage http service listens on")
-	dbtype        = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	tlsEnabled    = flag.Bool("tlsverify", false, "whether TLS is enabled")
 	caFile        = flag.String("tlscacert", "", "The CA file")
 	certFile      = flag.String("tlscert", "", "The TLS server certificate file")
 	keyFile       = flag.String("tlskey", "", "The TLS server key file")
 )
+
+const azSep = ","
 
 func main() {
 	flag.Parse()
@@ -49,6 +53,11 @@ func main() {
 
 	if *platform != common.ContainerPlatformECS && *platform != common.ContainerPlatformSwarm {
 		fmt.Println("not supported container platform", *platform)
+		os.Exit(-1)
+	}
+
+	if *zones == "" {
+		fmt.Println("Invalid command, please specify the availability zones for the system")
 		os.Exit(-1)
 	}
 
@@ -67,6 +76,21 @@ func main() {
 	serverInfo, err := awsec2.NewEc2Info(sess)
 	if err != nil {
 		glog.Fatalln("NewEc2Info error", err)
+	}
+
+	regionAZs := serverInfo.GetLocalRegionAZs()
+	azs := strings.Split(*zones, azSep)
+	for _, az := range azs {
+		find := false
+		for _, raz := range regionAZs {
+			if az == raz {
+				find = true
+				break
+			}
+		}
+		if !find {
+			glog.Fatalln("The specified availability zone is not in the region's availability zones", *zones, regionAZs)
+		}
 	}
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
@@ -131,7 +155,7 @@ func main() {
 		glog.Fatalln("unknown db type", dbtype)
 	}
 
-	err = manageserver.StartServer(cluster, *manageDNSName, *managePort, containersvcIns,
+	err = manageserver.StartServer(cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 
 	glog.Fatalln("StartServer error", err)

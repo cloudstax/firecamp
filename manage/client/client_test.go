@@ -33,6 +33,7 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	//flag.Set("stderrthreshold", "FATAL")
 
 	cluster := "cluster1"
+	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
@@ -40,7 +41,7 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort)
 
 	lis, err := net.Listen("tcp", addr)
@@ -70,6 +71,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 
 	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
 	cluster := "cluster1"
+	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 
 	testdb := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 1}
@@ -82,7 +84,7 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)
@@ -137,8 +139,9 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	cluster := "cluster1"
+	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)

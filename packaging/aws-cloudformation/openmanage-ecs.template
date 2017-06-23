@@ -58,6 +58,10 @@
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
 
+    "AvailabilityZones": {
+      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    },
     "DesiredCapacityPerAZ":{
       "Type":"Number",
       "Default":"1",
@@ -231,6 +235,17 @@
               {
                 "Name": "DB_TYPE",
                 "Value": "clouddb"
+              },
+              {
+                "Name": "AVAILABILITY_ZONES",
+                "Value": {
+                  "Fn::Join": [
+                    ",",
+                    {
+                      "Ref": "AvailabilityZones"
+                    }
+                  ]
+                }
               }
             ]
           }
