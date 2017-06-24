@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create an AutoScalingGroup for the ECS clusster.",
+  "Description": "This template will create an AutoScalingGroup for the ECS cluster.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -17,7 +17,7 @@
     },
     "SubnetID":{
       "Type":"List<AWS::EC2::Subnet::Id>",
-      "Description":"Select at two subnets in your selected VPC."
+      "Description":"The SubnetID in the VPC."
     },
     "DesiredCapacityPerAZ":{
       "Type":"Number",

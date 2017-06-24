@@ -15,13 +15,27 @@
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
     },
-    "VpcId":{
+    "VPCID":{
       "Type":"AWS::EC2::VPC::Id",
       "Description":"Select a VPC that allows instances to access the Internet."
     },
     "AvailabilityZone": {
       "Type": "AWS::EC2::AvailabilityZone::Name",
       "Description": "The Availability Zone to deploy the ECS instances."
+    },
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax-cf-templates",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+        "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+        "Default": "openmanage/latest/",
+        "Type": "String",
+        "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+        "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
     },
     "DesiredCapacity":{
       "Type":"Number",
@@ -133,20 +147,22 @@
       }
     }
   },
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    }
+  },
   "Resources":{
-    "ECSCluster":{
-      "Type":"AWS::ECS::Cluster",
-      "Properties" : {
-        "ClusterName" : {
-          "Ref": "ECSClusterName"
-        }
-      }
-    },
     "EcsAccessSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
-          "Ref": "VpcId"
+          "Ref": "VPCID"
         },
         "GroupDescription": "Instances with access to the services in ECS cluster"
       }
@@ -155,7 +171,7 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
-          "Ref": "VpcId"
+          "Ref": "VPCID"
         },
         "GroupDescription": "The access ports to the services in ECS cluster",
         "SecurityGroupIngress": [
@@ -180,7 +196,7 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
-          "Ref": "VpcId"
+          "Ref": "VPCID"
         },
         "GroupDescription": "The inter-server access ports in ECS cluster",
         "SecurityGroupIngress": [
@@ -193,6 +209,69 @@
             }
           }
         ]
+      }
+    },
+
+    "HostedZone":{
+      "Type":"AWS::Route53::HostedZone",
+      "Properties":{
+        "HostedZoneConfig":{
+          "Comment":"The default DNS HostedZone for the openmanage ECS cluster."
+        },
+        "Name":{
+          "Fn::Join":[
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "openmanage.com"
+            ]
+          ]
+        },
+        "VPCs":[
+          {
+            "VPCId": {
+              "Ref": "VPCID"
+            },
+            "VPCRegion": {
+              "Ref":"AWS::Region"
+            }
+          }
+        ]
+      }
+    },
+    "DynamoDBTables": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-dynamodb.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ECSClusterName": {
+            "Ref": "ECSClusterName"
+          }
+        }
+      }
+    },
+
+    "ECSCluster":{
+      "Type":"AWS::ECS::Cluster",
+      "Properties" : {
+        "ClusterName" : {
+          "Ref": "ECSClusterName"
+        }
       }
     },
     "taskdefinition":{
@@ -256,6 +335,21 @@
         ]
       }
     },
+    "service":{
+      "DependsOn": [ "DynamoDBTables", "HostedZone" ],
+      "Type":"AWS::ECS::Service",
+      "Properties":{
+        "Cluster":{
+          "Ref":"ECSCluster"
+        },
+        "DesiredCount":"1",
+        "ServiceName": "openmanage-manageserver",
+        "TaskDefinition":{
+          "Ref":"taskdefinition"
+        }
+      }
+    },
+
     "ECSAutoScalingGroup":{
       "DependsOn": "ECSCluster",
       "Type":"AWS::AutoScaling::AutoScalingGroup",
@@ -332,7 +426,7 @@
                 "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "echo ECS_CLUSTER=",
                 {
-                  "Ref":"ECSCluster"
+                  "Ref":"ECSClusterName"
                 },
                 " >> /etc/ecs/ecs.config\n",
                 "start ecs\n",
@@ -361,19 +455,7 @@
         }
       }
     },
-    "service":{
-      "Type":"AWS::ECS::Service",
-      "Properties":{
-        "Cluster":{
-          "Ref":"ECSCluster"
-        },
-        "DesiredCount":"1",
-        "ServiceName": "openmanage-manageserver",
-        "TaskDefinition":{
-          "Ref":"taskdefinition"
-        }
-      }
-    },
+
     "EC2Role":{
       "Type":"AWS::IAM::Role",
       "Properties":{
