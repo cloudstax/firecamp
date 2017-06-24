@@ -124,6 +124,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	dbIns := awsdynamodb.NewTestDynamoDB(sess, tableNameSuffix)
 	err = dbIns.CreateSystemTables(ctx)
 	defer dbIns.DeleteSystemTables(ctx)
+	defer dbIns.WaitSystemTablesDeleted(ctx, 120)
 	if err != nil {
 		t.Fatalf("create system table error", err, "region", *region, "tableNameSuffix", tableNameSuffix)
 	}
@@ -163,6 +164,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
 
 	lis.Close()
+	dbIns.WaitSystemTablesDeleted(ctx, 120)
 }
 
 func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo server.Info, serviceNum int) {

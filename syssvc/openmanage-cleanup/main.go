@@ -72,7 +72,7 @@ func cleanupDBService(ctx context.Context, cluster string, dbtype string,
 		cleanupService(ctx, cluster, common.ControlDBServiceName, ecsIns)
 
 	case common.DBTypeCloudDB:
-		awsdynamo := awsdynamodb.NewDynamoDB(sess)
+		awsdynamo := awsdynamodb.NewDynamoDB(sess, cluster)
 		// delete system tables
 		err := awsdynamo.DeleteSystemTables(ctx)
 		if err != nil {

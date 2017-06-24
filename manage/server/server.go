@@ -294,7 +294,6 @@ func (s *ManageHTTPServer) delOp(ctx context.Context, w http.ResponseWriter, r *
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
 	} else {
-		// get the detail of one service
 		return s.deleteService(ctx, w, r, trimURL, requuid)
 	}
 }
@@ -327,7 +326,9 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.dbIns.DeleteService(ctx, s.cluster, servicename)
+	// delete the service on the control plane
+	// TODO support the possible concurrent service deletion and creation with the same name.
+	err = s.svc.DeleteService(ctx, s.cluster, servicename)
 	if err != nil {
 		glog.Errorln("DeleteService error", err, servicename, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)

@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/db"
 )
 
@@ -65,14 +66,14 @@ const (
 //   [2] https://cloud.google.com/datastore/docs/concepts/entities
 //   [3] https://cloud.google.com/datastore/docs/best-practices
 //   [4] https://cloud.google.com/datastore/docs/concepts/transaction
-func NewDynamoDB(sess *session.Session) *DynamoDB {
+func NewDynamoDB(sess *session.Session, cluster string) *DynamoDB {
 	d := new(DynamoDB)
 	d.sess = sess
-	d.deviceTableName = db.DeviceTableName
-	d.serviceTableName = db.ServiceTableName
-	d.serviceAttrTableName = db.ServiceAttrTableName
-	d.volumeTableName = db.VolumeTableName
-	d.configTableName = db.ConfigTableName
+	d.deviceTableName = cluster + common.NameSeparator + db.DeviceTableName
+	d.serviceTableName = cluster + common.NameSeparator + db.ServiceTableName
+	d.serviceAttrTableName = cluster + common.NameSeparator + db.ServiceAttrTableName
+	d.volumeTableName = cluster + common.NameSeparator + db.VolumeTableName
+	d.configTableName = cluster + common.NameSeparator + db.ConfigTableName
 	return d
 }
 
@@ -483,11 +484,8 @@ func (d *DynamoDB) DeleteSystemTables(ctx context.Context) error {
 	return ferr
 }
 
+// TODO reject deletion if any item is still in table.
 func (d *DynamoDB) deleteServiceAttrTable(dbsvc *dynamodb.DynamoDB) error {
-	// TODO reject if any service is still in DB.
-	// should we reject if some volume still exists? probably not,
-	// aws ecs allows the whole cluster to be destroyed with volumes left.
-	// Volume stores customer data. Should be manually deleted by customer.
 	return d.deleteTable(dbsvc, d.serviceAttrTableName)
 }
 
@@ -496,17 +494,14 @@ func (d *DynamoDB) deleteServiceTable(dbsvc *dynamodb.DynamoDB) error {
 }
 
 func (d *DynamoDB) deleteDeviceTable(dbsvc *dynamodb.DynamoDB) error {
-	// TODO reject if any device is still in DB.
 	return d.deleteTable(dbsvc, d.deviceTableName)
 }
 
 func (d *DynamoDB) deleteVolumeTable(dbsvc *dynamodb.DynamoDB) error {
-	// TODO reject if any volume is still in DB.
 	return d.deleteTable(dbsvc, d.volumeTableName)
 }
 
 func (d *DynamoDB) deleteConfigTable(dbsvc *dynamodb.DynamoDB) error {
-	// TODO reject if any config is still in DB.
 	return d.deleteTable(dbsvc, d.configTableName)
 }
 
@@ -523,4 +518,61 @@ func (d *DynamoDB) deleteTable(dbsvc *dynamodb.DynamoDB, tableName string) error
 
 	glog.Infoln("deleted table", tableName, "resp", resp)
 	return nil
+}
+
+// WaitSystemTablesDeleted waits till all system tables are deleted.
+func (d *DynamoDB) WaitSystemTablesDeleted(ctx context.Context, maxWaitSeconds int64) error {
+	dbsvc := dynamodb.New(d.sess)
+
+	waitSleepInterval := int64(2)
+	sleepSecs := time.Duration(waitSleepInterval) * time.Second
+	for wait := int64(0); wait < maxWaitSeconds; wait += waitSleepInterval {
+		time.Sleep(sleepSecs)
+
+		tableStatus, err := d.getTableStatus(dbsvc, d.deviceTableName)
+		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
+			glog.Errorln("get device table status error", err, tableStatus)
+			return db.ErrDBInternal
+		}
+		if tableStatus == db.TableStatusDeleting {
+			continue
+		}
+
+		tableStatus, err = d.getTableStatus(dbsvc, d.serviceTableName)
+		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
+			glog.Errorln("get service table status error", err, tableStatus)
+			return db.ErrDBInternal
+		}
+		if tableStatus == db.TableStatusDeleting {
+			continue
+		}
+
+		tableStatus, err = d.getTableStatus(dbsvc, d.serviceAttrTableName)
+		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
+			glog.Errorln("get device table status error", err, tableStatus)
+			return db.ErrDBInternal
+		}
+		if tableStatus == db.TableStatusDeleting {
+			continue
+		}
+
+		tableStatus, err = d.getTableStatus(dbsvc, d.volumeTableName)
+		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
+			glog.Errorln("get device table status error", err, tableStatus)
+			return db.ErrDBInternal
+		}
+		if tableStatus == db.TableStatusDeleting {
+			continue
+		}
+
+		tableStatus, err = d.getTableStatus(dbsvc, d.configTableName)
+		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
+			glog.Errorln("get device table status error", err, tableStatus)
+			return db.ErrDBInternal
+		}
+
+		glog.Infoln("All tables deleted")
+		return nil
+	}
+	return common.ErrTimeout
 }

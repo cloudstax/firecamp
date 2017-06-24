@@ -93,6 +93,7 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	dbIns := awsdynamodb.NewTestDynamoDB(sess, tableNameSuffix)
 	err = dbIns.CreateSystemTables(ctx)
 	defer dbIns.DeleteSystemTables(ctx)
+	defer dbIns.WaitSystemTablesDeleted(ctx, 120)
 	if err != nil {
 		t.Fatalf("create system table error", err, "region", *region, "tableNameSuffix", tableNameSuffix)
 	}
@@ -113,6 +114,7 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 7
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
+	dbIns.WaitSystemTablesDeleted(ctx, 120)
 }
 
 func testMgrOps(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServer, serviceNum int) {

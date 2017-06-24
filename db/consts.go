@@ -6,15 +6,15 @@ import (
 
 const (
 	// Device table
-	DeviceTableName = common.SystemName + "-DeviceTable"
+	DeviceTableName = common.SystemName + "-device-table"
 	// Service table
-	ServiceTableName = common.SystemName + "-ServiceTable"
+	ServiceTableName = common.SystemName + "-service-table"
 	// ServiceAttr table
-	ServiceAttrTableName = common.SystemName + "-ServiceAttrTable"
+	ServiceAttrTableName = common.SystemName + "-serviceattr-table"
 	// Volume table
-	VolumeTableName = common.SystemName + "-VolumeTable"
+	VolumeTableName = common.SystemName + "-volume-table"
 	// ConfigFile table
-	ConfigTableName = common.SystemName + "-ConfigTable"
+	ConfigTableName = common.SystemName + "-config-table"
 
 	ClusterName         = "ClusterName"
 	ServiceName         = "ServiceName"

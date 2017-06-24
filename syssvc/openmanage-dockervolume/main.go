@@ -101,7 +101,7 @@ func main() {
 	var dbIns db.DB
 	switch *dbtype {
 	case common.DBTypeCloudDB:
-		dbIns = awsdynamodb.NewDynamoDB(sess)
+		dbIns = awsdynamodb.NewDynamoDB(sess, info.GetContainerClusterID())
 	case common.DBTypeControlDB:
 		addr := dns.GetDefaultControlDBAddr(info.GetContainerClusterID())
 		dbIns = controldbcli.NewControlDBCli(addr)

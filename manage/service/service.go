@@ -269,7 +269,7 @@ func (s *ManageService) ListServices(ctx context.Context, cluster string) (svcs 
 
 // DeleteService deletes the service record from db.
 // Notes:
-//   - caller should check whether service is really stopped in ECS.
+//   - caller should stop and delete the service on the container platform.
 //   - the actual cloud volumes of this service are not deleted, customer needs
 //     to delete them manually.
 func (s *ManageService) DeleteService(ctx context.Context, cluster string, service string) error {

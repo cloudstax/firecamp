@@ -12,7 +12,7 @@ const (
 	// If this name is changed, please change aws/taskengine/openmanage_task_engine.go as well.
 	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
 	// ecs-agent on openmanage code.
-	VolumeDriverName = "OpenManageVolumeDriver"
+	VolumeDriverName = "openmanage-volumedriver"
 
 	DefaultLogDir = "/var/log/" + SystemName
 

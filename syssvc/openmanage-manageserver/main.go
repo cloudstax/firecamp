@@ -127,7 +127,7 @@ func main() {
 	var dbIns db.DB
 	switch *dbtype {
 	case common.DBTypeCloudDB:
-		dbIns = awsdynamodb.NewDynamoDB(sess)
+		dbIns = awsdynamodb.NewDynamoDB(sess, cluster)
 
 		tableStatus, ready, err := dbIns.SystemTablesReady(ctx)
 		if err != nil && err != db.ErrDBResourceNotFound {

@@ -2,6 +2,7 @@ package awsdynamodb
 
 import (
 	"flag"
+	"os"
 	"testing"
 	"time"
 
@@ -45,12 +46,23 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	err = createTables(ctx)
-	defer dbIns.DeleteSystemTables(ctx)
 	if err != nil {
-		return
+		dbIns.DeleteSystemTables(ctx)
+		dbIns.WaitSystemTablesDeleted(ctx, 120)
+		os.Exit(-1)
 	}
 
-	m.Run()
+	code := m.Run()
+
+	err = dbIns.DeleteSystemTables(ctx)
+	if err != nil {
+		os.Exit(-1)
+	}
+	err = dbIns.WaitSystemTablesDeleted(ctx, 120)
+	if err != nil {
+		os.Exit(-1)
+	}
+	os.Exit(code)
 }
 
 func TestDevices(t *testing.T) {
