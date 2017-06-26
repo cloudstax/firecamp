@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create a new VPC and deploy an ECS cluster.",
+  "Description": "This template will create a new VPC and deploy an ECS cluster. The BastionSecurityGroupID is allowed to ssh to the ECS cluster nodes and access the openmanage manage http server",
   "Parameters":{
     "BastionSecurityGroupID": {
       "Description": "ID of the Bastion Security Group (e.g., sg-7f16e910)",
@@ -145,6 +145,14 @@
             "IpProtocol": "tcp",
             "FromPort": "22",
             "ToPort": "22",
+            "SourceSecurityGroupId": {
+              "Ref": "BastionSecurityGroupID"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27040",
+            "ToPort": "27040",
             "SourceSecurityGroupId": {
               "Ref": "BastionSecurityGroupID"
             }
