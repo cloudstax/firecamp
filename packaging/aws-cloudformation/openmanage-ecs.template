@@ -180,6 +180,31 @@
       }
     },
 
+    "DynamoDBTables": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-dynamodb.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ECSClusterName": {
+            "Ref": "ECSClusterName"
+          }
+        }
+      }
+    },
+
     "ECSCluster":{
       "Type":"AWS::ECS::Cluster",
       "Properties" : {
@@ -218,8 +243,8 @@
             "Cpu":"256",
             "Essential":"true",
             "Image":"cloudstax/openmanage-manageserver",
-            "Memory":"2048",
-            "MemoryReservation":"128",
+            "Memory":"4096",
+            "MemoryReservation":"256",
             "PortMappings":[
               {
                 "ContainerPort": "27040",
@@ -253,6 +278,7 @@
       }
     },
     "service":{
+      "DependsOn": "DynamoDBTables",
       "Type":"AWS::ECS::Service",
       "Properties":{
         "Cluster":{

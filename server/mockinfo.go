@@ -7,8 +7,8 @@ func NewMockServerInfo() *MockServerInfo {
 	return &MockServerInfo{}
 }
 
-func (m *MockServerInfo) GetLocalHostname() string {
-	return "localhost"
+func (m *MockServerInfo) GetPrivateIP() string {
+	return "127.0.0.1"
 }
 
 func (m *MockServerInfo) GetLocalAvailabilityZone() string {

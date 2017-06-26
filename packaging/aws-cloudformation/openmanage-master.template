@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create a new VPC and deploy an ECS cluster.",
+  "Description": "This template will create a new VPC and deploy an ECS cluster with the openmanage software. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",

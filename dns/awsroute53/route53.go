@@ -70,7 +70,7 @@ func (r *AWSRoute53) createHostedZone(ctx context.Context, domainName string, vp
 		CallerReference: aws.String(callerRef),
 		Name:            aws.String(domainName),
 		HostedZoneConfig: &route53.HostedZoneConfig{
-			Comment:     aws.String("hosted zone for openmanage service"),
+			Comment:     aws.String("hosted zone for openmanage services"),
 			PrivateZone: aws.Bool(private),
 		},
 		VPC: &route53.VPC{
@@ -197,37 +197,37 @@ func (r *AWSRoute53) isTargetHostedZone(ctx context.Context, svc *route53.Route5
 	return false, nil
 }
 
-// WaitDNSRecordUpdated waits till DNS lookup returns the expected hostname.
-func (r *AWSRoute53) WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostname string, hostedZoneID string) (dnsHostname string, err error) {
+// WaitDNSRecordUpdated waits till DNS lookup returns the expected hostIP.
+func (r *AWSRoute53) WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) (dnsIP string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 	// wait till DNS lookup returns the updated value
 	for i := 0; i < maxRetryCount; i++ {
-		dnsHostname, err = r.getServiceDNSRecord(ctx, dnsName, hostedZoneID)
+		dnsIP, err = r.GetDNSRecord(ctx, dnsName, hostedZoneID)
 		if err != nil {
-			glog.Errorln("getServiceDNSRecord error", err, "hostedZoneID", hostedZoneID,
-				"dnsName", dnsName, "hostname", hostname, "requuid", requuid)
-			return dnsHostname, err
+			glog.Errorln("GetDNSRecord error", err, "hostedZoneID", hostedZoneID,
+				"dnsName", dnsName, "hostIP", hostIP, "requuid", requuid)
+			return dnsIP, err
 		}
-		if dnsHostname == hostname {
-			glog.Infoln("dns record is updated to host", hostname, "hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
-			return dnsHostname, nil
+		if dnsIP == hostIP {
+			glog.Infoln("dns record is updated to host ip", hostIP, "hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
+			return dnsIP, nil
 		}
 
-		glog.Infoln("dns record is not updated to host", hostname, "yet, current host", dnsHostname,
+		glog.Infoln("dns record is not updated to host ip", hostIP, "yet, current host ip", dnsIP,
 			"hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
 		time.Sleep(retryInterval)
 	}
 
-	glog.Errorln("dns record is not updated to host", hostname, "hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
-	return dnsHostname, common.ErrTimeout
+	glog.Errorln("dns record is not updated to host ip", hostIP, "hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
+	return dnsIP, common.ErrTimeout
 }
 
-// UpdateServiceDNSRecord updates the service's route53 record
-func (r *AWSRoute53) UpdateServiceDNSRecord(ctx context.Context, dnsName string, hostname string, hostedZoneID string) error {
-	return r.changeServiceDNSRecord(ctx, route53.ChangeActionUpsert, dnsName, hostname, hostedZoneID)
+// UpdateDNSRecord updates the service's route53 record
+func (r *AWSRoute53) UpdateDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error {
+	return r.changeServiceDNSRecord(ctx, route53.ChangeActionUpsert, dnsName, hostIP, hostedZoneID)
 }
 
-func (r *AWSRoute53) changeServiceDNSRecord(ctx context.Context, action string, dnsName string, hostname string, hostedZoneID string) error {
+func (r *AWSRoute53) changeServiceDNSRecord(ctx context.Context, action string, dnsName string, hostIP string, hostedZoneID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 	params := &route53.ChangeResourceRecordSetsInput{
 		HostedZoneId: aws.String(hostedZoneID),
@@ -237,10 +237,10 @@ func (r *AWSRoute53) changeServiceDNSRecord(ctx context.Context, action string, 
 					Action: aws.String(action),
 					ResourceRecordSet: &route53.ResourceRecordSet{
 						Name: aws.String(dnsName),
-						Type: aws.String(route53.RRTypeCname),
+						Type: aws.String(route53.RRTypeA),
 						ResourceRecords: []*route53.ResourceRecord{
 							{
-								Value: aws.String(hostname),
+								Value: aws.String(hostIP),
 							},
 						},
 						TTL: aws.Int64(common.ServiceMemberDomainNameTTLSeconds),
@@ -254,14 +254,15 @@ func (r *AWSRoute53) changeServiceDNSRecord(ctx context.Context, action string, 
 	resp, err := svc.ChangeResourceRecordSets(params)
 	if err != nil {
 		glog.Errorln("change service dns error", err, "requuid", requuid, "params", params)
-		return err
+		return r.convertError(err, action)
 	}
 
 	glog.Infoln("changed service dns", params, "requuid", requuid, "resp", resp)
 	return nil
 }
 
-func (r *AWSRoute53) getServiceDNSRecord(ctx context.Context, dnsName string, hostedZoneID string) (string, error) {
+// GetDNSRecord returns the host ip for the dnsname.
+func (r *AWSRoute53) GetDNSRecord(ctx context.Context, dnsName string, hostedZoneID string) (string, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 	svc := route53.New(r.sess)
 	params := &route53.ListResourceRecordSetsInput{
@@ -277,7 +278,7 @@ func (r *AWSRoute53) getServiceDNSRecord(ctx context.Context, dnsName string, ho
 	}
 	if len(resp.ResourceRecordSets) == 0 {
 		glog.Errorln("no record set exists for hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid, "resp", resp)
-		return "", common.ErrNotFound
+		return "", dns.ErrDNSRecordNotFound
 	}
 	if len(resp.ResourceRecordSets) != 1 {
 		glog.Errorln("more than 1 record sets for hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid, "resp", resp)
@@ -295,15 +296,15 @@ func (r *AWSRoute53) getServiceDNSRecord(ctx context.Context, dnsName string, ho
 	return record, nil
 }
 
-func (r *AWSRoute53) deleteDNSRecord(ctx context.Context, dnsName string, hostname string, hostedZoneID string) error {
-	return r.changeServiceDNSRecord(ctx, route53.ChangeActionDelete, dnsName, hostname, hostedZoneID)
+// DeleteDNSRecord deletes one dns record.
+func (r *AWSRoute53) DeleteDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error {
+	return r.changeServiceDNSRecord(ctx, route53.ChangeActionDelete, dnsName, hostIP, hostedZoneID)
 }
 
-// DeleteHostedZone deletes all records and the hostedZone.
+// DeleteHostedZone deletes the hostedZone. Please delete all dns records before DeleteHostedZone.
 func (r *AWSRoute53) DeleteHostedZone(ctx context.Context, hostedZoneID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// TODO list and delete all DNS records
 	params := &route53.DeleteHostedZoneInput{
 		Id: aws.String(hostedZoneID),
 	}
@@ -312,9 +313,27 @@ func (r *AWSRoute53) DeleteHostedZone(ctx context.Context, hostedZoneID string) 
 	_, err := svc.DeleteHostedZone(params)
 	if err != nil {
 		glog.Errorln("DeleteHostedZone error", err, "hostedZoneID", hostedZoneID, "requuid", requuid)
-		return err
+		return r.convertError(err, "")
 	}
 
 	glog.Infoln("deleted hostedZone", hostedZoneID, "requuid", requuid)
 	return nil
+}
+
+func (r *AWSRoute53) convertError(err error, action string) error {
+	switch err.(awserr.Error).Code() {
+	case route53.ErrCodeNoSuchHostedZone:
+		return dns.ErrHostedZoneNotFound
+	case route53.ErrCodeInvalidChangeBatch:
+		switch action {
+		case route53.ChangeActionDelete:
+			// The InvalidChangeBatch error on deletion means the record not found,
+			// as we does send the correct request.
+			return dns.ErrDNSRecordNotFound
+		default:
+			return err
+		}
+	default:
+		return err
+	}
 }

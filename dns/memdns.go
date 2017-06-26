@@ -17,9 +17,12 @@ type hostedZone struct {
 	ID      string
 	zoneVpc vpc
 	private bool
+	// key: dnsname, value: hostIP
+	records map[string]string
 }
 
 type MockDNS struct {
+	// key: domainName
 	hostedZoneMap map[string]hostedZone
 	mlock         *sync.Mutex
 }
@@ -50,18 +53,67 @@ func (m *MockDNS) GetOrCreateHostedZoneIDByName(ctx context.Context, domainName 
 		ID:      strconv.FormatInt(time.Now().UnixNano(), 10),
 		zoneVpc: v,
 		private: private,
+		records: map[string]string{},
 	}
 
 	m.hostedZoneMap[domainName] = zone
 	return zone.ID, nil
 }
 
-func (m *MockDNS) UpdateServiceDNSRecord(ctx context.Context, dnsName string, hostname string, hostedZoneID string) error {
-	return nil
+func (m *MockDNS) UpdateDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error {
+	m.mlock.Lock()
+	defer m.mlock.Unlock()
+
+	for _, zone := range m.hostedZoneMap {
+		if zone.ID == hostedZoneID {
+			zone.records[dnsName] = hostIP
+			return nil
+		}
+	}
+
+	return ErrHostedZoneNotFound
 }
 
-func (m *MockDNS) WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostname string, hostedZoneID string) (dnsHostname string, err error) {
-	return hostname, nil
+func (m *MockDNS) WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) (dnsIP string, err error) {
+	return hostIP, nil
+}
+
+func (m *MockDNS) DeleteDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error {
+	m.mlock.Lock()
+	defer m.mlock.Unlock()
+
+	for _, zone := range m.hostedZoneMap {
+		if zone.ID == hostedZoneID {
+			host, ok := zone.records[dnsName]
+			if !ok {
+				return ErrDNSRecordNotFound
+			}
+			if host != hostIP {
+				return ErrInvalidRequest
+			}
+			delete(zone.records, dnsName)
+			return nil
+		}
+	}
+
+	return ErrHostedZoneNotFound
+}
+
+func (m *MockDNS) GetDNSRecord(ctx context.Context, dnsName string, hostedZoneID string) (hostIP string, err error) {
+	m.mlock.Lock()
+	defer m.mlock.Unlock()
+
+	for _, zone := range m.hostedZoneMap {
+		if zone.ID == hostedZoneID {
+			host, ok := zone.records[dnsName]
+			if !ok {
+				return "", ErrDNSRecordNotFound
+			}
+			return host, nil
+		}
+	}
+
+	return "", ErrHostedZoneNotFound
 }
 
 func (m *MockDNS) GetHostedZoneIDByName(ctx context.Context, domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {

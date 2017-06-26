@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template is intended to deploy an ECS cluster in an existing VPC.",
+  "Description": "This template will deploy an ECS cluster with the openmanage software in an existing VPC. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -212,35 +212,6 @@
       }
     },
 
-    "HostedZone":{
-      "Type":"AWS::Route53::HostedZone",
-      "Properties":{
-        "HostedZoneConfig":{
-          "Comment":"The default DNS HostedZone for the openmanage ECS cluster."
-        },
-        "Name":{
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref": "ECSClusterName"
-              },
-              "openmanage.com"
-            ]
-          ]
-        },
-        "VPCs":[
-          {
-            "VPCId": {
-              "Ref": "VPCID"
-            },
-            "VPCRegion": {
-              "Ref":"AWS::Region"
-            }
-          }
-        ]
-      }
-    },
     "DynamoDBTables": {
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
@@ -304,8 +275,8 @@
             "Cpu":"256",
             "Essential":"true",
             "Image":"cloudstax/openmanage-manageserver",
-            "Memory":"2048",
-            "MemoryReservation":"128",
+            "Memory":"4096",
+            "MemoryReservation":"256",
             "PortMappings":[
               {
                 "ContainerPort": "27040",
@@ -336,7 +307,7 @@
       }
     },
     "service":{
-      "DependsOn": [ "DynamoDBTables", "HostedZone" ],
+      "DependsOn": "DynamoDBTables",
       "Type":"AWS::ECS::Service",
       "Properties":{
         "Cluster":{

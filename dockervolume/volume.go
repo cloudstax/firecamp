@@ -171,7 +171,7 @@ func (d *OpenManageVolumeDriver) Capabilities(volume.Request) volume.Response {
 
 func (d *OpenManageVolumeDriver) genReqUUID(serviceUUID string) string {
 	t := time.Now().Unix()
-	requuid := d.serverInfo.GetLocalHostname() + common.NameSeparator +
+	requuid := d.serverInfo.GetPrivateIP() + common.NameSeparator +
 		serviceUUID + common.NameSeparator + strconv.FormatInt(t, 10)
 	return requuid
 }
@@ -204,22 +204,22 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
 	if serviceAttr.HasStrictMembership {
 		dnsName := dns.GenDNSName(vol.MemberName, serviceAttr.DomainName)
-		hostname := d.serverInfo.GetLocalHostname()
-		err := d.dnsIns.UpdateServiceDNSRecord(ctx, dnsName, hostname, serviceAttr.HostedZoneID)
+		privateIP := d.serverInfo.GetPrivateIP()
+		err := d.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
 		if err != nil {
-			errmsg := fmt.Sprintf("UpdateServiceDNSRecord error %s service %s volume %s, requuid %s",
+			errmsg := fmt.Sprintf("UpdateDNSRecord error %s service %s volume %s, requuid %s",
 				err, serviceAttr, vol, requuid)
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}
 
-		// wait till DNS record lookup returns local hostname. This is to make sure DB doesn't
+		// wait till DNS record lookup returns private ip. This is to make sure DB doesn't
 		// get the invalid old host at the replication initialization.
 		// TODO find way to update the local dns cache to avoid the potential long wait time.
-		dnsHostname, err := d.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, hostname, serviceAttr.HostedZoneID)
+		dnsIP, err := d.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
 		if err != nil {
-			errmsg := fmt.Sprintf("WaitDNSRecordUpdated error %s, expect hostname %s got %s, service %s volume %s, requuid %s",
-				err, hostname, dnsHostname, serviceAttr, vol, requuid)
+			errmsg := fmt.Sprintf("WaitDNSRecordUpdated error %s, expect privateIP %s got %s, service %s volume %s, requuid %s",
+				err, privateIP, dnsIP, serviceAttr, vol, requuid)
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}

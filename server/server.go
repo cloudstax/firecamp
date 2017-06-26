@@ -63,7 +63,7 @@ type Server interface {
 
 // Info defines the operations for the local server related info
 type Info interface {
-	GetLocalHostname() string
+	GetPrivateIP() string
 	GetLocalAvailabilityZone() string
 	GetLocalRegion() string
 	GetLocalInstanceID() string

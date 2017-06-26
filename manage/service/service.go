@@ -316,9 +316,29 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		return err
 	}
 
-	// delete the config files
+	// delete the member's dns record and config files
 	glog.Infoln("deleting the config files from DB, service attr, requuid", requuid, sattr)
 	for _, v := range vols {
+		// delete the member's dns record
+		dnsname := dns.GenDNSName(v.MemberName, sattr.DomainName)
+		hostname, err := s.dnsIns.GetDNSRecord(ctx, dnsname, sattr.HostedZoneID)
+		if err == nil {
+			// delete the dns record
+			err = s.dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, sattr.HostedZoneID)
+			if err == nil {
+				glog.Infoln("deleted dns record, dnsname", dnsname, "HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+			} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
+				// skip the dns record deletion error
+				glog.Errorln("DeleteDNSRecord error", err, "dnsname", dnsname,
+					"HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+			}
+		} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
+			// skip the unknown dns error, as it would only leave a garbage in the dns system.
+			glog.Errorln("GetDNSRecord error", err, "dnsname", dnsname,
+				"HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+		}
+
+		// delete the member's config files
 		for _, c := range v.Configs {
 			err := s.dbIns.DeleteConfigFile(ctx, v.ServiceUUID, c.FileID)
 			if err != nil && err != db.ErrDBRecordNotFound {

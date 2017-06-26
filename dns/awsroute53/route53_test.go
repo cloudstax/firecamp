@@ -60,7 +60,7 @@ func TestRoute53(t *testing.T) {
 			hostedZoneID1, id1, err, domain, vpc1, region)
 	}
 
-	// create the same hosted zone again
+	// negative case: create the same hosted zone again
 	id1, err = r.createHostedZone(ctx, domain, vpc1, region, private)
 	if err != nil || id1 != hostedZoneID1 {
 		t.Fatalf("createHostedZone again expected id %s, got id %s error %s, for domain %s vpc %s %s",
@@ -96,7 +96,7 @@ func TestRoute53(t *testing.T) {
 			hostedZoneID2, id1, err, domain, vpc2, region)
 	}
 
-	// create the same hosted zone again
+	// negative case: create the same hosted zone again
 	id1, err = r.createHostedZone(ctx, domain, vpc2, region, private)
 	if err != nil || id1 != hostedZoneID2 {
 		t.Fatalf("createHostedZone again expected id %s, got id %s error %s, for domain %s vpc %s %s",
@@ -118,68 +118,120 @@ func TestRoute53(t *testing.T) {
 	}
 
 	// create the first dns record
-	hostname := "myhost"
+	hostIP := "10.0.0.1"
 	svcName := "svc1"
 	dnsName := dns.GenDNSName(svcName, domain)
-	err = r.UpdateServiceDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
+	err = r.UpdateDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
 	if err != nil {
-		t.Fatalf("UpdateServiceDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
+		t.Fatalf("UpdateDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
 	}
-	hostname1, err := r.WaitDNSRecordUpdated(ctx, dnsName, hostname, hostedZoneID1)
+	hostIP1, err := r.WaitDNSRecordUpdated(ctx, dnsName, hostIP, hostedZoneID1)
 	if err != nil {
-		r.deleteDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
+		r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
 		t.Fatalf("WaitDNSRecordUpdated error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID1)
 	}
-	if hostname1 != hostname {
-		r.deleteDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
-		t.Fatalf("expect hostname %s, get %s, dnsName %s hostedZone %s", hostname, hostname1, dnsName, hostedZoneID1)
+	if hostIP1 != hostIP {
+		r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
+		t.Fatalf("expect hostIP %s, get %s, dnsName %s hostedZone %s", hostIP, hostIP1, dnsName, hostedZoneID1)
 	}
 
 	// update dns again
-	newhostname := "myhost2"
-	err = r.UpdateServiceDNSRecord(ctx, dnsName, newhostname, hostedZoneID1)
-	defer r.deleteDNSRecord(ctx, dnsName, newhostname, hostedZoneID1)
+	newhostIP := "myhost2"
+	err = r.UpdateDNSRecord(ctx, dnsName, newhostIP, hostedZoneID1)
+	defer r.DeleteDNSRecord(ctx, dnsName, newhostIP, hostedZoneID1)
 	if err != nil {
-		r.deleteDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
-		t.Fatalf("UpdateServiceDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
+		r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
+		t.Fatalf("UpdateDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
 	}
-	hostname1, err = r.WaitDNSRecordUpdated(ctx, dnsName, newhostname, hostedZoneID1)
+	hostIP1, err = r.WaitDNSRecordUpdated(ctx, dnsName, newhostIP, hostedZoneID1)
 	if err != nil {
 		t.Fatalf("WaitDNSRecordUpdated error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID1)
 	}
-	if hostname1 != newhostname {
-		t.Fatalf("expect hostname %s, get %s, dnsName %s hostedZone %s", newhostname, hostname1, dnsName, hostedZoneID1)
+	if hostIP1 != newhostIP {
+		t.Fatalf("expect hostIP %s, get %s, dnsName %s hostedZone %s", newhostIP, hostIP1, dnsName, hostedZoneID1)
 	}
 
 	// create the second dns record
 	svcName = "svc"
 	dnsName = dns.GenDNSName(svcName, domain)
-	err = r.UpdateServiceDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
+	err = r.UpdateDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
 	if err != nil {
-		t.Fatalf("UpdateServiceDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
+		t.Fatalf("UpdateDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID1)
 	}
-	defer r.deleteDNSRecord(ctx, dnsName, hostname, hostedZoneID1)
+	defer r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID1)
 
-	hostname1, err = r.WaitDNSRecordUpdated(ctx, dnsName, hostname, hostedZoneID1)
+	hostIP1, err = r.WaitDNSRecordUpdated(ctx, dnsName, hostIP, hostedZoneID1)
 	if err != nil {
 		t.Fatalf("WaitDNSRecordUpdated error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID1)
 	}
-	if hostname1 != hostname {
-		t.Fatalf("expect hostname %s, get %s, dnsName %s hostedZone %s", hostname, hostname1, dnsName, hostedZoneID1)
+	if hostIP1 != hostIP {
+		t.Fatalf("expect hostIP %s, get %s, dnsName %s hostedZone %s", hostIP, hostIP1, dnsName, hostedZoneID1)
+	}
+
+	hostIP1, err = r.GetDNSRecord(ctx, dnsName, hostedZoneID1)
+	if err != nil {
+		t.Fatalf("GetDNSRecord error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID1)
+	}
+	if hostIP1 != hostIP {
+		t.Fatalf("expect hostIP %s, get %s, dnsName %s hostedZone %s", hostIP, hostIP1, dnsName, hostedZoneID1)
 	}
 
 	// update dns record of hostedZoneID2
-	err = r.UpdateServiceDNSRecord(ctx, dnsName, hostname, hostedZoneID2)
+	err = r.UpdateDNSRecord(ctx, dnsName, hostIP, hostedZoneID2)
 	if err != nil {
-		t.Fatalf("UpdateServiceDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID2)
+		t.Fatalf("UpdateDNSRecord error %s, svc %s domain %s hostedZone %s", err, svcName, domain, hostedZoneID2)
 	}
-	defer r.deleteDNSRecord(ctx, dnsName, hostname, hostedZoneID2)
+	defer r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID2)
 
-	hostname1, err = r.WaitDNSRecordUpdated(ctx, dnsName, hostname, hostedZoneID2)
+	hostIP1, err = r.WaitDNSRecordUpdated(ctx, dnsName, hostIP, hostedZoneID2)
 	if err != nil {
 		t.Fatalf("WaitDNSRecordUpdated error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID2)
 	}
-	if hostname1 != hostname {
-		t.Fatalf("expect hostname %s, get %s", hostname, hostname1)
+	if hostIP1 != hostIP {
+		t.Fatalf("expect hostIP %s, get %s", hostIP, hostIP1)
+	}
+
+	hostIP1, err = r.GetDNSRecord(ctx, dnsName, hostedZoneID2)
+	if err != nil {
+		t.Fatalf("GetDNSRecord error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID2)
+	}
+	if hostIP1 != hostIP {
+		t.Fatalf("expect hostIP %s, get %s, dnsName %s hostedZone %s", hostIP, hostIP1, dnsName, hostedZoneID2)
+	}
+
+	// delete the dns record
+	err = r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID2)
+	if err != nil {
+		t.Fatalf("DeleteDNSRecord error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID2)
+	}
+
+	// negative case: delete the unexist dns record
+	err = r.DeleteDNSRecord(ctx, dnsName, hostIP, hostedZoneID2)
+	if err == nil {
+		t.Fatalf("DeleteDNSRecord expect error but succeed, dnsName %s, hostedZone %s", dnsName, hostedZoneID2)
+	}
+
+	// negative case: get the unexist dns record
+	hostIP1, err = r.GetDNSRecord(ctx, dnsName, hostedZoneID2)
+	if err != dns.ErrDNSRecordNotFound {
+		t.Fatalf("DeleteDNSRecord expect ErrDNSRecordNotFound but get error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID2)
+	}
+
+	// delete the hostedZone
+	err = r.DeleteHostedZone(ctx, hostedZoneID2)
+	if err != nil {
+		t.Fatalf("DeleteHostedZone error %s, hostedZone %s", err, hostedZoneID2)
+	}
+
+	// negative case: delete the unexist hostedZone
+	err = r.DeleteHostedZone(ctx, hostedZoneID2)
+	if err == nil {
+		t.Fatalf("DeleteHostedZone expect error but succeed, hostedZone %s", hostedZoneID2)
+	}
+
+	// negative case: get dns record on unexist hostedZone
+	hostIP1, err = r.GetDNSRecord(ctx, dnsName, hostedZoneID2)
+	if err != dns.ErrHostedZoneNotFound {
+		t.Fatalf("GetDNSRecord expect ErrHostedZoneNotFound but get error %s, dnsName %s, hostedZone %s", err, dnsName, hostedZoneID2)
 	}
 }

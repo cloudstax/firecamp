@@ -16,7 +16,7 @@ const (
 // Ec2Info implements server.Info
 type Ec2Info struct {
 	instanceID string
-	hostname   string
+	privateIP  string
 	vpcID      string
 	az         string
 	region     string
@@ -63,7 +63,7 @@ func NewEc2Info(sess *session.Session) (*Ec2Info, error) {
 
 	s := &Ec2Info{
 		instanceID: instanceID,
-		hostname:   *(instance.PrivateDnsName),
+		privateIP:  *(instance.PrivateIpAddress),
 		vpcID:      *(instance.VpcId),
 		az:         az,
 		region:     region,
@@ -72,8 +72,8 @@ func NewEc2Info(sess *session.Session) (*Ec2Info, error) {
 	return s, nil
 }
 
-func (s *Ec2Info) GetLocalHostname() string {
-	return s.hostname
+func (s *Ec2Info) GetPrivateIP() string {
+	return s.privateIP
 }
 
 func (s *Ec2Info) GetLocalAvailabilityZone() string {

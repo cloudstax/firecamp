@@ -59,8 +59,8 @@ func RegisterDNSName(ctx context.Context, domainName string, dnsName string, ser
 		return err
 	}
 
-	hostname := serverInfo.GetLocalHostname()
-	return dnsIns.UpdateServiceDNSRecord(ctx, dnsName, hostname, hostedZoneID)
+	privateIP := serverInfo.GetPrivateIP()
+	return dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, hostedZoneID)
 }
 
 // GetDomainNameFromDNSName extracts the domain name from the dns name.
