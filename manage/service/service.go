@@ -709,50 +709,16 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 
 	configs := make([]*common.MemberConfig, len(replicaCfg.Configs))
 	for i, cfg := range replicaCfg.Configs {
-		fileID := utils.GenServiceMemberConfigID(memberName, cfg.FileName, version)
-		dbcfg, err := s.createConfigFile(ctx, serviceUUID, fileID, cfg)
+		fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
+		initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
+		cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 		if err != nil {
 			glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
 			return nil, err
 		}
-		configs[i] = &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: dbcfg.FileMD5}
+		configs[i] = &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
 	}
 	return configs, nil
-}
-
-func (s *ManageService) createConfigFile(ctx context.Context, serviceUUID string, fileID string,
-	cfg *manage.ReplicaConfigFile) (*common.ConfigFile, error) {
-	requuid := utils.GetReqIDFromContext(ctx)
-
-	dbcfg := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
-	err := s.dbIns.CreateConfigFile(ctx, dbcfg)
-	if err == nil {
-		glog.Infoln("created config file", fileID, "file name", cfg.FileName, "service", serviceUUID, "requuid", requuid)
-		return dbcfg, nil
-	}
-
-	if err != db.ErrDBConditionalCheckFailed {
-		glog.Errorln("CreateConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
-
-	// config file exists, check whether it is a retry request.
-	currcfg, err := s.dbIns.GetConfigFile(ctx, serviceUUID, fileID)
-	if err != nil {
-		glog.Errorln("get existing config file error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
-
-	skipMtime := true
-	skipContent := true
-	if !db.EqualConfigFile(currcfg, dbcfg, skipMtime, skipContent) {
-		glog.Errorln("config file not match, current", db.PrintConfigFile(currcfg),
-			"new", db.PrintConfigFile(dbcfg), "requuid", requuid)
-		return nil, common.ErrConfigMismatch
-	}
-
-	glog.Infoln("config file exists", db.PrintConfigFile(currcfg), "requuid", requuid)
-	return currcfg, nil
 }
 
 func (s *ManageService) createServiceVolume(ctx context.Context, serviceUUID string, volSize int64, az string,

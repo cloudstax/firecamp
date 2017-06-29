@@ -565,25 +565,6 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 			return db.ErrDBInternal
 		}
 
-		// update config file
-		cfg3 := db.UpdateConfigFile(cfg2, cfg2.Content+"newContent")
-		err = dbcli.UpdateConfigFile(ctx, cfg2, cfg3)
-		if err != nil {
-			glog.Errorln("update config file, expect success, got error", err, "serviceuuid", serviceUUID, "fileID", fileID)
-			return err
-		}
-
-		// get config file again
-		cfg2, err = dbcli.GetConfigFile(ctx, serviceUUID, fileID)
-		if err != nil {
-			glog.Errorln("get config file, expect success, got", err, "serviceuuid", serviceUUID, "fileID", fileID)
-			return err
-		}
-		if !db.EqualConfigFile(cfg3, cfg2, false, false) {
-			glog.Errorln("get config file, expect", cfg3, "got", cfg2)
-			return db.ErrDBInternal
-		}
-
 		// negative case: get non-exist config file
 		_, err = dbcli.GetConfigFile(ctx, serviceUUID+"xxx", fileID)
 		if err != db.ErrDBRecordNotFound {

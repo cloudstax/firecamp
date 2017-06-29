@@ -67,8 +67,14 @@ func GenServiceMemberName(serviceName string, index int64) string {
 	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }
 
-func GenServiceMemberConfigID(memberName string, configFileName string, version int64) string {
+func GenMemberConfigFileID(memberName string, configFileName string, version int64) string {
 	return memberName + common.NameSeparator + configFileName + common.NameSeparator + strconv.FormatInt(version, 10)
+}
+
+func GetConfigFileVersion(fileID string) (version int64, err error) {
+	fields := strings.Split(fileID, common.NameSeparator)
+	versionStr := fields[len(fields)-1]
+	return strconv.ParseInt(versionStr, 10, 64)
 }
 
 func GenControlDBServiceUUID(volID string) string {

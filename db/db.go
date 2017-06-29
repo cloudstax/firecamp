@@ -13,7 +13,7 @@ import (
 // 1) conditional creation/update (create-if-not-exist and update-if-match).
 // 2) strong consistency on get/list.
 //
-// The device/service/serviceattr/volume creations are create-if-not-exist.
+// The device/service/serviceattr/volume/configfile creations are create-if-not-exist.
 // If item exists in DB, the ErrDBConditionalCheckFailed error will be returned.
 //
 // The serviceattr/volume updates are also update-if-match the old item.
@@ -45,7 +45,6 @@ type DB interface {
 	DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error
 
 	CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error
-	UpdateConfigFile(ctx context.Context, oldCfg *common.ConfigFile, newCfg *common.ConfigFile) error
 	GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error)
 	DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/openmanage/utils"
 )
 
 func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,
@@ -295,41 +296,57 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 		return err
 	}
 
-	// check if auth is enabled
-	if !mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
-		newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
-		newcfgfile := db.UpdateConfigFile(cfgfile, newContent)
-
-		err = s.dbIns.UpdateConfigFile(ctx, cfgfile, newcfgfile)
-		if err != nil {
-			glog.Errorln("UpdateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
-			return err
-		}
-
-		// successfully update the replica config file
-		cfgfile = newcfgfile
-		glog.Infoln("updated config file, requuid", requuid, db.PrintConfigFile(cfgfile), vol)
-	} else {
+	// if auth is enabled, return
+	if mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
 		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, vol)
+		return nil
 	}
 
-	// check if the config file MD5 in the volume is updated
-	if cfg.FileMD5 != cfgfile.FileMD5 {
-		glog.Infoln("update member config in the volume, requuid", requuid, cfg)
+	// auth is not enabled, enable it
+	newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
 
-		newConfigs := db.CopyMemberConfigs(vol.Configs)
-		newConfigs[cfgIndex].FileMD5 = cfgfile.FileMD5
+	// create a new config file
+	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
+		return err
+	}
 
-		newVol := db.UpdateVolumeConfigs(vol, newConfigs)
-		err = s.dbIns.UpdateVolume(ctx, vol, newVol)
-		if err != nil {
-			glog.Errorln("UpdateVolume error", err, "requuid", requuid, vol)
-			return err
-		}
+	newFileID := utils.GenMemberConfigFileID(vol.MemberName, cfgfile.FileName, version+1)
+	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
 
-		glog.Infoln("updated member configs in the volume, requuid", requuid, newVol)
+	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), vol)
+		return err
+	}
+
+	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
+
+	// update volume to point to the new config file
+	newConfigs := db.CopyMemberConfigs(vol.Configs)
+	newConfigs[cfgIndex].FileID = newcfgfile.FileID
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
+
+	newVol := db.UpdateVolumeConfigs(vol, newConfigs)
+	err = s.dbIns.UpdateVolume(ctx, vol, newVol)
+	if err != nil {
+		glog.Errorln("UpdateVolume error", err, "requuid", requuid, vol)
+		return err
+	}
+
+	glog.Infoln("updated member configs in the volume, requuid", requuid, newVol)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//			for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
 	} else {
-		glog.Infoln("the config file MD5 in the volume is already updated, requuid", requuid, cfg, vol)
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
 	}
 
 	return nil

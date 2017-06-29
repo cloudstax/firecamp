@@ -386,19 +386,6 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("get config file failed, error %s, expected %s get %s", err, s[1], cfg)
 	}
 
-	// update config file
-	newcfg := UpdateConfigFile(cfg, "newcontent")
-	err = dbIns.UpdateConfigFile(ctx, cfg, newcfg)
-	if err != nil {
-		t.Fatalf("update config file error %s", err)
-	}
-
-	// get config file again to verify
-	cfg1, err := dbIns.GetConfigFile(ctx, s[1].ServiceUUID, s[1].FileID)
-	if err != nil || !EqualConfigFile(cfg1, newcfg, false, false) {
-		t.Fatalf("get config file failed, error %s, expected %s get %s", err, newcfg, cfg1)
-	}
-
 	// delete service
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err != nil {

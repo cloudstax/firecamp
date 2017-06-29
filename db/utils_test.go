@@ -76,8 +76,9 @@ func TestDBUtils(t *testing.T) {
 		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg2)
 	}
 
+	newFileID := "newID"
 	newContent := "newContent"
-	cfg3 := UpdateConfigFile(cfg1, newContent)
+	cfg3 := UpdateConfigFile(cfg1, newFileID, newContent)
 	cfg1.FileMD5 = cfg3.FileMD5
 	cfg1.LastModified = cfg3.LastModified
 	cfg1.Content = newContent

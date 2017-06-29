@@ -441,27 +441,6 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("get config file failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
-	// update config
-	newContent := item.Content + "newcontent"
-	newItem := db.UpdateConfigFile(item, newContent)
-	err = dbIns.UpdateConfigFile(ctx, item, newItem)
-	if err != nil {
-		t.Fatalf("UpdateConfigFile error %s", err)
-	}
-
-	// get config to verify
-	item1, err := dbIns.GetConfigFile(ctx, s[1].ServiceUUID, s[1].FileID)
-	if err != nil || !db.EqualConfigFile(item1, newItem, false, false) {
-		t.Fatalf("get config file after update failed, error %s, expected %s get %s", err, newItem, item1)
-	}
-
-	// negative case: update config with mismatch old config
-	item1.FileID = "invalidID"
-	err = dbIns.UpdateConfigFile(ctx, item1, item)
-	if err == nil {
-		t.Fatalf("update config with mismatch old config, expect error %s but succeed", err)
-	}
-
 	// delete config
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err != nil {

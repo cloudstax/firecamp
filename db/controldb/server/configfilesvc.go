@@ -56,14 +56,6 @@ func (s *configFileSvc) CreateConfigFile(ctx context.Context, cfg *pb.ConfigFile
 	return resp.err
 }
 
-func (s *configFileSvc) UpdateConfigFile(ctx context.Context, req *pb.UpdateConfigFileRequest) error {
-	subreq := configFileUpdateReq{
-		updateReq: req,
-	}
-	resp := s.handleReq(ctx, req.OldCfg.ServiceUUID, subreq)
-	return resp.err
-}
-
 func (s *configFileSvc) GetConfigFile(ctx context.Context, key *pb.ConfigFileKey) (*pb.ConfigFile, error) {
 	subreq := configFileGetReq{
 		key: key,
@@ -163,10 +155,6 @@ type configFileCreateReq struct {
 	cfg *pb.ConfigFile
 }
 
-type configFileUpdateReq struct {
-	updateReq *pb.UpdateConfigFileRequest
-}
-
 type configFileGetReq struct {
 	key *pb.ConfigFileKey
 }
@@ -228,8 +216,6 @@ func (r *configFileReadWriter) serve() {
 			switch subreq := req.subreq.(type) {
 			case configFileCreateReq:
 				resp.err = r.createConfigFile(req.ctx, subreq.cfg)
-			case configFileUpdateReq:
-				resp.err = r.updateConfigFile(req.ctx, subreq.updateReq)
 			case configFileGetReq:
 				resp.cfg, resp.err = r.getConfigFile(req.ctx, subreq.key)
 			case configFileDeleteReq:
@@ -299,64 +285,6 @@ func (r *configFileReadWriter) createConfigFile(ctx context.Context, cfg *pb.Con
 	}
 
 	glog.Infoln("created config file", fpath, "requuid", requuid)
-	return nil
-}
-
-func (r *configFileReadWriter) updateConfigFile(ctx context.Context, req *pb.UpdateConfigFileRequest) error {
-	requuid := utils.GetReqIDFromContext(ctx)
-
-	// sanity check
-	cmd5 := utils.GenMD5(req.NewCfg.Content)
-	if cmd5 != req.NewCfg.FileMD5 {
-		glog.Errorln("InvalidRequest - the new config content md5 mismatch",
-			req.NewCfg.FileMD5, cmd5, "requuid", requuid)
-		return db.ErrDBInvalidRequest
-	}
-	if req.NewCfg.ServiceUUID != req.OldCfg.ServiceUUID ||
-		req.NewCfg.FileID != req.OldCfg.FileID ||
-		req.NewCfg.FileMode != req.OldCfg.FileMode ||
-		req.NewCfg.FileName != req.OldCfg.FileName {
-		glog.Errorln("InvalidRequest - the immutable fields are updated, oldCfg",
-			controldb.PrintConfigFile(req.OldCfg), "newCfg", controldb.PrintConfigFile(req.NewCfg))
-		return db.ErrDBInvalidRequest
-	}
-
-	cfgDir := path.Join(r.rootDir, req.OldCfg.ServiceUUID, configDirName)
-	fpath := path.Join(cfgDir, req.OldCfg.FileID)
-	exist, err := utils.IsFileExist(fpath)
-	if err != nil {
-		glog.Errorln("check config file exist error", err, fpath, "requuid", requuid)
-		return err
-	}
-	if !exist {
-		glog.Errorln("config file not exist", fpath, "requuid", requuid)
-		return db.ErrDBRecordNotFound
-	}
-
-	// configFile exists, check whether the creating configFile is the same with the current file
-	currCfg, err := r.readConfigFile(fpath, "updateConfigFile", requuid)
-	if err != nil {
-		glog.Errorln("updateConfigFile, read config file error", err, fpath, "requuid", requuid)
-		return err
-	}
-
-	// check the OldCfg matches
-	skipMtime := false
-	skipContent := true
-	if !controldb.EqualConfigFile(req.OldCfg, currCfg, skipMtime, skipContent) {
-		glog.Errorln("config file", controldb.PrintConfigFile(req.OldCfg), "diff with existing file",
-			controldb.PrintConfigFile(currCfg), fpath, "requuid", requuid)
-		return db.ErrDBConditionalCheckFailed
-	}
-
-	// update the config file
-	err = r.writeConfigFile(req.NewCfg, fpath, "updateConfigFile", requuid)
-	if err != nil {
-		glog.Errorln("writeConfigFile error", err, fpath, "requuid", requuid)
-		return err
-	}
-
-	glog.Infoln("updated config file", fpath, "requuid", requuid)
 	return nil
 }
 

@@ -260,12 +260,12 @@ func CreateConfigFile(serviceUUID string, fileID string, fileMD5 string,
 	return cfg, nil
 }
 
-func UpdateConfigFile(c *common.ConfigFile, newContent string) *common.ConfigFile {
-	chksum := utils.GenMD5(newContent)
+func UpdateConfigFile(c *common.ConfigFile, newFileID string, newContent string) *common.ConfigFile {
+	newMD5 := utils.GenMD5(newContent)
 	return &common.ConfigFile{
 		ServiceUUID:  c.ServiceUUID,
-		FileID:       c.FileID,
-		FileMD5:      chksum,
+		FileID:       newFileID,
+		FileMD5:      newMD5,
 		FileName:     c.FileName,
 		FileMode:     c.FileMode,
 		LastModified: time.Now().UnixNano(),

@@ -177,10 +177,6 @@ func (s *ControlDBServer) CreateConfigFile(ctx context.Context, cfg *pb.ConfigFi
 	return &pb.CreateConfigFileResponse{}, s.cfgSvcIns.CreateConfigFile(ctx, cfg)
 }
 
-func (s *ControlDBServer) UpdateConfigFile(ctx context.Context, req *pb.UpdateConfigFileRequest) (*pb.UpdateConfigFileResponse, error) {
-	return &pb.UpdateConfigFileResponse{}, s.cfgSvcIns.UpdateConfigFile(ctx, req)
-}
-
 func (s *ControlDBServer) GetConfigFile(ctx context.Context, key *pb.ConfigFileKey) (*pb.ConfigFile, error) {
 	return s.cfgSvcIns.GetConfigFile(ctx, key)
 }
