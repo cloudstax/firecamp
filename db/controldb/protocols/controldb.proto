@@ -28,6 +28,7 @@ service ControlDBService {
   rpc UpdateVolume (UpdateVolumeRequest) returns (UpdateVolumeResponse) {}
 
   rpc CreateConfigFile (ConfigFile) returns (CreateConfigFileResponse) {}
+  rpc UpdateConfigFile(UpdateConfigFileRequest) returns (UpdateConfigFileResponse) {}
   rpc GetConfigFile (ConfigFileKey) returns (ConfigFile) {}
   rpc DeleteConfigFile (ConfigFileKey) returns (DeleteConfigFileResponse) {}
 }
@@ -175,12 +176,21 @@ message ConfigFile {
   string fileID = 2;
   string fileMD5 = 3;
   string fileName = 4;
-  int64 lastModified = 5;
-  string content = 6;
+  uint32 fileMode = 5;
+  int64 lastModified = 6;
+  string content = 7;
 }
 
 message CreateConfigFileResponse {
 }
 
 message DeleteConfigFileResponse {
+}
+
+message UpdateConfigFileRequest {
+  ConfigFile oldCfg = 1;
+  ConfigFile newCfg = 2;
+}
+
+message UpdateConfigFileResponse {
 }

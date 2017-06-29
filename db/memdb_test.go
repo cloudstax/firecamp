@@ -363,6 +363,7 @@ func TestConfigFile(t *testing.T) {
 	serviceUUIDPrefix := "serviceuuid-"
 	fileIDPrefix := "fileid-"
 	fileNamePrefix := "filename-"
+	fileMode := uint32(0600)
 	contentPrefix := "content-"
 
 	ctx := context.Background()
@@ -371,7 +372,7 @@ func TestConfigFile(t *testing.T) {
 	var s [5]*common.ConfigFile
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
-		s[i] = CreateInitialConfigFile(serviceUUIDPrefix+c, fileIDPrefix+c, fileNamePrefix+c, contentPrefix+c)
+		s[i] = CreateInitialConfigFile(serviceUUIDPrefix+c, fileIDPrefix+c, fileNamePrefix+c, fileMode, contentPrefix+c)
 
 		err := dbIns.CreateConfigFile(ctx, s[i])
 		if err != nil {
@@ -385,13 +386,26 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("get config file failed, error %s, expected %s get %s", err, s[1], cfg)
 	}
 
+	// update config file
+	newcfg := UpdateConfigFile(cfg, "newcontent")
+	err = dbIns.UpdateConfigFile(ctx, cfg, newcfg)
+	if err != nil {
+		t.Fatalf("update config file error %s", err)
+	}
+
+	// get config file again to verify
+	cfg1, err := dbIns.GetConfigFile(ctx, s[1].ServiceUUID, s[1].FileID)
+	if err != nil || !EqualConfigFile(cfg1, newcfg, false, false) {
+		t.Fatalf("get config file failed, error %s, expected %s get %s", err, newcfg, cfg1)
+	}
+
 	// delete service
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err != nil {
 		t.Fatalf("failed to delete config file %s error %s", s[2], err)
 	}
 
-	// delete one unexist service
+	// negative case: delete one unexist service
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err == nil || err != ErrDBRecordNotFound {
 		t.Fatalf("delete unexist config file %s, expect ErrDBRecordNotFound, got error %s", s[2], err)

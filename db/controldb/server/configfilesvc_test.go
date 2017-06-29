@@ -174,6 +174,7 @@ func testConfigFileOp(t *testing.T, s *configFileSvc, serviceUUID string, fileID
 	if err != db.ErrDBRecordNotFound {
 		t.Fatalf("get non-exist config file, expect db.ErrDBRecordNotFound, got %s, rootdir %s", err, rootdir)
 	}
+
 	// get cfg
 	key = &pb.ConfigFileKey{
 		ServiceUUID: serviceUUID,
@@ -185,6 +186,29 @@ func testConfigFileOp(t *testing.T, s *configFileSvc, serviceUUID string, fileID
 	}
 	if !controldb.EqualConfigFile(cfg, cfg1, false, skipContent) {
 		t.Fatalf("getConfigFile returns %s, expect %s rootdir %s", cfg1, cfg, rootdir)
+	}
+
+	// update cfg
+	cfg2 := controldb.CopyConfigFile(cfg)
+	cfg2.Content = cfg.Content + "newcontent"
+	cfg2.FileMD5 = utils.GenMD5(cfg2.Content)
+	cfg2.LastModified = time.Now().UnixNano()
+	updateReq := &pb.UpdateConfigFileRequest{
+		OldCfg: cfg,
+		NewCfg: cfg2,
+	}
+	err = s.UpdateConfigFile(ctx, updateReq)
+	if err != nil {
+		t.Fatalf("UpdateConfigFile error %s, %s %s", err, cfg, cfg2)
+	}
+
+	// get cfg again
+	cfg1, err = s.GetConfigFile(ctx, key)
+	if err != nil {
+		t.Fatalf("getConfigFile error %s key %s rootdir %s", err, key, rootdir)
+	}
+	if !controldb.EqualConfigFile(cfg2, cfg1, false, skipContent) {
+		t.Fatalf("getConfigFile returns %s, expect %s rootdir %s", cfg1, cfg2, rootdir)
 	}
 }
 

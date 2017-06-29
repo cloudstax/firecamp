@@ -49,12 +49,15 @@ var (
 	reserveMemMB    = flag.Int64("memory", 128, "The memory reserved for the container, unit: MB")
 	port            = flag.Int64("port", 0, "The service listening port")
 
+	// security parameters
+	admin       = flag.String("admin", "admin", "The DB admin")
+	adminPasswd = flag.String("passwd", "password", "The DB admin password")
+
 	// The mongodb service creation specific parameters.
 	// The mongodb replicaSetName. If not set, use service name
 	replSetName = flag.String("replica-set-name", "", "The replica set name, default: service name")
 
 	// The postgres service creation specific parameters.
-	pgpasswd   = flag.String("passwd", "password", "The PostgreSQL DB password")
 	replUser   = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
 	replPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
 )
@@ -130,13 +133,17 @@ func main() {
 			*replSetName = *service
 		}
 
-		replicaCfgs := mongodbcatalog.GenReplicaConfigs(zones, *replicas, *replSetName, *port)
+		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(zones, *replicas, *replSetName, *port)
+		if err != nil {
+			fmt.Println("GenReplicaConfigs error", err)
+			os.Exit(-1)
+		}
 		createAndWaitService(ctx, cli, replicaCfgs, mongodbcatalog.ContainerImage)
 
 		initializeMongodb(ctx, cli)
 
 	case servicePostgres:
-		replicaCfgs := pgcatalog.GenReplicaConfigs(*cluster, *service, zones, *replicas, *port, *pgpasswd, *replUser, *replPasswd)
+		replicaCfgs := pgcatalog.GenReplicaConfigs(*cluster, *service, zones, *replicas, *port, *adminPasswd, *replUser, *replPasswd)
 		createAndWaitService(ctx, cli, replicaCfgs, pgcatalog.ContainerImage)
 
 		initializePostgreSQL(ctx, cli)
@@ -193,7 +200,7 @@ func initializeMongodb(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("Start initializing the MongoDB ReplicaSet")
 
 	// generate the parameters for the init task
-	envkvs := mongodbcatalog.GenInitTaskEnvKVPairs(*region, *cluster, *service, *replSetName, *replicas, *serverURL)
+	envkvs := mongodbcatalog.GenInitTaskEnvKVPairs(*region, *cluster, *service, *replSetName, *replicas, *serverURL, *admin, *adminPasswd)
 
 	initReq := &manage.RunTaskRequest{
 		Service: &manage.ServiceCommonRequest{

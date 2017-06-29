@@ -9,10 +9,10 @@ const (
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
 	// VolumeDriverName is the name for docker volume driver
-	// If this name is changed, please change aws/taskengine/openmanage_task_engine.go as well.
+	// If this name is changed, please change dockervolume/aws-ecs-agent-patch/openmanage_task_engine.go as well.
 	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
 	// ecs-agent on openmanage code.
-	VolumeDriverName = "openmanage-volumedriver"
+	VolumeDriverName = "OpenManageVolumeDriver"
 
 	DefaultLogDir = "/var/log/" + SystemName
 
@@ -38,6 +38,9 @@ const (
 	ContainerNameSuffix = "container"
 
 	DefaultContainerMountPath = "/data"
+	DefaultConfigDir          = "/conf"
+	DefaultConfigPath         = DefaultContainerMountPath + DefaultConfigDir
+	DefaultConfigFileMode     = 0600
 
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
@@ -82,6 +85,7 @@ const (
 	ENV_SERVICE_NAME    = "SERVICE_NAME"
 	ENV_SERVICE_MASTER  = "SERVICE_MASTER"
 	ENV_SERVICE_MEMBERS = "SERVICE_MEMBERS"
+	ENV_SERVICE_TYPE    = "SERVICE_TYPE"
 
 	ENV_CONTAINER_PLATFORM = "CONTAINER_PLATFORM"
 	ENV_DB_TYPE            = "DB_TYPE"

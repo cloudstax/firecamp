@@ -34,6 +34,9 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 			db.ConfigFileName: {
 				S: aws.String(cfg.FileName),
 			},
+			db.ConfigFileMode: {
+				N: aws.String(strconv.FormatUint(uint64(cfg.FileMode), 10)),
+			},
 			db.LastModified: {
 				N: aws.String(strconv.FormatInt(cfg.LastModified, 10)),
 			},
@@ -54,6 +57,70 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 
 	glog.Infoln("created config file", cfg.FileName, cfg.FileID,
 		"serviceUUID", cfg.ServiceUUID, "requuid", requuid, "resp", resp)
+	return nil
+}
+
+// UpdateConfigFile updates the config file
+func (d *DynamoDB) UpdateConfigFile(ctx context.Context, oldCfg *common.ConfigFile, newCfg *common.ConfigFile) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// sanity check. Only Content, MD5, and LastModified are allowed to update.
+	if oldCfg.ServiceUUID != newCfg.ServiceUUID ||
+		oldCfg.FileID != newCfg.FileID ||
+		oldCfg.FileName != newCfg.FileName ||
+		oldCfg.FileMode != newCfg.FileMode {
+		glog.Errorln("immutable attributes are updated, oldCfg", db.PrintConfigFile(oldCfg),
+			"newCfg", db.PrintConfigFile(newCfg), "requuid", requuid)
+		return db.ErrDBInvalidRequest
+	}
+
+	dbsvc := dynamodb.New(d.sess)
+
+	updateExpr := "SET " + db.ConfigFileMD5 + " = :v1, " + db.ConfigFileContent + " = :v2, " + db.LastModified + " = :v3"
+	conditionExpr := db.ConfigFileMD5 + " = :cv1 AND " + db.LastModified + " = :cv2"
+
+	params := &dynamodb.UpdateItemInput{
+		TableName: aws.String(d.configTableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			db.ServiceUUID: {
+				S: aws.String(oldCfg.ServiceUUID),
+			},
+			db.ConfigFileID: {
+				S: aws.String(oldCfg.FileID),
+			},
+		},
+		UpdateExpression:    aws.String(updateExpr),
+		ConditionExpression: aws.String(conditionExpr),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				S: aws.String(newCfg.FileMD5),
+			},
+			":v2": {
+				S: aws.String(newCfg.Content),
+			},
+			":v3": {
+				N: aws.String(strconv.FormatInt(newCfg.LastModified, 10)),
+			},
+			":cv1": {
+				S: aws.String(oldCfg.FileMD5),
+			},
+			":cv2": {
+				N: aws.String(strconv.FormatInt(oldCfg.LastModified, 10)),
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+
+	resp, err := dbsvc.UpdateItem(params)
+
+	if err != nil {
+		glog.Errorln("failed to update config file", db.PrintConfigFile(oldCfg),
+			"to", db.PrintConfigFile(newCfg), "error", err, "requuid", requuid)
+		return d.convertError(err)
+	}
+
+	glog.Infoln("updated config file", db.PrintConfigFile(oldCfg),
+		"to", db.PrintConfigFile(newCfg), "requuid", requuid, "resp", resp)
 	return nil
 }
 
@@ -93,10 +160,17 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		return nil, db.ErrDBInternal
 	}
 
+	mode, err := strconv.ParseUint(*(resp.Item[db.ConfigFileMode].N), 10, 64)
+	if err != nil {
+		glog.Errorln("ParseUint FileMode error", err, "requuid", requuid, "resp", resp)
+		return nil, db.ErrDBInternal
+	}
+
 	cfg, err = db.CreateConfigFile(*(resp.Item[db.ServiceUUID].S),
 		*(resp.Item[db.ConfigFileID].S),
 		*(resp.Item[db.ConfigFileMD5].S),
 		*(resp.Item[db.ConfigFileName].S),
+		uint32(mode),
 		mtime,
 		*(resp.Item[db.ConfigFileContent].S))
 	if err != nil {

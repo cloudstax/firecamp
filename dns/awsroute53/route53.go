@@ -274,7 +274,7 @@ func (r *AWSRoute53) GetDNSRecord(ctx context.Context, dnsName string, hostedZon
 	resp, err := svc.ListResourceRecordSets(params)
 	if err != nil {
 		glog.Errorln("getServiceDNSRecord error", err, "hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid)
-		return "", err
+		return "", r.convertError(err, "")
 	}
 	if len(resp.ResourceRecordSets) == 0 {
 		glog.Errorln("no record set exists for hostedZoneID", hostedZoneID, "dnsName", dnsName, "requuid", requuid, "resp", resp)

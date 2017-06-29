@@ -233,6 +233,34 @@ func (c *ManageClient) DeleteService(ctx context.Context, r *manage.ServiceCommo
 	return nil
 }
 
+// GetConfigFile gets the config file.
+func (c *ManageClient) GetConfigFile(ctx context.Context, r *manage.GetConfigFileRequest) (*common.ConfigFile, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.GetConfigFileOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.GetConfigFileResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ConfigFile, err
+}
+
 // RunTask runs a task
 func (c *ManageClient) RunTask(ctx context.Context, r *manage.RunTaskRequest) (taskID string, err error) {
 	b, err := json.Marshal(r)
@@ -376,4 +404,24 @@ func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.Ca
 	res := &manage.CatalogCheckServiceInitResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.Initialized, err
+}
+
+// CatalogSetServiceInit sets the catalog service initialized.
+func (c *ManageClient) CatalogSetServiceInit(ctx context.Context, r *manage.CatalogSetServiceInitRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogSetServiceInitOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
 }

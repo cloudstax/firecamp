@@ -8,7 +8,7 @@ import (
 	"github.com/cloudstax/openmanage/utils"
 )
 
-func TestUtils(t *testing.T) {
+func TestDBUtils(t *testing.T) {
 	serviceUUID := "uuid-1"
 	replicas := int64(1)
 	volSize := int64(1)
@@ -63,15 +63,25 @@ func TestUtils(t *testing.T) {
 	// test ConfigFile
 	fileID := "cfgfile-1"
 	fileName := "cfgfile-name"
+	fileMode := uint32(0600)
 	content := "cfgfile-content"
 	chksum := utils.GenMD5(content)
-	cfg1 := CreateInitialConfigFile(serviceUUID, fileID, fileName, content)
+	cfg1 := CreateInitialConfigFile(serviceUUID, fileID, fileName, fileMode, content)
 	cfg1.LastModified = mtime
-	cfg2, err := CreateConfigFile(serviceUUID, fileID, chksum, fileName, mtime, content)
+	cfg2, err := CreateConfigFile(serviceUUID, fileID, chksum, fileName, fileMode, mtime, content)
 	if err != nil {
 		t.Fatalf("CreateConfigFile error %s", err)
 	}
 	if !EqualConfigFile(cfg1, cfg2, false, false) {
 		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg2)
+	}
+
+	newContent := "newContent"
+	cfg3 := UpdateConfigFile(cfg1, newContent)
+	cfg1.FileMD5 = cfg3.FileMD5
+	cfg1.LastModified = cfg3.LastModified
+	cfg1.Content = newContent
+	if !EqualConfigFile(cfg1, cfg3, false, false) {
+		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg3)
 	}
 }

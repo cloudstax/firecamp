@@ -136,7 +136,7 @@ func TestRoute53(t *testing.T) {
 	}
 
 	// update dns again
-	newhostIP := "myhost2"
+	newhostIP := "10.0.0.2"
 	err = r.UpdateDNSRecord(ctx, dnsName, newhostIP, hostedZoneID1)
 	defer r.DeleteDNSRecord(ctx, dnsName, newhostIP, hostedZoneID1)
 	if err != nil {

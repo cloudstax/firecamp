@@ -147,6 +147,33 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 
 	fmt.Println("\nListTasks, cluster", cluster, "service", service, "taskID", tasks)
 
+	// restart service
+	err = e.RestartService(ctx, cluster, service, replicas)
+	if err != nil {
+		glog.Errorln("RestartService error", err, service)
+		return err
+	}
+
+	fmt.Println("\nRestartService", service)
+
+	// wait till all tasks are running
+	err = e.WaitServiceRunning(ctx, cluster, service, replicas, maxWaitSeconds)
+	if err != nil {
+		glog.Errorln("WaitServiceRunning error", err, service)
+		return err
+	}
+
+	fmt.Println("\nservice container is running", service)
+
+	// list tasks of service again
+	tasks, err = e.ListActiveServiceTasks(ctx, cluster, service)
+	if err != nil {
+		glog.Errorln("ListTasks failed, cluster", cluster, "service", service, "error", err)
+		return err
+	}
+
+	fmt.Println("\nListTasks, cluster", cluster, "service", service, "taskID", tasks)
+
 	// get task
 	for taskID := range tasks {
 		contInsID, err := e.GetTaskContainerInstance(ctx, cluster, taskID)

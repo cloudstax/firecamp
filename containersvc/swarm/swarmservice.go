@@ -161,7 +161,13 @@ func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, s
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
 
-	tasks, err := s.listTasks(filterArgs)
+	cli, err := s.newClient()
+	if err != nil {
+		glog.Errorln("ListActiveServiceTasks newClient error", err)
+		return nil, err
+	}
+
+	tasks, err := s.listTasks(cli, filterArgs)
 	if err != nil {
 		glog.Errorln("ListTasks list error", err, "filterArgs", filterArgs)
 		return nil, err
@@ -184,7 +190,13 @@ func (s *SwarmSvc) GetServiceTask(ctx context.Context, cluster string, service s
 	filterArgs.Add(filterDesiredState, taskStateRunning)
 	filterArgs.Add(filterNode, containerInstanceID)
 
-	tasks, err := s.listTasks(filterArgs)
+	cli, err := s.newClient()
+	if err != nil {
+		glog.Errorln("GetServiceTask newClient error", err)
+		return "", err
+	}
+
+	tasks, err := s.listTasks(cli, filterArgs)
 	if err != nil {
 		glog.Errorln("GetTask list error", err, "filterArgs", filterArgs)
 		return "", err
@@ -226,13 +238,7 @@ func (s *SwarmSvc) GetTaskContainerInstance(ctx context.Context, cluster string,
 	return task.NodeID, nil
 }
 
-func (s *SwarmSvc) listTasks(filterArgs filters.Args) ([]swarm.Task, error) {
-	cli, err := s.newClient()
-	if err != nil {
-		glog.Errorln("listTasks newClient error", err, "filterArgs", filterArgs)
-		return nil, err
-	}
-
+func (s *SwarmSvc) listTasks(cli *client.Client, filterArgs filters.Args) ([]swarm.Task, error) {
 	listOps := types.TaskListOptions{
 		Filters: filterArgs,
 	}
@@ -288,7 +294,7 @@ func (s *SwarmSvc) GetServiceStatus(ctx context.Context, cluster string, service
 		return nil, err
 	}
 
-	runningTaskCount, err := s.listRunningServiceTasks(ctx, cluster, service)
+	runningTaskCount, err := s.listRunningServiceTasks(ctx, cli, cluster, service)
 	if err != nil {
 		glog.Errorln("listRunningServiceTasks error", err, "service", service)
 		return nil, err
@@ -303,12 +309,12 @@ func (s *SwarmSvc) GetServiceStatus(ctx context.Context, cluster string, service
 	return status, nil
 }
 
-func (s *SwarmSvc) listRunningServiceTasks(ctx context.Context, cluster string, service string) (runningTaskCount int64, err error) {
+func (s *SwarmSvc) listRunningServiceTasks(ctx context.Context, cli *client.Client, cluster string, service string) (runningTaskCount int64, err error) {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
 
-	tasks, err := s.listTasks(filterArgs)
+	tasks, err := s.listTasks(cli, filterArgs)
 	if err != nil {
 		glog.Errorln("listTasks error", err, "service", service)
 		return 0, err
@@ -334,11 +340,17 @@ func (s *SwarmSvc) listRunningServiceTasks(ctx context.Context, cluster string, 
 
 // WaitServiceRunning waits till all tasks are running or time out.
 func (s *SwarmSvc) WaitServiceRunning(ctx context.Context, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
-	return s.waitServiceRunningTasks(ctx, cluster, service, replicas, maxWaitSeconds)
+	cli, err := s.newClient()
+	if err != nil {
+		glog.Errorln("WaitServiceRunning newClient error", err)
+		return err
+	}
+
+	return s.waitServiceRunningTasks(ctx, cli, cluster, service, replicas, maxWaitSeconds)
 }
 
-func (s *SwarmSvc) waitServiceRunningTasks(ctx context.Context, cluster string,
-	service string, replicas int64, maxWaitSeconds int64) error {
+func (s *SwarmSvc) waitServiceRunningTasks(ctx context.Context, cli *client.Client,
+	cluster string, service string, replicas int64, maxWaitSeconds int64) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
@@ -346,7 +358,7 @@ func (s *SwarmSvc) waitServiceRunningTasks(ctx context.Context, cluster string,
 	runningTasks := int64(0)
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		runningTasks = int64(0)
-		tasks, err := s.listTasks(filterArgs)
+		tasks, err := s.listTasks(cli, filterArgs)
 		if err == nil {
 			// swarm service task has 2 fields: Task.Status.State and Task.DesiredState.
 			// The DesiredState is the desired state to distinguish the shutdown and running
@@ -378,6 +390,27 @@ func (s *SwarmSvc) waitServiceRunningTasks(ctx context.Context, cluster string,
 	return common.ErrTimeout
 }
 
+func (s *SwarmSvc) updateServiceReplicas(ctx context.Context, cli *client.Client, cluster string, service string, replicas uint64) error {
+	// get service spec
+	swarmservice, err := s.inspectService(ctx, cli, service)
+	if err != nil {
+		glog.Errorln("inspectService error", err, "service", service)
+		return err
+	}
+
+	// stop service, update service replicas to 0
+	swarmservice.Spec.Mode.Replicated = &swarm.ReplicatedService{Replicas: &replicas}
+
+	resp, err := cli.ServiceUpdate(ctx, service, swarmservice.Version, swarmservice.Spec, types.ServiceUpdateOptions{})
+	if err != nil {
+		glog.Errorln("ServiceUpdate error", err, "resp", resp, swarmservice)
+		return err
+	}
+
+	glog.Infoln("updated service replicas to", replicas, service)
+	return nil
+}
+
 // StopService stops all service containers
 func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service string) error {
 	cli, err := s.newClient()
@@ -386,31 +419,52 @@ func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service stri
 		return err
 	}
 
-	// get service spec
-	swarmservice, err := s.inspectService(ctx, cli, service)
+	// stop service, update service replicas to 0
+	err = s.updateServiceReplicas(ctx, cli, cluster, service, 0)
 	if err != nil {
-		glog.Errorln("inspectService error", err, "service", service)
+		// this might be possible if someone else deletes the service at the same time
 		if client.IsErrServiceNotFound(err) {
 			return nil
 		}
+
+		glog.Errorln("updateServiceReplicas error", err, service)
 		return err
 	}
 
-	// update service replicas to 0
-	replicas := uint64(0)
-	swarmservice.Spec.Mode.Replicated = &swarm.ReplicatedService{Replicas: &replicas}
+	glog.Infoln("stopped service", service, "cluster", cluster)
+	return nil
+}
 
-	resp, err := cli.ServiceUpdate(ctx, service, swarmservice.Version, swarmservice.Spec, types.ServiceUpdateOptions{})
+// RestartService stops all service containers and then starts them again.
+func (s *SwarmSvc) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+	cli, err := s.newClient()
 	if err != nil {
-		glog.Errorln("ServiceUpdate error", err, "resp", resp, swarmservice)
-		if client.IsErrServiceNotFound(err) {
-			// this might be possible if someone else stops the service at the same time
-			return nil
-		}
+		glog.Errorln("RestartService newClient error", err, "service", service)
 		return err
 	}
 
-	glog.Infoln("updated service replicas to 0", service, "cluster", cluster)
+	// stop service, update service replicas to 0
+	err = s.updateServiceReplicas(ctx, cli, cluster, service, 0)
+	if err != nil {
+		glog.Errorln("stop service error", err)
+		return err
+	}
+
+	// wait all containers stopped
+	err = s.waitServiceRunningTasks(ctx, cli, cluster, service, 0, common.DefaultServiceWaitSeconds)
+	if err != nil {
+		glog.Errorln("waitServiceRunningTasks error", err, service)
+		return err
+	}
+
+	// start service, update service replicas to DesiredCount
+	err = s.updateServiceReplicas(ctx, cli, cluster, service, uint64(desiredCount))
+	if err != nil {
+		glog.Errorln("start service error", err)
+		return err
+	}
+
+	glog.Infoln("RestartService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 

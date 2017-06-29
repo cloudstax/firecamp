@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -30,6 +29,7 @@ import (
 const (
 	defaultRoot   = "/mnt/" + common.SystemName
 	defaultFStype = "ext4"
+	tmpfileSuffix = ".tmp"
 )
 
 var defaultMountOptions = []string{"discard", "defaults"}
@@ -426,12 +426,20 @@ func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath
 		return nil
 	}
 
+	// create the conf dir
+	configDirPath := filepath.Join(mountPath, common.DefaultConfigDir)
+	err := utils.CreateDirIfNotExist(configDirPath)
+	if err != nil {
+		glog.Errorln("create the config dir error", err, configDirPath, "requuid", requuid, vol)
+		return err
+	}
+
 	// check the md5 first.
 	// The config file content may not be small. For example, the default cassandra.yaml is 45K.
 	// The config files are rarely updated after creation. No need to read the content over.
 	for _, cfg := range vol.Configs {
 		// check and create the config file if necessary
-		fpath := filepath.Join(mountPath, cfg.FileName)
+		fpath := filepath.Join(configDirPath, cfg.FileName)
 		exist, err := utils.IsFileExist(fpath)
 		if err != nil {
 			glog.Errorln("check the config file error", err, fpath, "requuid", requuid, vol)
@@ -466,35 +474,15 @@ func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath
 		}
 
 		data := []byte(cfgFile.Content)
-		err = d.writeFile(fpath, data, utils.DefaultFileMode)
+		err = utils.CreateOrOverwriteFile(fpath, data, os.FileMode(cfgFile.FileMode))
 		if err != nil {
 			glog.Errorln("write the config file error", err, fpath, "requuid", requuid, vol)
 			return err
 		}
-
 		glog.Infoln("write the config file done for service", fpath, "requuid", requuid, vol)
 	}
 
 	return nil
-}
-
-func (d *OpenManageVolumeDriver) writeFile(filename string, data []byte, perm os.FileMode) error {
-	// TODO create a tmp file and rename
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, perm)
-	if err != nil {
-		return err
-	}
-	n, err := f.Write(data)
-	if err == nil && n < len(data) {
-		err = io.ErrShortWrite
-	}
-	if err == nil {
-		err = f.Sync()
-	}
-	if err1 := f.Close(); err == nil {
-		err = err1
-	}
-	return err
 }
 
 func (d *OpenManageVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string) {

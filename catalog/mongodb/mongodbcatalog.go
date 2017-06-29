@@ -1,8 +1,13 @@
 package mongodbcatalog
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"path/filepath"
+	"strings"
 
+	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/dns"
@@ -11,10 +16,19 @@ import (
 )
 
 const (
-	ContainerImage     = common.ContainerNamePrefix + "mongodb"
+	// ContainerImage is the main MongoDB running container.
+	ContainerImage = common.ContainerNamePrefix + "mongodb"
+	// InitContainerImage initializes the MongoDB ReplicaSet.
 	InitContainerImage = common.ContainerNamePrefix + "mongodb-init"
-	EnvReplicaSetName  = "REPLICA_SET_NAME"
-	DefaultPort        = int64(27017)
+
+	envReplicaSetName = "REPLICA_SET_NAME"
+	envAdminUser      = "ADMIN_USER"
+	envAdminPassword  = "ADMIN_PASSWORD"
+	defaultPort       = int64(27017)
+
+	keyfileName      = "keyfile"
+	keyfileRandBytes = 200
+	keyfileMode      = 0400
 )
 
 // The default MongoDB ReplicaSet catalog service. By default,
@@ -24,12 +38,15 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(region string, azs []string, cluster string, service string, replicas int64,
-	volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
+	volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs := GenReplicaConfigs(azs, replicas, replSetName, DefaultPort)
+	replicaCfgs, err := GenReplicaConfigs(azs, replicas, replSetName, defaultPort)
+	if err != nil {
+		return nil, err
+	}
 
-	return &manage.CreateServiceRequest{
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -42,17 +59,20 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 		Replicas:       replicas,
 		VolumeSizeGB:   volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
-		Port:           DefaultPort,
+		Port:           defaultPort,
 
 		HasMembership:  true,
 		ReplicaConfigs: replicaCfgs,
 	}
+	return req, nil
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID string, replicas int64, manageurl string) *containersvc.RunTaskOptions {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID string,
+	replicas int64, manageurl string, admin string, adminPass string) *containersvc.RunTaskOptions {
 	replSetName := req.ServiceName
-	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, replSetName, replicas, manageurl)
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName,
+		replSetName, replicas, manageurl, admin, adminPass)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,
@@ -76,36 +96,83 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(azs []string, replicas int64, replSetName string, port int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(azs []string, replicas int64, replSetName string, port int64) ([]*manage.ReplicaConfig, error) {
+	// generate the keyfile for MongoDB internal auth between members of the replica set.
+	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
+	keyfileContent, err := genKeyfileContent()
+	if err != nil {
+		return nil, err
+	}
+	keyfileCfg := &manage.ReplicaConfigFile{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
+
+	// generate the replica configs
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < int(replicas); i++ {
 		index := i % len(azs)
 		netcontent := fmt.Sprintf(mongoDBConfNetwork, port)
 		replcontent := fmt.Sprintf(mongoDBConfRepl, replSetName)
 		content := mongoDBConfHead + mongoDBConfStorage + mongoDBConfLog + netcontent + replcontent + mongoDBConfEnd
-		cfg := &manage.ReplicaConfigFile{FileName: mongoDBConfFileName, Content: content}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ReplicaConfigFile{
+			FileName: mongoDBConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
+		configs := []*manage.ReplicaConfigFile{cfg, keyfileCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
-	return replicaCfgs
+	return replicaCfgs, nil
+}
+
+func genKeyfileContent() (string, error) {
+	b := make([]byte, keyfileRandBytes)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+// IsMongoDBConfFile checks if the file is the MongoDB config file
+func IsMongoDBConfFile(filename string) bool {
+	return filename == mongoDBConfFileName
+}
+
+// IsAuthEnabled checks if auth is already enabled.
+func IsAuthEnabled(content string) bool {
+	n := strings.Index(content, mongoDBAuthStr)
+	return n != -1
+}
+
+// EnableMongoDBAuth enables the MongoDB user authentication, after replset initialized and user created.
+func EnableMongoDBAuth(content string) string {
+	keyfilePath := filepath.Join(common.DefaultConfigPath, keyfileName)
+	seccontent := fmt.Sprintf(mongoDBConfSecurity, keyfilePath)
+	return strings.Replace(content, "#security:", seccontent, 1)
 }
 
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.
 func GenInitTaskEnvKVPairs(region string, cluster string, service string,
-	replSetName string, replicas int64, manageurl string) []*common.EnvKeyValuePair {
+	replSetName string, replicas int64, manageurl string, admin string, adminPass string) []*common.EnvKeyValuePair {
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
-	kvreplSet := &common.EnvKeyValuePair{Name: EnvReplicaSetName, Value: replSetName}
+	kvreplSet := &common.EnvKeyValuePair{Name: envReplicaSetName, Value: replSetName}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_MongoDB}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.ServiceInitializedOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
 
 	domain := dns.GenDefaultDomainName(cluster)
 	masterDNS := dns.GenDNSName(utils.GenServiceMemberName(service, 0), domain)
 	kvmaster := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_MASTER, Value: masterDNS}
 
-	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvservice, kvreplSet, kvmgtserver, kvop, kvmaster}
+	kvadminuser := &common.EnvKeyValuePair{Name: envAdminUser, Value: admin}
+	// TODO simply pass the password as env variable. The init task should fetch from the manage server.
+	kvadminpass := &common.EnvKeyValuePair{Name: envAdminPassword, Value: adminPass}
+
+	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvservice,
+		kvreplSet, kvsvctype, kvmgtserver, kvop, kvmaster, kvadminuser, kvadminpass}
 	if replicas == 1 {
 		return envkvs
 	}
@@ -158,6 +225,13 @@ net:
 	mongoDBConfRepl = `
 replication:
   replSetName: %s
+`
+
+	mongoDBAuthStr      = "authorization: enabled"
+	mongoDBConfSecurity = `
+security:
+  keyFile: %s
+  authorization: enabled
 `
 
 	mongoDBConfEnd = `

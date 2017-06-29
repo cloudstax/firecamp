@@ -82,13 +82,19 @@ type ServiceAttr struct {
 	ClusterName   string
 	ServiceName   string
 	DeviceName    string
+
 	// whether the service has the strict membership, such as database replicas.
 	// if yes, each volume will be assigned a member name and registered to DNS.
 	// in aws, DNS will be Route53.
 	HasStrictMembership bool
 	// for v1, DomainName would be the default domain, such as cluster-openmanage.com
-	DomainName   string
+	DomainName string
+	// The AWS Route53 HostedZone for the current openmanage cluster.
 	HostedZoneID string
+
+	// The service admin and password. The password will be deleted once the service is initialized.
+	//Admin       string
+	//AdminPasswd string
 }
 
 // Volume represents the attributes of the volume
@@ -131,6 +137,7 @@ type ConfigFile struct {
 	FileID       string // sort key
 	FileMD5      string
 	FileName     string
+	FileMode     uint32
 	LastModified int64
 	Content      string // The content of the config file.
 }

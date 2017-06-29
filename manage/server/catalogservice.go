@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/openmanage/catalog/mongodb"
 	"github.com/cloudstax/openmanage/catalog/postgres"
 	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/manage"
 )
 
@@ -21,6 +22,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createMongoDBService(ctx, r, requuid)
 	case manage.CatalogCreatePostgreSQLOp:
 		return s.createPGService(ctx, r, requuid)
+	case manage.CatalogSetServiceInitOp:
+		return s.catalogSetServiceInit(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -70,7 +73,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		case common.ServiceStatusActive:
 			initialized = true
 
-		case common.ServiceStatusCreating:
+		case common.ServiceStatusInitializing:
 			// service is not initialized, and no init task is running.
 			// This is possible. For example, the manage service node crashes and all in-memory
 			// init tasks will be lost. Currently rely on the customer to query service status
@@ -80,7 +83,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			// trigger the init task.
 			switch req.ServiceType {
 			case catalog.CatalogService_MongoDB:
-				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, requuid)
+				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
 
 			case catalog.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
@@ -133,23 +136,30 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+	if err != nil {
+		glog.Errorln("mongodbcatalog GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
+	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Admin)
+
 	// run the init task in the background
-	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Replicas, requuid)
+	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Replicas, req.Admin, req.AdminPasswd, requuid)
 
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context,
-	req *manage.ServiceCommonRequest, serviceUUID string, replicas int64, requuid string) {
-	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, serviceUUID, replicas, s.manageurl)
+func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
+	serviceUUID string, replicas int64, admin string, adminPasswd string, requuid string) {
+	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, serviceUUID, replicas, s.manageurl, admin, adminPasswd)
 
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
@@ -189,4 +199,104 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 
 	// PG does not require additional init work. set PG initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogSetServiceInitRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogSetServiceInitRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Cluster != s.cluster || req.Region != s.region {
+		glog.Errorln("CatalogSetServiceInitRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	switch req.ServiceType {
+	case catalog.CatalogService_MongoDB:
+		return s.setMongoDBInit(ctx, req, requuid)
+	// no special handling for PostgreSQL
+	default:
+		glog.Errorln("unknown service type", req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+}
+
+func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.CatalogSetServiceInitRequest, requuid string) (errmsg string, errcode int) {
+	// get service uuid
+	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService", req.ServiceName, req.ServiceType, "error", err, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// get service attr
+	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// list all volumes
+	vols, err := s.dbIns.ListVolumes(ctx, service.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListVolumes failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("get service", service, "has", len(vols), "replicas, requuid", requuid)
+
+	// update the replica (volume) mongod.conf file
+	for _, vol := range vols {
+		for _, cfg := range vol.Configs {
+			if mongodbcatalog.IsMongoDBConfFile(cfg.FileName) {
+				cfgfile, err := s.dbIns.GetConfigFile(ctx, vol.ServiceUUID, cfg.FileID)
+				if err != nil {
+					glog.Errorln("GetConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
+					return manage.ConvertToHTTPError(err)
+				}
+
+				if !mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
+					// auth is not enabled for this replica, enable it
+					newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
+					newcfgfile := db.UpdateConfigFile(cfgfile, newContent)
+					err = s.dbIns.UpdateConfigFile(ctx, cfgfile, newcfgfile)
+					if err != nil {
+						glog.Errorln("UpdateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
+						return manage.ConvertToHTTPError(err)
+					}
+					// successfully update the replica config file
+					cfgfile = newcfgfile
+					glog.Infoln("updated config file, requuid", requuid, db.PrintConfigFile(cfgfile), vol)
+				} else {
+					glog.Infoln("Auth is already enabled in the config file",
+						db.PrintConfigFile(cfgfile), "requuid", requuid, vol)
+				}
+
+				// check if the config file MD5 in the volume is updated
+				if cfg.FileMD5 != cfgfile.FileMD5 {
+					glog.Infoln("update member config in the volume, requuid", requuid, cfg)
+				}
+				break
+			}
+		}
+	}
+
+	// the config files of all replicas are updated, restart all containers
+	glog.Infoln("all replicas are updated, restart all containers, requuid", requuid, req)
+
+	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	if err != nil {
+		glog.Errorln("RestartService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// set service initialized
+	glog.Infoln("All containers restarted, set service initialized, requuid", requuid, req)
+
+	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 }

@@ -699,6 +699,33 @@ func (c *ControlDBCli) CreateConfigFile(ctx context.Context, cfg *common.ConfigF
 	return err
 }
 
+func (c *ControlDBCli) UpdateConfigFile(ctx context.Context, oldCfg *common.ConfigFile, newCfg *common.ConfigFile) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	var err error
+	req := &pb.UpdateConfigFileRequest{
+		OldCfg: controldb.GenPbConfigFile(oldCfg),
+		NewCfg: controldb.GenPbConfigFile(newCfg),
+	}
+	for i := 0; i < maxRetryCount; i++ {
+		cli := c.getCli()
+		_, err = cli.dbcli.UpdateConfigFile(ctx, req)
+		if err == nil {
+			glog.Infoln("UpdateConfigFile from", oldCfg, "to", newCfg, "requuid", requuid)
+			return nil
+		}
+
+		glog.Errorln("UpdateConfigFile error", err, "old config", oldCfg, "requuid", requuid)
+		if grpc.Code(err) == codes.Unknown {
+			// not grpc layer error code, directly return
+			return c.checkAndConvertError(err)
+		}
+		// grpc error, retry it
+		c.markClientFailedAndSleep(cli)
+	}
+	return err
+}
+
 func (c *ControlDBCli) GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 

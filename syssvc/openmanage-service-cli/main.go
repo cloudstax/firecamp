@@ -26,22 +26,28 @@ var (
 	serviceType  = flag.String("service-type", "", "The catalog service type: mongodb|postgresql")
 	cluster      = flag.String("cluster", "default", "The ECS cluster")
 	serverURL    = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
-	tlsEnabled   = flag.Bool("tls-enabled", false, "whether tls is enabled")
-	caFile       = flag.String("ca-file", "", "the ca file")
-	certFile     = flag.String("cert-file", "", "the cert file")
-	keyFile      = flag.String("key-file", "", "the key file")
 	region       = flag.String("region", "", "The target AWS region")
 	service      = flag.String("service", "", "The target service name in ECS")
 	replicas     = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volSizeGB    = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	cpuUnits     = flag.Int64("cpu-units", 128, "The number of cpu units to reserve for the container")
-	reserveMemMB = flag.Int64("soft-memory", 128, "The memory reserved for the container, unit: MB")
+	cpuUnits     = flag.Int64("cpu-units", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
+	reserveMemMB = flag.Int64("soft-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
+
+	// security parameters
+	admin       = flag.String("admin", "dbadmin", "The DB admin")
+	adminPasswd = flag.String("passwd", "changeme", "The DB admin password")
+	tlsEnabled  = flag.Bool("tls-enabled", false, "whether tls is enabled")
+	caFile      = flag.String("ca-file", "", "the ca file")
+	certFile    = flag.String("cert-file", "", "the cert file")
+	keyFile     = flag.String("key-file", "", "the key file")
 
 	// The postgres service creation specific parameters.
-	admin          = flag.String("admin", "admin", "The DB admin")
-	adminPasswd    = flag.String("passwd", "password", "The DB admin password")
 	replUser       = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
 	replUserPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
+
+	// the parameters for getting the config file
+	serviceUUID = flag.String("service-uuid", "", "The service uuid")
+	fileID      = flag.String("fileid", "", "The config file id")
 )
 
 const (
@@ -51,6 +57,7 @@ const (
 	opList      = "list-services"
 	opGet       = "get-service"
 	opListVols  = "list-volumes"
+	opGetConfig = "get-config"
 )
 
 func usage() {
@@ -60,7 +67,7 @@ func usage() {
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgres> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opCheckInit)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa -admin=admin -passwd=passwd\n", opCheckInit)
 		case opDelete:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opDelete)
 		case opList:
@@ -69,6 +76,8 @@ func usage() {
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opGet)
 		case opListVols:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opListVols)
+		case opGetConfig:
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=auuid -fileid=configfileID\n", opGetConfig)
 		default:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s> --help",
 				opCreate, opCheckInit, opDelete, opList, opGet, opListVols)
@@ -150,7 +159,13 @@ func main() {
 		fmt.Printf("List %d volumes:\n", len(vols))
 		for _, vol := range vols {
 			fmt.Printf("\t%+v\n", *vol)
+			for _, cfg := range vol.Configs {
+				fmt.Printf("\t\t%+v\n", *cfg)
+			}
 		}
+
+	case opGetConfig:
+		getConfig(ctx, cli)
 
 	default:
 		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s\n",
@@ -179,6 +194,8 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Replicas:     *replicas,
 		VolumeSizeGB: *volSizeGB,
+		Admin:        *admin,
+		AdminPasswd:  *adminPasswd,
 	}
 
 	err := cli.CatalogCreateMongoDBService(ctx, req)
@@ -192,6 +209,8 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 	initReq := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: catalog.CatalogService_MongoDB,
 		Service:     req.Service,
+		Admin:       *admin,
+		AdminPasswd: *adminPasswd,
 	}
 
 	sleepSeconds := time.Duration(common.DefaultRetryWaitSeconds) * time.Second
@@ -253,6 +272,8 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
+		Admin:       *admin,
+		AdminPasswd: *adminPasswd,
 	}
 
 	initialized, err := cli.CatalogCheckServiceInit(ctx, req)
@@ -347,4 +368,26 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("Service deleted, please manually delete the EBS volumes\n\t", volIDs)
+}
+
+func getConfig(ctx context.Context, cli *client.ManageClient) {
+	if *serviceUUID == "" || *fileID == "" {
+		fmt.Println("Please specify the service uuid and config file id")
+		os.Exit(-1)
+	}
+
+	req := &manage.GetConfigFileRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceUUID: *serviceUUID,
+		FileID:      *fileID,
+	}
+
+	cfg, err := cli.GetConfigFile(ctx, req)
+	if err != nil {
+		fmt.Println("GetConfigFile error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("%+v\n", *cfg)
 }

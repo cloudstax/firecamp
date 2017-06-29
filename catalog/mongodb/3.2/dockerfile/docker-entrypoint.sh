@@ -2,7 +2,7 @@
 set -e
 
 datadir=/data
-cfgfile=$datadir/mongod.conf
+cfgfile=$datadir/conf/mongod.conf
 dbdir=$datadir/db
 configdbdir=$datadir/configdb
 

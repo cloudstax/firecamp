@@ -414,6 +414,7 @@ func TestConfigFile(t *testing.T) {
 	fileIDPrefix := "fileid-"
 	fileNamePrefix := "filename-"
 	fileContentPrefix := "filecontent-"
+	fileMode := uint32(0600)
 
 	ctx := context.Background()
 
@@ -421,7 +422,7 @@ func TestConfigFile(t *testing.T) {
 	var s [5]*common.ConfigFile
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
-		s[i] = db.CreateInitialConfigFile(uuidPrefix+c, fileIDPrefix+c, fileNamePrefix+c, fileContentPrefix+c)
+		s[i] = db.CreateInitialConfigFile(uuidPrefix+c, fileIDPrefix+c, fileNamePrefix+c, fileMode, fileContentPrefix+c)
 		err := dbIns.CreateConfigFile(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create config file %s, err %s", s[i], err)
@@ -440,25 +441,46 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("get config file failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
+	// update config
+	newContent := item.Content + "newcontent"
+	newItem := db.UpdateConfigFile(item, newContent)
+	err = dbIns.UpdateConfigFile(ctx, item, newItem)
+	if err != nil {
+		t.Fatalf("UpdateConfigFile error %s", err)
+	}
+
+	// get config to verify
+	item1, err := dbIns.GetConfigFile(ctx, s[1].ServiceUUID, s[1].FileID)
+	if err != nil || !db.EqualConfigFile(item1, newItem, false, false) {
+		t.Fatalf("get config file after update failed, error %s, expected %s get %s", err, newItem, item1)
+	}
+
+	// negative case: update config with mismatch old config
+	item1.FileID = "invalidID"
+	err = dbIns.UpdateConfigFile(ctx, item1, item)
+	if err == nil {
+		t.Fatalf("update config with mismatch old config, expect error %s but succeed", err)
+	}
+
 	// delete config
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err != nil {
 		t.Fatalf("failed to delete config file %s error %s", s[2], err)
 	}
 
-	// delete one unexist config
+	// negative case: delete one unexist config
 	err = dbIns.DeleteConfigFile(ctx, s[2].ServiceUUID, s[2].FileID)
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("delete unexist config %s, expect db.ErrDBRecordNotFound, got error %s", s[2], err)
 	}
 
-	// get one unexist config
+	// negative case: get one unexist config
 	gitem, err := dbIns.GetConfigFile(ctx, "service-x", "config-x")
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("get unexist config, expect db.ErrDBRecordNotFound, got error %s item %s", err, gitem)
 	}
 
-	// delete one unexist config
+	// negative case: delete one unexist config
 	err = dbIns.DeleteConfigFile(ctx, "service-x", "config-x")
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("delete unexist config, expect db.ErrDBRecordNotFound, got error %s", err)

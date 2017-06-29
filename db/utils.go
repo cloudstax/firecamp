@@ -198,20 +198,21 @@ func UpdateVolume(t1 *common.Volume, taskID string, containerInstanceID string, 
 	}
 }
 
-func CreateInitialConfigFile(serviceUUID string, fileID string, fileName string, content string) *common.ConfigFile {
+func CreateInitialConfigFile(serviceUUID string, fileID string, fileName string, fileMode uint32, content string) *common.ConfigFile {
 	chksum := utils.GenMD5(content)
 	return &common.ConfigFile{
 		ServiceUUID:  serviceUUID,
 		FileID:       fileID,
 		FileMD5:      chksum,
 		FileName:     fileName,
+		FileMode:     fileMode,
 		LastModified: time.Now().UnixNano(),
 		Content:      content,
 	}
 }
 
 func CreateConfigFile(serviceUUID string, fileID string, fileMD5 string,
-	fileName string, mtime int64, content string) (*common.ConfigFile, error) {
+	fileName string, fileMode uint32, mtime int64, content string) (*common.ConfigFile, error) {
 	// double check config file
 	chksum := utils.GenMD5(content)
 	if chksum != fileMD5 {
@@ -225,10 +226,24 @@ func CreateConfigFile(serviceUUID string, fileID string, fileMD5 string,
 		FileID:       fileID,
 		FileMD5:      fileMD5,
 		FileName:     fileName,
+		FileMode:     fileMode,
 		LastModified: mtime,
 		Content:      content,
 	}
 	return cfg, nil
+}
+
+func UpdateConfigFile(c *common.ConfigFile, newContent string) *common.ConfigFile {
+	chksum := utils.GenMD5(newContent)
+	return &common.ConfigFile{
+		ServiceUUID:  c.ServiceUUID,
+		FileID:       c.FileID,
+		FileMD5:      chksum,
+		FileName:     c.FileName,
+		FileMode:     c.FileMode,
+		LastModified: time.Now().UnixNano(),
+		Content:      newContent,
+	}
 }
 
 func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime bool, skipContent bool) bool {
@@ -236,6 +251,7 @@ func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime boo
 		c1.FileID == c2.FileID &&
 		c1.FileMD5 == c2.FileMD5 &&
 		c1.FileName == c2.FileName &&
+		c1.FileMode == c2.FileMode &&
 		(skipMtime || c1.LastModified == c2.LastModified) &&
 		(skipContent || c1.Content == c2.Content) {
 		return true
@@ -244,6 +260,6 @@ func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime boo
 }
 
 func PrintConfigFile(cfg *common.ConfigFile) string {
-	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s LastModified %d",
-		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.LastModified)
+	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
+		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
 }

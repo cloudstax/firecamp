@@ -724,7 +724,7 @@ func (s *ManageService) createConfigFile(ctx context.Context, serviceUUID string
 	cfg *manage.ReplicaConfigFile) (*common.ConfigFile, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	dbcfg := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.Content)
+	dbcfg := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 	err := s.dbIns.CreateConfigFile(ctx, dbcfg)
 	if err == nil {
 		glog.Infoln("created config file", fileID, "file name", cfg.FileName, "service", serviceUUID, "requuid", requuid)

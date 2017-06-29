@@ -39,6 +39,7 @@ const (
 	ConfigFileID      = "ConfigFileID"
 	ConfigFileMD5     = "ConfigFileMD5"
 	ConfigFileName    = "ConfigFileName"
+	ConfigFileMode    = "ConfigFileMode"
 	ConfigFileContent = "ConfigFileContent"
 
 	// see http://stackoverflow.com/questions/32833351/dynamodb-put-item-if-hash-or-hash-and-range-combination-doesnt-exist

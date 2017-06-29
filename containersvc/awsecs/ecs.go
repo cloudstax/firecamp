@@ -652,9 +652,10 @@ func (s *AWSEcs) createEcsTaskDefinitionForTask(ctx context.Context, taskDefFami
 
 // WaitServiceRunning waits till all service containers are running or maxWaitSeconds reaches.
 func (s *AWSEcs) WaitServiceRunning(ctx context.Context, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
+	ecscli := ecs.New(s.sess)
 	var pending int64
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
-		svc, err := s.describeService(ctx, cluster, service)
+		svc, err := s.describeService(ctx, ecscli, cluster, service)
 		if err == nil {
 			if *(svc.DesiredCount) != replicas {
 				glog.Errorln("DesiredCount != replicas", replicas, svc)
@@ -679,7 +680,8 @@ func (s *AWSEcs) WaitServiceRunning(ctx context.Context, cluster string, service
 
 // GetServiceStatus returns the ServiceStatus.
 func (s *AWSEcs) GetServiceStatus(ctx context.Context, cluster string, service string) (*common.ServiceStatus, error) {
-	svc, err := s.describeService(ctx, cluster, service)
+	ecscli := ecs.New(s.sess)
+	svc, err := s.describeService(ctx, ecscli, cluster, service)
 	if err != nil {
 		glog.Errorln("describeService error", err, service, "cluster", cluster)
 		return nil, err
@@ -694,11 +696,11 @@ func (s *AWSEcs) GetServiceStatus(ctx context.Context, cluster string, service s
 	return status, nil
 }
 
-// WaitServiceStop waits till all service containers are stopped or maxWaitSeconds reaches.
-func (s *AWSEcs) WaitServiceStop(ctx context.Context, cluster string, service string, maxWaitSeconds int64) error {
+// waitServiceStop waits till all service containers are stopped or maxWaitSeconds reaches.
+func (s *AWSEcs) waitServiceStop(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, maxWaitSeconds int64) error {
 	var running int64
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
-		svc, err := s.describeService(ctx, cluster, service)
+		svc, err := s.describeService(ctx, ecscli, cluster, service)
 		if err == nil {
 			running = *(svc.RunningCount)
 			if running == 0 {
@@ -717,7 +719,7 @@ func (s *AWSEcs) WaitServiceStop(ctx context.Context, cluster string, service st
 	return common.ErrTimeout
 }
 
-func (s *AWSEcs) describeService(ctx context.Context, cluster string, service string) (*ecs.Service, error) {
+func (s *AWSEcs) describeService(ctx context.Context, ecscli *ecs.ECS, cluster string, service string) (*ecs.Service, error) {
 	params := &ecs.DescribeServicesInput{
 		Services: []*string{
 			aws.String(service),
@@ -725,8 +727,7 @@ func (s *AWSEcs) describeService(ctx context.Context, cluster string, service st
 		Cluster: aws.String(cluster),
 	}
 
-	svc := ecs.New(s.sess)
-	resp, err := svc.DescribeServices(params)
+	resp, err := ecscli.DescribeServices(params)
 	if err != nil {
 		glog.Errorln("DescribeServices error", err, "service", service, "cluster", cluster)
 		return nil, err
@@ -739,25 +740,64 @@ func (s *AWSEcs) describeService(ctx context.Context, cluster string, service st
 	return resp.Services[0], nil
 }
 
-// StopService stops all service containers
-func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string) error {
+func (s *AWSEcs) updateService(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, desiredCount int64) error {
 	params := &ecs.UpdateServiceInput{
 		Cluster:      aws.String(cluster),
 		Service:      aws.String(service),
-		DesiredCount: aws.Int64(0),
+		DesiredCount: aws.Int64(desiredCount),
 	}
 
-	svc := ecs.New(s.sess)
-	resp, err := svc.UpdateService(params)
+	resp, err := ecscli.UpdateService(params)
 	if err != nil {
 		glog.Errorln("UpdateService error", err, "service", service, "cluster", cluster)
+		return err
+	}
+
+	glog.Infoln("updated service desiredCount", service, desiredCount, "resp", resp)
+	return nil
+}
+
+// StopService stops all service containers
+func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string) error {
+	ecscli := ecs.New(s.sess)
+	err := s.updateService(ctx, ecscli, cluster, service, 0)
+	if err != nil {
+		glog.Errorln("updateService error", err, "service", service, "cluster", cluster)
 		if s.isServiceNotFoundError(err) || err.(awserr.Error).Code() == serviceNotActiveException {
 			return nil
 		}
 		return err
 	}
 
-	glog.Infoln("stop service complete", service, "cluster", cluster, "resp", resp)
+	glog.Infoln("stop service complete", service, "cluster", cluster)
+	return nil
+}
+
+// RestartService waits all service containers stopped and then starts the containers again.
+func (s *AWSEcs) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+	ecscli := ecs.New(s.sess)
+
+	// stop service
+	err := s.updateService(ctx, ecscli, cluster, service, 0)
+	if err != nil {
+		glog.Errorln("stopService error", err, "service", service)
+		return err
+	}
+
+	err = s.waitServiceStop(ctx, ecscli, cluster, service, common.DefaultServiceWaitSeconds)
+	if err != nil {
+		glog.Errorln("WaitServiceStop error", err, "service", service)
+		return err
+	}
+
+	// start service again
+	err = s.updateService(ctx, ecscli, cluster, service, desiredCount)
+	if err != nil {
+		glog.Errorln("start service error", err, "service", service, "desiredCount", desiredCount)
+		return err
+	}
+
+	glog.Infoln("RestartService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 
@@ -780,16 +820,16 @@ func (s *AWSEcs) DeleteCluster(ctx context.Context, cluster string) error {
 
 // DeleteService deletes the ECS service and TaskDefinition
 func (s *AWSEcs) DeleteService(ctx context.Context, cluster string, service string) error {
+	ecscli := ecs.New(s.sess)
 	taskDef := ""
-	ecsservice, err := s.describeService(ctx, cluster, service)
+	svc, err := s.describeService(ctx, ecscli, cluster, service)
 	if err == nil {
 		params := &ecs.DeleteServiceInput{
 			Service: aws.String(service),
 			Cluster: aws.String(cluster),
 		}
 
-		svc := ecs.New(s.sess)
-		resp, err := svc.DeleteService(params)
+		resp, err := ecscli.DeleteService(params)
 		if err != nil {
 			glog.Errorln("DeleteService error", err, "service", service, "cluster", cluster)
 			return err
@@ -797,7 +837,7 @@ func (s *AWSEcs) DeleteService(ctx context.Context, cluster string, service stri
 
 		glog.Infoln("deleted service", service, "cluster", cluster, "resp", resp)
 
-		taskDef = *ecsservice.TaskDefinition
+		taskDef = *svc.TaskDefinition
 
 	} else {
 		glog.Errorln("describeService error", err, "cluster", cluster, "service", service)
@@ -820,7 +860,7 @@ func (s *AWSEcs) DeleteService(ctx context.Context, cluster string, service stri
 
 	err = s.deregisterTaskDefinition(ctx, taskDef)
 	if err != nil {
-		glog.Errorln("deregisterTaskDefinition error", err, *ecsservice.TaskDefinition)
+		glog.Errorln("deregisterTaskDefinition error", err, *svc.TaskDefinition)
 		return err
 	}
 

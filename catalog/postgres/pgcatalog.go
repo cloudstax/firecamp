@@ -78,14 +78,26 @@ func genPrimaryConfig(az string, primaryHost string, port int64, pgpasswd string
 	replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create sys.conf file
 	content := fmt.Sprintf(sysConf, ContainerRolePrimary, primaryHost, port, pgpasswd, replUser, replPasswd)
-	cfg1 := &manage.ReplicaConfigFile{FileName: SysConfFileName, Content: content}
+	cfg1 := &manage.ReplicaConfigFile{
+		FileName: SysConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 
 	// create postgres.conf
-	cfg2 := &manage.ReplicaConfigFile{FileName: PostgresConfFileName, Content: primaryPostgresConf}
+	cfg2 := &manage.ReplicaConfigFile{
+		FileName: PostgresConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  primaryPostgresConf,
+	}
 
 	// create pg_hba.conf
 	content = fmt.Sprintf(primaryPgHbaConf, replUser)
-	cfg3 := &manage.ReplicaConfigFile{FileName: PGHbaConfFileName, Content: content}
+	cfg3 := &manage.ReplicaConfigFile{
+		FileName: PGHbaConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 
 	configs := []*manage.ReplicaConfigFile{cfg1, cfg2, cfg3}
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
@@ -94,18 +106,34 @@ func genPrimaryConfig(az string, primaryHost string, port int64, pgpasswd string
 func genStandbyConfig(az string, primaryHost string, port int64, pgpasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create sys.conf file
 	content := fmt.Sprintf(sysConf, ContainerRoleStandby, primaryHost, port, pgpasswd, replUser, replPasswd)
-	cfg1 := &manage.ReplicaConfigFile{FileName: SysConfFileName, Content: content}
+	cfg1 := &manage.ReplicaConfigFile{
+		FileName: SysConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 
 	// create postgres.conf
-	cfg2 := &manage.ReplicaConfigFile{FileName: PostgresConfFileName, Content: standbyPostgresConf}
+	cfg2 := &manage.ReplicaConfigFile{
+		FileName: PostgresConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  standbyPostgresConf,
+	}
 
 	// create pg_hba.conf
-	cfg3 := &manage.ReplicaConfigFile{FileName: PGHbaConfFileName, Content: standbyPgHbaConf}
+	cfg3 := &manage.ReplicaConfigFile{
+		FileName: PGHbaConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  standbyPgHbaConf,
+	}
 
 	// create recovery.conf
 	primaryConnInfo := fmt.Sprintf(standbyPrimaryConnInfo, primaryHost, port, replUser, replPasswd)
 	content = fmt.Sprintf(standbyRecoveryConf, primaryConnInfo, standbyRestoreCmd)
-	cfg4 := &manage.ReplicaConfigFile{FileName: RecoveryConfFileName, Content: content}
+	cfg4 := &manage.ReplicaConfigFile{
+		FileName: RecoveryConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 
 	configs := []*manage.ReplicaConfigFile{cfg1, cfg2, cfg3, cfg4}
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}

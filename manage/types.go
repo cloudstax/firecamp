@@ -9,6 +9,7 @@ const (
 	SpecialOpPrefix      = "?"
 	ListServiceOp        = SpecialOpPrefix + "List-Service"
 	ListVolumeOp         = SpecialOpPrefix + "List-Volume"
+	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
 	RunTaskOp            = SpecialOpPrefix + "Run-Task"
@@ -19,6 +20,7 @@ const (
 	CatalogCreateMongoDBOp    = CatalogOpPrefix + "Create-MongoDB"
 	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
+	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 
 	// response headers
 	RequestID       = "x-RequestId"
@@ -38,6 +40,7 @@ type ReplicaConfig struct {
 // ReplicaConfigFile contains the detail config file name and content.
 type ReplicaConfigFile struct {
 	FileName string
+	FileMode uint32
 	Content  string
 }
 
@@ -108,6 +111,19 @@ type ListServiceResponse struct {
 	Services []*common.ServiceAttr
 }
 
+// GetConfigFileRequest gets one config file.
+type GetConfigFileRequest struct {
+	Region      string
+	Cluster     string
+	ServiceUUID string
+	FileID      string
+}
+
+// GetConfigFileResponse rturns the config file.
+type GetConfigFileResponse struct {
+	ConfigFile *common.ConfigFile
+}
+
 // RunTaskRequest contains the parameters to run a task.
 type RunTaskRequest struct {
 	Service        *ServiceCommonRequest
@@ -148,6 +164,9 @@ type CatalogCreateMongoDBRequest struct {
 
 	Replicas     int64
 	VolumeSizeGB int64
+
+	Admin       string
+	AdminPasswd string
 }
 
 // CatalogCreatePostgreSQLRequest creates a PostgreSQL service.
@@ -169,9 +188,20 @@ type CatalogCheckServiceInitRequest struct {
 	ServiceType string
 
 	Service *ServiceCommonRequest
+
+	Admin       string
+	AdminPasswd string
 }
 
 // CatalogCheckServiceInitResponse returns the service init status
 type CatalogCheckServiceInitResponse struct {
 	Initialized bool
+}
+
+// CatalogSetServiceInitRequest sets the catalog service initialized.
+type CatalogSetServiceInitRequest struct {
+	Region      string
+	Cluster     string
+	ServiceName string
+	ServiceType string
 }

@@ -520,6 +520,7 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 	serviceUUIDPrefix := "serviceuuid-"
 	fileIDPrefix := "fileid-"
 	fileNamePrefix := "filename-"
+	fileMode := uint32(0600)
 	fileContentPrefix := "filecontent-"
 
 	// create 21 config files
@@ -531,7 +532,7 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 		fileID := fileIDPrefix + str
 		fileName := fileNamePrefix + str
 		fileContent := fileContentPrefix + str
-		cfg := db.CreateInitialConfigFile(serviceUUID, fileID, fileName, fileContent)
+		cfg := db.CreateInitialConfigFile(serviceUUID, fileID, fileName, fileMode, fileContent)
 		err := dbcli.CreateConfigFile(ctx, cfg)
 		if err != nil {
 			glog.Errorln("create config file, expect success, got", err, cfg)
@@ -546,7 +547,7 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 		}
 
 		// negative case: create the config file again with different field
-		cfg1 := db.CreateInitialConfigFile(serviceUUID, fileID, fileName, fileContent)
+		cfg1 := db.CreateInitialConfigFile(serviceUUID, fileID, fileName, fileMode, fileContent)
 		err = dbcli.CreateConfigFile(ctx, cfg1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing config file with different field, expect db.ErrDBConditionalCheckFailed, got", err, cfg1)
@@ -561,6 +562,25 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 		}
 		if !db.EqualConfigFile(cfg, cfg2, false, false) {
 			glog.Errorln("get config file, expect", cfg, "got", cfg2)
+			return db.ErrDBInternal
+		}
+
+		// update config file
+		cfg3 := db.UpdateConfigFile(cfg2, cfg2.Content+"newContent")
+		err = dbcli.UpdateConfigFile(ctx, cfg2, cfg3)
+		if err != nil {
+			glog.Errorln("update config file, expect success, got error", err, "serviceuuid", serviceUUID, "fileID", fileID)
+			return err
+		}
+
+		// get config file again
+		cfg2, err = dbcli.GetConfigFile(ctx, serviceUUID, fileID)
+		if err != nil {
+			glog.Errorln("get config file, expect success, got", err, "serviceuuid", serviceUUID, "fileID", fileID)
+			return err
+		}
+		if !db.EqualConfigFile(cfg3, cfg2, false, false) {
+			glog.Errorln("get config file, expect", cfg3, "got", cfg2)
 			return db.ErrDBInternal
 		}
 

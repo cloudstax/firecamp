@@ -164,6 +164,10 @@ func (m *MemContainerSvc) StopService(ctx context.Context, cluster string, servi
 	return nil
 }
 
+func (m *MemContainerSvc) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+	return nil
+}
+
 func (m *MemContainerSvc) DeleteService(ctx context.Context, cluster string, service string) error {
 	key := cluster + service
 

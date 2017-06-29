@@ -86,7 +86,7 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	trimURL := strings.TrimLeft(unescapedURL, "/")
 
-	glog.Infoln("request Method", r.Method, "URL", r.URL, "Host", r.Host, "requuid", requuid, "headers", r.Header)
+	glog.Infoln("request Method", r.Method, "URL", r.URL, trimURL, "Host", r.Host, "requuid", requuid, "headers", r.Header)
 
 	// make sure body is closed
 	defer s.closeBody(r)
@@ -271,6 +271,9 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 
 		case manage.GetServiceStatusOp:
 			return s.getServiceStatus(ctx, w, r, requuid)
+
+		case manage.GetConfigFileOp:
+			return s.getConfigFile(ctx, w, r, requuid)
 
 		case manage.GetTaskStatusOp:
 			return s.getTaskStatus(ctx, w, r, requuid)
@@ -519,6 +522,44 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 	w.Write(b)
 
 	glog.Infoln("get service status", status, "requuid", requuid, req)
+
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) getConfigFile(ctx context.Context,
+	w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	req := &manage.GetConfigFileRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("getConfigFile decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Cluster != s.cluster || req.Region != s.region {
+		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	cfg, err := s.dbIns.GetConfigFile(ctx, req.ServiceUUID, req.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	resp := &manage.GetConfigFileResponse{
+		ConfigFile: cfg,
+	}
+
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal error", err, "requuid", requuid, req)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
+	glog.Infoln("get config file", db.PrintConfigFile(cfg), "requuid", requuid, req)
 
 	return "", http.StatusOK
 }

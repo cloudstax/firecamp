@@ -212,6 +212,7 @@ func GenPbConfigFile(cfg *common.ConfigFile) *pb.ConfigFile {
 		FileID:       cfg.FileID,
 		FileMD5:      cfg.FileMD5,
 		FileName:     cfg.FileName,
+		FileMode:     cfg.FileMode,
 		LastModified: cfg.LastModified,
 		Content:      cfg.Content,
 	}
@@ -223,6 +224,7 @@ func GenDbConfigFile(cfg *pb.ConfigFile) *common.ConfigFile {
 		FileID:       cfg.FileID,
 		FileMD5:      cfg.FileMD5,
 		FileName:     cfg.FileName,
+		FileMode:     cfg.FileMode,
 		LastModified: cfg.LastModified,
 		Content:      cfg.Content,
 	}
@@ -233,6 +235,7 @@ func EqualConfigFile(a1 *pb.ConfigFile, a2 *pb.ConfigFile, skipMtime bool, skipC
 		a1.FileID == a2.FileID &&
 		a1.FileMD5 == a2.FileMD5 &&
 		a1.FileName == a2.FileName &&
+		a1.FileMode == a2.FileMode &&
 		(skipMtime || a1.LastModified == a2.LastModified) &&
 		(skipContent || a1.Content == a2.Content) {
 		return true
@@ -277,12 +280,13 @@ func CopyConfigFile(cfg *pb.ConfigFile) *pb.ConfigFile {
 		FileID:       cfg.FileID,
 		FileMD5:      cfg.FileMD5,
 		FileName:     cfg.FileName,
+		FileMode:     cfg.FileMode,
 		LastModified: cfg.LastModified,
 		Content:      cfg.Content,
 	}
 }
 
 func PrintConfigFile(cfg *pb.ConfigFile) string {
-	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s LastModified %d",
-		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.LastModified)
+	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
+		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
 }

@@ -6,11 +6,12 @@ PGDIR=/data
 # the db data dir
 export PGDATA=$PGDIR/db
 # the target configs, these files will be copied to $PGDATA after initdb at primary or basebackup at standby
-PGConf=$PGDIR/postgresql.conf
-PGHbaConf=$PGDIR/pg_hba.conf
-PGRecoveryConf=$PGDIR/recovery.conf
+PGConfDir=$PGDIR/conf
+PGConf=$PGConfDIR/postgresql.conf
+PGHbaConf=$PGConfDIR/pg_hba.conf
+PGRecoveryConf=$PGConfDIR/recovery.conf
 
-PGConfigFile=$PGDIR/sys.conf
+PGConfigFile=$PGConfDIR/sys.conf
 PGUSER="postgres"
 ROLE_PRIMARY="primary"
 ROLE_STANDBY="standby"

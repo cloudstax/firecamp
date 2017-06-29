@@ -132,7 +132,7 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 		ServiceUUID:    service + "uuid",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
+			MaxCPUUnits:     int64(-1),
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),

@@ -52,6 +52,6 @@ RUN set -x \
 	&& mv /etc/mongod.conf /etc/mongod.conf.orig
 
 COPY docker-entrypoint.sh /
-ENTRYPOINT ["/docker-entrypoint.sh", "mongod", "-f", "/data/mongod.conf"]
+ENTRYPOINT ["/docker-entrypoint.sh", "mongod", "-f", "/data/conf/mongod.conf"]
 
 EXPOSE 27017

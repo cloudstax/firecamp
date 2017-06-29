@@ -322,6 +322,37 @@ func (d *MemDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) er
 	return nil
 }
 
+func (d *MemDB) UpdateConfigFile(ctx context.Context, oldCfg *common.ConfigFile, newCfg *common.ConfigFile) error {
+	// sanity check. Only Content, MD5, and LastModified are allowed to update.
+	if oldCfg.ServiceUUID != newCfg.ServiceUUID ||
+		oldCfg.FileID != newCfg.FileID ||
+		oldCfg.FileName != newCfg.FileName ||
+		oldCfg.FileMode != newCfg.FileMode {
+		glog.Errorln("immutable attributes are updated, oldCfg", PrintConfigFile(oldCfg), "newCfg", PrintConfigFile(newCfg))
+		return ErrDBInvalidRequest
+	}
+
+	key := oldCfg.ServiceUUID + oldCfg.FileID
+
+	d.mlock.Lock()
+	defer d.mlock.Unlock()
+
+	c, ok := d.cfgMap[key]
+	if !ok {
+		glog.Errorln("config file not exist", key)
+		return ErrDBRecordNotFound
+	}
+
+	if c.ServiceUUID != oldCfg.ServiceUUID || c.FileID != oldCfg.FileID ||
+		c.FileMode != oldCfg.FileMode || c.FileMD5 != oldCfg.FileMD5 || c.LastModified != oldCfg.LastModified {
+		glog.Errorln("oldCfg not match the config in db", c, "oldCfg", oldCfg)
+		return ErrDBConditionalCheckFailed
+	}
+
+	d.cfgMap[key] = *newCfg
+	return nil
+}
+
 func (d *MemDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error) {
 	key := serviceUUID + fileID
 
@@ -405,6 +436,7 @@ func copyConfigFile(t *common.ConfigFile) *common.ConfigFile {
 		FileID:       t.FileID,
 		FileMD5:      t.FileMD5,
 		FileName:     t.FileName,
+		FileMode:     t.FileMode,
 		ServiceUUID:  t.ServiceUUID,
 		LastModified: t.LastModified,
 		Content:      t.Content,

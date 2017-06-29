@@ -45,6 +45,7 @@ type DB interface {
 	DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error
 
 	CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error
+	UpdateConfigFile(ctx context.Context, oldCfg *common.ConfigFile, newCfg *common.ConfigFile) error
 	GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error)
 	DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error
 }

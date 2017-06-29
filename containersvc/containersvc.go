@@ -50,6 +50,7 @@ type ContainerSvc interface {
 	// StopService stops the service on the container platform.
 	// Expect no error (nil) If service is already stopped or does not exist.
 	StopService(ctx context.Context, cluster string, service string) error
+	RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error
 	// DeleteService deletes the service on the container platform.
 	// Expect no error (nil) If service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error
