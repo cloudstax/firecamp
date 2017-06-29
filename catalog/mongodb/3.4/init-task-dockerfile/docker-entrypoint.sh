@@ -132,7 +132,7 @@ echo "admin user $ADMIN_USER created"
 # set MongoDB service initialized
 echo "set MongoDB service initialized"
 
-data="{ \"Region\": \"$REGION\", \"Cluster\": \"$CLUSTER\", \"ServiceName\": \"$SERVICE_NAME\", \"ServiceType\": \"$SERVICE_TYPE\" }"
+data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"ServiceType\":\"$SERVICE_TYPE\"}"
 curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
 
 # sleep some time for the server to restart all containers

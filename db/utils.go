@@ -183,7 +183,34 @@ func equalConfigs(c1 []*common.MemberConfig, c2 []*common.MemberConfig) bool {
 	return true
 }
 
-func UpdateVolume(t1 *common.Volume, taskID string, containerInstanceID string, ec2InstanceID string) *common.Volume {
+func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
+	c2 := make([]*common.MemberConfig, len(c1))
+	for i, c := range c1 {
+		c2[i] = &common.MemberConfig{
+			FileName: c.FileName,
+			FileID:   c.FileID,
+			FileMD5:  c.FileMD5,
+		}
+	}
+	return c2
+}
+
+func UpdateVolumeConfigs(t1 *common.Volume, c []*common.MemberConfig) *common.Volume {
+	return &common.Volume{
+		ServiceUUID:         t1.ServiceUUID,
+		VolumeID:            t1.VolumeID,
+		LastModified:        time.Now().UnixNano(),
+		DeviceName:          t1.DeviceName,
+		AvailableZone:       t1.AvailableZone,
+		TaskID:              t1.TaskID,
+		ContainerInstanceID: t1.ContainerInstanceID,
+		ServerInstanceID:    t1.ServerInstanceID,
+		MemberName:          t1.MemberName,
+		Configs:             c,
+	}
+}
+
+func UpdateVolumeOwner(t1 *common.Volume, taskID string, containerInstanceID string, ec2InstanceID string) *common.Volume {
 	return &common.Volume{
 		ServiceUUID:         t1.ServiceUUID,
 		VolumeID:            t1.VolumeID,

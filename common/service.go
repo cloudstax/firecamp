@@ -118,7 +118,8 @@ type Volume struct {
 // MemberConfig represents the configs of one member
 type MemberConfig struct {
 	FileName string
-	FileID   string // The config file uuid
+	// The config file uuid
+	FileID string
 	// The MD5 checksum of the config file content.
 	// The config file content would usually not be updated. The checksum could help
 	// the volume driver easily know whether it needs to load the config file content.

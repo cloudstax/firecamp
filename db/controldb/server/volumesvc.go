@@ -423,17 +423,28 @@ func (r *volumeReadWriter) getVolume(ctx context.Context, key *pb.VolumeKey) (*p
 func (r *volumeReadWriter) updateVolume(ctx context.Context, req *pb.UpdateVolumeRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// sanity check
+	if req.NewVol.ServiceUUID != req.OldVol.ServiceUUID ||
+		req.NewVol.VolumeID != req.OldVol.VolumeID ||
+		req.NewVol.DeviceName != req.OldVol.DeviceName ||
+		req.NewVol.AvailableZone != req.OldVol.AvailableZone ||
+		req.NewVol.MemberName != req.OldVol.MemberName {
+		glog.Errorln("updateVolume, the immutable volume attributes are updated", req.OldVol, req.NewVol, "requuid", requuid)
+		return db.ErrDBInvalidRequest
+	}
 	if req.OldVol.ServiceUUID != r.serviceUUID {
-		glog.Errorln("updateVolume", req, "not belong to service", r.serviceUUID)
+		glog.Errorln("updateVolume, req not belong to service", r.serviceUUID, "requuid", requuid, req.OldVol)
 		return db.ErrDBInvalidRequest
 	}
 
+	// get the current volume
 	currvol, ok := r.vols[req.OldVol.VolumeID]
 	if !ok {
 		glog.Errorln("updateVolume, no vol", req.OldVol.VolumeID, "requuid", requuid)
 		return db.ErrDBRecordNotFound
 	}
 
+	// sanity check
 	skipMtime := true
 	if !controldb.EqualVolume(currvol, req.OldVol, skipMtime) {
 		glog.Errorln("updateVolume, req oldVol", req.OldVol,

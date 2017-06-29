@@ -51,7 +51,7 @@ func TestDBUtils(t *testing.T) {
 	taskID := "task-1"
 	containerInstanceID := "containerInstance-1"
 	ec2InstanceID := "ec2Instance-1"
-	vol2 = UpdateVolume(vol1, taskID, containerInstanceID, ec2InstanceID)
+	vol2 = UpdateVolumeOwner(vol1, taskID, containerInstanceID, ec2InstanceID)
 	vol1.TaskID = taskID
 	vol1.ContainerInstanceID = containerInstanceID
 	vol1.ServerInstanceID = ec2InstanceID

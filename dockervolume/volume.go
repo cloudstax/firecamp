@@ -547,7 +547,7 @@ func (d *OpenManageVolumeDriver) getVolumeForTask(ctx context.Context, serviceAt
 	// update volume in db.
 	// TODO if there are concurrent failures, multiple tasks may select the same idle volume.
 	// now, the task will fail and be scheduled again. better have some retries here.
-	newVol := db.UpdateVolume(vol, localTaskID, d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
+	newVol := db.UpdateVolumeOwner(vol, localTaskID, d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
 	err = d.dbIns.UpdateVolume(ctx, vol, newVol)
 	if err != nil {
 		glog.Errorln("UpdateVolume error", err, "requuid", requuid, "newVol", newVol, "oldVol", vol)

@@ -252,37 +252,22 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 
 	// update the replica (volume) mongod.conf file
 	for _, vol := range vols {
-		for _, cfg := range vol.Configs {
-			if mongodbcatalog.IsMongoDBConfFile(cfg.FileName) {
-				cfgfile, err := s.dbIns.GetConfigFile(ctx, vol.ServiceUUID, cfg.FileID)
-				if err != nil {
-					glog.Errorln("GetConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
-					return manage.ConvertToHTTPError(err)
-				}
-
-				if !mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
-					// auth is not enabled for this replica, enable it
-					newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
-					newcfgfile := db.UpdateConfigFile(cfgfile, newContent)
-					err = s.dbIns.UpdateConfigFile(ctx, cfgfile, newcfgfile)
-					if err != nil {
-						glog.Errorln("UpdateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
-						return manage.ConvertToHTTPError(err)
-					}
-					// successfully update the replica config file
-					cfgfile = newcfgfile
-					glog.Infoln("updated config file, requuid", requuid, db.PrintConfigFile(cfgfile), vol)
-				} else {
-					glog.Infoln("Auth is already enabled in the config file",
-						db.PrintConfigFile(cfgfile), "requuid", requuid, vol)
-				}
-
-				// check if the config file MD5 in the volume is updated
-				if cfg.FileMD5 != cfgfile.FileMD5 {
-					glog.Infoln("update member config in the volume, requuid", requuid, cfg)
-				}
-				break
+		for i, cfg := range vol.Configs {
+			if !mongodbcatalog.IsMongoDBConfFile(cfg.FileName) {
+				glog.V(5).Infoln("not mongod.conf file, skip the config, requuid", requuid, cfg)
+				continue
 			}
+
+			glog.Infoln("enable auth on mongod.conf, requuid", requuid, cfg)
+
+			err = s.enableMongoDBAuth(ctx, cfg, i, vol, requuid)
+			if err != nil {
+				glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, cfg, vol)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			glog.Infoln("enabled auth for replia, requuid", requuid, vol)
+			break
 		}
 	}
 
@@ -296,7 +281,56 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 	}
 
 	// set service initialized
-	glog.Infoln("All containers restarted, set service initialized, requuid", requuid, req)
+	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
 
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
+	cfg *common.MemberConfig, cfgIndex int, vol *common.Volume, requuid string) error {
+	// fetch the config file
+	cfgfile, err := s.dbIns.GetConfigFile(ctx, vol.ServiceUUID, cfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, vol)
+		return err
+	}
+
+	// check if auth is enabled
+	if !mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
+		newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
+		newcfgfile := db.UpdateConfigFile(cfgfile, newContent)
+
+		err = s.dbIns.UpdateConfigFile(ctx, cfgfile, newcfgfile)
+		if err != nil {
+			glog.Errorln("UpdateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile), vol)
+			return err
+		}
+
+		// successfully update the replica config file
+		cfgfile = newcfgfile
+		glog.Infoln("updated config file, requuid", requuid, db.PrintConfigFile(cfgfile), vol)
+	} else {
+		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, vol)
+	}
+
+	// check if the config file MD5 in the volume is updated
+	if cfg.FileMD5 != cfgfile.FileMD5 {
+		glog.Infoln("update member config in the volume, requuid", requuid, cfg)
+
+		newConfigs := db.CopyMemberConfigs(vol.Configs)
+		newConfigs[cfgIndex].FileMD5 = cfgfile.FileMD5
+
+		newVol := db.UpdateVolumeConfigs(vol, newConfigs)
+		err = s.dbIns.UpdateVolume(ctx, vol, newVol)
+		if err != nil {
+			glog.Errorln("UpdateVolume error", err, "requuid", requuid, vol)
+			return err
+		}
+
+		glog.Infoln("updated member configs in the volume, requuid", requuid, newVol)
+	} else {
+		glog.Infoln("the config file MD5 in the volume is already updated, requuid", requuid, cfg, vol)
+	}
+
+	return nil
 }

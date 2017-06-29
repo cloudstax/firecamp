@@ -82,7 +82,8 @@ func (d *DynamoDB) UpdateVolume(ctx context.Context, oldVol *common.Volume, newV
 	if oldVol.ServiceUUID != newVol.ServiceUUID ||
 		oldVol.VolumeID != newVol.VolumeID ||
 		oldVol.DeviceName != newVol.DeviceName ||
-		oldVol.AvailableZone != newVol.AvailableZone {
+		oldVol.AvailableZone != newVol.AvailableZone ||
+		oldVol.MemberName != newVol.MemberName {
 		glog.Errorln("immutable attributes are updated, oldVol", oldVol, "newVol", newVol, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}

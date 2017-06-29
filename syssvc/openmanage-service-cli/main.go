@@ -213,7 +213,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		AdminPasswd: *adminPasswd,
 	}
 
-	sleepSeconds := time.Duration(common.DefaultRetryWaitSeconds) * time.Second
+	sleepSeconds := time.Duration(10) * time.Second
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		initialized, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err != nil {
