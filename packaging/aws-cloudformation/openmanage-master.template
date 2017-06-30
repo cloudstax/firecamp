@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create a new VPC and deploy an ECS cluster with the openmanage software. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template will create a new VPC and deploy an ECS cluster with the OpenManage software. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -358,7 +358,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-ecs.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -446,11 +446,11 @@
     }
   },
   "Outputs":{
-    "ecscluster":{
+    "ECSCluster":{
       "Value":{
         "Fn::GetAtt": [
           "OpenmanageStack",
-          "Outputs.ecscluster"
+          "Outputs.ECSCluster"
         ]
       }
     }

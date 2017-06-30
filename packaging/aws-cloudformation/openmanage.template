@@ -1,7 +1,12 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will deploy an ECS cluster with the openmanage software in an existing VPC. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template deploys an OpenManage ECS cluster on an existing VPC. The BastionSecurityGroupID is allowed to ssh to the ECS cluster nodes and access the openmanage manage http server",
   "Parameters":{
+    "BastionSecurityGroupID": {
+      "Description": "ID of the Bastion Security Group (e.g., sg-7f16e910)",
+      "Type": "AWS::EC2::SecurityGroup::Id"
+    },
+
     "ECSClusterName":{
       "Type":"String",
       "Description":"Name of the ECS cluster.",
@@ -11,19 +16,12 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
+
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
     },
 
-    "VPCID":{
-      "Type":"AWS::EC2::VPC::Id",
-      "Description":"Select a VPC that allows instances to access the Internet."
-    },
-    "AvailabilityZone": {
-      "Type": "AWS::EC2::AvailabilityZone::Name",
-      "Description": "The Availability Zone to deploy the ECS instances."
-    },
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "Default": "cloudstax-cf-templates",
@@ -38,12 +36,31 @@
         "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
         "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
     },
-    "RemoteAccessCIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-      "Type": "String",
-      "Default":"0.0.0.0/0",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block to access SSH or the openmanage manage http server."
+
+    "VPCID": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC-ID of your existing Virtual Private Cloud (VPC) where you want to deploy the ECS cluster.",
+      "AllowedPattern": "vpc-[0-9a-z]{8}"
+    },
+    "Subnet1ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the first AutoScalingGroup.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "Subnet2ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the second AutoScalingGroup.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "Subnet3ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the third AutoScalingGroup.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+
+    "AvailabilityZones": {
+      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
     "DesiredCapacityPerAZ":{
       "Type":"Number",
@@ -55,16 +72,6 @@
       "Default":"1",
       "Description":"Maximum number of instances that can be launched in one AutoScalingGroup."
     },
-    "OpenManageDBType": {
-      "AllowedValues": [
-        "clouddb",
-        "controldb"
-      ],
-      "Default": "clouddb",
-      "Description": "The openmanage db type",
-      "Type": "String"
-    },
-
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
@@ -106,55 +113,6 @@
       "ConstraintDescription":"Please choose a valid instance type."
     }
   },
-  "Mappings": {
-    "AWSAMIRegionMap": {
-      "AMI": {
-        "AMIID": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
-      },
-      "ap-northeast-1": {
-        "AMIID": "ami-923d12f5"
-      },
-      "ap-northeast-2": {
-        "AMIID": "ami-9d15c7f3"
-      },
-      "ap-south-1": {
-        "AMIID": "ami-52c7b43d"
-      },
-      "ap-southeast-1": {
-        "AMIID": "ami-fc5ae39f"
-      },
-      "ap-southeast-2": {
-        "AMIID": "ami-162c2575"
-      },
-      "ca-central-1": {
-        "AMIID": "ami-0bd66a6f"
-      },
-      "eu-central-1": {
-        "AMIID": "ami-b968bad6"
-      },
-      "eu-west-1": {
-        "AMIID": "ami-01ccc867"
-      },
-      "eu-west-2": {
-        "AMIID": "ami-b6daced2"
-      },
-      "sa-east-1": {
-        "AMIID": "ami-37cfad5b"
-      },
-      "us-east-1": {
-        "AMIID": "ami-c58c1dd3"
-      },
-      "us-east-2": {
-        "AMIID": "ami-4191b524"
-      },
-      "us-west-1": {
-        "AMIID": "ami-7a85a01a"
-      },
-      "us-west-2": {
-        "AMIID": "ami-4836a428"
-      }
-    }
-  },
   "Conditions": {
     "GovCloudCondition": {
       "Fn::Equals": [
@@ -187,16 +145,16 @@
             "IpProtocol": "tcp",
             "FromPort": "22",
             "ToPort": "22",
-            "CidrIp": {
-              "Ref": "RemoteAccessCIDR"
+            "SourceSecurityGroupId": {
+              "Ref": "BastionSecurityGroupID"
             }
           },
           {
             "IpProtocol": "tcp",
             "FromPort": "27040",
             "ToPort": "27040",
-            "CidrIp": {
-              "Ref": "RemoteAccessCIDR"
+            "SourceSecurityGroupId": {
+              "Ref": "BastionSecurityGroupID"
             }
           },
           {
@@ -276,11 +234,13 @@
           "ECSClusterName": {
             "Ref": "ECSClusterName"
           },
-          "OpenManageDBType": {
-            "Ref": "OpenManageDBType"
-          },
           "AvailabilityZones": {
-            "Ref": "AvailabilityZone"
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
           }
         }
       }
@@ -330,7 +290,10 @@
     },
 
     "ECSAutoScalingGroup1": {
-      "DependsOn": [ "ECSClusterStack", "EC2InstanceProfileStack" ],
+      "DependsOn": [
+        "ECSClusterStack",
+        "EC2InstanceProfileStack",
+      ],
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
@@ -354,8 +317,118 @@
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "AvailabilityZone":{
-            "Ref": "AvailabilityZone"
+          "SubnetID": {
+            "Ref": "Subnet1ID"
+          },
+          "DesiredCapacityPerAZ": {
+            "Ref": "DesiredCapacityPerAZ"
+          },
+          "MaxSizePerAZ":{
+            "Ref": "MaxSizePerAZ"
+          },
+          "EcsSecurityGroupID": {
+            "Ref": "EcsSecurityGroup"
+          },
+          "EcsInternalSecurityGroupID": {
+            "Ref": "EcsInternalSecurityGroup"
+          },
+          "NodeInstanceProfileID": {
+            "Fn::GetAtt": [
+              "EC2InstanceProfileStack",
+              "Outputs.NodeInstanceProfile"
+            ]
+          },
+          "NodeInstanceType":{
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    },
+    "ECSAutoScalingGroup2": {
+      "DependsOn": [
+        "ECSClusterStack",
+        "EC2InstanceProfileStack"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ECSClusterName": {
+            "Ref": "ECSClusterName"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "SubnetID": {
+            "Ref": "Subnet2ID"
+          },
+          "DesiredCapacityPerAZ": {
+            "Ref": "DesiredCapacityPerAZ"
+          },
+          "MaxSizePerAZ":{
+            "Ref": "MaxSizePerAZ"
+          },
+          "EcsSecurityGroupID": {
+            "Ref": "EcsSecurityGroup"
+          },
+          "EcsInternalSecurityGroupID": {
+            "Ref": "EcsInternalSecurityGroup"
+          },
+          "NodeInstanceProfileID": {
+            "Fn::GetAtt": [
+              "EC2InstanceProfileStack",
+              "Outputs.NodeInstanceProfile"
+            ]
+          },
+          "NodeInstanceType":{
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    },
+    "ECSAutoScalingGroup3": {
+      "DependsOn": [
+        "ECSClusterStack",
+        "EC2InstanceProfileStack"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ECSClusterName": {
+            "Ref": "ECSClusterName"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "SubnetID": {
+            "Ref": "Subnet3ID"
           },
           "DesiredCapacityPerAZ": {
             "Ref": "DesiredCapacityPerAZ"

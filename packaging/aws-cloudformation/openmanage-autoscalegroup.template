@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create an AutoScalingGroup for the ECS cluster.",
+  "Description": "This template creates an AutoScalingGroup for the ECS cluster.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -16,8 +16,14 @@
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
     },
     "SubnetID":{
-      "Type":"List<AWS::EC2::Subnet::Id>",
+      "Type":"String",
+      "Default": "",
       "Description":"The SubnetID in the VPC."
+    },
+    "AvailabilityZone": {
+      "Type":"String",
+      "Default": "",
+      "Description": "The Availability Zone to deploy the ECS instances."
     },
     "DesiredCapacityPerAZ":{
       "Type":"Number",
@@ -38,8 +44,9 @@
       "Description": "The internal SecurityGroup for ECS nodes to access each other."
     },
     "NodeInstanceProfileID": {
-      "Description": "ID of the instance IAM Profile",
-      "Type": "String"
+      "Type": "String",
+      "Default": "",
+      "Description": "ID of the instance IAM Profile"
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -131,12 +138,61 @@
       }
     }
   },
+  "Conditions": {
+    "SubnetIDCondition": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "SubnetID"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "AvailabilityZoneCondition": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AvailabilityZone"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
   "Resources":{
     "ECSAutoScalingGroup":{
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
-        "VPCZoneIdentifier":{
-          "Ref":"SubnetID"
+        "VPCZoneIdentifier": {
+          "Fn::If": [
+            "SubnetIDCondition",
+            [
+              {
+                "Ref": "SubnetID"
+              }
+            ],
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "AvailabilityZones": {
+          "Fn::If": [
+            "AvailabilityZoneCondition",
+            [
+              {
+                "Ref": "AvailabilityZone"
+              }
+            ],
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
         },
         "LaunchConfigurationName":{
           "Ref":"ContainerInstances"

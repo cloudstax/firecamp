@@ -1,12 +1,7 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create a new VPC and deploy an ECS cluster. The BastionSecurityGroupID is allowed to ssh to the ECS cluster nodes and access the openmanage manage http server",
+  "Description": "This template creates the ECS cluster and OpenManage TaskDefinition",
   "Parameters":{
-    "BastionSecurityGroupID": {
-      "Description": "ID of the Bastion Security Group (e.g., sg-7f16e910)",
-      "Type": "AWS::EC2::SecurityGroup::Id"
-    },
-
     "ECSClusterName":{
       "Type":"String",
       "Description":"Name of the ECS cluster.",
@@ -16,203 +11,21 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+    "OpenManageDBType": {
+      "AllowedValues": [
+        "clouddb",
+        "controldb"
+      ],
+      "Default": "clouddb",
+      "Description": "The openmanage db type",
+      "Type": "String"
     },
-
-    "CFS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax-cf-templates",
-      "Type": "String",
-      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    },
-    "CFS3KeyPrefix": {
-        "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-        "Default": "openmanage/latest/",
-        "Type": "String",
-        "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-        "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
-    },
-
-    "VPCID": {
-      "Type": "AWS::EC2::VPC::Id",
-      "Description": "VPC-ID of your existing Virtual Private Cloud (VPC) where you want to deploy the ECS cluster.",
-      "AllowedPattern": "vpc-[0-9a-z]{8}"
-    },
-    "Subnet1ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the first AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-    "Subnet2ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the second AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-    "Subnet3ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the third AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-
     "AvailabilityZones": {
       "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
-    },
-    "DesiredCapacityPerAZ":{
-      "Type":"Number",
-      "Default":"1",
-      "Description":"Number of instances to launch in one AutoScalingGroup."
-    },
-    "MaxSizePerAZ":{
-      "Type":"Number",
-      "Default":"1",
-      "Description":"Maximum number of instances that can be launched in one AutoScalingGroup."
-    },
-    "NodeInstanceType":{
-      "Description":"EC2 instance type",
-      "Type":"String",
-      "Default":"t2.micro",
-      "AllowedValues":[
-        "t2.micro",
-        "t2.small",
-        "t2.medium",
-        "t2.large",
-        "m3.medium",
-        "m3.large",
-        "m3.xlarge",
-        "m3.2xlarge",
-        "m4.large",
-        "m4.xlarge",
-        "m4.2xlarge",
-        "m4.4xlarge",
-        "m4.10xlarge",
-        "c4.large",
-        "c4.xlarge",
-        "c4.2xlarge",
-        "c4.4xlarge",
-        "c4.8xlarge",
-        "c3.large",
-        "c3.xlarge",
-        "c3.2xlarge",
-        "c3.4xlarge",
-        "c3.8xlarge",
-        "r3.large",
-        "r3.xlarge",
-        "r3.2xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "i2.xlarge",
-        "i2.2xlarge",
-        "i2.4xlarge",
-        "i2.8xlarge"
-      ],
-      "ConstraintDescription":"Please choose a valid instance type."
-    }
-  },
-  "Conditions": {
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
-        },
-        "us-gov-west-1"
-      ]
     }
   },
   "Resources":{
-    "EcsAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "Instances with access to the services in ECS cluster"
-      }
-    },
-    "EcsSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The access ports to the services in ECS cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27040",
-            "ToPort": "27040",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "3000",
-            "ToPort": "30000",
-            "SourceSecurityGroupId": {
-              "Ref": "EcsAccessSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-    "EcsInternalSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The inter-server access ports in ECS cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "3000",
-            "ToPort": "30000",
-            "SourceSecurityGroupId": {
-              "Ref": "EcsSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-
-    "DynamoDBTables": {
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-dynamodb.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          }
-        }
-      }
-    },
-
     "ECSCluster":{
       "Type":"AWS::ECS::Cluster",
       "Properties" : {
@@ -221,7 +34,7 @@
         }
       }
     },
-    "taskdefinition":{
+    "OpenManageServerTaskdefinition":{
       "Type":"AWS::ECS::TaskDefinition",
       "Properties":{
         "Family":{
@@ -267,7 +80,9 @@
               },
               {
                 "Name": "DB_TYPE",
-                "Value": "clouddb"
+                "Value": {
+                  "Ref": "OpenManageDBType"
+                }
               },
               {
                 "Name": "AVAILABILITY_ZONES",
@@ -284,340 +99,17 @@
           }
         ]
       }
-    },
-    "service":{
-      "DependsOn": "DynamoDBTables",
-      "Type":"AWS::ECS::Service",
-      "Properties":{
-        "Cluster":{
-          "Ref":"ECSCluster"
-        },
-        "DesiredCount":"1",
-        "ServiceName": "openmanage-manageserver",
-        "TaskDefinition":{
-          "Ref":"taskdefinition"
-        }
-      }
-    },
-
-    "EC2Role":{
-      "Type":"AWS::IAM::Role",
-      "Properties":{
-        "AssumeRolePolicyDocument":{
-          "Statement":[
-            {
-              "Effect":"Allow",
-              "Principal":{
-                "Service":[
-                  "ec2.amazonaws.com"
-                ]
-              },
-              "Action":[
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path":"/",
-        "Policies":[
-          {
-            "PolicyName":"openmanage-ecs-service",
-            "PolicyDocument":{
-              "Statement":[
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "autoscaling:Describe*",
-                    "autoscaling:UpdateAutoScalingGroup",
-                  ],
-                  "Resource":"*"
-                },
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "ecs:CreateService",
-                    "ecs:DeleteService",
-                    "ecs:Describe*",
-                    "ecs:DeregisterTaskDefinition",
-                    "ecs:ListTaskDefinitionFamilies",
-                    "ecs:ListTaskDefinitions",
-                    "ecs:ListTasks",
-                    "ecs:RegisterTaskDefinition",
-                    "ecs:RunTask",
-                    "ecs:UpdateService",
-                    "ecs:DiscoverPollEndpoint",
-                    "ecs:Poll",
-                    "ecs:RegisterContainerInstance",
-                    "ecs:StartTelemetrySession",
-                    "ecs:Submit*",
-                    "ecs:Update*",
-                  ],
-                  "Resource":"*"
-                },
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "dynamodb:CreateTable",
-                    "dynamodb:DescribeTable",
-                    "dynamodb:DeleteTable",
-                    "dynamodb:PutItem",
-                    "dynamodb:GetItem",
-                    "dynamodb:UpdateItem",
-                    "dynamodb:DeleteItem",
-                    "dynamodb:Query",
-                  ],
-                  "Resource":"*"
-                },
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "route53:CreateHostedZone",
-                    "route53:ListHostedZonesByName",
-                    "route53:GetHostedZone",
-                    "route53:ChangeResourceRecordSets",
-                    "route53:ListResourceRecordSets",
-                    "route53:DeleteHostedZone"
-                  ],
-                  "Resource":"*"
-                },
-                {
-                  "Effect":"Allow",
-                  "Action":[
-                    "ec2:AssignPrivateIpAddresses",
-                    "ec2:AssociateRouteTable",
-                    "ec2:AttachInternetGateway",
-                    "ec2:AttachNetworkInterface",
-                    "ec2:AttachVolume",
-                    "ec2:AuthorizeSecurityGroupEgress",
-                    "ec2:AuthorizeSecurityGroupIngress",
-                    "ec2:CreateInternetGateway",
-                    "ec2:CreateNatGateway",
-                    "ec2:CreateNetworkAcl",
-                    "ec2:CreateNetworkAclEntry",
-                    "ec2:CreateNetworkInterface",
-                    "ec2:CreateRoute",
-                    "ec2:CreateRouteTable",
-                    "ec2:CreateSecurityGroup",
-                    "ec2:CreateSubnet",
-                    "ec2:CreateTags",
-                    "ec2:CreateVolume",
-                    "ec2:CreateVpc",
-                    "ec2:DeleteInternetGateway",
-                    "ec2:DeleteNatGateway",
-                    "ec2:DeleteNetworkAcl",
-                    "ec2:DeleteNetworkAclEntry",
-                    "ec2:DeleteNetworkInterface",
-                    "ec2:DeleteRoute",
-                    "ec2:DeleteRouteTable",
-                    "ec2:DeleteSecurityGroup",
-                    "ec2:DeleteSubnet",
-                    "ec2:DeleteTags",
-                    "ec2:DeleteVolume",
-                    "ec2:DeleteVpc",
-                    "ec2:DescribeAvailabilityZones",
-                    "ec2:DescribeHosts",
-                    "ec2:DescribeImageAttribute",
-                    "ec2:DescribeImages",
-                    "ec2:DescribeInstanceStatus",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeInternetGateways",
-                    "ec2:DescribeKeyPairs",
-                    "ec2:DescribeNetworkInterfaces",
-                    "ec2:DescribeRegions",
-                    "ec2:DescribeRouteTables",
-                    "ec2:DescribeSecurityGroups",
-                    "ec2:DescribeSubnets",
-                    "ec2:DescribeTags",
-                    "ec2:DescribeVolumeAttribute",
-                    "ec2:DescribeVolumeStatus",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeVpcAttribute",
-                    "ec2:DescribeVpcs",
-                    "ec2:DetachInternetGateway",
-                    "ec2:DetachNetworkInterface",
-                    "ec2:DetachVolume",
-                    "ec2:DisassociateAddress",
-                    "ec2:DisassociateRouteTable",
-                    "ec2:GetConsoleOutput",
-                    "ec2:GetConsoleScreenshot",
-                    "ec2:ModifyNetworkInterfaceAttribute",
-                    "ec2:ModifyVpcAttribute",
-                    "ec2:RebootInstances",
-                    "ec2:ReleaseAddress",
-                    "ec2:ReleaseHosts",
-                  ],
-                  "Resource":"*"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    },
-    "NodeInstanceProfile":{
-      "Type":"AWS::IAM::InstanceProfile",
-      "Properties":{
-        "Path":"/",
-        "Roles":[
-          {
-            "Ref":"EC2Role"
-          }
-        ]
-      }
-    },
-
-    "ECSAutoScalingGroup1": {
-      "DependsOn": "ECSCluster",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "SubnetID": {
-            "Ref": "Subnet1ID"
-          },
-          "DesiredCapacityPerAZ": {
-            "Ref": "DesiredCapacityPerAZ"
-          },
-          "MaxSizePerAZ":{
-            "Ref": "MaxSizePerAZ"
-          },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
-          },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfile"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          }
-        }
-      }
-    },
-    "ECSAutoScalingGroup2": {
-      "DependsOn": "ECSCluster",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "SubnetID": {
-            "Ref": "Subnet2ID"
-          },
-          "DesiredCapacityPerAZ": {
-            "Ref": "DesiredCapacityPerAZ"
-          },
-          "MaxSizePerAZ":{
-            "Ref": "MaxSizePerAZ"
-          },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
-          },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfile"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          }
-        }
-      }
-    },
-    "ECSAutoScalingGroup3": {
-      "DependsOn": "ECSCluster",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "SubnetID": {
-            "Ref": "Subnet3ID"
-          },
-          "DesiredCapacityPerAZ": {
-            "Ref": "DesiredCapacityPerAZ"
-          },
-          "MaxSizePerAZ":{
-            "Ref": "MaxSizePerAZ"
-          },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
-          },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfile"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          }
-        }
-      }
     }
   },
   "Outputs":{
-    "ecscluster":{
+    "ECSCluster":{
       "Value":{
         "Ref":"ECSCluster"
+      }
+    },
+    "OpenManageServerTaskdefinition":{
+      "Value":{
+        "Ref":"OpenManageServerTaskdefinition"
       }
     }
   }

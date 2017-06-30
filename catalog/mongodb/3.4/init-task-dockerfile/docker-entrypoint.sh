@@ -80,6 +80,8 @@ errExistCode=$(echo "$output" | grep "$errExistCodeStr")
 if [ -z "$succ" ] && ([ -z "$errExistMsg" ] || [ -z "$errExistCode" ])
 then
   echo "init fail"
+  # most likely the DNS record is not updated yet. wait some time
+  sleep 10
   echo $output >&2
   exit 2
 fi
