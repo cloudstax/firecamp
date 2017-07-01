@@ -134,7 +134,7 @@ func testMgrOps(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServer, ser
 			t.Fatalf("create service expect http.StatusOK, got %d, %s", errcode, errmsg)
 		}
 
-		listVolumesTest(ctx, t, mgtsvc, taskCount, service)
+		listServiceMembersTest(ctx, t, mgtsvc, taskCount, service)
 	}
 
 	// list services with and without prefix
@@ -234,29 +234,29 @@ func listServicesTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServe
 	glog.Infoln("listServicesResult", res)
 }
 
-func listVolumesTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServer, volNum int, service string) {
+func listServiceMembersTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServer, memberNum int, service string) {
 	requuid := "requuid-" + "list"
-	r := genListVolumeRequest(service, mgtsvc, t)
+	r := genListServiceMemberRequest(service, mgtsvc, t)
 	w := httptest.NewRecorder()
 	unescapedURL, _ := url.QueryUnescape(r.URL.String())
 
 	errmsg, errcode := mgtsvc.getOp(ctx, w, r, unescapedURL, requuid)
 	if errcode != http.StatusOK {
-		t.Fatalf("list volumes expect StatusOK, got %d, %s", errcode, errmsg)
+		t.Fatalf("list serviceMembers expect StatusOK, got %d, %s", errcode, errmsg)
 	}
 	if w.Body.Len() == 0 {
-		t.Fatalf("list volumes, got 0 len body, %s", w)
+		t.Fatalf("list serviceMembers, got 0 len body, %s", w)
 	}
 
-	res := &manage.ListVolumeResponse{}
+	res := &manage.ListServiceMemberResponse{}
 	err := json.Unmarshal(w.Body.Bytes(), res)
 	if err != nil {
-		t.Fatalf("Unmarshal ListVolumeResponse error %s, %s", err, w)
+		t.Fatalf("Unmarshal ListServiceMemberResponse error %s, %s", err, w)
 	}
-	if len(res.Volumes) != volNum {
-		t.Fatalf("ListVolumeResponse expect %d volumes, got %d, %s", volNum, len(res.Volumes), res)
+	if len(res.ServiceMembers) != memberNum {
+		t.Fatalf("ListServiceMemberResponse expect %d serviceMembers, got %d, %s", memberNum, len(res.ServiceMembers), res)
 	}
-	glog.Infoln("ListVolumeResponse", res)
+	glog.Infoln("ListServiceMemberResponse", res)
 }
 
 func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPServer, servicePrefix string, requuidPrefix string, i int, targetServiceStatus string) {
@@ -278,7 +278,7 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 	}
 	if res.Service.ServiceName != service || res.Service.ServiceStatus != targetServiceStatus ||
 		res.Service.Replicas != int64(i) || res.Service.VolumeSizeGB != int64(i+1) {
-		t.Fatalf("expect service %s status %s TaskCounts %d VolumeSize %d, got %s", service, targetServiceStatus, i, i+1, res.Service)
+		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", service, targetServiceStatus, i, i+1, res.Service)
 	}
 	glog.Infoln("GetServiceAttributesResponse", res)
 }
@@ -309,7 +309,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 		Replicas:       int64(taskCount),
 		VolumeSizeGB:   int64(taskCount + 1),
 		ContainerPath:  "",
-		HasMembership:  true,
+		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
 
@@ -354,8 +354,8 @@ func genListServiceRequest(prefix string, mgtsvc *ManageHTTPServer, t *testing.T
 	return &http.Request{Method: "GET", URL: &url.URL{Path: manage.ListServiceOp}, Body: body}
 }
 
-func genListVolumeRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
-	req := &manage.ListVolumeRequest{
+func genListServiceMemberRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
+	req := &manage.ListServiceMemberRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      mgtsvc.region,
 			Cluster:     mgtsvc.cluster,
@@ -369,7 +369,7 @@ func genListVolumeRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T
 	}
 
 	body := ioutil.NopCloser(bytes.NewReader(b))
-	return &http.Request{Method: "GET", URL: &url.URL{Path: manage.ListVolumeOp}, Body: body}
+	return &http.Request{Method: "GET", URL: &url.URL{Path: manage.ListServiceMemberOp}, Body: body}
 }
 
 func genSetInitRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {

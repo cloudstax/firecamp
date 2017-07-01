@@ -256,7 +256,7 @@ func (s *LoopServer) checkAndCreateLoopFile(loopfile string) error {
 
 		// loopfile not exist, create it
 		var args []string
-		args = append(args, "dd", "if=/dev/zero", "of="+loopfile, "bs=1M", "count=10")
+		args = append(args, "dd", "if=/dev/zero", "of="+loopfile, "bs=1M", "count=20")
 		cmd := exec.Command(args[0], args[1:]...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {

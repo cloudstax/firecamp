@@ -169,7 +169,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 
 func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo server.Info, serviceNum int) {
 	// create services
-	hasMembership := true
+	registerDNS := true
 	servicePrefix := "service-"
 	for repNum := 1; repNum < serviceNum+1; repNum++ {
 		service := servicePrefix + strconv.Itoa(repNum)
@@ -199,7 +199,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			Replicas:       int64(repNum),
 			VolumeSizeGB:   int64(repNum),
 			ContainerPath:  "",
-			HasMembership:  hasMembership,
+			RegisterDNS:    registerDNS,
 			ReplicaConfigs: replicaCfgs,
 		}
 
@@ -318,7 +318,7 @@ func queryServiceTest(t *testing.T, cli *ManageClient, cluster string, servicePr
 
 	if attr.ServiceName != s1 || attr.ServiceStatus != targetServiceStatus ||
 		attr.Replicas != int64(i) || attr.VolumeSizeGB != int64(i) {
-		t.Fatalf("expect service %s status %s TaskCounts %d VolumeSize %d, got %s", s1, targetServiceStatus, i, i, attr)
+		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", s1, targetServiceStatus, i, i, attr)
 	}
 	glog.Infoln("GetServiceAttr output", attr)
 }

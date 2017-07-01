@@ -36,7 +36,7 @@ const (
 var defaultMountOptions = []string{"discard", "defaults"}
 
 type driverVolume struct {
-	volume *common.Volume
+	member *common.ServiceMember
 	// the number of connections to this volume. This is used for mountFrom.
 	// for example, app binds 2 containers, one as storage container, the other
 	// mounts the volume from the stroage container.
@@ -91,9 +91,9 @@ func (d *OpenManageVolumeDriver) Create(r volume.Request) volume.Response {
 	serviceUUID := r.Name
 
 	// check if volume is in cache
-	vol := d.getMountedVolume(serviceUUID)
-	if vol != nil {
-		glog.Infoln("Create, volume in cache", vol, "for serviceUUID", serviceUUID)
+	member := d.getMountedVolume(serviceUUID)
+	if member != nil {
+		glog.Infoln("Create, volume in cache", member, "for serviceUUID", serviceUUID)
 		return volume.Response{}
 	}
 
@@ -129,8 +129,8 @@ func (d *OpenManageVolumeDriver) Get(r volume.Request) volume.Response {
 	serviceUUID := r.Name
 	mountPath := d.mountpoint(serviceUUID)
 
-	vol := d.getMountedVolume(serviceUUID)
-	if vol != nil {
+	member := d.getMountedVolume(serviceUUID)
+	if member != nil {
 		glog.Infoln("volume is mounted", r)
 		return volume.Response{Volume: &volume.Volume{Name: serviceUUID, Mountpoint: mountPath}}
 	}
@@ -155,7 +155,7 @@ func (d *OpenManageVolumeDriver) List(r volume.Request) volume.Response {
 
 	var vols []*volume.Volume
 	for _, v := range d.volumes {
-		svcuuid := v.volume.ServiceUUID
+		svcuuid := v.member.ServiceUUID
 		vols = append(vols, &volume.Volume{Name: svcuuid, Mountpoint: d.mountpoint(svcuuid)})
 	}
 
@@ -190,37 +190,36 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	ctx = utils.NewRequestContext(ctx, requuid)
 
 	// if volume is already mounted, return
-	vol := d.getMountedVolumeAndIncRef(serviceUUID)
-	if vol != nil {
-		glog.Infoln("Mount done, volume", vol, "is already mounted")
+	member := d.getMountedVolumeAndIncRef(serviceUUID)
+	if member != nil {
+		glog.Infoln("Mount done, volume", member, "is already mounted")
 		return volume.Response{Mountpoint: mountPath}
 	}
 
-	// get the service attr and the volume for the current container
-	serviceAttr, vol, errmsg := d.getServiceAttrAndVolume(ctx, serviceUUID, requuid)
+	// get the service attr and the service member for the current container
+	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, requuid)
 	if errmsg != "" {
 		return volume.Response{Err: errmsg}
 	}
 
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
-	if serviceAttr.HasStrictMembership {
-		dnsName := dns.GenDNSName(vol.MemberName, serviceAttr.DomainName)
+	if serviceAttr.RegisterDNS {
+		dnsName := dns.GenDNSName(member.MemberName, serviceAttr.DomainName)
 		privateIP := d.serverInfo.GetPrivateIP()
 		err := d.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
 		if err != nil {
-			errmsg := fmt.Sprintf("UpdateDNSRecord error %s service %s volume %s, requuid %s",
-				err, serviceAttr, vol, requuid)
+			errmsg := fmt.Sprintf("UpdateDNSRecord error %s service %s member %s, requuid %s",
+				err, serviceAttr, member, requuid)
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}
 
 		// wait till DNS record lookup returns private ip. This is to make sure DB doesn't
 		// get the invalid old host at the replication initialization.
-		// TODO find way to update the local dns cache to avoid the potential long wait time.
 		dnsIP, err := d.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
 		if err != nil {
-			errmsg := fmt.Sprintf("WaitDNSRecordUpdated error %s, expect privateIP %s got %s, service %s volume %s, requuid %s",
-				err, privateIP, dnsIP, serviceAttr, vol, requuid)
+			errmsg := fmt.Sprintf("WaitDNSRecordUpdated error %s, expect privateIP %s got %s, service %s member %s, requuid %s",
+				err, privateIP, dnsIP, serviceAttr, member, requuid)
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}
@@ -235,35 +234,35 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// attach volume to host
-	glog.Infoln("attach volume", vol, "requuid", requuid)
-	err = d.attachVolume(ctx, *vol, requuid)
+	glog.Infoln("attach volume", member, "requuid", requuid)
+	err = d.attachVolume(ctx, *member, requuid)
 	if err != nil {
-		errmsg := fmt.Sprintf("Mount failed, attach volume error %s %s, requuid %s", err, vol, requuid)
+		errmsg := fmt.Sprintf("Mount failed, attach member volume error %s %s, requuid %s", err, member, requuid)
 		glog.Errorln(errmsg)
 		return volume.Response{Err: errmsg}
 	}
 
 	// format dev if necessary
-	formatted := d.isFormatted(vol.DeviceName)
+	formatted := d.isFormatted(member.DeviceName)
 	if !formatted {
-		err = d.formatFS(vol.DeviceName)
+		err = d.formatFS(member.DeviceName)
 		if err != nil {
-			errmsg := fmt.Sprintf("Mount failed, format device error %s Volume %s, requuid %s", err, vol, requuid)
+			errmsg := fmt.Sprintf("Mount failed, format device error %s member %s, requuid %s", err, member, requuid)
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}
 	}
 
 	// mount
-	err = d.mountFS(vol.DeviceName, mountPath)
+	err = d.mountFS(member.DeviceName, mountPath)
 	if err != nil {
-		errmsg := fmt.Sprintf("Mount failed, mount fs error %s volume %s, requuid %s", err, vol, requuid)
+		errmsg := fmt.Sprintf("Mount failed, mount fs error %s member %s, requuid %s", err, member, requuid)
 		glog.Errorln(errmsg)
 		return volume.Response{Err: errmsg}
 	}
 
 	// create the service config file if necessary
-	err = d.createConfigFile(ctx, mountPath, vol, requuid)
+	err = d.createConfigFile(ctx, mountPath, member, requuid)
 	if err != nil {
 		errmsg := fmt.Sprintf("create the config file error %s, service %s, requuid %s", err, serviceAttr, requuid)
 		glog.Errorln(errmsg)
@@ -274,8 +273,8 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 			// successfully umount, return error for the Mount()
 			d.removeMountPath(mountPath)
 			// detach volume, ignore the possible error.
-			err = d.serverIns.DetachVolume(ctx, vol.VolumeID, d.serverInfo.GetLocalInstanceID(), vol.DeviceName)
-			glog.Errorln("detached volume", vol, "error", err, "requuid", requuid)
+			err = d.serverIns.DetachVolume(ctx, member.VolumeID, d.serverInfo.GetLocalInstanceID(), member.DeviceName)
+			glog.Errorln("detached volume", member, "error", err, "requuid", requuid)
 			return volume.Response{Err: errmsg}
 		}
 
@@ -286,9 +285,9 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// cache mounted volume
-	d.addMountedVolume(serviceUUID, vol)
+	d.addMountedVolume(serviceUUID, member)
 
-	glog.Infoln("Mount done, volume", vol, "to", mountPath, "requuid", requuid)
+	glog.Infoln("Mount done, member volume", member, "to", mountPath, "requuid", requuid)
 	return volume.Response{Mountpoint: mountPath}
 }
 
@@ -323,12 +322,12 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 	}
 
 	// volume mounted, check number of connections
-	glog.Infoln("volume", vol.volume, "connections", vol.connections, "requuid", requuid)
+	glog.Infoln("volume", vol.member, "connections", vol.connections, "requuid", requuid)
 	if (vol.connections - 1) > 0 {
 		// update the volumes
 		vol.connections--
 		glog.Infoln("Unmount done, some container still uses the volume",
-			vol.volume, "connections", vol.connections, "requuid", requuid)
+			vol.member, "connections", vol.connections, "requuid", requuid)
 		return volume.Response{}
 	}
 
@@ -350,9 +349,9 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 	d.removeMountPath(mountPath)
 
 	// detach volume, ignore the possible error.
-	err = d.serverIns.DetachVolume(ctx, vol.volume.VolumeID,
-		d.serverInfo.GetLocalInstanceID(), vol.volume.DeviceName)
-	glog.Infoln("detached volume", vol.volume, "serverID",
+	err = d.serverIns.DetachVolume(ctx, vol.member.VolumeID,
+		d.serverInfo.GetLocalInstanceID(), vol.member.DeviceName)
+	glog.Infoln("detached volume", vol.member, "serverID",
 		d.serverInfo.GetLocalInstanceID(), "error", err, "requuid", requuid)
 
 	// don't wait till detach complete, detach may take long time and cause container stop timeout.
@@ -363,8 +362,8 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 	return volume.Response{}
 }
 
-func (d *OpenManageVolumeDriver) getServiceAttrAndVolume(ctx context.Context,
-	serviceUUID string, requuid string) (serviceAttr *common.ServiceAttr, vol *common.Volume, errmsg string) {
+func (d *OpenManageVolumeDriver) getServiceAttrAndMember(ctx context.Context,
+	serviceUUID string, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
 	var err error
 	// check if the volume is for the controldb service
 	if utils.IsControlDBService(serviceUUID) {
@@ -392,10 +391,10 @@ func (d *OpenManageVolumeDriver) getServiceAttrAndVolume(ctx context.Context,
 		}
 
 		// get the volume and serviceAttr for the controldb service
-		vol, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
+		member, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
 
-		glog.Infoln("get controldb service volume", vol, "serviceAttr", serviceAttr, "requuid", requuid)
-		return serviceAttr, vol, ""
+		glog.Infoln("get controldb service volume", member, "serviceAttr", serviceAttr, "requuid", requuid)
+		return serviceAttr, member, ""
 	}
 
 	// the application service, talks with the controldb service for volume
@@ -408,22 +407,22 @@ func (d *OpenManageVolumeDriver) getServiceAttrAndVolume(ctx context.Context,
 	}
 	glog.Infoln("get application service attr", serviceAttr, "requuid", requuid)
 
-	// get one volume for this mount
-	vol, err = d.getVolumeForTask(ctx, serviceAttr, requuid)
+	// get one member for this mount
+	member, err = d.getMemberForTask(ctx, serviceAttr, requuid)
 	if err != nil {
-		errmsg := fmt.Sprintf("Mount failed, get volume error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
+		errmsg := fmt.Sprintf("Mount failed, get service member error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
 		glog.Errorln(errmsg)
 		return nil, nil, errmsg
 	}
 
-	glog.Infoln("get application service volume", vol, "requuid", requuid)
-	return serviceAttr, vol, ""
+	glog.Infoln("get service member", member, "requuid", requuid)
+	return serviceAttr, member, ""
 }
 
-func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath string, vol *common.Volume, requuid string) error {
+func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath string, member *common.ServiceMember, requuid string) error {
 	// if the service does not need the config file, return
-	if len(vol.Configs) == 0 {
-		glog.Infoln("no config file", vol, "requuid", requuid)
+	if len(member.Configs) == 0 {
+		glog.Infoln("no config file", member, "requuid", requuid)
 		return nil
 	}
 
@@ -431,19 +430,19 @@ func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath
 	configDirPath := filepath.Join(mountPath, common.DefaultConfigDir)
 	err := utils.CreateDirIfNotExist(configDirPath)
 	if err != nil {
-		glog.Errorln("create the config dir error", err, configDirPath, "requuid", requuid, vol)
+		glog.Errorln("create the config dir error", err, configDirPath, "requuid", requuid, member)
 		return err
 	}
 
 	// check the md5 first.
 	// The config file content may not be small. For example, the default cassandra.yaml is 45K.
 	// The config files are rarely updated after creation. No need to read the content over.
-	for _, cfg := range vol.Configs {
+	for _, cfg := range member.Configs {
 		// check and create the config file if necessary
 		fpath := filepath.Join(configDirPath, cfg.FileName)
 		exist, err := utils.IsFileExist(fpath)
 		if err != nil {
-			glog.Errorln("check the config file error", err, fpath, "requuid", requuid, vol)
+			glog.Errorln("check the config file error", err, fpath, "requuid", requuid, member)
 			return err
 		}
 
@@ -451,36 +450,36 @@ func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath
 			// the config file exists, check whether it is the same with the config in DB.
 			fdata, err := ioutil.ReadFile(fpath)
 			if err != nil {
-				glog.Errorln("read the config file error", err, fpath, "requuid", requuid, vol)
+				glog.Errorln("read the config file error", err, fpath, "requuid", requuid, member)
 				return err
 			}
 
 			fmd5 := md5.Sum(fdata)
 			fmd5str := hex.EncodeToString(fmd5[:])
 			if fmd5str == cfg.FileMD5 {
-				glog.Infoln("the config file has the latest content", fpath, "requuid", requuid, vol)
+				glog.Infoln("the config file has the latest content", fpath, "requuid", requuid, member)
 				// check next config file
 				continue
 			}
 			// the config content is changed, update the config file
-			glog.Infoln("the config file changed, update it", fpath, "requuid", requuid, vol)
+			glog.Infoln("the config file changed, update it", fpath, "requuid", requuid, member)
 		}
 
 		// the config file not exists or content is changed
 		// read the content
-		cfgFile, err := d.dbIns.GetConfigFile(ctx, vol.ServiceUUID, cfg.FileID)
+		cfgFile, err := d.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 		if err != nil {
-			glog.Errorln("GetConfigFile error", err, fpath, "requuid", requuid, vol)
+			glog.Errorln("GetConfigFile error", err, fpath, "requuid", requuid, member)
 			return err
 		}
 
 		data := []byte(cfgFile.Content)
 		err = utils.CreateOrOverwriteFile(fpath, data, os.FileMode(cfgFile.FileMode))
 		if err != nil {
-			glog.Errorln("write the config file error", err, fpath, "requuid", requuid, vol)
+			glog.Errorln("write the config file error", err, fpath, "requuid", requuid, member)
 			return err
 		}
-		glog.Infoln("write the config file done for service", fpath, "requuid", requuid, vol)
+		glog.Infoln("write the config file done for service", fpath, "requuid", requuid, member)
 	}
 
 	return nil
@@ -515,24 +514,24 @@ func (d *OpenManageVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string
 	d.removeMountPath(mountPath)
 }
 
-// getVolumeForTask will get one idle volume, not used or owned by down task,
+// getMemberForTask will get one idle member, not used or owned by down task,
 // detach it and update the new owner in DB.
-func (d *OpenManageVolumeDriver) getVolumeForTask(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (volume *common.Volume, err error) {
-	// find one idle volume
-	vol, err := d.findIdleVolume(ctx, serviceAttr, requuid)
+func (d *OpenManageVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
+	// find one idle member
+	member, err = d.findIdleMember(ctx, serviceAttr, requuid)
 	if err != nil {
-		glog.Errorln("findIdleVolume error", err, "requuid", requuid, "service", serviceAttr)
+		glog.Errorln("findIdleMember error", err, "requuid", requuid, "service", serviceAttr)
 		return nil, err
 	}
 
 	// detach volume from the last owner
-	err = d.detachVolumeFromLastOwner(ctx, vol.VolumeID, vol.ServerInstanceID, vol.DeviceName, requuid)
+	err = d.detachVolumeFromLastOwner(ctx, member.VolumeID, member.ServerInstanceID, member.DeviceName, requuid)
 	if err != nil {
-		glog.Errorln("detachVolumeFromLastOwner error", err, "requuid", requuid, "volume", vol)
+		glog.Errorln("detachVolumeFromLastOwner error", err, "requuid", requuid, "member", member)
 		return nil, err
 	}
 
-	glog.Infoln("got and detached volume", vol, "requuid", requuid)
+	glog.Infoln("got and detached member volume", member, "requuid", requuid)
 
 	// get taskID of the local task.
 	// assume only one task on one node for one service. It does not make sense to run
@@ -545,20 +544,21 @@ func (d *OpenManageVolumeDriver) getVolumeForTask(ctx context.Context, serviceAt
 		return nil, err
 	}
 
-	// update volume in db.
-	// TODO if there are concurrent failures, multiple tasks may select the same idle volume.
+	// update service member owner in db.
+	// TODO if there are concurrent failures, multiple tasks may select the same idle member.
 	// now, the task will fail and be scheduled again. better have some retries here.
-	newVol := db.UpdateVolumeOwner(vol, localTaskID, d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
-	err = d.dbIns.UpdateVolume(ctx, vol, newVol)
+	newMember := db.UpdateServiceMemberOwner(member, localTaskID,
+		d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
+	err = d.dbIns.UpdateServiceMember(ctx, member, newMember)
 	if err != nil {
-		glog.Errorln("UpdateVolume error", err, "requuid", requuid, "newVol", newVol, "oldVol", vol)
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, "new", newMember, "old", member)
 		return nil, err
 	}
 
-	glog.Infoln("updated volume", vol, "to", localTaskID, "requuid", requuid,
+	glog.Infoln("updated member", member, "to", localTaskID, "requuid", requuid,
 		d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
 
-	return newVol, nil
+	return newMember, nil
 }
 
 func (d *OpenManageVolumeDriver) detachControlDBVolume(ctx context.Context, volID string, requuid string) error {
@@ -587,13 +587,13 @@ func (d *OpenManageVolumeDriver) detachControlDBVolume(ctx context.Context, volI
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.Volume, *common.ServiceAttr) {
+func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.ServiceMember, *common.ServiceAttr) {
 	mtime := time.Now().UnixNano()
 	// construct the vol for the controldb service
 	// could actually get the taksID, as only one controldb task is running at any time.
 	// but taskID is useless for the controldb service, so simply use empty taskID.
 	taskID := ""
-	vol := db.CreateVolume(serviceUUID, utils.GetControlDBVolumeID(serviceUUID), mtime,
+	member := db.CreateServiceMember(serviceUUID, utils.GetControlDBVolumeID(serviceUUID), mtime,
 		d.serverIns.GetControlDBDeviceName(), d.serverInfo.GetLocalAvailabilityZone(),
 		taskID, d.containerInfo.GetLocalContainerInstanceID(),
 		d.serverInfo.GetLocalInstanceID(), common.ControlDBServiceName, nil)
@@ -602,15 +602,16 @@ func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID st
 	// taskCounts and volSizeGB are useless for the controldb service
 	taskCounts := int64(1)
 	volSizeGB := int64(0)
-	hasMembership := true
+	registerDNS := true
 	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
 		volSizeGB, d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		d.serverIns.GetControlDBDeviceName(), hasMembership, domainName, hostedZoneID)
+		d.serverIns.GetControlDBDeviceName(), registerDNS, domainName, hostedZoneID)
 
-	return vol, attr
+	return member, attr
 }
 
-func (d *OpenManageVolumeDriver) findIdleVolume(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (volume *common.Volume, err error) {
+func (d *OpenManageVolumeDriver) findIdleMember(ctx context.Context,
+	serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
 	// list all tasks of the service
 	// docker swarm: docker node ps -f name=serviceName node
 	// aws ecs: ListTasks with cluster, serviceName, containerInstance
@@ -627,42 +628,42 @@ func (d *OpenManageVolumeDriver) findIdleVolume(ctx context.Context, serviceAttr
 		return nil, err
 	}
 
-	// list all volumes from DB, e.dbIns.ListServiceVolumes(service.ServiceUUID)
-	volumes, err := d.dbIns.ListVolumes(ctx, serviceAttr.ServiceUUID)
+	// list all members from DB, e.dbIns.ListServiceMembers(service.ServiceUUID)
+	members, err := d.dbIns.ListServiceMembers(ctx, serviceAttr.ServiceUUID)
 	if err != nil {
 		glog.Errorln("ListVolumes error", err, "service", serviceAttr, "requuid", requuid)
 		return nil, err
 	}
 
 	// find one idle volume, the volume's taskID not in the task list
-	for _, volume := range volumes {
-		// TODO filter out non local zone volumes at ListVolumes
+	for _, member := range members {
+		// TODO filter out non local zone member at ListServiceMembers
 		zone := d.serverInfo.GetLocalAvailabilityZone()
-		if volume.AvailableZone != zone {
-			glog.V(1).Infoln("volume is not in local zone", zone, volume)
+		if member.AvailableZone != zone {
+			glog.V(1).Infoln("member is not in local zone", zone, member)
 			continue
 		}
 
-		// TODO better to get all idle volumes and randomly select one, as multiple tasks may
-		// try to find the idle volume around the same time.
-		_, ok := taskIDs[volume.TaskID]
+		// TODO better to get all idle members and randomly select one, as the concurrent
+		//			tasks may find the same idle member around the same time.
+		_, ok := taskIDs[member.TaskID]
 		if !ok {
-			glog.Infoln("find idle volume", volume, "service", serviceAttr, "requuid", requuid)
-			return volume, nil
+			glog.Infoln("find idle member", member, "service", serviceAttr, "requuid", requuid)
+			return member, nil
 		}
 
-		// volume's task is still running
-		// It is weird, but when testing mongodb container with volume, the same task
+		// member's task is still running
+		// It is weird, but when testing mongodb container with member, the same task
 		// may mount and umount the volume, then try to mount again. Don't know why.
-		if volume.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
-			glog.Infoln("volume task is still running on local instance, reuse it", volume, "requuid", requuid)
-			return volume, nil
+		if member.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
+			glog.Infoln("member task is still running on local instance, reuse it", member, "requuid", requuid)
+			return member, nil
 		}
 
-		glog.V(0).Infoln("volume", volume, "in use, service", serviceAttr, "requuid", requuid)
+		glog.V(0).Infoln("member", member, "in use, service", serviceAttr, "requuid", requuid)
 	}
 
-	glog.Errorln("service has no idle volume", serviceAttr, "requuid", requuid)
+	glog.Errorln("service has no idle member", serviceAttr, "requuid", requuid)
 	return nil, common.ErrInternal
 }
 
@@ -670,26 +671,26 @@ func (d *OpenManageVolumeDriver) mountpoint(serviceUUID string) string {
 	return filepath.Join(d.root, serviceUUID)
 }
 
-func (d *OpenManageVolumeDriver) attachVolume(ctx context.Context, vol common.Volume, requuid string) error {
+func (d *OpenManageVolumeDriver) attachVolume(ctx context.Context, member common.ServiceMember, requuid string) error {
 	// attach volume to host
-	err := d.serverIns.AttachVolume(ctx, vol.VolumeID, vol.ServerInstanceID, vol.DeviceName)
+	err := d.serverIns.AttachVolume(ctx, member.VolumeID, member.ServerInstanceID, member.DeviceName)
 	if err != nil {
-		glog.Errorln("failed to AttachVolume", vol, "error", err, "requuid", requuid)
+		glog.Errorln("failed to AttachVolume", member, "error", err, "requuid", requuid)
 		return err
 	}
 
 	// wait till attach complete
-	err = d.serverIns.WaitVolumeAttached(ctx, vol.VolumeID)
+	err = d.serverIns.WaitVolumeAttached(ctx, member.VolumeID)
 	if err != nil {
 		// TODO EBS volume attach may stuck. Is below ref still the case? Maybe not?
 		// ref discussion: https://forums.aws.amazon.com/message.jspa?messageID=235023
 		// caller should handle it. For example, get volume state, detach it if still
 		// at attaching state, and try attach again.
-		glog.Errorln("volume", vol, "is still not attached, requuid", requuid)
+		glog.Errorln("member volume", member, "is still not attached, requuid", requuid)
 		return err
 	}
 
-	glog.Infoln("attached volume", vol, "requuid", requuid)
+	glog.Infoln("attached member volume", member, "requuid", requuid)
 	return nil
 }
 
@@ -753,7 +754,7 @@ func (d *OpenManageVolumeDriver) detachVolumeFromLastOwner(ctx context.Context, 
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) getMountedVolume(serviceUUID string) *common.Volume {
+func (d *OpenManageVolumeDriver) getMountedVolume(serviceUUID string) *common.ServiceMember {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -761,10 +762,10 @@ func (d *OpenManageVolumeDriver) getMountedVolume(serviceUUID string) *common.Vo
 	if !ok {
 		return nil
 	}
-	return vol.volume
+	return vol.member
 }
 
-func (d *OpenManageVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *common.Volume {
+func (d *OpenManageVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *common.ServiceMember {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -775,15 +776,15 @@ func (d *OpenManageVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *
 
 	vol.connections++
 
-	glog.Infoln("get mounted volume", vol.volume, "connections", vol.connections)
-	return vol.volume
+	glog.Infoln("get mounted volume", vol.member, "connections", vol.connections)
+	return vol.member
 }
 
-func (d *OpenManageVolumeDriver) addMountedVolume(serviceUUID string, vol *common.Volume) {
+func (d *OpenManageVolumeDriver) addMountedVolume(serviceUUID string, member *common.ServiceMember) {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
-	d.volumes[serviceUUID] = &driverVolume{volume: vol, connections: 1}
+	d.volumes[serviceUUID] = &driverVolume{member: member, connections: 1}
 }
 
 func (d *OpenManageVolumeDriver) removeMountedVolume(serviceUUID string) {
@@ -801,7 +802,7 @@ func (d *OpenManageVolumeDriver) removeMountedVolume(serviceUUID string) {
 		delete(d.volumes, serviceUUID)
 		return
 	}
-	glog.Infoln("volume is still in use, not remove", vol.volume, "connections", vol.connections)
+	glog.Infoln("volume is still in use, not remove", vol.member, "connections", vol.connections)
 }
 
 func (d *OpenManageVolumeDriver) checkAndCreateMountPath(mountPath string) error {

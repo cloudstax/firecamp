@@ -15,16 +15,16 @@ func TestDBUtils(t *testing.T) {
 	cluster := "cluster"
 	service := "service-1"
 	devName := "dev-1"
-	hasStrictMembership := true
+	registerDNS := true
 	domain := ""
 	hostedZoneID := ""
 
 	mtime := time.Now().UnixNano()
 	attr1 := CreateInitialServiceAttr(serviceUUID, replicas, volSize,
-		cluster, service, devName, hasStrictMembership, domain, hostedZoneID)
+		cluster, service, devName, registerDNS, domain, hostedZoneID)
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		volSize, cluster, service, devName, hasStrictMembership, domain, hostedZoneID)
+		volSize, cluster, service, devName, registerDNS, domain, hostedZoneID)
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
@@ -41,23 +41,23 @@ func TestDBUtils(t *testing.T) {
 	memberName := "member-1"
 	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
 	cfgs := []*common.MemberConfig{cfg}
-	vol1 := CreateInitialVolume(serviceUUID, volID, devName, az, memberName, cfgs)
-	vol2 := CreateVolume(serviceUUID, volID, mtime, devName, az, DefaultTaskID,
+	member1 := CreateInitialServiceMember(serviceUUID, volID, devName, az, memberName, cfgs)
+	member2 := CreateServiceMember(serviceUUID, volID, mtime, devName, az, DefaultTaskID,
 		DefaultContainerInstanceID, DefaultServerInstanceID, memberName, cfgs)
-	if !EqualVolume(vol1, vol2, true) {
-		t.Fatalf("volume is not the same, %s %s", vol1, vol2)
+	if !EqualServiceMember(member1, member2, true) {
+		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
 	}
 
 	taskID := "task-1"
 	containerInstanceID := "containerInstance-1"
 	ec2InstanceID := "ec2Instance-1"
-	vol2 = UpdateVolumeOwner(vol1, taskID, containerInstanceID, ec2InstanceID)
-	vol1.TaskID = taskID
-	vol1.ContainerInstanceID = containerInstanceID
-	vol1.ServerInstanceID = ec2InstanceID
-	vol1.LastModified = vol2.LastModified
-	if !EqualVolume(vol1, vol2, false) {
-		t.Fatalf("volume is not the same, %s %s", vol1, vol2)
+	member2 = UpdateServiceMemberOwner(member1, taskID, containerInstanceID, ec2InstanceID)
+	member1.TaskID = taskID
+	member1.ContainerInstanceID = containerInstanceID
+	member1.ServerInstanceID = ec2InstanceID
+	member1.LastModified = member2.LastModified
+	if !EqualServiceMember(member1, member2, false) {
+		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
 	}
 
 	// test ConfigFile
@@ -79,6 +79,7 @@ func TestDBUtils(t *testing.T) {
 	newFileID := "newID"
 	newContent := "newContent"
 	cfg3 := UpdateConfigFile(cfg1, newFileID, newContent)
+	cfg1.FileID = newFileID
 	cfg1.FileMD5 = cfg3.FileMD5
 	cfg1.LastModified = cfg3.LastModified
 	cfg1.Content = newContent

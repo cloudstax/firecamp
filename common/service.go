@@ -83,10 +83,9 @@ type ServiceAttr struct {
 	ServiceName   string
 	DeviceName    string
 
-	// whether the service has the strict membership, such as database replicas.
-	// if yes, each volume will be assigned a member name and registered to DNS.
-	// in aws, DNS will be Route53.
-	HasStrictMembership bool
+	// whether the service members need to know each other, such as database replicas.
+	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
+	RegisterDNS bool
 	// for v1, DomainName would be the default domain, such as cluster-openmanage.com
 	DomainName string
 	// The AWS Route53 HostedZone for the current openmanage cluster.
@@ -97,19 +96,20 @@ type ServiceAttr struct {
 	//AdminPasswd string
 }
 
-// Volume represents the attributes of the volume
-type Volume struct {
+// ServiceMember represents the attributes of one service member.
+type ServiceMember struct {
 	ServiceUUID         string // partition key
-	VolumeID            string // sort key
-	DeviceName          string
+	MemberName          string // sort key
 	AvailableZone       string
 	TaskID              string
 	ContainerInstanceID string
 	ServerInstanceID    string
 	LastModified        int64
 
-	// MemberName would be empty if service doesn't require the strict membership
-	MemberName string
+	// TODO add a new struct to include VolumeID, DeviceName and Configs,
+	//      as one service may have multiple volumes.
+	VolumeID   string
+	DeviceName string
 	// One member could have multiple config files.
 	// For example, cassandra.yaml and rackdc properties files.
 	Configs []*MemberConfig
@@ -129,10 +129,10 @@ type MemberConfig struct {
 
 // ConfigFile represents the detail config content of service member.
 // To update the ConfigFile content of one replica, 2 steps are required:
-// 1) create a new ConfigFile with a new FileID, 2) update Volume MemberConfig
+// 1) create a new ConfigFile with a new FileID, 2) update ServiceMember MemberConfig
 // to point to the new ConfigFile.
 // We could not directly update the old ConfigFile. If node crashes before step2,
-// Volume MemberConfig will not be consistent with ConfigFile.
+// ServiceMember MemberConfig will not be consistent with ConfigFile.
 type ConfigFile struct {
 	ServiceUUID  string // partition key
 	FileID       string // sort key

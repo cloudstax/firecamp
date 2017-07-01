@@ -13,7 +13,7 @@ type MemDB struct {
 	devMap     map[string]common.Device
 	svcMap     map[string]common.Service
 	svcAttrMap map[string]common.ServiceAttr
-	volMap     map[string]common.Volume
+	memberMap  map[string]common.ServiceMember
 	cfgMap     map[string]common.ConfigFile
 	mlock      *sync.Mutex
 }
@@ -23,7 +23,7 @@ func NewMemDB() *MemDB {
 		devMap:     map[string]common.Device{},
 		svcMap:     map[string]common.Service{},
 		svcAttrMap: map[string]common.ServiceAttr{},
-		volMap:     map[string]common.Volume{},
+		memberMap:  map[string]common.ServiceMember{},
 		cfgMap:     map[string]common.ConfigFile{},
 		mlock:      &sync.Mutex{},
 	}
@@ -223,86 +223,86 @@ func (d *MemDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) error
 	return nil
 }
 
-func (d *MemDB) CreateVolume(ctx context.Context, vol *common.Volume) error {
-	key := vol.ServiceUUID + vol.VolumeID
+func (d *MemDB) CreateServiceMember(ctx context.Context, member *common.ServiceMember) error {
+	key := member.ServiceUUID + member.MemberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
-	_, ok := d.volMap[key]
+	_, ok := d.memberMap[key]
 	if ok {
-		glog.Errorln("volume exists", key)
+		glog.Errorln("serviceMember exists", key)
 		return ErrDBConditionalCheckFailed
 	}
 
-	d.volMap[key] = *vol
+	d.memberMap[key] = *member
 	return nil
 }
 
-func (d *MemDB) UpdateVolume(ctx context.Context, oldVol *common.Volume, newVol *common.Volume) error {
-	key := oldVol.ServiceUUID + oldVol.VolumeID
+func (d *MemDB) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
+	key := oldMember.ServiceUUID + oldMember.MemberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
-	vol, ok := d.volMap[key]
+	member, ok := d.memberMap[key]
 	if !ok {
-		glog.Errorln("volume not exist", key)
+		glog.Errorln("serviceMember not exist", key)
 		return ErrDBRecordNotFound
 	}
-	if !EqualVolume(oldVol, &vol, true) {
-		glog.Errorln("oldVol not match current vol, oldVol", oldVol, "current vol", vol)
+	if !EqualServiceMember(oldMember, &member, true) {
+		glog.Errorln("oldMember not match current member, oldMember", oldMember, "current member", member)
 		return ErrDBConditionalCheckFailed
 	}
 
-	d.volMap[key] = *newVol
+	d.memberMap[key] = *newMember
 	return nil
 }
 
-func (d *MemDB) GetVolume(ctx context.Context, serviceUUID string, volumeID string) (vol *common.Volume, err error) {
-	key := serviceUUID + volumeID
+func (d *MemDB) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
+	key := serviceUUID + memberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
-	cvol, ok := d.volMap[key]
+	cmember, ok := d.memberMap[key]
 	if !ok {
-		glog.Errorln("volume not exist", key)
+		glog.Errorln("serviceMember not exist", key)
 		return nil, ErrDBRecordNotFound
 	}
 
-	return copyVolume(&cvol), nil
+	return copyServiceMember(&cmember), nil
 }
 
-func (d *MemDB) ListVolumes(ctx context.Context, serviceUUID string) (vols []*common.Volume, err error) {
-	return d.listVolumesWithLimit(ctx, serviceUUID, 0)
+func (d *MemDB) ListServiceMembers(ctx context.Context, serviceUUID string) (members []*common.ServiceMember, err error) {
+	return d.listServiceMembersWithLimit(ctx, serviceUUID, 0)
 }
 
-func (d *MemDB) listVolumesWithLimit(ctx context.Context, serviceUUID string, limit int64) (vols []*common.Volume, err error) {
+func (d *MemDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID string, limit int64) (members []*common.ServiceMember, err error) {
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
-	for _, vol := range d.volMap {
-		if vol.ServiceUUID == serviceUUID {
-			vols = append(vols, copyVolume(&vol))
+	for _, member := range d.memberMap {
+		if member.ServiceUUID == serviceUUID {
+			members = append(members, copyServiceMember(&member))
 		}
 	}
-	return vols, nil
+	return members, nil
 }
 
-func (d *MemDB) DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error {
-	key := serviceUUID + volumeID
+func (d *MemDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
+	key := serviceUUID + memberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
 
-	_, ok := d.volMap[key]
+	_, ok := d.memberMap[key]
 	if !ok {
-		glog.Errorln("volume not exist", key)
+		glog.Errorln("serviceMember not exist", key)
 		return ErrDBRecordNotFound
 	}
 
-	delete(d.volMap, key)
+	delete(d.memberMap, key)
 	return nil
 }
 
@@ -371,22 +371,22 @@ func copyService(t *common.Service) *common.Service {
 
 func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:         t.ServiceUUID,
-		ServiceStatus:       t.ServiceStatus,
-		LastModified:        t.LastModified,
-		Replicas:            t.Replicas,
-		VolumeSizeGB:        t.VolumeSizeGB,
-		ClusterName:         t.ClusterName,
-		ServiceName:         t.ServiceName,
-		DeviceName:          t.DeviceName,
-		HasStrictMembership: t.HasStrictMembership,
-		DomainName:          t.DomainName,
-		HostedZoneID:        t.HostedZoneID,
+		ServiceUUID:   t.ServiceUUID,
+		ServiceStatus: t.ServiceStatus,
+		LastModified:  t.LastModified,
+		Replicas:      t.Replicas,
+		VolumeSizeGB:  t.VolumeSizeGB,
+		ClusterName:   t.ClusterName,
+		ServiceName:   t.ServiceName,
+		DeviceName:    t.DeviceName,
+		RegisterDNS:   t.RegisterDNS,
+		DomainName:    t.DomainName,
+		HostedZoneID:  t.HostedZoneID,
 	}
 }
 
-func copyVolume(t *common.Volume) *common.Volume {
-	return &common.Volume{
+func copyServiceMember(t *common.ServiceMember) *common.ServiceMember {
+	return &common.ServiceMember{
 		ServiceUUID:         t.ServiceUUID,
 		VolumeID:            t.VolumeID,
 		LastModified:        t.LastModified,

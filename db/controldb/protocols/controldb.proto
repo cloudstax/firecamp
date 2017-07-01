@@ -21,11 +21,11 @@ service ControlDBService {
   rpc DeleteServiceAttr (ServiceAttrKey) returns (DeleteServiceAttrResponse) {}
   rpc UpdateServiceAttr (UpdateServiceAttrRequest) returns (UpdateServiceAttrResponse) {}
 
-  rpc CreateVolume (Volume) returns (CreateVolumeResponse) {}
-  rpc GetVolume (VolumeKey) returns (Volume) {}
-  rpc DeleteVolume (VolumeKey) returns (DeleteVolumeResponse) {}
-  rpc ListVolumes (ListVolumeRequest) returns (stream Volume) {}
-  rpc UpdateVolume (UpdateVolumeRequest) returns (UpdateVolumeResponse) {}
+  rpc CreateServiceMember (ServiceMember) returns (CreateServiceMemberResponse) {}
+  rpc GetServiceMember (ServiceMemberKey) returns (ServiceMember) {}
+  rpc DeleteServiceMember (ServiceMemberKey) returns (DeleteServiceMemberResponse) {}
+  rpc ListServiceMembers (ListServiceMemberRequest) returns (stream ServiceMember) {}
+  rpc UpdateServiceMember (UpdateServiceMemberRequest) returns (UpdateServiceMemberResponse) {}
 
   rpc CreateConfigFile (ConfigFile) returns (CreateConfigFileResponse) {}
   rpc GetConfigFile (ConfigFileKey) returns (ConfigFile) {}
@@ -99,9 +99,9 @@ message ServiceAttr {
   string deviceName = 8;
 
   // whether the service has the strict membership, such as database replicas.
-  // if yes, each volume will be assigned a member name and registered to DNS.
+  // if yes, each serviceMember will be assigned a member name and registered to DNS.
   // in aws, DNS will be Route53.
-  bool hasStrictMembership = 9;
+  bool registerDNS = 9;
   string domainName = 10;
   string hostedZoneID = 11;
 }
@@ -120,14 +120,14 @@ message UpdateServiceAttrRequest {
 message UpdateServiceAttrResponse {
 }
 
-message VolumeKey {
+message ServiceMemberKey {
   string serviceUUID = 1;
-  string volumeID = 2;
+  string memberName = 2;
 }
 
-message Volume {
+message ServiceMember {
   string serviceUUID = 1;
-  string volumeID = 2;
+  string memberName = 2;
 
   int64 lastModified = 3;
   string deviceName = 4;
@@ -136,27 +136,26 @@ message Volume {
   string containerInstanceID = 7;
   string serverInstanceID = 8;
 
-  // MemberName would be empty if service doesn't require the strict membership
-  string memberName = 9;
+  string volumeID = 9;
   repeated MemberConfig configs = 10;
 }
 
-message CreateVolumeResponse {
+message CreateServiceMemberResponse {
 }
 
-message DeleteVolumeResponse {
+message DeleteServiceMemberResponse {
 }
 
-message ListVolumeRequest {
+message ListServiceMemberRequest {
   string serviceUUID = 1;
 }
 
-message UpdateVolumeRequest {
-  Volume oldVol = 1;
-  Volume newVol = 2;
+message UpdateServiceMemberRequest {
+  ServiceMember oldMember = 1;
+  ServiceMember newMember = 2;
 }
 
-message UpdateVolumeResponse {
+message UpdateServiceMemberResponse {
 }
 
 message MemberConfig {

@@ -266,8 +266,8 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 		case manage.ListServiceOp:
 			return s.listServices(ctx, w, r, requuid)
 
-		case manage.ListVolumeOp:
-			return s.listVolumes(ctx, w, r, requuid)
+		case manage.ListServiceMemberOp:
+			return s.listServiceMembers(ctx, w, r, requuid)
 
 		case manage.GetServiceStatusOp:
 			return s.getServiceStatus(ctx, w, r, requuid)
@@ -399,23 +399,23 @@ func (s *ManageHTTPServer) listServices(ctx context.Context, w http.ResponseWrit
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) listVolumes(ctx context.Context, w http.ResponseWriter,
+func (s *ManageHTTPServer) listServiceMembers(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, requuid string) (errmsg string, errcode int) {
 	// TODO support token and MaxKeys if necessary.
-	req := &manage.ListVolumeRequest{}
+	req := &manage.ListServiceMemberRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		glog.Errorln("listVolumes decode request error", err, "requuid", requuid)
+		glog.Errorln("listServiceMembers decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
-		glog.Errorln("listVolumes invalid request, local cluster", s.cluster,
+		glog.Errorln("listServiceMembers invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	glog.Infoln("listVolumes", req.Service, "requuid", requuid)
+	glog.Infoln("listServiceMembers", req.Service, "requuid", requuid)
 
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
@@ -423,18 +423,18 @@ func (s *ManageHTTPServer) listVolumes(ctx context.Context, w http.ResponseWrite
 		return manage.ConvertToHTTPError(err)
 	}
 
-	vols, err := s.dbIns.ListVolumes(ctx, service.ServiceUUID)
+	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
 	if err != nil {
-		glog.Errorln("db ListVolumes error", err, "requuid", requuid, req.Service)
+		glog.Errorln("db ListServiceMembers error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("list", len(vols), "volumes, requuid", requuid, req.Service)
+	glog.Infoln("list", len(members), "serviceMembers, requuid", requuid, req.Service)
 
-	resp := &manage.ListVolumeResponse{Volumes: vols}
+	resp := &manage.ListServiceMemberResponse{ServiceMembers: members}
 	b, err := json.Marshal(resp)
 	if err != nil {
-		glog.Errorln("Marshal ListVolumeResponse error", err, "requuid", requuid, req)
+		glog.Errorln("Marshal ListServiceMemberResponse error", err, "requuid", requuid, req)
 		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
 	}
 
@@ -446,8 +446,8 @@ func (s *ManageHTTPServer) listVolumes(ctx context.Context, w http.ResponseWrite
 
 func (s *ManageHTTPServer) getServiceAttr(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, servicename string, requuid string) (errmsg string, errcode int) {
-	// no need to support token and MaxKeys, simply returns all volumes. Assume one volume
-	// attribute is 1KB. If the service has 1000 volumes, the whole list would be 1MB.
+	// no need to support token and MaxKeys, simply returns all serviceMembers. Assume one serviceMember
+	// attribute is 1KB. If the service has 1000 serviceMembers, the whole list would be 1MB.
 	req := &manage.ServiceCommonRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 // ControlDBServer implements DBService server.
 //
 // The server design needs to be scalable, to support like 100 services in one cluster,
-// and 10,000 volumes per service. Every cluster will run its own control db service.
+// and 10,000 serviceMembers per service. Every cluster will run its own control db service.
 // If one service needs to cross clusters, such as 2 aws regions, federation (could simply
 // be the service init script) will coordinate it. For example, federation creates the
 // services on each cluster with two-phases. Firstly create service with the initial status.
@@ -35,9 +35,9 @@ import (
 //					  cluster0/service.v1
 //            cluster0/servicedir/service0-uuid/attr.v0
 //                        	      service0-uuid/attr.v1
-//      												  service0-uuid/volumedir/vol0
-//      												  service0-uuid/volumedir/...
-//      												  service0-uuid/volumedir/vol1000
+//      												  service0-uuid/serviceMemberdir/member0
+//      												  service0-uuid/serviceMemberdir/...
+//      												  service0-uuid/serviceMemberdir/member1000
 //      												  service0-uuid/configdir/configfile0
 //      												  service0-uuid/configdir/...
 //      												  service0-uuid/configdir/configfile1000
@@ -53,11 +53,11 @@ type ControlDBServer struct {
 	clusterName string
 	serviceDir  string
 
-	deviceSvcIns      *deviceSvc
-	serviceSvcIns     *serviceSvc
-	serviceAttrSvcIns *serviceAttrSvc
-	volumeSvcIns      *volumeSvc
-	cfgSvcIns         *configFileSvc
+	deviceSvcIns        *deviceSvc
+	serviceSvcIns       *serviceSvc
+	serviceAttrSvcIns   *serviceAttrSvc
+	serviceMemberSvcIns *serviceMemberSvc
+	cfgSvcIns           *configFileSvc
 }
 
 func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, error) {
@@ -82,18 +82,18 @@ func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, 
 	}
 
 	attrsvc := newServiceAttrSvc(serviceDir)
-	volsvc := newVolumeSvc(serviceDir)
+	membersvc := newServiceMemberSvc(serviceDir)
 	cfgsvc := newConfigFileSvc(serviceDir)
 
 	s := &ControlDBServer{
-		rootPath:          rootPath,
-		clusterName:       clusterName,
-		serviceDir:        serviceDir,
-		deviceSvcIns:      dev,
-		serviceSvcIns:     svc,
-		serviceAttrSvcIns: attrsvc,
-		volumeSvcIns:      volsvc,
-		cfgSvcIns:         cfgsvc,
+		rootPath:            rootPath,
+		clusterName:         clusterName,
+		serviceDir:          serviceDir,
+		deviceSvcIns:        dev,
+		serviceSvcIns:       svc,
+		serviceAttrSvcIns:   attrsvc,
+		serviceMemberSvcIns: membersvc,
+		cfgSvcIns:           cfgsvc,
 	}
 	return s, nil
 }
@@ -101,7 +101,7 @@ func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, 
 func (s *ControlDBServer) Stop() {
 	glog.Infoln("ControlDBServer stop, rootPath", s.rootPath, "cluster", s.clusterName)
 	s.serviceAttrSvcIns.Stop()
-	s.volumeSvcIns.Stop()
+	s.serviceMemberSvcIns.Stop()
 	s.cfgSvcIns.Stop()
 }
 
@@ -153,24 +153,24 @@ func (s *ControlDBServer) UpdateServiceAttr(ctx context.Context, req *pb.UpdateS
 	return &pb.UpdateServiceAttrResponse{}, s.serviceAttrSvcIns.UpdateServiceAttr(ctx, req)
 }
 
-func (s *ControlDBServer) CreateVolume(ctx context.Context, vol *pb.Volume) (*pb.CreateVolumeResponse, error) {
-	return &pb.CreateVolumeResponse{}, s.volumeSvcIns.CreateVolume(ctx, vol)
+func (s *ControlDBServer) CreateServiceMember(ctx context.Context, member *pb.ServiceMember) (*pb.CreateServiceMemberResponse, error) {
+	return &pb.CreateServiceMemberResponse{}, s.serviceMemberSvcIns.CreateServiceMember(ctx, member)
 }
 
-func (s *ControlDBServer) GetVolume(ctx context.Context, key *pb.VolumeKey) (*pb.Volume, error) {
-	return s.volumeSvcIns.GetVolume(ctx, key)
+func (s *ControlDBServer) GetServiceMember(ctx context.Context, key *pb.ServiceMemberKey) (*pb.ServiceMember, error) {
+	return s.serviceMemberSvcIns.GetServiceMember(ctx, key)
 }
 
-func (s *ControlDBServer) DeleteVolume(ctx context.Context, key *pb.VolumeKey) (*pb.DeleteVolumeResponse, error) {
-	return &pb.DeleteVolumeResponse{}, s.volumeSvcIns.DeleteVolume(ctx, key)
+func (s *ControlDBServer) DeleteServiceMember(ctx context.Context, key *pb.ServiceMemberKey) (*pb.DeleteServiceMemberResponse, error) {
+	return &pb.DeleteServiceMemberResponse{}, s.serviceMemberSvcIns.DeleteServiceMember(ctx, key)
 }
 
-func (s *ControlDBServer) UpdateVolume(ctx context.Context, req *pb.UpdateVolumeRequest) (*pb.UpdateVolumeResponse, error) {
-	return &pb.UpdateVolumeResponse{}, s.volumeSvcIns.UpdateVolume(ctx, req)
+func (s *ControlDBServer) UpdateServiceMember(ctx context.Context, req *pb.UpdateServiceMemberRequest) (*pb.UpdateServiceMemberResponse, error) {
+	return &pb.UpdateServiceMemberResponse{}, s.serviceMemberSvcIns.UpdateServiceMember(ctx, req)
 }
 
-func (s *ControlDBServer) ListVolumes(req *pb.ListVolumeRequest, stream pb.ControlDBService_ListVolumesServer) error {
-	return s.volumeSvcIns.ListVolumes(req, stream)
+func (s *ControlDBServer) ListServiceMembers(req *pb.ListServiceMemberRequest, stream pb.ControlDBService_ListServiceMembersServer) error {
+	return s.serviceMemberSvcIns.ListServiceMembers(req, stream)
 }
 
 func (s *ControlDBServer) CreateConfigFile(ctx context.Context, cfg *pb.ConfigFile) (*pb.CreateConfigFileResponse, error) {

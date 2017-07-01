@@ -23,7 +23,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 	volSize = 1
 	az := "az-west"
 
-	hasMembership := true
+	registerDNS := true
 	domain := "example.com"
 	vpcID := "vpc-1"
 	region := "us-west-1"
@@ -57,7 +57,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			},
 			Replicas:       int64(taskCount1),
 			VolumeSizeGB:   volSize,
-			HasMembership:  hasMembership,
+			RegisterDNS:    registerDNS,
 			ReplicaConfigs: replicaCfgs,
 		}
 
@@ -78,7 +78,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		svcMap[service] = ""
 		idx++
 	}
-	// verify the Device, Service, ServiceAttr and Volume
+	// verify the Device, Service, ServiceAttr and ServiceMember
 	deviceItems, err := dbIns.ListDevices(ctx, cluster)
 	if err != nil || len(deviceItems) != 3 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
@@ -96,9 +96,9 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		if err != nil || attr.ServiceName != svc.ServiceName {
 			t.Fatalf("get service attr error %s service %s attr %s, expect ", err, svc, attr)
 		}
-		volItems, err := dbIns.ListVolumes(ctx, svc.ServiceUUID)
-		if err != nil || len(volItems) != taskCount1 {
-			t.Fatalf("got %d, expect %d volumes for service %s attr %s", len(volItems), taskCount1, svc, attr)
+		memberItems, err := dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+		if err != nil || len(memberItems) != taskCount1 {
+			t.Fatalf("got %d, expect %d serviceMembers for service %s attr %s", len(memberItems), taskCount1, svc, attr)
 		}
 	}
 
@@ -124,7 +124,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			},
 			Replicas:       int64(taskCount2),
 			VolumeSizeGB:   volSize,
-			HasMembership:  hasMembership,
+			RegisterDNS:    registerDNS,
 			ReplicaConfigs: replicaCfgs,
 		}
 
@@ -145,7 +145,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		svcMap[service] = ""
 		idx++
 	}
-	// verify the Device, Service and Volume
+	// verify the Device, Service and ServiceMember
 	deviceItems, err = dbIns.ListDevices(ctx, cluster)
 	if err != nil || len(deviceItems) != 5 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
@@ -163,9 +163,9 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		if err != nil || attr.ServiceName != svc.ServiceName {
 			t.Fatalf("get service attr error %s service %s attr %s, expect ", err, svc, attr)
 		}
-		volItems, err := dbIns.ListVolumes(ctx, svc.ServiceUUID)
+		memberItems, err := dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
 		if err != nil {
-			t.Fatalf("ListVolumes error %s, serviceUUID %s", err, svc.ServiceUUID)
+			t.Fatalf("ListServiceMembers error %s, serviceUUID %s", err, svc.ServiceUUID)
 		}
 		seqstr := strings.TrimPrefix(svc.ServiceName, servicePrefix)
 		seq, err := strconv.Atoi(seqstr)
@@ -173,13 +173,13 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			t.Fatalf("Atoi seqstr %s error %s for service %s", seqstr, err, svc)
 		}
 		if seq < 3 {
-			if len(volItems) != taskCount1 {
-				t.Fatalf("got %d, expect %d volumes for service %s", len(volItems), taskCount1, svc)
+			if len(memberItems) != taskCount1 {
+				t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount1, svc)
 			}
 		} else {
 			if seq < 5 {
-				if len(volItems) != taskCount2 {
-					t.Fatalf("got %d, expect %d volumes for service %s", len(volItems), taskCount2, svc)
+				if len(memberItems) != taskCount2 {
+					t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount2, svc)
 				}
 			} else {
 				t.Fatalf("unexpect seq %d, seqstr %s, service %s", seq, seqstr, svc)
@@ -209,7 +209,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			},
 			Replicas:       int64(taskCount3),
 			VolumeSizeGB:   volSize,
-			HasMembership:  hasMembership,
+			RegisterDNS:    registerDNS,
 			ReplicaConfigs: replicaCfgs,
 		}
 
@@ -230,9 +230,9 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 
 	// list volumes of the service
 	service = servicePrefix + strconv.Itoa(idx-1)
-	vols, err := s.ListVolumes(ctx, cluster, service)
+	vols, err := s.ListServiceVolumes(ctx, cluster, service)
 	if err != nil || len(vols) != taskCount3 {
-		t.Fatalf("ListVolumes %s error % vols %s", service, err, vols)
+		t.Fatalf("ListServiceVolumes %s error % vols %s", service, err, vols)
 	}
 
 	// test service deletion
@@ -252,7 +252,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	volSize = 1
 	idx := 0
 
-	hasMembership := true
+	registerDNS := true
 	domain := "example.com"
 	vpcID := "vpc-1"
 	region := "us-west-1"
@@ -278,7 +278,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		},
 		Replicas:       int64(taskCount),
 		VolumeSizeGB:   volSize,
-		HasMembership:  hasMembership,
+		RegisterDNS:    registerDNS,
 		ReplicaConfigs: replicaCfgs,
 	}
 
@@ -337,7 +337,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, hasMembership, domain, hostedZoneID)
+		cluster, service, dev, registerDNS, domain, hostedZoneID)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -352,7 +352,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
 	}
 
-	// 4. device and service item exist, the 4th device, service attr is at creating, and one volume created
+	// 4. device and service item exist, the 4th device, service attr is at creating, and one serviceMember created
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service)
@@ -367,7 +367,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, hasMembership, domain, hostedZoneID)
+		cluster, service, dev, registerDNS, domain, hostedZoneID)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -379,9 +379,9 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}
 
-	_, err = s.createServiceVolume(ctx, "uuid"+service, volSize, az, dev, memberName, cfgs)
+	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, cfgs)
 	if err != nil {
-		t.Fatalf("createServiceVolume error %s, serviceItem %s", err, serviceItem)
+		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}
 
 	// update the ServiceName in CreateServiceRequest

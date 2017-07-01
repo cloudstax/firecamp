@@ -17,7 +17,7 @@ func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error
 	requuid := utils.GetReqIDFromContext(ctx)
 	// TODO sanity check of serviceItem. for example, status should be CREATING,
 	// Replicas should > 0, cluster should exist,
-	// taskDef should have volume definitions, etc.
+	// taskDef should have serviceMember definitions, etc.
 	// this should be outside db interface.
 
 	dbsvc := dynamodb.New(d.sess)
@@ -93,8 +93,8 @@ func (d *DynamoDB) DeleteService(ctx context.Context, clusterName string, servic
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
-	// TODO reject if any volume is still mounted, e.g. task still running.
-	// should we reject if some volume still exists? probably not, as aws ecs allows service to be deleted with volumes left.
+	// TODO reject if any serviceMember is still mounted, e.g. task still running.
+	// should we reject if some serviceMember still exists? probably not, as aws ecs allows service to be deleted with serviceMembers left.
 
 	params := &dynamodb.DeleteItemInput{
 		TableName: aws.String(d.serviceTableName),

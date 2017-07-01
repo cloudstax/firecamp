@@ -165,7 +165,7 @@ type configFileDeleteReq struct {
 
 // configFileReadWriter serves the config file read & write operations.
 // One config file may not be small. For examle, the default cassandra yaml is 45KB.
-// Also the config file is usually not used after the volume creates the config file.
+// Also the config file is usually not used after the serviceMember creates the config file.
 // So no config file will be cached.
 type configFileReadWriter struct {
 	index    int

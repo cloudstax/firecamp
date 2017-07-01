@@ -176,7 +176,7 @@ func createAndWaitService(ctx context.Context, cli *client.ManageClient, replica
 		ContainerPath:  common.DefaultContainerMountPath,
 		Port:           *port,
 
-		HasMembership:  true,
+		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
 

@@ -153,14 +153,14 @@ func (c *ManageClient) SetServiceInitialized(ctx context.Context, r *manage.Serv
 	return nil
 }
 
-// ListVolume lists all volumes of the service.
-func (c *ManageClient) ListVolume(ctx context.Context, r *manage.ListVolumeRequest) ([]*common.Volume, error) {
+// ListServiceMember lists all serviceMembers of the service.
+func (c *ManageClient) ListServiceMember(ctx context.Context, r *manage.ListServiceMemberRequest) ([]*common.ServiceMember, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return nil, err
 	}
 
-	urlStr := c.serverURL + manage.ListVolumeOp
+	urlStr := c.serverURL + manage.ListServiceMemberOp
 	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return nil, err
@@ -176,9 +176,9 @@ func (c *ManageClient) ListVolume(ctx context.Context, r *manage.ListVolumeReque
 
 	defer c.closeRespBody(resp)
 
-	res := &manage.ListVolumeResponse{}
+	res := &manage.ListServiceMemberResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
-	return res.Volumes, err
+	return res.ServiceMembers, err
 }
 
 // ListService lists all services that match the required conditions

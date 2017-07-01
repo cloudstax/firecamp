@@ -39,9 +39,9 @@ func TestControlDB(t *testing.T) {
 		t.Fatalf("test service attr error")
 	}
 
-	err = testVolume(ctx, dbcli, cluster)
+	err = testServiceMember(ctx, dbcli, cluster)
 	if err != nil {
-		t.Fatalf("test volume error")
+		t.Fatalf("test serviceMember error")
 	}
 }
 
@@ -262,7 +262,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 	serviceStatus := "CREATING"
 	serviceNamePrefix := "servicename-"
 	devNamePrefix := "/dev/xvd"
-	hasMembership := true
+	registerDNS := true
 	domainPrefix := "domain"
 	hostedZone := "zone1"
 
@@ -274,7 +274,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 		str := strconv.Itoa(i)
 		uuid := serviceUUIDPrefix + str
 		attr := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, hasMembership, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
 		err := dbcli.CreateServiceAttr(ctx, attr)
 		if err != nil {
 			glog.Errorln("create service, expect success, got", err, attr)
@@ -290,7 +290,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// negative case: create the service attr again with different field
 		attr1 := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str+"xxx", devNamePrefix+str, hasMembership, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str+"xxx", devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
 		err = dbcli.CreateServiceAttr(ctx, attr1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing service attr with different field, expect db.ErrDBConditionalCheckFailed, got", err, attr1)
@@ -317,7 +317,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// update service attr
 		attr1 = db.CreateServiceAttr(uuid, "ACTIVE", time.Now().UnixNano(), int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, hasMembership, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
 
 		// negative case: old attr mismatch
 		err = dbcli.UpdateServiceAttr(ctx, attr1, attr1)
@@ -372,7 +372,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 	return nil
 }
 
-func testVolume(ctx context.Context, dbcli *ControlDBCli, cluster string) error {
+func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string) error {
 	serviceUUID := "serviceuuid-1"
 	volIDPrefix := "volid-"
 	devNamePrefix := "/dev/xvd-"
@@ -386,130 +386,130 @@ func testVolume(ctx context.Context, dbcli *ControlDBCli, cluster string) error 
 	cfgNamePrefix := "cfgname-"
 	cfgMD5Prefix := "cfgmd5-"
 
-	// create 21 volumes
+	// create 21 serviceMembers
 	maxCounts := 21
 	for i := 0; i < maxCounts; i++ {
 		mtime := time.Now().UnixNano()
-		// create volume
+		// create serviceMember
 		str := fmt.Sprintf("%08x", i)
-		volID := volIDPrefix + str
+		memberName := memberNamePrefix + str
 		cfg := &common.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 		cfgs := []*common.MemberConfig{cfg}
-		vol := db.CreateVolume(serviceUUID, volID, mtime, devNamePrefix+str, az,
-			taskIDPrefix+str, contInsIDPrefix+str, serverInsIDPrefix+str, memberNamePrefix+str, cfgs)
-		err := dbcli.CreateVolume(ctx, vol)
+		member := db.CreateServiceMember(serviceUUID, volIDPrefix+str, mtime, devNamePrefix+str, az,
+			taskIDPrefix+str, contInsIDPrefix+str, serverInsIDPrefix+str, memberName, cfgs)
+		err := dbcli.CreateServiceMember(ctx, member)
 		if err != nil {
-			glog.Errorln("create volume, expect success, got", err, vol)
+			glog.Errorln("create serviceMember, expect success, got", err, member)
 			return err
 		}
 
-		// negative case: create the volume again
-		err = dbcli.CreateVolume(ctx, vol)
+		// negative case: create the serviceMember again
+		err = dbcli.CreateServiceMember(ctx, member)
 		if err != nil {
-			glog.Errorln("create volume again, expect success, got", err, "vol", vol)
+			glog.Errorln("create serviceMember again, expect success, got", err, "member", member)
 			return err
 		}
 
-		// negative case: create the volume again with different field
-		vol1 := db.CreateVolume(serviceUUID, volID, mtime, devNamePrefix+str, az,
-			taskIDPrefix+str+updateSuffix, contInsIDPrefix+str, serverInsIDPrefix+str, memberNamePrefix+str, cfgs)
-		err = dbcli.CreateVolume(ctx, vol1)
+		// negative case: create the serviceMember again with different field
+		member1 := db.CreateServiceMember(serviceUUID, volIDPrefix+str, mtime, devNamePrefix+str, az,
+			taskIDPrefix+str+updateSuffix, contInsIDPrefix+str, serverInsIDPrefix+str, memberName, cfgs)
+		err = dbcli.CreateServiceMember(ctx, member1)
 		if err != db.ErrDBConditionalCheckFailed {
-			glog.Errorln("create existing volume with different field, expect db.ErrDBConditionalCheckFailed, got", err, vol1)
+			glog.Errorln("create existing serviceMember with different field, expect db.ErrDBConditionalCheckFailed, got", err, member1)
 			return err
 		}
 
-		// get volume
-		vol2, err := dbcli.GetVolume(ctx, serviceUUID, volID)
+		// get serviceMember
+		member2, err := dbcli.GetServiceMember(ctx, serviceUUID, memberName)
 		if err != nil {
-			glog.Errorln("get volume, expect success, got", err, "volumeID", volID)
+			glog.Errorln("get serviceMember, expect success, got", err, "memberName", memberName)
 			return err
 		}
-		if !db.EqualVolume(vol, vol2, false) {
-			glog.Errorln("get volume, expect", vol, "got", vol2)
+		if !db.EqualServiceMember(member, member2, false) {
+			glog.Errorln("get serviceMember, expect", member, "got", member2)
 			return db.ErrDBInternal
 		}
 
-		// negative case: get non-exist volume
-		_, err = dbcli.GetVolume(ctx, serviceUUID, volID+"xxx")
+		// negative case: get non-exist serviceMember
+		_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberNamePrefix+"xxx")
 		if err != db.ErrDBRecordNotFound {
-			glog.Errorln("get non-exist volume, expect db.ErrDBRecordNotFound, got error", err)
+			glog.Errorln("get non-exist serviceMember, expect db.ErrDBRecordNotFound, got error", err)
 			return db.ErrDBInternal
 		}
 
-		// update volume
-		vol1 = db.CreateVolume(serviceUUID, volID, time.Now().UnixNano(), devNamePrefix+str, az,
+		// update serviceMember
+		member1 = db.CreateServiceMember(serviceUUID, volIDPrefix+str, time.Now().UnixNano(), devNamePrefix+str, az,
 			taskIDPrefix+str+updateSuffix, contInsIDPrefix+str+updateSuffix,
-			serverInsIDPrefix+str+updateSuffix, memberNamePrefix+str, cfgs)
+			serverInsIDPrefix+str+updateSuffix, memberName, cfgs)
 
-		// negative case: old vol mismatch
-		err = dbcli.UpdateVolume(ctx, vol1, vol1)
+		// negative case: old member mismatch
+		err = dbcli.UpdateServiceMember(ctx, member1, member1)
 		if err != db.ErrDBConditionalCheckFailed {
-			glog.Errorln("UpdateVolume expect db.ErrDBConditionalCheckFailed, got error", err, vol1)
+			glog.Errorln("UpdateServiceMember expect db.ErrDBConditionalCheckFailed, got error", err, member1)
 			return db.ErrDBInternal
 		}
 
-		// update vol
-		err = dbcli.UpdateVolume(ctx, vol, vol1)
+		// update member
+		err = dbcli.UpdateServiceMember(ctx, member, member1)
 		if err != nil {
-			glog.Errorln("UpdateVolume expect success, got error", err, vol1)
+			glog.Errorln("UpdateServiceMember expect success, got error", err, member1)
 			return db.ErrDBInternal
 		}
 
-		// list volumes
-		vols, err := dbcli.ListVolumes(ctx, serviceUUID)
+		// list serviceMembers
+		members, err := dbcli.ListServiceMembers(ctx, serviceUUID)
 		if err != nil {
-			glog.Errorln("list volumes error", err)
+			glog.Errorln("list serviceMembers error", err)
 			return err
 		}
-		if len(vols) != i+1 {
-			glog.Errorln("list volumes, got", len(vols), "expect", i+1)
+		if len(members) != i+1 {
+			glog.Errorln("list serviceMembers, got", len(members), "expect", i+1)
 			return db.ErrDBInternal
 		}
 	}
 
-	// delete 3 volumes
-	volID := volIDPrefix + fmt.Sprintf("%08x", 2)
-	err := dbcli.DeleteVolume(ctx, serviceUUID, volID)
+	// delete 3 serviceMembers
+	memberName := memberNamePrefix + fmt.Sprintf("%08x", 2)
+	err := dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
 	if err != nil {
-		glog.Errorln("DeleteVolume error", err, volID)
+		glog.Errorln("DeleteServiceMember error", err, memberName)
 		return err
 	}
-	_, err = dbcli.GetVolume(ctx, serviceUUID, volID)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
 	if err != db.ErrDBRecordNotFound {
-		glog.Errorln("get deleted volume, expect db.ErrDBRecordNotFound, got", err)
+		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
-	volID = volIDPrefix + fmt.Sprintf("%08x", 9)
-	err = dbcli.DeleteVolume(ctx, serviceUUID, volID)
+	memberName = memberNamePrefix + fmt.Sprintf("%08x", 9)
+	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
 	if err != nil {
-		glog.Errorln("DeleteVolume error", err, volID)
+		glog.Errorln("DeleteServiceMember error", err, memberName)
 		return err
 	}
-	_, err = dbcli.GetVolume(ctx, serviceUUID, volID)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
 	if err != db.ErrDBRecordNotFound {
-		glog.Errorln("get deleted volume, expect db.ErrDBRecordNotFound, got", err)
+		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
-	volID = volIDPrefix + fmt.Sprintf("%08x", maxCounts-5)
-	err = dbcli.DeleteVolume(ctx, serviceUUID, volID)
+	memberName = memberNamePrefix + fmt.Sprintf("%08x", maxCounts-5)
+	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
 	if err != nil {
-		glog.Errorln("DeleteVolume error", err, volID)
+		glog.Errorln("DeleteServiceMember error", err, memberName)
 		return err
 	}
-	_, err = dbcli.GetVolume(ctx, serviceUUID, volID)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
 	if err != db.ErrDBRecordNotFound {
-		glog.Errorln("get deleted volume, expect db.ErrDBRecordNotFound, got", err)
+		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
 
-	vols, err := dbcli.ListVolumes(ctx, serviceUUID)
+	members, err := dbcli.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
-		glog.Errorln("list volumes error", err)
+		glog.Errorln("list serviceMembers error", err)
 		return err
 	}
-	if len(vols) != maxCounts-3 {
-		glog.Errorln("list volumes, got", len(vols), "expect", maxCounts-3)
+	if len(members) != maxCounts-3 {
+		glog.Errorln("list serviceMembers, got", len(members), "expect", maxCounts-3)
 		return db.ErrDBInternal
 	}
 

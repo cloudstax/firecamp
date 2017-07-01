@@ -53,13 +53,13 @@ var (
 const (
 	defaultPGAdmin = "postgres"
 
-	opCreate    = "create-service"
-	opCheckInit = "check-service-init"
-	opDelete    = "delete-service"
-	opList      = "list-services"
-	opGet       = "get-service"
-	opListVols  = "list-volumes"
-	opGetConfig = "get-config"
+	opCreate      = "create-service"
+	opCheckInit   = "check-service-init"
+	opDelete      = "delete-service"
+	opList        = "list-services"
+	opGet         = "get-service"
+	opListMembers = "list-members"
+	opGetConfig   = "get-config"
 )
 
 func usage() {
@@ -76,13 +76,13 @@ func usage() {
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default\n", opList)
 		case opGet:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opGet)
-		case opListVols:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opListVols)
+		case opListMembers:
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opListMembers)
 		case opGetConfig:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=auuid -fileid=configfileID\n", opGetConfig)
 		default:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s> --help",
-				opCreate, opCheckInit, opDelete, opList, opGet, opListVols)
+				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers)
 		}
 	}
 }
@@ -156,12 +156,12 @@ func main() {
 	case opGet:
 		getService(ctx, cli)
 
-	case opListVols:
-		vols := listServiceVolumes(ctx, cli)
-		fmt.Printf("List %d volumes:\n", len(vols))
-		for _, vol := range vols {
-			fmt.Printf("\t%+v\n", *vol)
-			for _, cfg := range vol.Configs {
+	case opListMembers:
+		members := listServiceMembers(ctx, cli)
+		fmt.Printf("List %d members:\n", len(members))
+		for _, member := range members {
+			fmt.Printf("\t%+v\n", *member)
+			for _, cfg := range member.Configs {
 				fmt.Printf("\t\t%+v\n", *cfg)
 			}
 		}
@@ -171,7 +171,7 @@ func main() {
 
 	default:
 		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s\n",
-			opCreate, opCheckInit, opDelete, opList, opGet, opListVols)
+			opCreate, opCheckInit, opDelete, opList, opGet, opListMembers)
 		os.Exit(-1)
 	}
 }
@@ -326,34 +326,34 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Printf("%+v\n", *attr)
 }
 
-func listServiceVolumes(ctx context.Context, cli *client.ManageClient) []*common.Volume {
-	// list all volumes
+func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {
+	// list all service members
 	serviceReq := &manage.ServiceCommonRequest{
 		Region:      *region,
 		Cluster:     *cluster,
 		ServiceName: *service,
 	}
 
-	listReq := &manage.ListVolumeRequest{
+	listReq := &manage.ListServiceMemberRequest{
 		Service: serviceReq,
 	}
 
-	vols, err := cli.ListVolume(ctx, listReq)
+	members, err := cli.ListServiceMember(ctx, listReq)
 	if err != nil {
-		fmt.Println("ListVolume error", err)
+		fmt.Println("ListServiceMember error", err)
 		os.Exit(-1)
 	}
 
-	return vols
+	return members
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {
-	// list all volumes
-	vols := listServiceVolumes(ctx, cli)
+	// list all service members
+	members := listServiceMembers(ctx, cli)
 
-	volIDs := make([]string, len(vols))
-	for i, vol := range vols {
-		volIDs[i] = vol.VolumeID
+	volIDs := make([]string, len(members))
+	for i, member := range members {
+		volIDs[i] = member.VolumeID
 	}
 
 	// delete the service from the control plane.

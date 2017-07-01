@@ -4,7 +4,7 @@ import "os"
 
 const (
 	maxServiceAttrCacheEntry = 100
-	maxVolumeCacheEntry      = 20
+	maxServiceMemberCacheEntry      = 20
 	requestTimeOutSecs       = 10
 
 	maxVersions   = 10
@@ -13,12 +13,12 @@ const (
 	fileTypeDevice      = 0
 	fileTypeService     = 1
 	fileTypeServiceAttr = 2
-	fileTypeVolume      = 3
+	fileTypeServiceMember      = 3
 
 	tmpFileOpenFlag   = os.O_WRONLY | os.O_CREATE | os.O_TRUNC | os.O_APPEND
 	filepathSeparator = "."
 	serviceDirName    = "servicedir"
-	volumeDirName     = "volumedir"
+	serviceMemberDirName     = "serviceMemberdir"
 	configDirName     = "configdir"
 	tmpFileSuffix     = ".tmp"
 

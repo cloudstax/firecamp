@@ -46,8 +46,8 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			db.DeviceName: {
 				S: aws.String(attr.DeviceName),
 			},
-			db.HasStrictMembership: {
-				BOOL: aws.Bool(attr.HasStrictMembership),
+			db.RegisterDNS: {
+				BOOL: aws.Bool(attr.RegisterDNS),
 			},
 			db.DomainName: {
 				S: aws.String(attr.DomainName),
@@ -166,7 +166,7 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[db.ClusterName].S),
 		*(resp.Item[db.ServiceName].S),
 		*(resp.Item[db.DeviceName].S),
-		*(resp.Item[db.HasStrictMembership].BOOL),
+		*(resp.Item[db.RegisterDNS].BOOL),
 		*(resp.Item[db.DomainName].S),
 		*(resp.Item[db.HostedZoneID].S))
 
@@ -179,8 +179,8 @@ func (d *DynamoDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) er
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
-	// TODO reject if any volume is still mounted, e.g. task still running.
-	// should we reject if some volume still exists? probably not, as aws ecs allows service to be deleted with volumes left.
+	// TODO reject if any serviceMember is still mounted, e.g. task still running.
+	// should we reject if some serviceMember still exists? probably not, as aws ecs allows service to be deleted with serviceMembers left.
 
 	params := &dynamodb.DeleteItemInput{
 		TableName: aws.String(d.serviceAttrTableName),

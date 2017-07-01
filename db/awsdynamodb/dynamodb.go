@@ -19,12 +19,12 @@ type DynamoDB struct {
 	// see https://docs.aws.amazon.com/sdk-for-go/api/aws/session/
 	// session could and should be shared when possible.
 	// Creating service clients concurrently from a shared Session is safe.
-	sess                 *session.Session
-	deviceTableName      string
-	serviceTableName     string
-	serviceAttrTableName string
-	volumeTableName      string
-	configTableName      string
+	sess                   *session.Session
+	deviceTableName        string
+	serviceTableName       string
+	serviceAttrTableName   string
+	serviceMemberTableName string
+	configTableName        string
 }
 
 // DynamoDB related const
@@ -72,7 +72,7 @@ func NewDynamoDB(sess *session.Session, cluster string) *DynamoDB {
 	d.deviceTableName = cluster + common.NameSeparator + db.DeviceTableName
 	d.serviceTableName = cluster + common.NameSeparator + db.ServiceTableName
 	d.serviceAttrTableName = cluster + common.NameSeparator + db.ServiceAttrTableName
-	d.volumeTableName = cluster + common.NameSeparator + db.VolumeTableName
+	d.serviceMemberTableName = cluster + common.NameSeparator + db.ServiceMemberTableName
 	d.configTableName = cluster + common.NameSeparator + db.ConfigTableName
 	return d
 }
@@ -84,7 +84,7 @@ func NewTestDynamoDB(sess *session.Session, tableNameSuffix string) *DynamoDB {
 	d.deviceTableName = "TestDevTable" + tableNameSuffix
 	d.serviceTableName = "TestSvcTable" + tableNameSuffix
 	d.serviceAttrTableName = "TestSvcAttrTable" + tableNameSuffix
-	d.volumeTableName = "TestVolTable" + tableNameSuffix
+	d.serviceMemberTableName = "TestSvcMemberTable" + tableNameSuffix
 	d.configTableName = "TestCfgTable" + tableNameSuffix
 	return d
 }
@@ -109,7 +109,7 @@ func (d *DynamoDB) convertError(err error) error {
 	}
 }
 
-// CreateSystemTables creates device/service/volume tables
+// CreateSystemTables creates device/service/serviceMember tables
 func (d *DynamoDB) CreateSystemTables(ctx context.Context) error {
 	dbsvc := dynamodb.New(d.sess)
 
@@ -134,10 +134,10 @@ func (d *DynamoDB) CreateSystemTables(ctx context.Context) error {
 		return err
 	}
 
-	// create volume table
-	err = d.createVolumeTable(dbsvc)
+	// create serviceMember table
+	err = d.createServiceMemberTable(dbsvc)
 	if err != nil {
-		glog.Errorln("createVolumeTable failed", err)
+		glog.Errorln("createServiceMemberTable failed", err)
 		return err
 	}
 
@@ -260,16 +260,16 @@ func (d *DynamoDB) createServiceAttrTable(dbsvc *dynamodb.DynamoDB) error {
 	return nil
 }
 
-func (d *DynamoDB) createVolumeTable(dbsvc *dynamodb.DynamoDB) error {
+func (d *DynamoDB) createServiceMemberTable(dbsvc *dynamodb.DynamoDB) error {
 	params := &dynamodb.CreateTableInput{
-		TableName: aws.String(d.volumeTableName),
+		TableName: aws.String(d.serviceMemberTableName),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
 			{
 				AttributeName: aws.String(db.ServiceUUID),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 			{
-				AttributeName: aws.String(db.VolumeID),
+				AttributeName: aws.String(db.MemberName),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 		},
@@ -279,7 +279,7 @@ func (d *DynamoDB) createVolumeTable(dbsvc *dynamodb.DynamoDB) error {
 				KeyType:       aws.String(dynamodb.KeyTypeHash),
 			},
 			{
-				AttributeName: aws.String(db.VolumeID),
+				AttributeName: aws.String(db.MemberName),
 				KeyType:       aws.String(dynamodb.KeyTypeRange),
 			},
 		},
@@ -291,11 +291,11 @@ func (d *DynamoDB) createVolumeTable(dbsvc *dynamodb.DynamoDB) error {
 	resp, err := dbsvc.CreateTable(params)
 
 	if err != nil && err.(awserr.Error).Code() != TableInUseException {
-		glog.Errorln("failed to create table", d.volumeTableName, "error", err)
+		glog.Errorln("failed to create table", d.serviceMemberTableName, "error", err)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("volume table", d.volumeTableName, "created or exists, resp", resp)
+	glog.Infoln("serviceMember table", d.serviceMemberTableName, "created or exists, resp", resp)
 	return nil
 }
 
@@ -375,10 +375,10 @@ func (d *DynamoDB) SystemTablesReady(ctx context.Context) (tableStatus string, r
 		return tableStatus, false, nil
 	}
 
-	// check volume table status
-	tableStatus, err = d.getTableStatus(dbsvc, d.volumeTableName)
+	// check serviceMember table status
+	tableStatus, err = d.getTableStatus(dbsvc, d.serviceMemberTableName)
 	if err != nil {
-		glog.Errorln("get volume table status failed", err)
+		glog.Errorln("get serviceMember table status failed", err)
 		return tableStatus, false, err
 	}
 	if tableStatus != db.TableStatusActive {
@@ -429,7 +429,7 @@ func (d *DynamoDB) WaitSystemTablesReady(ctx context.Context, maxWaitSeconds int
 		}
 
 		if ready {
-			glog.Infoln("service/device/volume/config tables are ready")
+			glog.Infoln("service/device/serviceMember/config tables are ready")
 			return nil
 		}
 
@@ -442,18 +442,18 @@ func (d *DynamoDB) WaitSystemTablesReady(ctx context.Context, maxWaitSeconds int
 		}
 	}
 
-	glog.Errorln("service/device/volume/config tables are not ready yet")
+	glog.Errorln("service/device/serviceMember/config tables are not ready yet")
 	return db.ErrDBInternal
 }
 
-// DeleteSystemTables deletes volume/service/device tables.
+// DeleteSystemTables deletes serviceMember/service/device tables.
 func (d *DynamoDB) DeleteSystemTables(ctx context.Context) error {
 	dbsvc := dynamodb.New(d.sess)
 
 	var ferr error
-	err := d.deleteVolumeTable(dbsvc)
+	err := d.deleteServiceMemberTable(dbsvc)
 	if err != nil && err != db.ErrDBTableNotFound {
-		glog.Errorln("delete volume table failed", err)
+		glog.Errorln("delete serviceMember table failed", err)
 		ferr = err
 	}
 
@@ -497,8 +497,8 @@ func (d *DynamoDB) deleteDeviceTable(dbsvc *dynamodb.DynamoDB) error {
 	return d.deleteTable(dbsvc, d.deviceTableName)
 }
 
-func (d *DynamoDB) deleteVolumeTable(dbsvc *dynamodb.DynamoDB) error {
-	return d.deleteTable(dbsvc, d.volumeTableName)
+func (d *DynamoDB) deleteServiceMemberTable(dbsvc *dynamodb.DynamoDB) error {
+	return d.deleteTable(dbsvc, d.serviceMemberTableName)
 }
 
 func (d *DynamoDB) deleteConfigTable(dbsvc *dynamodb.DynamoDB) error {
@@ -556,7 +556,7 @@ func (d *DynamoDB) WaitSystemTablesDeleted(ctx context.Context, maxWaitSeconds i
 			continue
 		}
 
-		tableStatus, err = d.getTableStatus(dbsvc, d.volumeTableName)
+		tableStatus, err = d.getTableStatus(dbsvc, d.serviceMemberTableName)
 		if err != db.ErrDBResourceNotFound && tableStatus != db.TableStatusDeleting {
 			glog.Errorln("get device table status error", err, tableStatus)
 			return db.ErrDBInternal

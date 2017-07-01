@@ -242,18 +242,18 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// list all volumes
-	vols, err := s.dbIns.ListVolumes(ctx, service.ServiceUUID)
+	// list all serviceMembers
+	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
 	if err != nil {
-		glog.Errorln("ListVolumes failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("get service", service, "has", len(vols), "replicas, requuid", requuid)
+	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
 
-	// update the replica (volume) mongod.conf file
-	for _, vol := range vols {
-		for i, cfg := range vol.Configs {
+	// update the replica (serviceMember) mongod.conf file
+	for _, member := range members {
+		for i, cfg := range member.Configs {
 			if !mongodbcatalog.IsMongoDBConfFile(cfg.FileName) {
 				glog.V(5).Infoln("not mongod.conf file, skip the config, requuid", requuid, cfg)
 				continue
@@ -261,13 +261,13 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 
 			glog.Infoln("enable auth on mongod.conf, requuid", requuid, cfg)
 
-			err = s.enableMongoDBAuth(ctx, cfg, i, vol, requuid)
+			err = s.enableMongoDBAuth(ctx, cfg, i, member, requuid)
 			if err != nil {
-				glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, cfg, vol)
+				glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, cfg, member)
 				return manage.ConvertToHTTPError(err)
 			}
 
-			glog.Infoln("enabled auth for replia, requuid", requuid, vol)
+			glog.Infoln("enabled auth for replia, requuid", requuid, member)
 			break
 		}
 	}
@@ -288,17 +288,17 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 }
 
 func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
-	cfg *common.MemberConfig, cfgIndex int, vol *common.Volume, requuid string) error {
+	cfg *common.MemberConfig, cfgIndex int, member *common.ServiceMember, requuid string) error {
 	// fetch the config file
-	cfgfile, err := s.dbIns.GetConfigFile(ctx, vol.ServiceUUID, cfg.FileID)
+	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, vol)
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
 		return err
 	}
 
 	// if auth is enabled, return
 	if mongodbcatalog.IsAuthEnabled(cfgfile.Content) {
-		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, vol)
+		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
 		return nil
 	}
 
@@ -312,30 +312,30 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 		return err
 	}
 
-	newFileID := utils.GenMemberConfigFileID(vol.MemberName, cfgfile.FileName, version+1)
+	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
 	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), vol)
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
 		return err
 	}
 
 	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
 
-	// update volume to point to the new config file
-	newConfigs := db.CopyMemberConfigs(vol.Configs)
+	// update serviceMember to point to the new config file
+	newConfigs := db.CopyMemberConfigs(member.Configs)
 	newConfigs[cfgIndex].FileID = newcfgfile.FileID
 	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
 
-	newVol := db.UpdateVolumeConfigs(vol, newConfigs)
-	err = s.dbIns.UpdateVolume(ctx, vol, newVol)
+	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
 	if err != nil {
-		glog.Errorln("UpdateVolume error", err, "requuid", requuid, vol)
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
 		return err
 	}
 
-	glog.Infoln("updated member configs in the volume, requuid", requuid, newVol)
+	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
 
 	// delete the old config file.
 	// TODO add the background gc mechanism to delete the garbage.

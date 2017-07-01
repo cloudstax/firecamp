@@ -8,7 +8,7 @@ const (
 	// special service operations
 	SpecialOpPrefix      = "?"
 	ListServiceOp        = SpecialOpPrefix + "List-Service"
-	ListVolumeOp         = SpecialOpPrefix + "List-Volume"
+	ListServiceMemberOp         = SpecialOpPrefix + "List-ServiceMember"
 	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
@@ -68,7 +68,7 @@ type CreateServiceRequest struct {
 	Port           int64
 	Envkvs         []*common.EnvKeyValuePair
 
-	HasMembership  bool
+	RegisterDNS    bool
 	ReplicaConfigs []*ReplicaConfig
 }
 
@@ -84,14 +84,14 @@ type GetServiceStatusResponse struct {
 	Status *common.ServiceStatus
 }
 
-// ListVolumeRequest lists the volumes of one service
-type ListVolumeRequest struct {
+// ListServiceMemberRequest lists the serviceMembers of one service
+type ListServiceMemberRequest struct {
 	Service *ServiceCommonRequest
 }
 
-// ListVolumeResponse returns the volumes of one service
-type ListVolumeResponse struct {
-	Volumes []*common.Volume
+// ListServiceMemberResponse returns the serviceMembers of one service
+type ListServiceMemberResponse struct {
+	ServiceMembers []*common.ServiceMember
 }
 
 // ListServiceRequest lists the services according to the filter.

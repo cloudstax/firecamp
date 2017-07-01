@@ -66,7 +66,7 @@ func TestVolumeDriver(t *testing.T) {
 		},
 		Replicas:       int64(taskCounts),
 		VolumeSizeGB:   int64(taskCounts + 1),
-		HasMembership:  true,
+		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
 
@@ -107,15 +107,15 @@ func TestVolumeDriver(t *testing.T) {
 		t.Fatalf("AddServiceTask error", err)
 	}
 
-	vols, err := dbIns.ListVolumes(ctx, uuid2)
-	if err != nil || len(vols) != 1 {
-		t.Fatalf("ListVolumes error", err, "vols", vols)
+	members, err := dbIns.ListServiceMembers(ctx, uuid2)
+	if err != nil || len(members) != 1 {
+		t.Fatalf("ListServiceMembers error", err, "members", members)
 	}
-	vol := vols[0]
-	vol.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
+	member := members[0]
+	member.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
 
 	driver2 := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, vol)
+	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, member)
 
 	// check the device is umounted.
 	mountpath = driver.mountpoint(uuid2)
@@ -173,7 +173,7 @@ func TestVolumeInDifferentZone(t *testing.T) {
 		},
 		Replicas:       int64(taskCounts),
 		VolumeSizeGB:   int64(taskCounts + 1),
-		HasMembership:  true,
+		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
 
@@ -240,7 +240,7 @@ func volumeMountTest(t *testing.T, driver *OpenManageVolumeDriver, svcUUID strin
 }
 
 func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *OpenManageVolumeDriver,
-	driver2 *OpenManageVolumeDriver, svcUUID string, serverIns server.Server, vol *common.Volume) {
+	driver2 *OpenManageVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember) {
 	// mount the volume
 	mreq := volume.MountRequest{Name: svcUUID}
 	mresp := driver.Mount(mreq)
@@ -260,7 +260,7 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 
 	// volume mounted, unmount before exit
 	defer unmount(svcUUID, driver2, t, expecterr)
-	defer serverIns.DetachVolume(ctx, vol.VolumeID, vol.ContainerInstanceID, vol.DeviceName)
+	defer serverIns.DetachVolume(ctx, member.VolumeID, member.ContainerInstanceID, member.DeviceName)
 
 	// get volume
 	req := volume.Request{Name: svcUUID}

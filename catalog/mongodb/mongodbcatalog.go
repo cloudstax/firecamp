@@ -61,7 +61,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 		ContainerPath:  common.DefaultContainerMountPath,
 		Port:           defaultPort,
 
-		HasMembership:  true,
+		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
 	return req, nil

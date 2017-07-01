@@ -516,20 +516,20 @@ func (c *ControlDBCli) DeleteServiceAttr(ctx context.Context, serviceUUID string
 	return err
 }
 
-func (c *ControlDBCli) CreateVolume(ctx context.Context, vol *common.Volume) error {
+func (c *ControlDBCli) CreateServiceMember(ctx context.Context, member *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
-	pbvol := controldb.GenPbVolume(vol)
+	pbmember := controldb.GenPbServiceMember(member)
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		_, err = cli.dbcli.CreateVolume(ctx, pbvol)
+		_, err = cli.dbcli.CreateServiceMember(ctx, pbmember)
 		if err == nil {
-			glog.Infoln("created volume", pbvol, "requuid", requuid)
+			glog.Infoln("created serviceMember", pbmember, "requuid", requuid)
 			return nil
 		}
 
-		glog.Errorln("CreateVolume error", err, "volume", pbvol, "requuid", requuid)
+		glog.Errorln("CreateServiceMember error", err, "serviceMember", pbmember, "requuid", requuid)
 		if grpc.Code(err) == codes.Unknown {
 			// not grpc layer error code, directly return
 			return c.checkAndConvertError(err)
@@ -540,23 +540,23 @@ func (c *ControlDBCli) CreateVolume(ctx context.Context, vol *common.Volume) err
 	return err
 }
 
-func (c *ControlDBCli) UpdateVolume(ctx context.Context, oldVol *common.Volume, newVol *common.Volume) error {
+func (c *ControlDBCli) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
-	req := &pb.UpdateVolumeRequest{
-		OldVol: controldb.GenPbVolume(oldVol),
-		NewVol: controldb.GenPbVolume(newVol),
+	req := &pb.UpdateServiceMemberRequest{
+		OldMember: controldb.GenPbServiceMember(oldMember),
+		NewMember: controldb.GenPbServiceMember(newMember),
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		_, err = cli.dbcli.UpdateVolume(ctx, req)
+		_, err = cli.dbcli.UpdateServiceMember(ctx, req)
 		if err == nil {
-			glog.Infoln("UpdateVolume from", oldVol, "to", newVol, "requuid", requuid)
+			glog.Infoln("UpdateServiceMember from", oldMember, "to", newMember, "requuid", requuid)
 			return nil
 		}
 
-		glog.Errorln("UpdateVolume error", err, "old volume", oldVol, "requuid", requuid)
+		glog.Errorln("UpdateServiceMember error", err, "old serviceMember", oldMember, "requuid", requuid)
 		if grpc.Code(err) == codes.Unknown {
 			// not grpc layer error code, directly return
 			return c.checkAndConvertError(err)
@@ -567,22 +567,22 @@ func (c *ControlDBCli) UpdateVolume(ctx context.Context, oldVol *common.Volume, 
 	return err
 }
 
-func (c *ControlDBCli) GetVolume(ctx context.Context, serviceUUID string, volumeID string) (vol *common.Volume, err error) {
+func (c *ControlDBCli) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	key := &pb.VolumeKey{
+	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		VolumeID:    volumeID,
+		MemberName:  memberName,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		pbvol, err := cli.dbcli.GetVolume(ctx, key)
+		pbmember, err := cli.dbcli.GetServiceMember(ctx, key)
 		if err == nil {
-			glog.Infoln("get volume", pbvol, "requuid", requuid)
-			return controldb.GenDbVolume(pbvol), nil
+			glog.Infoln("get serviceMember", pbmember, "requuid", requuid)
+			return controldb.GenDbServiceMember(pbmember), nil
 		}
 
-		glog.Errorln("GetVolume error", err, "key", key, "requuid", requuid)
+		glog.Errorln("GetServiceMember error", err, "key", key, "requuid", requuid)
 		if grpc.Code(err) == codes.Unknown {
 			// not grpc layer error code, directly return
 			return nil, c.checkAndConvertError(err)
@@ -593,23 +593,23 @@ func (c *ControlDBCli) GetVolume(ctx context.Context, serviceUUID string, volume
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteVolume(ctx context.Context, serviceUUID string, volumeID string) error {
+func (c *ControlDBCli) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
-	key := &pb.VolumeKey{
+	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		VolumeID:    volumeID,
+		MemberName:  memberName,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		pbvol, err := cli.dbcli.DeleteVolume(ctx, key)
+		pbmember, err := cli.dbcli.DeleteServiceMember(ctx, key)
 		if err == nil {
-			glog.Infoln("delete volume", pbvol, "requuid", requuid)
+			glog.Infoln("delete serviceMember", pbmember, "requuid", requuid)
 			return nil
 		}
 
-		glog.Errorln("DeleteVolume error", err, "key", key, "requuid", requuid)
+		glog.Errorln("DeleteServiceMember error", err, "key", key, "requuid", requuid)
 		if grpc.Code(err) == codes.Unknown {
 			// not grpc layer error code, directly return
 			return c.checkAndConvertError(err)
@@ -620,51 +620,51 @@ func (c *ControlDBCli) DeleteVolume(ctx context.Context, serviceUUID string, vol
 	return err
 }
 
-func (c *ControlDBCli) listVolumes(ctx context.Context, serviceUUID string, cli *pbclient,
-	req *pb.ListVolumeRequest, requuid string) (vols []*common.Volume, err error) {
-	stream, err := cli.dbcli.ListVolumes(ctx, req)
+func (c *ControlDBCli) listServiceMembers(ctx context.Context, serviceUUID string, cli *pbclient,
+	req *pb.ListServiceMemberRequest, requuid string) (members []*common.ServiceMember, err error) {
+	stream, err := cli.dbcli.ListServiceMembers(ctx, req)
 	if err != nil {
-		glog.Errorln("ListVolumes error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers error", err, "serviceUUID", serviceUUID, "requuid", requuid)
 		return nil, err
 	}
 
 	for {
-		pbvol, err := stream.Recv()
+		pbmember, err := stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			glog.Errorln("list one volume error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+			glog.Errorln("list one serviceMember error", err, "serviceUUID", serviceUUID, "requuid", requuid)
 			return nil, err
 		}
 
-		vol := controldb.GenDbVolume(pbvol)
-		vols = append(vols, vol)
-		glog.V(1).Infoln("list one volume", vol, "total", len(vols), "requuid", requuid)
+		member := controldb.GenDbServiceMember(pbmember)
+		members = append(members, member)
+		glog.V(1).Infoln("list one serviceMember", member, "total", len(members), "requuid", requuid)
 	}
 
-	if len(vols) > 0 {
-		glog.Infoln("list", len(vols), "volumes, last volume is", vols[len(vols)-1], "requuid", requuid)
+	if len(members) > 0 {
+		glog.Infoln("list", len(members), "serviceMembers, last serviceMember is", members[len(members)-1], "requuid", requuid)
 	} else {
-		glog.Infoln("service has no volume", serviceUUID, "requuid", requuid)
+		glog.Infoln("service has no serviceMember", serviceUUID, "requuid", requuid)
 	}
-	return vols, nil
+	return members, nil
 }
 
-func (c *ControlDBCli) ListVolumes(ctx context.Context, serviceUUID string) (vols []*common.Volume, err error) {
+func (c *ControlDBCli) ListServiceMembers(ctx context.Context, serviceUUID string) (members []*common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	req := &pb.ListVolumeRequest{
+	req := &pb.ListServiceMemberRequest{
 		ServiceUUID: serviceUUID,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
-		vols, err = c.listVolumes(ctx, serviceUUID, cli, req, requuid)
+		members, err = c.listServiceMembers(ctx, serviceUUID, cli, req, requuid)
 		if err == nil {
-			return vols, nil
+			return members, nil
 		}
 
-		glog.Errorln("ListVolumes error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers error", err, "serviceUUID", serviceUUID, "requuid", requuid)
 		if grpc.Code(err) == codes.Unknown {
 			// not grpc layer error code, directly return
 			return nil, c.checkAndConvertError(err)

@@ -67,17 +67,17 @@ func EqualService(a1 *pb.Service, a2 *pb.Service) bool {
 
 func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 	pbAttr := &pb.ServiceAttr{
-		ServiceUUID:         attr.ServiceUUID,
-		ServiceStatus:       attr.ServiceStatus,
-		LastModified:        attr.LastModified,
-		Replicas:            attr.Replicas,
-		VolumeSizeGB:        attr.VolumeSizeGB,
-		ClusterName:         attr.ClusterName,
-		ServiceName:         attr.ServiceName,
-		DeviceName:          attr.DeviceName,
-		HasStrictMembership: attr.HasStrictMembership,
-		DomainName:          attr.DomainName,
-		HostedZoneID:        attr.HostedZoneID,
+		ServiceUUID:   attr.ServiceUUID,
+		ServiceStatus: attr.ServiceStatus,
+		LastModified:  attr.LastModified,
+		Replicas:      attr.Replicas,
+		VolumeSizeGB:  attr.VolumeSizeGB,
+		ClusterName:   attr.ClusterName,
+		ServiceName:   attr.ServiceName,
+		DeviceName:    attr.DeviceName,
+		RegisterDNS:   attr.RegisterDNS,
+		DomainName:    attr.DomainName,
+		HostedZoneID:  attr.HostedZoneID,
 	}
 	return pbAttr
 }
@@ -91,7 +91,7 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 		attr.ClusterName,
 		attr.ServiceName,
 		attr.DeviceName,
-		attr.HasStrictMembership,
+		attr.RegisterDNS,
 		attr.DomainName,
 		attr.HostedZoneID)
 	return dbAttr
@@ -106,7 +106,7 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.ClusterName == a2.ClusterName &&
 		a1.ServiceName == a2.ServiceName &&
 		a1.DeviceName == a2.DeviceName &&
-		a1.HasStrictMembership == a2.HasStrictMembership &&
+		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID {
 		return true
@@ -130,20 +130,20 @@ func GenPbMemberConfig(cfgs []*common.MemberConfig) []*pb.MemberConfig {
 	return pbcfgs
 }
 
-func GenPbVolume(vol *common.Volume) *pb.Volume {
-	pbvol := &pb.Volume{
-		ServiceUUID:         vol.ServiceUUID,
-		VolumeID:            vol.VolumeID,
-		LastModified:        vol.LastModified,
-		DeviceName:          vol.DeviceName,
-		AvailableZone:       vol.AvailableZone,
-		TaskID:              vol.TaskID,
-		ContainerInstanceID: vol.ContainerInstanceID,
-		ServerInstanceID:    vol.ServerInstanceID,
-		MemberName:          vol.MemberName,
-		Configs:             GenPbMemberConfig(vol.Configs),
+func GenPbServiceMember(member *common.ServiceMember) *pb.ServiceMember {
+	pbmember := &pb.ServiceMember{
+		ServiceUUID:         member.ServiceUUID,
+		VolumeID:            member.VolumeID,
+		LastModified:        member.LastModified,
+		DeviceName:          member.DeviceName,
+		AvailableZone:       member.AvailableZone,
+		TaskID:              member.TaskID,
+		ContainerInstanceID: member.ContainerInstanceID,
+		ServerInstanceID:    member.ServerInstanceID,
+		MemberName:          member.MemberName,
+		Configs:             GenPbMemberConfig(member.Configs),
 	}
-	return pbvol
+	return pbmember
 }
 
 func GenDbMemberConfig(cfgs []*pb.MemberConfig) []*common.MemberConfig {
@@ -162,18 +162,18 @@ func GenDbMemberConfig(cfgs []*pb.MemberConfig) []*common.MemberConfig {
 	return dbcfgs
 }
 
-func GenDbVolume(vol *pb.Volume) *common.Volume {
-	dbvol := db.CreateVolume(vol.ServiceUUID,
-		vol.VolumeID,
-		vol.LastModified,
-		vol.DeviceName,
-		vol.AvailableZone,
-		vol.TaskID,
-		vol.ContainerInstanceID,
-		vol.ServerInstanceID,
-		vol.MemberName,
-		GenDbMemberConfig(vol.Configs))
-	return dbvol
+func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
+	dbmember := db.CreateServiceMember(member.ServiceUUID,
+		member.VolumeID,
+		member.LastModified,
+		member.DeviceName,
+		member.AvailableZone,
+		member.TaskID,
+		member.ContainerInstanceID,
+		member.ServerInstanceID,
+		member.MemberName,
+		GenDbMemberConfig(member.Configs))
+	return dbmember
 }
 
 func EqualMemberConfig(c1 []*pb.MemberConfig, c2 []*pb.MemberConfig) bool {
@@ -190,7 +190,7 @@ func EqualMemberConfig(c1 []*pb.MemberConfig, c2 []*pb.MemberConfig) bool {
 	return true
 }
 
-func EqualVolume(a1 *pb.Volume, a2 *pb.Volume, skipMtime bool) bool {
+func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bool) bool {
 	if a1.ServiceUUID == a2.ServiceUUID &&
 		a1.VolumeID == a2.VolumeID &&
 		(skipMtime || a1.LastModified == a2.LastModified) &&
@@ -259,8 +259,8 @@ func CopyMemberConfig(a1 []*pb.MemberConfig) []*pb.MemberConfig {
 	return cfgs
 }
 
-func CopyVolume(a1 *pb.Volume) *pb.Volume {
-	return &pb.Volume{
+func CopyServiceMember(a1 *pb.ServiceMember) *pb.ServiceMember {
+	return &pb.ServiceMember{
 		ServiceUUID:         a1.ServiceUUID,
 		VolumeID:            a1.VolumeID,
 		LastModified:        a1.LastModified,

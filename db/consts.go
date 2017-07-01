@@ -11,20 +11,20 @@ const (
 	ServiceTableName = common.SystemName + "-service-table"
 	// ServiceAttr table
 	ServiceAttrTableName = common.SystemName + "-serviceattr-table"
-	// Volume table
-	VolumeTableName = common.SystemName + "-volume-table"
+	// ServiceMember table
+	ServiceMemberTableName = common.SystemName + "-servicemember-table"
 	// ConfigFile table
 	ConfigTableName = common.SystemName + "-config-table"
 
-	ClusterName         = "ClusterName"
-	ServiceName         = "ServiceName"
-	ServiceStatus       = "ServiceStatus"
-	ServiceUUID         = "ServiceUUID"
-	Replicas            = "Replicas"
-	HasStrictMembership = "HasStrictMembership"
-	DomainName          = "DomainName"
-	HostedZoneID        = "HostedZoneID"
-	LastModified        = "LastModified"
+	ClusterName   = "ClusterName"
+	ServiceName   = "ServiceName"
+	ServiceStatus = "ServiceStatus"
+	ServiceUUID   = "ServiceUUID"
+	Replicas      = "Replicas"
+	RegisterDNS   = "RegisterDNS"
+	DomainName    = "DomainName"
+	HostedZoneID  = "HostedZoneID"
+	LastModified  = "LastModified"
 
 	VolumeID            = "VolumeID"
 	VolumeSizeGB        = "VolumeSizeGB"
@@ -50,16 +50,16 @@ const (
 	// 2. The hash+range pair does not exist in the database.
 	// 			attribute_not_exists(hash) must be false
 	//			attribute_not_exists(range) must be false
-	ServicePutCondition     = "attribute_not_exists(" + ServiceName + ")"
-	ServiceDelCondition     = "attribute_exists(" + ServiceName + ")"
-	ServiceAttrPutCondition = "attribute_not_exists(" + ServiceUUID + ")"
-	ServiceAttrDelCondition = "attribute_exists(" + ServiceUUID + ")"
-	DevicePutCondition      = "attribute_not_exists(" + DeviceName + ")"
-	DeviceDelCondition      = "attribute_exists(" + DeviceName + ")"
-	VolumePutCondition      = "attribute_not_exists(" + VolumeID + ")"
-	VolumeDelCondition      = "attribute_exists(" + VolumeID + ")"
-	ConfigFilePutCondition  = "attribute_not_exists(" + ConfigFileID + ")"
-	ConfigFileDelCondition  = "attribute_exists(" + ConfigFileID + ")"
+	ServicePutCondition       = "attribute_not_exists(" + ServiceName + ")"
+	ServiceDelCondition       = "attribute_exists(" + ServiceName + ")"
+	ServiceAttrPutCondition   = "attribute_not_exists(" + ServiceUUID + ")"
+	ServiceAttrDelCondition   = "attribute_exists(" + ServiceUUID + ")"
+	DevicePutCondition        = "attribute_not_exists(" + DeviceName + ")"
+	DeviceDelCondition        = "attribute_exists(" + DeviceName + ")"
+	ServiceMemberPutCondition = "attribute_not_exists(" + VolumeID + ")"
+	ServiceMemberDelCondition = "attribute_exists(" + VolumeID + ")"
+	ConfigFilePutCondition    = "attribute_not_exists(" + ConfigFileID + ")"
+	ConfigFileDelCondition    = "attribute_exists(" + ConfigFileID + ")"
 
 	// The status of one table
 	TableStatusCreating = "CREATING"

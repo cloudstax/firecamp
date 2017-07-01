@@ -19,7 +19,7 @@ import (
 
 // Service creation requires 3 steps
 // 1. decide the cluster and service name, the number of replicas for the service,
-//    volume size and available zone.
+//    serviceMember size and available zone.
 // 2. call our script to create the service with all service attributes.
 // 3. create the task definition and service in ECS in the target cluster with
 //    the same service name and replica number.
@@ -31,7 +31,7 @@ import (
 //   service already has the device item, this is possible as failure could happen at any time.
 // - create the service item in DynamoDB
 // - create the service attribute record with CREATING state.
-// - create the desired number of volumes, and create IDLE volume items in DB.
+// - create the desired number of serviceMembers, and create IDLE serviceMember items in DB.
 // - update the service attribute state to ACTIVE.
 // The failure handling is simple. If the script failed at some step, user will get error and retry.
 // Could have a background scanner to clean up the dead service, in case user didn't retry.
@@ -86,7 +86,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	}
 
 	hostedZoneID := ""
-	if req.HasMembership {
+	if req.RegisterDNS {
 		if len(domainName) == 0 {
 			// use the default domainName
 			domainName = dns.GenDefaultDomainName(req.Service.Cluster)
@@ -133,10 +133,10 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
-	// create the desired number of volumes
-	err = s.checkAndCreateServiceVolumes(ctx, serviceUUID, deviceName, req)
+	// create the desired number of serviceMembers
+	err = s.checkAndCreateServiceMembers(ctx, serviceUUID, deviceName, req)
 	if err != nil {
-		glog.Errorln("checkAndCreateServiceVolumes failed", err, "requuid", requuid, "service", serviceAttr)
+		glog.Errorln("checkAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
 	}
 
@@ -201,10 +201,10 @@ func (s *ManageService) SetServiceInitialized(ctx context.Context, cluster strin
 	}
 }
 
-// ListVolumes return all volumes of the service. DeleteService will not delete the
-// actual volume in cloud, such as EBS. Customer should ListVolumes before DeleteService,
-// and delete the actual volume manually.
-func (s *ManageService) ListVolumes(ctx context.Context, cluster string, service string) (volumes []string, err error) {
+// ListServiceVolumes return all volumes of the service. DeleteService will not delete the
+// actual volume in cloud, such as EBS. Customer should ListServiceVolumes before DeleteService,
+// and delete the actual volumes manually.
+func (s *ManageService) ListServiceVolumes(ctx context.Context, cluster string, service string) (serviceVolumes []string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get service
@@ -214,20 +214,20 @@ func (s *ManageService) ListVolumes(ctx context.Context, cluster string, service
 		return nil, err
 	}
 
-	// get service volumes
-	vols, err := s.dbIns.ListVolumes(ctx, sitem.ServiceUUID)
+	// get service serviceMembers
+	members, err := s.dbIns.ListServiceMembers(ctx, sitem.ServiceUUID)
 	if err != nil {
-		glog.Errorln("ListVolumes error", err, "requuid", requuid, "service", sitem)
+		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, "service", sitem)
 		return nil, err
 	}
 
-	volumes = make([]string, len(vols))
-	for i, v := range vols {
-		volumes[i] = v.VolumeID
+	serviceVolumes = make([]string, len(members))
+	for i, m := range members {
+		serviceVolumes[i] = m.VolumeID
 	}
 
-	glog.Infoln("cluster", cluster, "service", service, "has", len(volumes), "volumes, requuid", requuid)
-	return volumes, nil
+	glog.Infoln("cluster", cluster, "service", service, "has", len(serviceVolumes), "serviceVolumes, requuid", requuid)
+	return serviceVolumes, nil
 }
 
 // DeleteVolume actually deletes one volume
@@ -270,7 +270,7 @@ func (s *ManageService) ListServices(ctx context.Context, cluster string) (svcs 
 // DeleteService deletes the service record from db.
 // Notes:
 //   - caller should stop and delete the service on the container platform.
-//   - the actual cloud volumes of this service are not deleted, customer needs
+//   - the actual cloud serviceMembers of this service are not deleted, customer needs
 //     to delete them manually.
 func (s *ManageService) DeleteService(ctx context.Context, cluster string, service string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
@@ -309,57 +309,58 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		glog.Infoln("service is already at deleting status, requuid", requuid, sattr)
 	}
 
-	// get service volumes
-	vols, err := s.dbIns.ListVolumes(ctx, sattr.ServiceUUID)
+	// get service serviceMembers
+	members, err := s.dbIns.ListServiceMembers(ctx, sattr.ServiceUUID)
 	if err != nil {
-		glog.Errorln("ListVolumes error", err, "requuid", requuid, "service attr", sattr)
+		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, "service attr", sattr)
 		return err
 	}
 
 	// delete the member's dns record and config files
 	glog.Infoln("deleting the config files from DB, service attr, requuid", requuid, sattr)
-	for _, v := range vols {
+	for _, m := range members {
 		// delete the member's dns record
-		dnsname := dns.GenDNSName(v.MemberName, sattr.DomainName)
+		dnsname := dns.GenDNSName(m.MemberName, sattr.DomainName)
 		hostname, err := s.dnsIns.GetDNSRecord(ctx, dnsname, sattr.HostedZoneID)
 		if err == nil {
 			// delete the dns record
 			err = s.dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, sattr.HostedZoneID)
 			if err == nil {
-				glog.Infoln("deleted dns record, dnsname", dnsname, "HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+				glog.Infoln("deleted dns record, dnsname", dnsname, "HostedZone",
+					sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
 			} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
 				// skip the dns record deletion error
 				glog.Errorln("DeleteDNSRecord error", err, "dnsname", dnsname,
-					"HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+					"HostedZone", sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
 			}
 		} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
 			// skip the unknown dns error, as it would only leave a garbage in the dns system.
 			glog.Errorln("GetDNSRecord error", err, "dnsname", dnsname,
-				"HostedZone", sattr.HostedZoneID, "requuid", requuid, "volume", v)
+				"HostedZone", sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
 		}
 
 		// delete the member's config files
-		for _, c := range v.Configs {
-			err := s.dbIns.DeleteConfigFile(ctx, v.ServiceUUID, c.FileID)
+		for _, c := range m.Configs {
+			err := s.dbIns.DeleteConfigFile(ctx, m.ServiceUUID, c.FileID)
 			if err != nil && err != db.ErrDBRecordNotFound {
-				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c, "volume", v)
+				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c, "serviceMember", m)
 				return err
 			}
-			glog.V(1).Infoln("deleted config file", c.FileID, v.ServiceUUID, "requuid", requuid)
+			glog.V(1).Infoln("deleted config file", c.FileID, m.ServiceUUID, "requuid", requuid)
 		}
 	}
 
-	// delete all volume records in DB
-	glog.Infoln("deleting volumes from DB, service attr", sattr, "volumes", len(vols), "requuid", requuid)
-	for _, v := range vols {
-		err := s.dbIns.DeleteVolume(ctx, v.ServiceUUID, v.VolumeID)
+	// delete all serviceMember records in DB
+	glog.Infoln("deleting serviceMembers from DB, service attr", sattr, "serviceMembers", len(members), "requuid", requuid)
+	for _, m := range members {
+		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberName)
 		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("DeleteVolume error", err, "requuid", requuid, v)
+			glog.Errorln("DeleteServiceMember error", err, "requuid", requuid, m)
 			return err
 		}
-		glog.V(1).Infoln("deleted volume, requuid", requuid, v)
+		glog.V(1).Infoln("deleted serviceMember, requuid", requuid, m)
 	}
-	glog.Infoln("deleted", len(vols), "volumes from DB, service attr", sattr, "requuid", requuid)
+	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
 
 	// delete the device
 	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceName)
@@ -576,7 +577,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.VolumeSizeGB,
-		req.Service.Cluster, req.Service.ServiceName, deviceName, req.HasMembership, domainName, hostedZoneID)
+		req.Service.Cluster, req.Service.ServiceName, deviceName, req.RegisterDNS, domainName, hostedZoneID)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -635,33 +636,30 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	}
 }
 
-func (s *ManageService) checkAndCreateServiceVolumes(ctx context.Context, serviceUUID string, devName string,
-	req *manage.CreateServiceRequest) error {
+func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
+	serviceUUID string, devName string, req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// list to find out how many volumes were already created
-	vols, err := s.dbIns.ListVolumes(ctx, serviceUUID)
+	// list to find out how many serviceMembers were already created
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
-		glog.Errorln("ListVolumes failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
 		return err
 	}
 
-	// TODO check the config in the existing volumes.
+	// TODO check the config in the existing serviceMembers.
 	// if config file does not match, return error. The customer should not do like:
 	// 1) create the service, but failed as the node crashes
 	// 2) the customer retries the creation with the different config.
-	// Currently we don't support this case, as some volumes may have been created with the
-	// old config. The retry will not recreate those volumes.
+	// Currently we don't support this case, as some serviceMembers may have been created with the
+	// old config. The retry will not recreate those serviceMembers.
 	// If the customer wants to retry with the different config, should delete the current service first.
 
-	allVols := make([]*common.Volume, req.Replicas)
-	copy(allVols, vols)
+	allMembers := make([]*common.ServiceMember, req.Replicas)
+	copy(allMembers, members)
 
-	for i := int64(len(vols)); i < req.Replicas; i++ {
-		memberName := ""
-		if req.HasMembership {
-			memberName = utils.GenServiceMemberName(req.Service.ServiceName, i)
-		}
+	for i := int64(len(members)); i < req.Replicas; i++ {
+		memberName := utils.GenServiceMemberName(req.Service.ServiceName, i)
 
 		// check and create the config file first
 		replicaCfg := req.ReplicaConfigs[i]
@@ -672,29 +670,29 @@ func (s *ManageService) checkAndCreateServiceVolumes(ctx context.Context, servic
 			return err
 		}
 
-		vol, err := s.createServiceVolume(ctx, serviceUUID, req.VolumeSizeGB,
+		member, err := s.createServiceMember(ctx, serviceUUID, req.VolumeSizeGB,
 			req.ReplicaConfigs[i].Zone, devName, memberName, cfgs)
 		if err != nil {
-			glog.Errorln("create volume failed, serviceUUID", serviceUUID, "member", memberName,
+			glog.Errorln("create serviceMember failed, serviceUUID", serviceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
 			return err
 		}
-		allVols[i] = vol
+		allMembers[i] = member
 	}
 
-	glog.Infoln("created", req.Replicas-int64(len(vols)), "volumes for serviceUUID",
+	glog.Infoln("created", req.Replicas-int64(len(members)), "serviceMembers for serviceUUID",
 		serviceUUID, req.Service, "requuid", requuid)
 
-	// EBS volume creation is async in the background. volume state will be creating,
-	// then available. block waiting here, as EBS volume creation is pretty fast,
+	// EBS volume creation is async in the background. Volume state will be creating,
+	// then available. block waiting here, as EBS Volume creation is pretty fast,
 	// usually 3 seconds. see ec2_test.go output.
-	for _, vol := range allVols {
-		err = s.serverIns.WaitVolumeCreated(ctx, vol.VolumeID)
+	for _, member := range allMembers {
+		err = s.serverIns.WaitVolumeCreated(ctx, member.VolumeID)
 		if err != nil {
-			glog.Errorln("WaitVolumeCreated error", err, "volume", vol, "requuid", requuid)
+			glog.Errorln("WaitVolumeCreated error", err, "serviceMember", member, "requuid", requuid)
 			return err
 		}
-		glog.Infoln("created volume", vol.VolumeID, req.Service, "requuid", requuid)
+		glog.Infoln("created volume", member.VolumeID, req.Service, "requuid", requuid)
 	}
 
 	return nil
@@ -721,24 +719,23 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 	return configs, nil
 }
 
-func (s *ManageService) createServiceVolume(ctx context.Context, serviceUUID string, volSize int64, az string,
-	devName string, memberName string, cfgs []*common.MemberConfig) (vol *common.Volume, err error) {
+func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volSize int64, az string,
+	devName string, memberName string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	volID, err := s.serverIns.CreateVolume(ctx, az, volSize)
 	if err != nil {
-		glog.Errorln("CreateVolume failed, volID", volID,
-			"serviceUUID", serviceUUID, "az", az, "error", err, "requuid", requuid)
+		glog.Errorln("CreateVolume failed, volID", volID, "serviceUUID", serviceUUID, "az", az, "error", err, "requuid", requuid)
 		return nil, err
 	}
 
-	vol = db.CreateInitialVolume(serviceUUID, volID, devName, az, memberName, cfgs)
-	err = s.dbIns.CreateVolume(ctx, vol)
+	member = db.CreateInitialServiceMember(serviceUUID, volID, devName, az, memberName, cfgs)
+	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
-		glog.Errorln("CreateVolume in DB failed, Volume", vol, "error", err, "requuid", requuid)
+		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)
 		return nil, err
 	}
 
-	glog.Infoln("created volume", vol, "requuid", requuid)
-	return vol, nil
+	glog.Infoln("created serviceMember", member, "requuid", requuid)
+	return member, nil
 }

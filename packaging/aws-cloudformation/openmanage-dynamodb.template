@@ -147,7 +147,7 @@
         }
       }
     },
-    "VolumeTable" : {
+    "MemberTable" : {
       "Type" : "AWS::DynamoDB::Table",
       "Properties" : {
         "TableName" : {
@@ -157,7 +157,7 @@
               {
                 "Ref": "ECSClusterName"
               },
-              "openmanage-volume-table"
+              "openmanage-servicemember-table"
             ]
           ]
         },
@@ -167,7 +167,7 @@
             "AttributeType" : "S"
           },
           {
-            "AttributeName" : "VolumeID",
+            "AttributeName" : "MemberName",
             "AttributeType" : "S"
           }
         ],
@@ -177,7 +177,7 @@
             "KeyType" : "HASH"
           },
           {
-            "AttributeName" : "VolumeID",
+            "AttributeName" : "MemberName",
             "KeyType" : "RANGE"
           }
         ],

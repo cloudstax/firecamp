@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	// Volumes need to be created in advance. So TaskID, ContainerInstanceID
-	// and ServerInstanceID would be empty at volume creation.
-	// set them to default values, this will help the later conditional volume update.
+	// Service members need to be created in advance. So TaskID, ContainerInstanceID
+	// and ServerInstanceID would be empty at service member creation.
+	// set them to default values, this will help the later conditional update.
 	DefaultTaskID              = "defaultTaskID"
 	DefaultContainerInstanceID = "defaultContainerInstanceID"
 	DefaultServerInstanceID    = "defaultServerInstanceID"
@@ -54,37 +54,37 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int64,
 	cluster string, service string, devName string,
-	hasStrictMembership bool, domain string, hostedZoneID string) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:         serviceUUID,
-		ServiceStatus:       common.ServiceStatusCreating,
-		LastModified:        time.Now().UnixNano(),
-		Replicas:            replicas,
-		VolumeSizeGB:        volSizeGB,
-		ClusterName:         cluster,
-		ServiceName:         service,
-		DeviceName:          devName,
-		HasStrictMembership: hasStrictMembership,
-		DomainName:          domain,
-		HostedZoneID:        hostedZoneID,
+		ServiceUUID:   serviceUUID,
+		ServiceStatus: common.ServiceStatusCreating,
+		LastModified:  time.Now().UnixNano(),
+		Replicas:      replicas,
+		VolumeSizeGB:  volSizeGB,
+		ClusterName:   cluster,
+		ServiceName:   service,
+		DeviceName:    devName,
+		RegisterDNS:   registerDNS,
+		DomainName:    domain,
+		HostedZoneID:  hostedZoneID,
 	}
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64, volSizeGB int64,
 	cluster string, service string, devName string,
-	hasStrictMembership bool, domain string, hostedZoneID string) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:         serviceUUID,
-		ServiceStatus:       status,
-		LastModified:        mtime,
-		Replicas:            replicas,
-		VolumeSizeGB:        volSizeGB,
-		ClusterName:         cluster,
-		ServiceName:         service,
-		DeviceName:          devName,
-		HasStrictMembership: hasStrictMembership,
-		DomainName:          domain,
-		HostedZoneID:        hostedZoneID,
+		ServiceUUID:   serviceUUID,
+		ServiceStatus: status,
+		LastModified:  mtime,
+		Replicas:      replicas,
+		VolumeSizeGB:  volSizeGB,
+		ClusterName:   cluster,
+		ServiceName:   service,
+		DeviceName:    devName,
+		RegisterDNS:   registerDNS,
+		DomainName:    domain,
+		HostedZoneID:  hostedZoneID,
 	}
 }
 
@@ -97,7 +97,7 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.ClusterName == t2.ClusterName &&
 		t1.ServiceName == t2.ServiceName &&
 		t1.DeviceName == t2.DeviceName &&
-		t1.HasStrictMembership == t2.HasStrictMembership &&
+		t1.RegisterDNS == t2.RegisterDNS &&
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID {
 		return true
@@ -107,23 +107,23 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 
 func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:         t1.ServiceUUID,
-		ServiceStatus:       status,
-		LastModified:        time.Now().UnixNano(),
-		Replicas:            t1.Replicas,
-		VolumeSizeGB:        t1.VolumeSizeGB,
-		ClusterName:         t1.ClusterName,
-		ServiceName:         t1.ServiceName,
-		DeviceName:          t1.DeviceName,
-		HasStrictMembership: t1.HasStrictMembership,
-		DomainName:          t1.DomainName,
-		HostedZoneID:        t1.HostedZoneID,
+		ServiceUUID:   t1.ServiceUUID,
+		ServiceStatus: status,
+		LastModified:  time.Now().UnixNano(),
+		Replicas:      t1.Replicas,
+		VolumeSizeGB:  t1.VolumeSizeGB,
+		ClusterName:   t1.ClusterName,
+		ServiceName:   t1.ServiceName,
+		DeviceName:    t1.DeviceName,
+		RegisterDNS:   t1.RegisterDNS,
+		DomainName:    t1.DomainName,
+		HostedZoneID:  t1.HostedZoneID,
 	}
 }
 
-func CreateInitialVolume(serviceUUID string, volID string, devName string, az string,
-	memberName string, configs []*common.MemberConfig) *common.Volume {
-	return &common.Volume{
+func CreateInitialServiceMember(serviceUUID string, volID string, devName string, az string,
+	memberName string, configs []*common.MemberConfig) *common.ServiceMember {
+	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		VolumeID:            volID,
 		LastModified:        time.Now().UnixNano(),
@@ -137,9 +137,9 @@ func CreateInitialVolume(serviceUUID string, volID string, devName string, az st
 	}
 }
 
-func CreateVolume(serviceUUID string, volID string, mtime int64, devName string, az string,
-	taskID string, containerInstanceID string, ec2InstanceID string, memberName string, configs []*common.MemberConfig) *common.Volume {
-	return &common.Volume{
+func CreateServiceMember(serviceUUID string, volID string, mtime int64, devName string, az string,
+	taskID string, containerInstanceID string, ec2InstanceID string, memberName string, configs []*common.MemberConfig) *common.ServiceMember {
+	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		VolumeID:            volID,
 		LastModified:        mtime,
@@ -153,7 +153,7 @@ func CreateVolume(serviceUUID string, volID string, mtime int64, devName string,
 	}
 }
 
-func EqualVolume(t1 *common.Volume, t2 *common.Volume, skipMtime bool) bool {
+func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
 	if t1.ServiceUUID == t2.ServiceUUID &&
 		t1.VolumeID == t2.VolumeID &&
 		(skipMtime || t1.LastModified == t2.LastModified) &&
@@ -195,8 +195,8 @@ func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
 	return c2
 }
 
-func UpdateVolumeConfigs(t1 *common.Volume, c []*common.MemberConfig) *common.Volume {
-	return &common.Volume{
+func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConfig) *common.ServiceMember {
+	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
 		VolumeID:            t1.VolumeID,
 		LastModified:        time.Now().UnixNano(),
@@ -210,8 +210,8 @@ func UpdateVolumeConfigs(t1 *common.Volume, c []*common.MemberConfig) *common.Vo
 	}
 }
 
-func UpdateVolumeOwner(t1 *common.Volume, taskID string, containerInstanceID string, ec2InstanceID string) *common.Volume {
-	return &common.Volume{
+func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, containerInstanceID string, ec2InstanceID string) *common.ServiceMember {
+	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
 		VolumeID:            t1.VolumeID,
 		LastModified:        time.Now().UnixNano(),
