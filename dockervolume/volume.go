@@ -28,7 +28,8 @@ import (
 
 const (
 	defaultRoot   = "/mnt/" + common.SystemName
-	defaultFStype = "ext4"
+	defaultFSType = "xfs"
+	defaultMkfs   = "mkfs.xfs"
 	tmpfileSuffix = ".tmp"
 )
 
@@ -840,7 +841,7 @@ func (d *OpenManageVolumeDriver) removeMountPath(mountPath string) error {
 }
 
 func (d *OpenManageVolumeDriver) mountFS(source string, target string) error {
-	args := d.getMountArgs(source, target, defaultFStype, defaultMountOptions)
+	args := d.getMountArgs(source, target, defaultFSType, defaultMountOptions)
 
 	command := exec.Command(args[0], args[1:]...)
 	output, err := command.CombinedOutput()
@@ -886,14 +887,14 @@ func (d *OpenManageVolumeDriver) unmountFS(target string) error {
 	return nil
 }
 
-// Format formats the source device to ext4
+// formats the source device
 func (d *OpenManageVolumeDriver) formatFS(source string) error {
 	var args []string
-	args = append(args, "mkfs.ext4", source)
+	args = append(args, defaultMkfs, source)
 	command := exec.Command(args[0], args[1:]...)
 	output, err := command.CombinedOutput()
 	if err != nil {
-		glog.Errorln("mkfs.ext4 failed, arguments", args, "output", string(output[:]), "error", err)
+		glog.Errorln(defaultMkfs, "failed, arguments", args, "output", string(output[:]), "error", err)
 		return err
 	}
 
