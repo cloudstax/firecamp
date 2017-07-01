@@ -117,27 +117,29 @@ fi
 . "$PGConfigFile"
 
 # check all required configs are loaded
-if [ -z "$CONTAINER_ROLE" ] || [ -z "$PRIMARY_HOST" ] || [ -z "$POSTGRES_PASSWORD" ] || [ -z "$REPLICATION_USER" ] || [ -z "$REPLICATION_PASSWORD" ]
+if [ -z "$CONTAINER_ROLE" ] || [ -z "$PRIMARY_HOST" ]
 then
   echo "error: please write all required configs in the config file $PGConfigFile." >&2
   exit 1
 fi
 
-# chown if needed
-pgdirid=$(stat -c "%u" $PGDIR)
-if [ "$pgdirid" != "$(id -u)" ]; then
-  echo "chown -R $(id -u) $PGDIR"
-	chown -R "$(id -u)" "$PGDIR" 2>/dev/null || :
-fi
-
 # if PG_VERSION file does not exist, db is not initialized
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$REPLICATION_USER" ] || [ -z "$REPLICATION_PASSWORD" ]
+  then
+    echo "error: please include password and repliation user/password in the config file $PGConfigFile." >&2
+    exit 1
+  fi
+
   if [ "$CONTAINER_ROLE" = "$ROLE_PRIMARY" ]; then
     InitPrimaryDB
   else
     InitStandbyDB
   fi
 fi
+
+# Currently the PG conf files will not be changed once created.
+# So no need to copy over the conf files to $PGDATA
 
 echo "$@"
 exec "$@"

@@ -34,7 +34,7 @@ var (
 	reserveMemMB = flag.Int64("soft-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
-	admin       = flag.String("admin", "dbadmin", "The DB admin")
+	admin       = flag.String("admin", "dbadmin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
 	adminPasswd = flag.String("passwd", "changeme", "The DB admin password")
 	tlsEnabled  = flag.Bool("tls-enabled", false, "whether tls is enabled")
 	caFile      = flag.String("ca-file", "", "the ca file")
@@ -51,6 +51,8 @@ var (
 )
 
 const (
+	defaultPGAdmin = "postgres"
+
 	opCreate    = "create-service"
 	opCheckInit = "check-service-init"
 	opDelete    = "delete-service"
@@ -249,9 +251,9 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Replicas:       *replicas,
 		VolumeSizeGB:   *volSizeGB,
-		DBAdmin:        *admin,
+		Admin:          defaultPGAdmin,
 		AdminPasswd:    *adminPasswd,
-		DBReplUser:     *replUser,
+		ReplUser:       *replUser,
 		ReplUserPasswd: *replUserPasswd,
 	}
 

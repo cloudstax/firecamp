@@ -10,15 +10,16 @@ import (
 )
 
 const (
+	// ContainerImage is the main PostgreSQL running container.
 	ContainerImage = common.ContainerNamePrefix + "postgres"
-	DefaultPort    = 5432
+	defaultPort    = 5432
 
-	ContainerRolePrimary = "primary"
-	ContainerRoleStandby = "standby"
-	SysConfFileName      = "sys.conf"
-	PostgresConfFileName = "postgresql.conf"
-	PGHbaConfFileName    = "pg_hba.conf"
-	RecoveryConfFileName = "recovery.conf"
+	containerRolePrimary = "primary"
+	containerRoleStandby = "standby"
+	sysConfFileName      = "sys.conf"
+	postgresConfFileName = "postgresql.conf"
+	pgHbaConfFileName    = "pg_hba.conf"
+	recoveryConfFileName = "recovery.conf"
 )
 
 // The default PostgreSQL catalog service. By default,
@@ -28,9 +29,9 @@ const (
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64,
-	pgpasswd string, replUser string, replPasswd string, res *common.Resources) *manage.CreateServiceRequest {
+	adminPasswd string, replUser string, replPasswd string, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, DefaultPort, pgpasswd, replUser, replPasswd)
+	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, defaultPort, adminPasswd, replUser, replPasswd)
 
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -45,7 +46,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 		Replicas:       replicas,
 		VolumeSizeGB:   volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
-		Port:           DefaultPort,
+		Port:           defaultPort,
 
 		HasMembership:  true,
 		ReplicaConfigs: replicaCfgs,
@@ -55,38 +56,38 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
 func GenReplicaConfigs(cluster string, service string, azs []string, replicas int64,
-	port int64, pgpasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
+	port int64, adminPasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 
 	// generate the primary configs
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryHost, port, pgpasswd, replUser, replPasswd)
+	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
 	for i := 1; i < int(replicas); i++ {
 		index := i % len(azs)
-		replicaCfgs[i] = genStandbyConfig(azs[index], primaryHost, port, pgpasswd, replUser, replPasswd)
+		replicaCfgs[i] = genStandbyConfig(azs[index], primaryHost, port, adminPasswd, replUser, replPasswd)
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(az string, primaryHost string, port int64, pgpasswd string,
+func genPrimaryConfig(az string, primaryHost string, port int64, adminPasswd string,
 	replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create sys.conf file
-	content := fmt.Sprintf(sysConf, ContainerRolePrimary, primaryHost, port, pgpasswd, replUser, replPasswd)
+	content := fmt.Sprintf(sysConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
 	cfg1 := &manage.ReplicaConfigFile{
-		FileName: SysConfFileName,
+		FileName: sysConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
 
 	// create postgres.conf
 	cfg2 := &manage.ReplicaConfigFile{
-		FileName: PostgresConfFileName,
+		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  primaryPostgresConf,
 	}
@@ -94,7 +95,7 @@ func genPrimaryConfig(az string, primaryHost string, port int64, pgpasswd string
 	// create pg_hba.conf
 	content = fmt.Sprintf(primaryPgHbaConf, replUser)
 	cfg3 := &manage.ReplicaConfigFile{
-		FileName: PGHbaConfFileName,
+		FileName: pgHbaConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
@@ -103,25 +104,25 @@ func genPrimaryConfig(az string, primaryHost string, port int64, pgpasswd string
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
 }
 
-func genStandbyConfig(az string, primaryHost string, port int64, pgpasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
+func genStandbyConfig(az string, primaryHost string, port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create sys.conf file
-	content := fmt.Sprintf(sysConf, ContainerRoleStandby, primaryHost, port, pgpasswd, replUser, replPasswd)
+	content := fmt.Sprintf(sysConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
 	cfg1 := &manage.ReplicaConfigFile{
-		FileName: SysConfFileName,
+		FileName: sysConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
 
 	// create postgres.conf
 	cfg2 := &manage.ReplicaConfigFile{
-		FileName: PostgresConfFileName,
+		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  standbyPostgresConf,
 	}
 
 	// create pg_hba.conf
 	cfg3 := &manage.ReplicaConfigFile{
-		FileName: PGHbaConfFileName,
+		FileName: pgHbaConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  standbyPgHbaConf,
 	}
@@ -130,7 +131,7 @@ func genStandbyConfig(az string, primaryHost string, port int64, pgpasswd string
 	primaryConnInfo := fmt.Sprintf(standbyPrimaryConnInfo, primaryHost, port, replUser, replPasswd)
 	content = fmt.Sprintf(standbyRecoveryConf, primaryConnInfo, standbyRestoreCmd)
 	cfg4 := &manage.ReplicaConfigFile{
-		FileName: RecoveryConfFileName,
+		FileName: recoveryConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}

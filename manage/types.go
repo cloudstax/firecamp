@@ -177,9 +177,9 @@ type CatalogCreatePostgreSQLRequest struct {
 	Replicas     int64
 	VolumeSizeGB int64
 
-	DBAdmin        string
+	Admin          string
 	AdminPasswd    string
-	DBReplUser     string
+	ReplUser       string
 	ReplUserPasswd string
 }
 

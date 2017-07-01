@@ -11,7 +11,7 @@ import (
 
 const (
 	DefaultDirMode  = 0755
-	DefaultFileMode = 0600
+	DefaultFileMode = 0644
 	tmpfileSuffix   = ".tmp"
 )
 
