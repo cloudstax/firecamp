@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates an AutoScalingGroup for the ECS cluster.",
+  "Description": "This template creates an AutoScalingGroup in one AvailabilityZone for the ECS cluster.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -257,7 +257,7 @@
                 "service docker start\n",
 
                 "# install cloudstax ecs init\n",
-                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://raw.github.com/cloudstax/openmanage-packages/master/test/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
+                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/alpha/packages/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "echo ECS_CLUSTER=",
                 {
@@ -267,7 +267,7 @@
                 "start ecs\n",
 
                 "# install openmanage docker volume driver\n",
-                "wget -O /tmp/openmanage-dockervolume-0.5-1.x86_64.rpm https://raw.github.com/cloudstax/openmanage-packages/master/test/openmanage-dockervolume-0.5-1.x86_64.rpm\n",
+                "wget -O /tmp/openmanage-dockervolume-0.5-1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/alpha/packages/openmanage-dockervolume-0.5-1.x86_64.rpm\n",
                 "rpm -ivh /tmp/openmanage-dockervolume-0.5-1.x86_64.rpm\n",
                 "start openmanage-dockervolume\n",
 

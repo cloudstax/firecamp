@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create an AutoScalingGroup for the ECS cluster.",
+  "Description": "This template creates the IAM InstanceProfile for the OpenManage ECS cluster nodes.",
   "Resources": {
     "EC2Role":{
       "Type":"AWS::IAM::Role",

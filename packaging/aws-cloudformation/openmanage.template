@@ -24,14 +24,14 @@
 
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax-cf-templates",
+      "Default": "cloudstax",
       "Type": "String",
       "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
     "CFS3KeyPrefix": {
         "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-        "Default": "openmanage/latest/",
+        "Default": "openmanage/releases/alpha/cf-templates",
         "Type": "String",
         "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
         "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
@@ -130,7 +130,7 @@
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "Instances with access to the services in ECS cluster"
+        "GroupDescription": "Application instances with access to the services in ECS cluster"
       }
     },
     "EcsSecurityGroup": {
@@ -159,8 +159,16 @@
           },
           {
             "IpProtocol": "tcp",
-            "FromPort": "3000",
-            "ToPort": "30000",
+            "FromPort": "27017",
+            "ToPort": "27017",
+            "SourceSecurityGroupId": {
+              "Ref": "EcsAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5432",
+            "ToPort": "5432",
             "SourceSecurityGroupId": {
               "Ref": "EcsAccessSecurityGroup"
             }
@@ -193,7 +201,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-dynamodb.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-dynamodb.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -218,7 +226,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-ecs.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-ecs.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -274,7 +282,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-iamprofile.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-iamprofile.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -298,7 +306,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-autoscalegroup.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -353,7 +361,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-autoscalegroup.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -408,7 +416,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage-autoscalegroup.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage-autoscalegroup.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -462,6 +470,11 @@
           "ECSClusterStack",
           "Outputs.ECSCluster"
         ]
+      }
+    },
+    "EcsAccessSecurityGroup":{
+      "Value":{
+        "Ref": "EcsAccessSecurityGroup"
       }
     }
   }

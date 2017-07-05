@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create the DynamoDB tables for the openmanage ECS cluster.",
+  "Description": "This template creates the DynamoDB tables for the OpenManage ECS cluster.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",

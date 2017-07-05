@@ -1,11 +1,10 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will create a new VPC and deploy an ECS cluster with the OpenManage software. Note: The openmanage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template creates a new VPC and an ECS cluster with the OpenManage software. Note: The OpenManage system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster.",
-      "Default":"default",
+      "Description":"Name of the ECS cluster. Could be same with the Stack name",
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
@@ -19,14 +18,14 @@
 
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax-cf-templates",
+      "Default": "cloudstax",
       "Type": "String",
       "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
     "CFS3KeyPrefix": {
         "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-        "Default": "openmanage/latest/",
+        "Default": "openmanage/releases/alpha/cf-templates",
         "Type": "String",
         "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
         "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
@@ -67,6 +66,7 @@
     "RemoteAccessCIDR": {
         "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
         "Type": "String",
+        "Default": "0.0.0.0/0",
         "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
         "Description": "Allowed CIDR block for external SSH access to the bastions"
     },
@@ -102,7 +102,7 @@
     },
 
     "AvailabilityZones": {
-      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved and only 2 or 3 AZs are used for this deployment.",
+      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved and only 3 AZs are allowed for this deployment.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
     "NumberOfAZs": {
@@ -177,7 +177,7 @@
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
-      "Default":"t2.micro",
+      "Default":"m4.large",
       "AllowedValues":[
         "t2.micro",
         "t2.small",
@@ -216,14 +216,6 @@
     }
   },
   "Conditions": {
-    "RepeatSubnet": {
-      "Fn::Equals": [
-        {
-          "Ref": "NumberOfAZs"
-        },
-        "2"
-      ]
-    },
     "GovCloudCondition": {
       "Fn::Equals": [
         {
@@ -352,13 +344,13 @@
         }
       }
     },
-    "OpenmanageStack": {
+    "OpenManageStack": {
       "DependsOn": "BastionStack",
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}templates/openmanage.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/openmanage.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -408,20 +400,9 @@
             ]
           },
           "Subnet3ID": {
-            "Fn::If": [
-              "RepeatSubnet",
-              {
-                "Fn::GetAtt": [
-                  "VPCStack",
-                  "Outputs.PrivateSubnet2AID"
-                ]
-              },
-              {
-                "Fn::GetAtt": [
-                  "VPCStack",
-                  "Outputs.PrivateSubnet3AID"
-                ]
-              }
+            "Fn::GetAtt": [
+              "VPCStack",
+              "Outputs.PrivateSubnet3AID"
             ]
           },
           "AvailabilityZones": {
@@ -446,11 +427,27 @@
     }
   },
   "Outputs":{
+    "VPCID": {
+      "Value":{
+        "Fn::GetAtt": [
+          "VPCStack",
+          "Outputs.VPCID"
+        ]
+      }
+    },
     "ECSCluster":{
       "Value":{
         "Fn::GetAtt": [
-          "OpenmanageStack",
+          "OpenManageStack",
           "Outputs.ECSCluster"
+        ]
+      }
+    },
+    "EcsAccessSecurityGroup":{
+      "Value":{
+        "Fn::GetAtt": [
+          "OpenManageStack",
+          "Outputs.EcsAccessSecurityGroup"
         ]
       }
     }
