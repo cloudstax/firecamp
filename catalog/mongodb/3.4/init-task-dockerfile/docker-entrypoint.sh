@@ -94,6 +94,17 @@ sleep 10
 
 echo "start creating the admin user"
 
+# get the latest master. If the original master fails, another standby may become the new master.
+# example output: "primary" : "mymongo-1.t1-openmanage.com:27017",
+currentMaster=$(mongo --host $SERVICE_MASTER --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }' | awk -F ":" '{ print $1 }')
+if [ -z "$currentMaster" ]
+then
+  echo "failed to get the current master"
+  mongo --host $SERVICE_MASTER --eval "db.isMaster()"
+  exit 2
+fi
+echo "currentMaster: $currentMaster"
+
 # create the admin user
 #mongo  --host $SERVICE_MASTER << EOF
 #use admin;
@@ -106,7 +117,7 @@ echo "start creating the admin user"
 #);
 #EOF
 createUser="{ createUser: \"${ADMIN_USER}\", pwd: \"${ADMIN_PASSWORD}\", roles: [ { role: \"root\", db: \"admin\" } ] }"
-output=$(mongo --host $SERVICE_MASTER --eval "JSON.stringify(db.adminCommand($createUser))")
+output=$(mongo --host $currentMaster --eval "JSON.stringify(db.adminCommand($createUser))")
 echo "$output"
 
 #example outputs
