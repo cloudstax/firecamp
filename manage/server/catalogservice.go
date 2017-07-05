@@ -55,7 +55,8 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 	// check if the init task is running
 	initialized := false
-	if s.catalogSvcInit.hasInitTask(ctx, service.ServiceUUID) {
+	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, service.ServiceUUID)
+	if hasTask {
 		glog.Infoln("The service", req.Service.ServiceName, req.ServiceType,
 			"is under initialization, requuid", requuid)
 	} else {
@@ -106,7 +107,8 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	}
 
 	resp := &manage.CatalogCheckServiceInitResponse{
-		Initialized: initialized,
+		Initialized:   initialized,
+		StatusMessage: statusMsg,
 	}
 
 	b, err := json.Marshal(resp)
@@ -251,6 +253,10 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 
 	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
 
+	// update the init task status message
+	statusMsg := "enable auth for MongoDB"
+	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
+
 	// update the replica (serviceMember) mongod.conf file
 	for _, member := range members {
 		for i, cfg := range member.Configs {
@@ -274,6 +280,10 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 
 	// the config files of all replicas are updated, restart all containers
 	glog.Infoln("all replicas are updated, restart all containers, requuid", requuid, req)
+
+	// update the init task status message
+	statusMsg = "restarting all MongoDB containers"
+	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
 
 	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
 	if err != nil {

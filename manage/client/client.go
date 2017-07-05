@@ -379,31 +379,31 @@ func (c *ManageClient) CatalogCreatePostgreSQLService(ctx context.Context, r *ma
 }
 
 // CatalogCheckServiceInit checks if a catalog service is initialized.
-func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (bool, error) {
+func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (initialized bool, statusMsg string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCheckServiceInitOp
 	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return false, manage.ConvertHTTPError(resp.StatusCode)
+		return false, "", manage.ConvertHTTPError(resp.StatusCode)
 	}
 
 	defer c.closeRespBody(resp)
 
 	res := &manage.CatalogCheckServiceInitResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
-	return res.Initialized, err
+	return res.Initialized, res.StatusMessage, err
 }
 
 // CatalogSetServiceInit sets the catalog service initialized.

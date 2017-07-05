@@ -1,6 +1,7 @@
 package manageserver
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,6 +19,11 @@ const (
 	maxTaskCounts = 100
 	// Wait some time for service to stabilize before running the init task.
 	waitSecondsBeforeInit = time.Duration(10) * time.Second
+
+	// Task status messages
+	waitServiceRunningMsg = "wait the service containers running, RunningCount %d"
+	serviceRunningMsg     = "all service containers are running, wait to run the init task"
+	startInitTaskMsg      = "the init task is running"
 )
 
 type serviceTask struct {
@@ -28,6 +34,8 @@ type serviceTask struct {
 	serviceType string
 	// The task detail
 	opts *containersvc.RunTaskOptions
+	// The task status message
+	statusMessage string
 }
 
 // catalogServiceInit serves and tracks the service init tasks.
@@ -56,12 +64,15 @@ func newCatalogServiceInit(cluster string, containersvcIns containersvc.Containe
 	return c
 }
 
-func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceUUID string) bool {
+func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceUUID string) (hasTask bool, statusMsg string) {
 	c.tlock.Lock()
 	defer c.tlock.Unlock()
 
-	_, ok := c.tasks[serviceUUID]
-	return ok
+	task, ok := c.tasks[serviceUUID]
+	if ok {
+		statusMsg = task.statusMessage
+	}
+	return ok, statusMsg
 }
 
 func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask) error {
@@ -83,6 +94,7 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 		return common.ErrInternal
 	}
 
+	task.statusMessage = fmt.Sprintf(waitServiceRunningMsg, 0)
 	c.tasks[task.serviceUUID] = task
 	go c.runInitTask(ctx, task, requuid)
 
@@ -112,6 +124,8 @@ func (c *catalogServiceInit) runInitTask(ctx context.Context, task *serviceTask,
 		glog.Infoln("service is already initialized, requuid", requuid, task)
 		return
 	}
+
+	task.statusMessage = startInitTaskMsg
 
 	for i := 0; i < common.DefaultTaskRetryCounts; i++ {
 		// run task
@@ -170,12 +184,17 @@ func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *servi
 		} else {
 			if status.RunningCount == status.DesiredCount {
 				glog.Infoln("The service containers are all running, requuid", requuid, task)
+				task.statusMessage = serviceRunningMsg
 				return nil
 			}
+
+			glog.Infoln("service running containers", status.RunningCount, "desired", status.DesiredCount, "requuid", requuid, task)
+			task.statusMessage = fmt.Sprintf(waitServiceRunningMsg, status.RunningCount)
 		}
 
 		time.Sleep(sleepTime)
 	}
+
 	glog.Errorln("service is not running after", common.DefaultTaskWaitSeconds, "seconds, requuid", requuid, task)
 	return common.ErrTimeout
 }
@@ -199,4 +218,18 @@ func (c *catalogServiceInit) waitTask(ctx context.Context, taskID string, task *
 
 	glog.Errorln("task", taskID, "is not done after", common.DefaultTaskWaitSeconds, "seconds, requuid", requuid, task)
 	return common.ErrTimeout
+}
+
+func (c *catalogServiceInit) UpdateTaskStatusMsg(serviceUUID string, statusMsg string) {
+	c.tlock.Lock()
+	defer c.tlock.Unlock()
+
+	// check if service has the task running
+	task, ok := c.tasks[serviceUUID]
+	if ok {
+		glog.Infoln("service task is running", task, "update status message", statusMsg)
+		task.statusMessage = statusMsg
+	} else {
+		glog.Infoln("service does not have running task", serviceUUID, "for status message", statusMsg)
+	}
 }

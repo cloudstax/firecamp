@@ -8,7 +8,7 @@ const (
 	// special service operations
 	SpecialOpPrefix      = "?"
 	ListServiceOp        = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp         = SpecialOpPrefix + "List-ServiceMember"
+	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
 	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
@@ -195,7 +195,8 @@ type CatalogCheckServiceInitRequest struct {
 
 // CatalogCheckServiceInitResponse returns the service init status
 type CatalogCheckServiceInitResponse struct {
-	Initialized bool
+	Initialized   bool
+	StatusMessage string
 }
 
 // CatalogSetServiceInitRequest sets the catalog service initialized.
