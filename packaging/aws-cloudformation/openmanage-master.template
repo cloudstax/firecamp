@@ -13,7 +13,7 @@
 
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and ECS cluster nodes."
     },
 
     "CFS3BucketName": {
@@ -68,7 +68,7 @@
         "Type": "String",
         "Default": "0.0.0.0/0",
         "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-        "Description": "Allowed CIDR block for external SSH access to the bastions"
+        "Description": "Allowed CIDR block for external SSH access to the Bastion nodes"
     },
     "BastionInstanceType": {
         "Default": "t2.micro",

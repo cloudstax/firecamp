@@ -64,11 +64,3 @@ docker build -t $image $path
 docker push $image
 
 
-# build mysql docker image
-target=$system"-mysql"
-image=$org$target
-path="${TOPWD}/catalog/mysql/5.7/dockerfile/"
-echo
-docker build -t $image $path
-docker push $image
-

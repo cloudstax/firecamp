@@ -149,4 +149,4 @@ data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVIC
 curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
 
 # sleep some time for the server to restart all containers
-sleep 10
+sleep 5

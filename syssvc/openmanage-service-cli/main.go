@@ -27,7 +27,7 @@ var (
 	cluster      = flag.String("cluster", "default", "The ECS cluster")
 	serverURL    = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region       = flag.String("region", "", "The target AWS region")
-	service      = flag.String("service", "", "The target service name in ECS")
+	service      = flag.String("service-name", "", "The target service name in ECS")
 	replicas     = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volSizeGB    = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
 	cpuUnits     = flag.Int64("cpu-units", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
@@ -46,8 +46,8 @@ var (
 	replUserPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
 
 	// the parameters for getting the config file
-	serviceUUID = flag.String("service-uuid", "", "The service uuid")
-	fileID      = flag.String("fileid", "", "The config file id")
+	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
+	fileID      = flag.String("fileid", "", "The service config file id")
 )
 
 const (
@@ -66,23 +66,23 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgres> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa -admin=admin -passwd=passwd\n", opCheckInit)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
 		case opDelete:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opDelete)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opDelete)
 		case opList:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default\n", opList)
 		case opGet:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opGet)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opGet)
 		case opListMembers:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service=aaa\n", opListMembers)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opListMembers)
 		case opGetConfig:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=auuid -fileid=configfileID\n", opGetConfig)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
 		default:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s> --help",
-				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s|%s> --help\n",
+				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig)
 		}
 	}
 }
@@ -215,14 +215,17 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		AdminPasswd: *adminPasswd,
 	}
 
-	sleepSeconds := time.Duration(10) * time.Second
+	sleepSeconds := time.Duration(5) * time.Second
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
-		initialized, err := cli.CatalogCheckServiceInit(ctx, initReq)
-		if err != nil {
+		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
+		if err == nil {
+			if initialized {
+				fmt.Println("The catalog service is initialized")
+				return
+			}
+			fmt.Println(statusMsg)
+		} else {
 			fmt.Println("check service init error", err)
-		} else if initialized {
-			fmt.Println("The catalog service is initialized")
-			return
 		}
 		time.Sleep(sleepSeconds)
 	}
@@ -278,7 +281,7 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 		AdminPasswd: *adminPasswd,
 	}
 
-	initialized, err := cli.CatalogCheckServiceInit(ctx, req)
+	initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, req)
 	if err != nil {
 		fmt.Println("check service init error", err)
 		return
@@ -287,7 +290,7 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 	if initialized {
 		fmt.Println("service initialized")
 	} else {
-		fmt.Println("service is initializing")
+		fmt.Println(statusMsg)
 	}
 }
 
