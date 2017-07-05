@@ -42,10 +42,4 @@ The OpenManage platform is one step towards the free Serverless computing. The c
 Basically, the OpenManage platform maintains the service membership and data volume for the service. When the container moves from one node to another node, the OpenManage platform could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/openmanage/wiki/Architecture) and [Work Flow](https://github.com/cloudstax/openmanage/wiki/Work-Flows) wiki.
 
 ## Installation
-The OpenManage platform could be easily installed using AWS CloudFormation. The CloudFormation template will create an ECS cluster with 3 AutoScaleGroups on 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
-
-The template will create the EcsAccessSecurityGroup to protect the access the stateful services running on the ECS cluster. You could get the EcsAccessSecurityGroup from the CloudFormation Stack output. You could run the application node on the EcsAccessSecurityGroup. Also a Bastion AutoScaleGroup is created and is the only one that could ssh to the ECS cluster nodes. The Bastion AutoScaleGroup could access the OpenManage manage http server as well.
-
-The OpenManage manage server will create the HostedZone in AWS Route53. When the created stack is deleted, all related resources, except the Route53 HostedZone, will be deleted. All DNS records need to be deleted before deleting the HostedZone. Deleting a DNS record requires to specify the current mapping from the DNS record name to the node's IP address. Unfortunately the CloudFormation stack is not able to know this mapping. So it could not delete the DNS record. Please manually delete the DNS records and the HostedZone after deleting the stack.
-
-For the details, please refer to [Installation](https://github.com/cloudstax/openmanage/wiki/Installation) wiki.
+The OpenManage cluster could be easily installed using AWS CloudFormation. For the details, please refer to [Installation](https://github.com/cloudstax/openmanage/wiki/Installation) wiki.
