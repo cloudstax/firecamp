@@ -266,7 +266,34 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The postgresql service is created")
+	fmt.Println("The postgresql service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
+	sleepSeconds := time.Duration(5) * time.Second
+	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
+		status, err := cli.GetServiceStatus(ctx, r)
+		if err != nil {
+			// The service is successfully created. It may be possible there are some
+			// temporary error, such as network error. For example, ECS may return MISSING
+			// for the GET right after the service creation.
+			// Here just log the GetServiceStatus error and retry.
+			fmt.Println("GetServiceStatus error", err, r)
+		} else {
+			if status.RunningCount == status.DesiredCount {
+				fmt.Println("All service containers are running, RunningCount", status.RunningCount)
+				return
+			}
+			fmt.Println("wait the service containers running, RunningCount", status.RunningCount)
+		}
+
+		time.Sleep(sleepSeconds)
+	}
+
+	fmt.Println("not all service containers are running after", common.DefaultServiceWaitSeconds)
+	os.Exit(-1)
 }
 
 func checkServiceInit(ctx context.Context, cli *client.ManageClient) {

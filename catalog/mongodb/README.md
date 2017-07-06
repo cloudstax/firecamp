@@ -1,4 +1,4 @@
-The OpenManage MongoDB container is based on Debian. The data volume will be mounted to the /data directory inside container. The MongoDB data will be stored at the /data/db directory. And the config files are at the /data/conf directory.
+The OpenManage MongoDB container is based on Debian. The data volume will be mounted to the /data directory inside container. The MongoDB data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
 
 **Security**
 

@@ -66,6 +66,9 @@ InitPrimaryDB() {
   psql -v ON_ERROR_STOP=1 -U "$PGUSER" -c "CREATE ROLE "$REPLICATION_USER" WITH REPLICATION PASSWORD '$REPLICATION_PASSWORD' LOGIN"
   echo "PostgreSQL replication user created, $REPLICATION_USER"
 
+  # set "postgres" user password for the remote login
+  psql -U "$PGUSER" -c "ALTER USER $PGUSER WITH PASSWORD '$POSTGRES_PASSWORD'"
+
   # stop postgres
   pg_ctl -D "$PGDATA" -m fast -w stop
 
