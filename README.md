@@ -6,12 +6,12 @@ The platform is built on top of all popular container orchestration frameworks, 
 [Amazon EC2 Container Service](https://aws.amazon.com/ecs/), [Docker Swarm](https://docs.docker.com/engine/swarm/), [Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io). You could use any container orchestration framework you want.
 
 With OpenManage, you are able to quickly and efficiently respond to the stateful service demands:
-* Deploy a stateful service quickly.
-* Handle the failure automatically.
-* Scale the stateful service on the fly.
-* Upgrade the stateful service smoothly.
-* Manage the stateful service data easily.
-* Move from one cloud to another freely.
+* **Deploy a stateful service quickly.**
+* **Handle the failure automatically.**
+* **Scale the stateful service on the fly.**
+* **Upgrade the stateful service smoothly.**
+* **Manage the stateful service data easily.**
+* **Move from one cloud to another freely.**
 
 The OpenManage platform is one step towards the free Serverless Cloud. The customer could easily run any service with no management overhead on any Cloud. Currently the platform has built-in integrations for MongoDB and PostgreSQL. MySQL and Cassandra are coming soon. More services will be integrated in the future.
 
@@ -43,3 +43,7 @@ Basically, the OpenManage platform maintains the service membership and data vol
 
 ## Installation
 The OpenManage cluster could be easily installed using AWS CloudFormation. For the details, please refer to [Installation](https://github.com/cloudstax/openmanage/wiki/Installation) wiki.
+
+## Catalog Services
+* [MongoDB](https://github.com/cloudstax/openmanage/tree/master/catalog/mongodb)
+* [PostgreSQL](https://github.com/cloudstax/openmanage/tree/master/catalog/postgres)
