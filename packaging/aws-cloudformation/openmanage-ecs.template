@@ -63,7 +63,7 @@
             },
             "Cpu":"256",
             "Essential":"true",
-            "Image":"cloudstax/openmanage-manageserver:0.5-alpha",
+            "Image":"cloudstax/openmanage-manageserver:latest",
             "Memory":"4096",
             "MemoryReservation":"256",
             "PortMappings":[
