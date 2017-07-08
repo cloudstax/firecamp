@@ -443,11 +443,11 @@
         ]
       }
     },
-    "EcsAccessSecurityGroup":{
+    "AppAccessSecurityGroup":{
       "Value":{
         "Fn::GetAtt": [
           "OpenManageStack",
-          "Outputs.EcsAccessSecurityGroup"
+          "Outputs.AppAccessSecurityGroup"
         ]
       }
     }

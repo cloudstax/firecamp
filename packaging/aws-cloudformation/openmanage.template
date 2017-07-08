@@ -124,7 +124,7 @@
     }
   },
   "Resources":{
-    "EcsAccessSecurityGroup": {
+    "AppAccessSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
@@ -162,7 +162,7 @@
             "FromPort": "27017",
             "ToPort": "27017",
             "SourceSecurityGroupId": {
-              "Ref": "EcsAccessSecurityGroup"
+              "Ref": "AppAccessSecurityGroup"
             }
           },
           {
@@ -170,7 +170,7 @@
             "FromPort": "5432",
             "ToPort": "5432",
             "SourceSecurityGroupId": {
-              "Ref": "EcsAccessSecurityGroup"
+              "Ref": "AppAccessSecurityGroup"
             }
           }
         ]
@@ -472,9 +472,9 @@
         ]
       }
     },
-    "EcsAccessSecurityGroup":{
+    "AppAccessSecurityGroup":{
       "Value":{
-        "Ref": "EcsAccessSecurityGroup"
+        "Ref": "AppAccessSecurityGroup"
       }
     }
   }
