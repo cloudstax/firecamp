@@ -1,6 +1,8 @@
 package common
 
 const (
+	Version = "0.5-alpha"
+
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
 
@@ -53,7 +55,7 @@ const (
 	// The service uuid of the controldb service would be ControlDBUUIDPrefix + volumeID.
 	// The volumeID is the ID of the volume created for the controldb service.
 	ControlDBUUIDPrefix      = ControlDBName + NameSeparator
-	ControlDBContainerImage  = OrgName + "/" + ControlDBServiceName
+	ControlDBContainerImage  = OrgName + "/" + ControlDBServiceName + ":" + Version
 	ControlDBReserveCPUUnits = 256
 	ControlDBMaxMemMB        = 4096
 	ControlDBReserveMemMB    = 256
@@ -62,7 +64,7 @@ const (
 	ManageHTTPServerPort  = 27040
 	ManageName            = "manageserver"
 	ManageServiceName     = SystemName + NameSeparator + ManageName
-	ManageContainerImage  = OrgName + "/" + ManageServiceName
+	ManageContainerImage  = OrgName + "/" + ManageServiceName + ":" + Version
 	ManageReserveCPUUnits = 256
 	ManageMaxMemMB        = 4096
 	ManageReserveMemMB    = 256

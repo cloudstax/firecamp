@@ -1,0 +1,23 @@
+
+To build a new release, 4 steps are required. This will be enhanced in the future.
+
+1. Update the version information.
+Currently need to update 3 files.
+1) The version in Makefile
+2) Version in common/types.go
+3) OpenManageServerTaskdefinition Image in packaging/aws-cloudformation/openmanage-ecs.template
+
+2. Docker Images
+make docker to build the docker images for this release.
+
+3. CloudFormation templates
+1) Create the release "cf-templates" folder in the cloudstax S3 bucket.
+2) Upload all template files in packaging/aws-cloudformation.
+
+4. Packages
+make rpm to build the volume driver rpm.
+
+1) Create the release "packages" folder in the cloudstax S3 bucket
+2) Upload $GOPATH/bin/openmanage-service-cli.
+3) Upload build/RPMS/x86_64/openmanage-dockervolume-*.x86_64.rpm.
+4) If ECS agent is updated, please also upload it.

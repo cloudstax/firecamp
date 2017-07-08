@@ -1,11 +1,13 @@
 
 .PHONY: build docker test sources rpm
 
+version=0.5-alpha
+
 install:
 	./scripts/install.sh
 
 docker: install
-	./scripts/builddocker.sh
+	./scripts/builddocker.sh $(version)
 
 test:
 	./scripts/gotest.sh

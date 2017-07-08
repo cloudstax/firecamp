@@ -17,9 +17,9 @@ import (
 
 const (
 	// ContainerImage is the main MongoDB running container.
-	ContainerImage = common.ContainerNamePrefix + "mongodb"
+	ContainerImage = common.ContainerNamePrefix + "mongodb:" + common.Version
 	// InitContainerImage initializes the MongoDB ReplicaSet.
-	InitContainerImage = common.ContainerNamePrefix + "mongodb-init"
+	InitContainerImage = common.ContainerNamePrefix + "mongodb-init:" + common.Version
 
 	envReplicaSetName = "REPLICA_SET_NAME"
 	envAdminUser      = "ADMIN_USER"

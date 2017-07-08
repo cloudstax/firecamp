@@ -11,7 +11,7 @@ import (
 
 const (
 	// ContainerImage is the main PostgreSQL running container.
-	ContainerImage = common.ContainerNamePrefix + "postgres"
+	ContainerImage = common.ContainerNamePrefix + "postgres:" + common.Version
 	defaultPort    = 5432
 
 	containerRolePrimary = "primary"
