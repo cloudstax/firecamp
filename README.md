@@ -25,15 +25,18 @@ The OpenManage platform is one step towards the free Serverless Cloud. The custo
 
 **Fast and Auto Failover**: The OpenManage platform binds the data volume and membership with the container. When a node crashes, the container orchestration frameworks will reschedule the container to another node. The OpenManage platform will automatically move the data volume and the membership. There is no data copy involved during the failover.
 
-**Smooth Upgrade**: The platform is aware of the service's membership, and follows the service's rule to maintain the membership. For example, when upgrade a MongoDB ReplicaSet, it is better to gracefully stop and upgrade the primary member first. The platform will automatically detect who is the primary member, upgrade it first, and then upgrade other members one by one.
+**Security**: The platform will enforce the security at both the platform level and the service level.
+* The AppAccessSecurityGroup: the platform creates the AppAccessSecurityGroup to restricts the access to the stateful services. Only the EC2 instances in the AppAccessSecurityGroup could access the stateful services. The customer should have the application running on the EC2 of the AppAccessSecurityGroup and the same VPC.
+* The Bastion node: the Bastion AutoScaleGroup is created and is the only one that could SSH to the OpenManage cluster nodes and talk with the OpenManage manage service.
+* Service security: user and password are required to access the service, such as MongoDB. And other service internal security features are enabled, such as MongoDB access control between members of a ReplicaSet.
 
 **Easy Scale**: The platform makes it easy to scale out the stateful services. For the primary based service, such as MongoDB, the platform integrates with Cloud Volume Snapshot to simplify adding a new replica. For example, to add a new replica to an existing MongoDB ReplicaSet, the platform will pause one current replica, create a Snapshot of the replica's Cloud Volume, create a new Volume from the Snapshot, and assign the new volume to the new replica.
+
+**Smooth Upgrade**: The platform is aware of the service's membership, and follows the service's rule to maintain the membership. For example, when upgrade a MongoDB ReplicaSet, it is better to gracefully stop and upgrade the primary member first. The platform will automatically detect who is the primary member, upgrade it first, and then upgrade other members one by one.
 
 **Easy Data Management**: The platform provides the policy based data management. The customer could easily setup the policy to manage the data Snapshot, Backup, Restore, etc.
 
 **GEO Access and Protection**: The platform could manage the service membership across multiple Regions, and support backup data to the remote region.
-
-**Security**: The platform will automatically apply the best practices to achieve the better security. For example, in the same AWS region, the platform will restrict the access to the EC2 instances where the stateful services run on. Only the EC2 instances in the allowed security group could access the stateful services. The customer should have the application running on the EC2 of that security group.
 
 **Service Aware Monitoring**: No matter where the container of one service member moves and how many times it move, the platform keeps tracking a member's logs and metrics for the member. The platform will also track the containers of different services running on the same host, and correlate them for the troubleshooting.
 
