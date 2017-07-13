@@ -29,6 +29,11 @@ fi
 
 echo "$dbdir $configdbdir and $cfgfile exist"
 
+# start the log rotate job in the background
+if [ "$(id -u)" = '0' ]; then
+  /startlogrotate.sh &
+fi
+
 # allow the container to be started with `--user`
 if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   chown -R mongodb $datadir

@@ -51,6 +51,8 @@ RUN set -x \
 	&& rm -rf /var/lib/mongodb \
 	&& mv /etc/mongod.conf /etc/mongod.conf.orig
 
+COPY mongologrotate.sh /
+COPY startlogrotate.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "mongod", "-f", "/data/conf/mongod.conf"]
 
