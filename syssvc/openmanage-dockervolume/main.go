@@ -20,7 +20,7 @@ import (
 	"github.com/cloudstax/openmanage/db/controldb/client"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/dns/awsroute53"
-	"github.com/cloudstax/openmanage/dockervolume"
+	"github.com/cloudstax/openmanage/docker/volume"
 	"github.com/cloudstax/openmanage/server/awsec2"
 	"github.com/cloudstax/openmanage/utils"
 )

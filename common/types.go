@@ -11,7 +11,7 @@ const (
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
 	// VolumeDriverName is the name for docker volume driver
-	// If this name is changed, please change dockervolume/aws-ecs-agent-patch/openmanage_task_engine.go as well.
+	// If this name is changed, please change docker/volume/aws-ecs-agent-patch/openmanage_task_engine.go as well.
 	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
 	// ecs-agent on openmanage code.
 	VolumeDriverName = "OpenManageVolumeDriver"
