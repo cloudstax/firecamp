@@ -1,0 +1,20 @@
+{
+	"description": "openmanage log plugin for docker: consume logs from service containers and send to AWS CloudWatch",
+	"documentation": "-",
+	"entrypoint": ["/openmanage-dockerlogs"],
+	"interface": {
+		"types": ["docker.logdriver/1.0"],
+		"socket": "openmanagelogs.sock"
+  },
+  "network": {
+    "type": "host"
+  },
+	"env": [
+		{
+			"name": "LOG_LEVEL",
+			"description": "Set log level to output for plugin logs",
+			"value": "info",
+			"settable": ["value"]
+		}
+	]
+}

@@ -7,10 +7,11 @@ cd syssvc/openmanage-controldb; go install; cd -
 
 cd syssvc/openmanage-dockervolume; go install; cd -
 
+cd syssvc/openmanage-dockerlogs; go install --ldflags '-extldflags "-static"'; cd -
+
 cd syssvc/openmanage-manageserver; go install; cd -
 
 cd syssvc/openmanage-service-cli; go install; cd -
-
 
 # these 3 commands are example commands
 cd syssvc/examples/openmanage-init; go install; cd -

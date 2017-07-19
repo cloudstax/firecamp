@@ -118,7 +118,7 @@ func main() {
 	glog.Flush()
 
 	h := volume.NewHandler(driver)
-	err = h.ServeUnix("docker", common.VolumeDriverName)
+	err = h.ServeUnix(common.VolumeDriverName, 0)
 	if err != nil {
 		glog.Fatalln("ServeUnix failed, error", err)
 	}

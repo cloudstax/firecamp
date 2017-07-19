@@ -9,10 +9,23 @@ version=$1
 org="cloudstax/"
 system="openmanage"
 
+# build docker log driver
+echo "build the docker log driver"
+path="${TOPWD}/build/docker-logdriver"
+target="$system-dockerlogs"
+image="${org}${target}:${version}"
+mkdir -p ${path}/rootfs
+cp ${GOPATH}/bin/openmanage-dockerlogs ${path}/rootfs/
+cp ${TOPWD}/syssvc/openmanage-dockerlogs/config.json ${path}
+docker plugin rm -f $image || true
+docker plugin create $image $path
+docker plugin push $image
+
+
 # build test busybox docker image
 target="${system}-busybox"
 image="${org}${target}:${version}"
-path="${TOPWD}/containersvc/testimage-dockerfile/"
+path="${TOPWD}/containersvc/busybox-test-dockerfile/"
 echo "build test busybox image for ecs and swarm unit test"
 docker build -t $image $path
 docker push $image
