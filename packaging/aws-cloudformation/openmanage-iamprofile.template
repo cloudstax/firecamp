@@ -85,6 +85,14 @@
                 {
                   "Effect":"Allow",
                   "Action":[
+                    "logs:Create*",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource":"*"
+                },
+                {
+                  "Effect":"Allow",
+                  "Action":[
                     "ec2:AssignPrivateIpAddresses",
                     "ec2:AssociateRouteTable",
                     "ec2:AttachInternetGateway",
