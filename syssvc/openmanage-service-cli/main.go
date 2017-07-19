@@ -189,9 +189,9 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 			ServiceName: *service,
 		},
 		Resource: &common.Resources{
-			MaxCPUUnits:     *cpuUnits,
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: *cpuUnits,
-			MaxMemMB:        *reserveMemMB,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Replicas:     *replicas,
@@ -247,9 +247,9 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 			ServiceName: *service,
 		},
 		Resource: &common.Resources{
-			MaxCPUUnits:     *cpuUnits,
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: *cpuUnits,
-			MaxMemMB:        *reserveMemMB,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Replicas:       *replicas,
