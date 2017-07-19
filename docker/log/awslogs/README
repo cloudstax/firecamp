@@ -1,0 +1,3 @@
+The cloudwatchlogs files are copied over from docker/daemon/logger/awslogs.
+
+Docker has dependency on an old version aws-go-sdk. Godeps tool does not copy over the vendor dir in docker. Building the log driver will fail. We may consider to maintain the vendor dir manually in the future.
