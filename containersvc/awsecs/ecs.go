@@ -495,18 +495,12 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 		Image:      aws.String(commonOpts.ContainerImage),
 		Essential:  aws.Bool(true),
 		Privileged: aws.Bool(false),
-		//Environment: []*ecs.KeyValuePair{
-		//	{ // Required
-		//		Name:  aws.String("String"),
-		//		Value: aws.String("String"),
+		//LogConfiguration: &ecs.LogConfiguration{
+		//	LogDriver: aws.String(common.LogDriverName),
+		//	Options: map[string]*string{
+		//		common.AWSLOGS_GROUP:  aws.String(commonOpts.Cluster),
+		//		common.AWSLOGS_STREAM: aws.String(commonOpts.ServiceName),
 		//	},
-		// More values...
-		//},
-		// LogConfiguration: &ecs.LogConfiguration{
-		//  LogDriver: aws.String("LogDriver"),
-		//  Options: map[string]*string{
-		//    "Key": aws.String("String"),
-		//  },
 		//},
 	}
 	if commonOpts.Resource != nil {

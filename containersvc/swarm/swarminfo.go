@@ -8,8 +8,6 @@ import (
 	"github.com/golang/glog"
 )
 
-const localDockerSockAddr = "unix:///var/run/docker.sock"
-
 type SwarmInfo struct {
 	localContainerInsID string
 	clusterID           string
@@ -57,9 +55,9 @@ func (s *SwarmInfo) GetSwarmManagers() []string {
 }
 
 func getDockerInfo() (info types.Info, err error) {
-	cli, err := client.NewClient(localDockerSockAddr, client.DefaultVersion, nil, nil)
+	cli, err := client.NewEnvClient()
 	if err != nil {
-		glog.Errorln("NewClient error", err, "local docker", localDockerSockAddr)
+		glog.Errorln("NewClient error", err)
 		return info, err
 	}
 

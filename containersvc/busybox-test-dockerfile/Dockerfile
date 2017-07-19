@@ -1,2 +1,5 @@
 FROM busybox
-CMD ["sleep", "20"]
+
+COPY docker-entrypoint.sh /
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

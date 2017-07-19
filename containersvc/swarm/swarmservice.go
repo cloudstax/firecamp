@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -267,7 +268,7 @@ func (s *SwarmSvc) IsServiceExist(ctx context.Context, cluster string, service s
 }
 
 func (s *SwarmSvc) inspectService(ctx context.Context, cli *client.Client, service string) (*swarm.Service, error) {
-	svc, _, err := cli.ServiceInspectWithRaw(ctx, service)
+	svc, _, err := cli.ServiceInspectWithRaw(ctx, service, types.ServiceInspectOptions{})
 	if err != nil {
 		if client.IsErrServiceNotFound(err) {
 			glog.Infoln("service not exist", service)
@@ -699,7 +700,7 @@ func (s *SwarmSvc) newClient() (*client.Client, error) {
 		}
 	}
 
-	return client.NewClient(s.managerAddrs[0], client.DefaultVersion, httpclient, nil)
+	return client.NewClient(s.managerAddrs[0], api.DefaultVersion, httpclient, nil)
 }
 
 func (s *SwarmSvc) memoryMB2Bytes(size int64) int64 {
