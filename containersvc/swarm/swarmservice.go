@@ -96,28 +96,31 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 			Image:  opts.Common.ContainerImage,
 			Mounts: mounts,
 		},
-		//LogDriver: opts.logDriver.toLogDriver(),
+		LogDriver: &swarm.Driver{
+			Name:    opts.Common.LogDriver.Name,
+			Options: opts.Common.LogDriver.Options,
+		},
 	}
 	if opts.Common.Resource != nil {
 		res := &swarm.ResourceRequirements{}
 		setRes := false
-		if opts.Common.Resource.MaxCPUUnits != -1 || opts.Common.Resource.MaxMemMB != -1 {
+		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
 			limits := &swarm.Resources{}
-			if opts.Common.Resource.MaxCPUUnits != -1 {
+			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {
 				limits.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.MaxCPUUnits)
 			}
-			if opts.Common.Resource.MaxMemMB != -1 {
+			if opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
 				limits.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.MaxMemMB)
 			}
 			res.Limits = limits
 			setRes = true
 		}
-		if opts.Common.Resource.ReserveCPUUnits != -1 || opts.Common.Resource.ReserveMemMB != -1 {
+		if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
 			reserve := &swarm.Resources{}
-			if opts.Common.Resource.ReserveCPUUnits != -1 {
+			if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
 				reserve.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.ReserveCPUUnits)
 			}
-			if opts.Common.Resource.ReserveMemMB != -1 {
+			if opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
 				reserve.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.ReserveMemMB)
 			}
 			res.Reservations = reserve
@@ -544,24 +547,28 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 		DNS:        make([]string, 0),
 		DNSSearch:  make([]string, 0),
 		DNSOptions: make([]string, 0),
-		// LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
+
+		LogConfig: container.LogConfig{
+			Type:   opts.Common.LogDriver.Name,
+			Config: opts.Common.LogDriver.Options,
+		},
 	}
 
 	res := opts.Common.Resource
-	if res != nil && (res.MaxMemMB != -1 || res.ReserveMemMB != -1 || res.MaxCPUUnits != -1 || res.ReserveCPUUnits != -1) {
+	if res != nil && (res.MaxMemMB != common.DefaultMaxMemoryMB || res.ReserveMemMB != common.DefaultMaxMemoryMB || res.MaxCPUUnits != common.DefaultMaxCPUUnits || res.ReserveCPUUnits != common.DefaultMaxCPUUnits) {
 		resources := container.Resources{
 			CPUPeriod: defaultCPUPeriod,
 		}
-		if res.MaxMemMB != -1 {
+		if res.MaxMemMB != common.DefaultMaxMemoryMB {
 			resources.Memory = s.memoryMB2Bytes(res.MaxMemMB)
 		}
-		if res.ReserveMemMB != -1 {
+		if res.ReserveMemMB != common.DefaultMaxMemoryMB {
 			resources.MemoryReservation = s.memoryMB2Bytes(res.ReserveMemMB)
 		}
-		if res.ReserveCPUUnits != -1 {
+		if res.ReserveCPUUnits != common.DefaultMaxCPUUnits {
 			resources.CPUShares = res.ReserveCPUUnits
 		}
-		if res.MaxCPUUnits != -1 {
+		if res.MaxCPUUnits != common.DefaultMaxCPUUnits {
 			resources.CPUQuota = (defaultCPUPeriod * opts.Common.Resource.MaxCPUUnits) / defaultCPUUnitsPerCore
 		}
 		hostConfig.Resources = resources

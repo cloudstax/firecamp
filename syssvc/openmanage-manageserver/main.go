@@ -148,7 +148,7 @@ func main() {
 		addr := dns.GetDefaultControlDBAddr(cluster)
 		dbIns = controldbcli.NewControlDBCli(addr)
 
-		createControlDB(ctx, cluster, containersvcIns, serverIns, serverInfo)
+		createControlDB(ctx, region, cluster, containersvcIns, serverIns, serverInfo)
 		waitControlDBReady(ctx, cluster, containersvcIns)
 
 	default:
@@ -161,7 +161,7 @@ func main() {
 	glog.Fatalln("StartServer error", err)
 }
 
-func createControlDB(ctx context.Context, cluster string, containersvcIns containersvc.ContainerSvc, serverIns server.Server, serverInfo server.Info) {
+func createControlDB(ctx context.Context, region string, cluster string, containersvcIns containersvc.ContainerSvc, serverIns server.Server, serverInfo server.Info) {
 	// check if the controldb service exists.
 	exist, err := containersvcIns.IsServiceExist(ctx, cluster, common.ControlDBServiceName)
 	if err != nil {
@@ -191,6 +191,8 @@ func createControlDB(ctx context.Context, cluster string, containersvcIns contai
 
 	// create the controldb service
 	serviceUUID := utils.GenControlDBServiceUUID(volID)
+	logDriver := containersvc.GenAWSLogDriverForStream(region, cluster,
+		common.ControlDBServiceName, serviceUUID, common.ControlDBServiceName)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,
@@ -198,11 +200,12 @@ func createControlDB(ctx context.Context, cluster string, containersvcIns contai
 		ServiceUUID:    serviceUUID,
 		ContainerImage: common.ControlDBContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: common.ControlDBReserveCPUUnits,
 			MaxMemMB:        common.ControlDBMaxMemMB,
 			ReserveMemMB:    common.ControlDBReserveMemMB,
 		},
+		LogDriver: logDriver,
 	}
 
 	kv := &common.EnvKeyValuePair{

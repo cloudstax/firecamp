@@ -18,10 +18,12 @@ const (
 	VolumeDriverName = "OpenManageVolumeDriver"
 
 	// Do NOT change the log driver name.
-	LogDriverName        = "openmanagelogs"
-	AWSLOGS_GROUP        = "awslogs_group"
-	AWSLOGS_STREAM       = "awslogs_stream"
-	AWSLOGS_CREATE_GROUP = "awslogs_create_group"
+	LogDriverName     = "openmanagelogs"
+	LOGDRIVER_DEFAULT = "json-file"
+	LOGDRIVER_AWSLOGS = "awslogs"
+	AWSLOGS_REGION    = "awslogs-region"
+	AWSLOGS_GROUP     = "awslogs-group"
+	AWSLOGS_STREAM    = "awslogs-stream"
 
 	DefaultLogDir = "/var/log/" + SystemName
 

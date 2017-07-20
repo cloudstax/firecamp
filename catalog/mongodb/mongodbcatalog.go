@@ -41,7 +41,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 	volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs, err := GenReplicaConfigs(azs, replicas, replSetName, defaultPort)
+	replicaCfgs, err := GenReplicaConfigs(azs, service, replicas, replSetName, defaultPort)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +74,8 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName,
 		replSetName, replicas, manageurl, admin, adminPass)
 
+	logDriver := containersvc.GenAWSLogDriverForStream(req.Region, req.Cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,
 		ServiceName:    req.ServiceName,
@@ -85,6 +87,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
+		LogDriver: logDriver,
 	}
 
 	return &containersvc.RunTaskOptions{
@@ -96,7 +99,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(azs []string, replicas int64, replSetName string, port int64) ([]*manage.ReplicaConfig, error) {
+func GenReplicaConfigs(azs []string, service string, replicas int64, replSetName string, port int64) ([]*manage.ReplicaConfig, error) {
 	// generate the keyfile for MongoDB internal auth between members of the replica set.
 	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
 	keyfileContent, err := genKeyfileContent()
@@ -108,16 +111,21 @@ func GenReplicaConfigs(azs []string, replicas int64, replSetName string, port in
 	// generate the replica configs
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < int(replicas); i++ {
+		// create the sys.conf file
+		member := utils.GenServiceMemberName(service, int64(i))
+		sysCfg := catalog.CreateSysConfigFile(member)
+
+		// create the mongod.conf file
 		index := i % len(azs)
 		netcontent := fmt.Sprintf(mongoDBConfNetwork, port)
 		replcontent := fmt.Sprintf(mongoDBConfRepl, replSetName)
 		content := mongoDBConfHead + mongoDBConfStorage + mongoDBConfLog + netcontent + replcontent + mongoDBConfEnd
-		cfg := &manage.ReplicaConfigFile{
+		mongoCfg := &manage.ReplicaConfigFile{
 			FileName: mongoDBConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
-		configs := []*manage.ReplicaConfigFile{cfg, keyfileCfg}
+		configs := []*manage.ReplicaConfigFile{sysCfg, mongoCfg, keyfileCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

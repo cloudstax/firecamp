@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// create the manage service
-	createOpts := genCreateOptions(*cluster, *dbtype)
+	createOpts := genCreateOptions(awsRegion, *cluster, *dbtype)
 	err = ecsIns.CreateService(ctx, createOpts)
 	if err != nil {
 		glog.Fatalln("create the manage service error", err, common.ManageServiceName)
@@ -84,7 +84,7 @@ func main() {
 	fmt.Println("The manage service is ready")
 }
 
-func genCreateOptions(cluster string, dbtype string) *containersvc.CreateServiceOptions {
+func genCreateOptions(region string, cluster string, dbtype string) *containersvc.CreateServiceOptions {
 	// create the env variables for the manage service container
 	kv1 := &common.EnvKeyValuePair{
 		Name:  common.ENV_CONTAINER_PLATFORM,
@@ -95,6 +95,8 @@ func genCreateOptions(cluster string, dbtype string) *containersvc.CreateService
 		Value: dbtype,
 	}
 	envkvs := []*common.EnvKeyValuePair{kv1, kv2}
+
+	logDriver := containersvc.GenAWSLogDriverForStream(region, cluster, common.ManageServiceName, "", common.ManageServiceName)
 
 	// create the management http server service
 	commonOpts := &containersvc.CommonOptions{
@@ -108,6 +110,7 @@ func genCreateOptions(cluster string, dbtype string) *containersvc.CreateService
 			MaxMemMB:        common.ManageMaxMemMB,
 			ReserveMemMB:    common.ManageReserveMemMB,
 		},
+		LogDriver: logDriver,
 	}
 
 	return &containersvc.CreateServiceOptions{

@@ -3,6 +3,7 @@ package pgcatalog
 import (
 	"fmt"
 
+	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/manage"
@@ -16,7 +17,7 @@ const (
 
 	containerRolePrimary = "primary"
 	containerRoleStandby = "standby"
-	sysConfFileName      = "sys.conf"
+	serviceConfFileName  = "service.conf"
 	postgresConfFileName = "postgresql.conf"
 	pgHbaConfFileName    = "pg_hba.conf"
 	recoveryConfFileName = "recovery.conf"
@@ -63,24 +64,28 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
+	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryMember, primaryHost, port, adminPasswd, replUser, replPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
 	for i := 1; i < int(replicas); i++ {
 		index := i % len(azs)
-		replicaCfgs[i] = genStandbyConfig(azs[index], primaryHost, port, adminPasswd, replUser, replPasswd)
+		member := utils.GenServiceMemberName(service, int64(i))
+		replicaCfgs[i] = genStandbyConfig(azs[index], member, primaryHost, port, adminPasswd, replUser, replPasswd)
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(az string, primaryHost string, port int64, adminPasswd string,
-	replUser string, replPasswd string) *manage.ReplicaConfig {
-	// create sys.conf file
-	content := fmt.Sprintf(sysConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
+func genPrimaryConfig(az string, primaryMember string, primaryHost string, port int64,
+	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
+	// create the sys.conf file
+	cfg0 := catalog.CreateSysConfigFile(primaryMember)
+
+	// create service.conf file
+	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
 	cfg1 := &manage.ReplicaConfigFile{
-		FileName: sysConfFileName,
+		FileName: serviceConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
@@ -100,15 +105,19 @@ func genPrimaryConfig(az string, primaryHost string, port int64, adminPasswd str
 		Content:  content,
 	}
 
-	configs := []*manage.ReplicaConfigFile{cfg1, cfg2, cfg3}
+	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3}
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
 }
 
-func genStandbyConfig(az string, primaryHost string, port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
-	// create sys.conf file
-	content := fmt.Sprintf(sysConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
+func genStandbyConfig(az string, member string, primaryHost string, port int64,
+	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
+	// create the sys.conf file
+	cfg0 := catalog.CreateSysConfigFile(member)
+
+	// create service.conf file
+	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
 	cfg1 := &manage.ReplicaConfigFile{
-		FileName: sysConfFileName,
+		FileName: serviceConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
@@ -136,12 +145,12 @@ func genStandbyConfig(az string, primaryHost string, port int64, adminPasswd str
 		Content:  content,
 	}
 
-	configs := []*manage.ReplicaConfigFile{cfg1, cfg2, cfg3, cfg4}
+	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3, cfg4}
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
 }
 
 const (
-	sysConf = `
+	serviceConf = `
 CONTAINER_ROLE=%s
 PRIMARY_HOST=%s
 LISTEN_PORT=%d

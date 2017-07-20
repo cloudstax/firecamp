@@ -20,12 +20,20 @@ var (
 	ErrInvalidCluster             = errors.New("InvalidCluster")
 )
 
+type LogDriver struct {
+	// the log driver name, such as awslogs
+	Name string
+	// the log driver options, such as awslogs-region, awslogs-group, etc.
+	Options map[string]string
+}
+
 type CommonOptions struct {
 	Cluster        string
 	ServiceName    string
 	ServiceUUID    string
 	ContainerImage string
 	Resource       *common.Resources
+	LogDriver      *LogDriver
 }
 
 type CreateServiceOptions struct {

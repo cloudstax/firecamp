@@ -11,7 +11,7 @@ PGConf=$PGConfDIR/postgresql.conf
 PGHbaConf=$PGConfDIR/pg_hba.conf
 PGRecoveryConf=$PGConfDIR/recovery.conf
 
-PGConfigFile=$PGConfDIR/sys.conf
+PGConfigFile=$PGConfDIR/service.conf
 PGUSER="postgres"
 ROLE_PRIMARY="primary"
 ROLE_STANDBY="standby"

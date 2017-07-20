@@ -235,12 +235,14 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 }
 
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest, serviceUUID string) *containersvc.CreateServiceOptions {
+	logDriver := containersvc.GenServiceAWSLogDriver(s.region, s.cluster, req.Service.ServiceName, serviceUUID)
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    serviceUUID,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
+		LogDriver:      logDriver,
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
@@ -591,12 +593,15 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		return manage.ConvertToHTTPError(err)
 	}
 
+	logDriver := containersvc.GenAWSLogDriverForStream(s.region, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
+
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    svc.ServiceUUID,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
+		LogDriver:      logDriver,
 	}
 
 	opts := &containersvc.RunTaskOptions{

@@ -490,18 +490,20 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 
 	containerName := taskDefFamily + common.NameSeparator + common.ContainerNameSuffix
 
+	logOptions := make(map[string]*string)
+	for k, v := range commonOpts.LogDriver.Options {
+		logOptions[k] = aws.String(v)
+	}
+
 	containerDef := &ecs.ContainerDefinition{
 		Name:       aws.String(containerName),
 		Image:      aws.String(commonOpts.ContainerImage),
 		Essential:  aws.Bool(true),
 		Privileged: aws.Bool(false),
-		//LogConfiguration: &ecs.LogConfiguration{
-		//	LogDriver: aws.String(common.LogDriverName),
-		//	Options: map[string]*string{
-		//		common.AWSLOGS_GROUP:  aws.String(commonOpts.Cluster),
-		//		common.AWSLOGS_STREAM: aws.String(commonOpts.ServiceName),
-		//	},
-		//},
+		LogConfiguration: &ecs.LogConfiguration{
+			LogDriver: aws.String(commonOpts.LogDriver.Name),
+			Options:   logOptions,
+		},
 	}
 	if commonOpts.Resource != nil {
 		if commonOpts.Resource.ReserveCPUUnits != -1 {

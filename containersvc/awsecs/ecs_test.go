@@ -30,11 +30,12 @@ func TestTaskDef(t *testing.T) {
 		ServiceUUID:    "test-serviceUUID",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: containersvc.GenJSONFileLogDriver(),
 	}
 
 	opts := &containersvc.RunTaskOptions{
@@ -132,11 +133,12 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 		ServiceUUID:    service + "uuid",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(-1),
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: containersvc.GenJSONFileLogDriver(),
 	}
 
 	opts := &containersvc.CreateServiceOptions{

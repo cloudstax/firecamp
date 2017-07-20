@@ -39,11 +39,12 @@ func TestMemContainerSvc(t *testing.T) {
 		ServiceUUID:    service1 + "uuid",
 		ContainerImage: TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: GenJSONFileLogDriver(),
 	}
 
 	opts := &RunTaskOptions{
@@ -82,11 +83,12 @@ func serviceTest(ctx context.Context, t *testing.T, e *MemContainerSvc, cluster 
 		ServiceUUID:    service + "uuid",
 		ContainerImage: TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     int64(0),
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(0),
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: GenJSONFileLogDriver(),
 	}
 
 	opts := &CreateServiceOptions{

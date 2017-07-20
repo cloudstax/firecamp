@@ -95,11 +95,12 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		ServiceUUID:    service + "-serviceUUID",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     -1,
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(16),
-			MaxMemMB:        -1,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: containersvc.GenJSONFileLogDriver(),
 	}
 	createOpts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
@@ -241,11 +242,12 @@ func testTask(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		ServiceUUID:    taskName + "-UUID",
 		ContainerImage: containersvc.TestBusyBoxContainerImage,
 		Resource: &common.Resources{
-			MaxCPUUnits:     -1,
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: int64(16),
-			MaxMemMB:        -1,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    int64(16),
 		},
+		LogDriver: containersvc.GenJSONFileLogDriver(),
 	}
 
 	taskOpts := &containersvc.RunTaskOptions{
