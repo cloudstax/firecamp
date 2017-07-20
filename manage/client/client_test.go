@@ -20,6 +20,7 @@ import (
 	"github.com/cloudstax/openmanage/db/awsdynamodb"
 	"github.com/cloudstax/openmanage/db/controldb/client"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/manage/server"
 	"github.com/cloudstax/openmanage/server"
@@ -37,11 +38,12 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort)
 
 	lis, err := net.Listen("tcp", addr)
@@ -80,11 +82,12 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 
 	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+1))
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)
@@ -135,6 +138,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	}
 
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
@@ -142,7 +146,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	cluster := "cluster1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)

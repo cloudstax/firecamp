@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/log"
 )
 
 const (
@@ -20,20 +21,13 @@ var (
 	ErrInvalidCluster             = errors.New("InvalidCluster")
 )
 
-type LogDriver struct {
-	// the log driver name, such as awslogs
-	Name string
-	// the log driver options, such as awslogs-region, awslogs-group, etc.
-	Options map[string]string
-}
-
 type CommonOptions struct {
 	Cluster        string
 	ServiceName    string
 	ServiceUUID    string
 	ContainerImage string
 	Resource       *common.Resources
-	LogDriver      *LogDriver
+	LogConfig      *cloudlog.LogConfig
 }
 
 type CreateServiceOptions struct {

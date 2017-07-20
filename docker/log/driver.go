@@ -29,7 +29,6 @@ type LogDriver interface {
 type driver struct {
 	mu     sync.Mutex
 	logs   map[string]*logPair
-	idx    map[string]*logPair
 	logger logger.Logger
 }
 
@@ -42,7 +41,6 @@ type logPair struct {
 func NewDriver() *driver {
 	return &driver{
 		logs: make(map[string]*logPair),
-		idx:  make(map[string]*logPair),
 	}
 }
 
@@ -75,7 +73,6 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	d.mu.Lock()
 	lf := &logPair{l, f, logCtx}
 	d.logs[file] = lf
-	d.idx[logCtx.ContainerID] = lf
 	d.mu.Unlock()
 
 	go consumeLog(lf)

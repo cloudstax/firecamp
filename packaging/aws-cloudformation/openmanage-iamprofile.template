@@ -87,6 +87,7 @@
                   "Action":[
                     "logs:Create*",
                     "logs:PutLogEvents"
+                    "logs:Delete*"
                   ],
                   "Resource":"*"
                 },

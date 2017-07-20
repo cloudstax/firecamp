@@ -12,6 +12,7 @@ import (
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/containersvc/swarm"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 	"github.com/cloudstax/openmanage/utils"
 )
 
@@ -100,7 +101,7 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: containersvc.GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 	createOpts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
@@ -247,7 +248,7 @@ func testTask(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: containersvc.GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
 	taskOpts := &containersvc.RunTaskOptions{

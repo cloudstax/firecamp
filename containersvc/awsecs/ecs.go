@@ -491,7 +491,7 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 	containerName := taskDefFamily + common.NameSeparator + common.ContainerNameSuffix
 
 	logOptions := make(map[string]*string)
-	for k, v := range commonOpts.LogDriver.Options {
+	for k, v := range commonOpts.LogConfig.Options {
 		logOptions[k] = aws.String(v)
 	}
 
@@ -501,7 +501,7 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 		Essential:  aws.Bool(true),
 		Privileged: aws.Bool(false),
 		LogConfiguration: &ecs.LogConfiguration{
-			LogDriver: aws.String(commonOpts.LogDriver.Name),
+			LogDriver: aws.String(commonOpts.LogConfig.Name),
 			Options:   logOptions,
 		},
 	}
@@ -962,6 +962,10 @@ func (s *AWSEcs) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 	taskDefFamily := s.genTaskDefFamilyForTask(opts.Common.Cluster, opts.Common.ServiceName, opts.TaskType)
 
 	taskDef, taskDefExist, err := s.createEcsTaskDefinitionForTask(ctx, taskDefFamily, opts)
+	if err != nil {
+		glog.Errorln("createEcsTaskDefinitionForTask error", err, opts.Common, opts.TaskType)
+		return "", err
+	}
 	if taskDefExist {
 		// task definition exists, check if there is task running
 		tasks, err := s.listRunningTasks(ctx, opts)

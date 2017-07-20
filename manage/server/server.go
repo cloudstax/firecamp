@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/manage/service"
 	"github.com/cloudstax/openmanage/server"
@@ -47,13 +48,14 @@ type ManageHTTPServer struct {
 
 	dbIns           db.DB
 	serverInfo      server.Info
+	logIns          cloudlog.CloudLog
 	containersvcIns containersvc.ContainerSvc
 	svc             *manageservice.ManageService
 	catalogSvcInit  *catalogServiceInit
 }
 
 // NewManageHTTPServer creates a ManageHTTPServer instance
-func NewManageHTTPServer(cluster string, azs []string, managedns string, dbIns db.DB, dnsIns dns.DNS,
+func NewManageHTTPServer(cluster string, azs []string, managedns string, dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog,
 	serverIns server.Server, serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
 	svc := manageservice.NewManageService(dbIns, serverIns, dnsIns)
 	s := &ManageHTTPServer{
@@ -62,6 +64,7 @@ func NewManageHTTPServer(cluster string, azs []string, managedns string, dbIns d
 		manageurl:       dns.GetManageServiceURL(managedns, false),
 		azs:             azs,
 		dbIns:           dbIns,
+		logIns:          logIns,
 		serverInfo:      serverInfo,
 		containersvcIns: containersvcIns,
 		svc:             svc,
@@ -215,6 +218,13 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 		return "", err
 	}
 
+	// initialize the cloud log
+	err = s.logIns.InitializeServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
+	if err != nil {
+		glog.Errorln("InitializeServiceLogConfig error", err, "requuid", requuid, req.Service)
+		return "", err
+	}
+
 	// create the service in the container platform
 	exist, err := s.containersvcIns.IsServiceExist(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
@@ -222,7 +232,8 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 		return serviceUUID, err
 	}
 	if !exist {
-		opts := s.genCreateServiceOptions(req, serviceUUID)
+		logConfig := s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
+		opts := s.genCreateServiceOptions(req, serviceUUID, logConfig)
 		err = s.containersvcIns.CreateService(ctx, opts)
 		if err != nil {
 			glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
@@ -234,15 +245,15 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 	return serviceUUID, nil
 }
 
-func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest, serviceUUID string) *containersvc.CreateServiceOptions {
-	logDriver := containersvc.GenServiceAWSLogDriver(s.region, s.cluster, req.Service.ServiceName, serviceUUID)
+func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest,
+	serviceUUID string, logConfig *cloudlog.LogConfig) *containersvc.CreateServiceOptions {
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    serviceUUID,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
-		LogDriver:      logDriver,
+		LogConfig:      logConfig,
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
@@ -328,6 +339,19 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 	if err != nil {
 		glog.Errorln("delete service from container platform error", err,
 			"service", servicename, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// delete the service cloud log
+	svc, err := s.dbIns.GetService(ctx, s.cluster, servicename)
+	if err != nil {
+		glog.Errorln("GetService error", err, "service", servicename, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	err = s.logIns.DeleteServiceLogConfig(ctx, s.cluster, servicename, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("DeleteServiceLogConfig error", err, "service", servicename, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -593,7 +617,7 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		return manage.ConvertToHTTPError(err)
 	}
 
-	logDriver := containersvc.GenAWSLogDriverForStream(s.region, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
+	logConfig := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Service.Cluster,
@@ -601,7 +625,7 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		ServiceUUID:    svc.ServiceUUID,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
-		LogDriver:      logDriver,
+		LogConfig:      logConfig,
 	}
 
 	opts := &containersvc.RunTaskOptions{

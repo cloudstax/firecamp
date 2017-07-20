@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 	"github.com/cloudstax/openmanage/utils"
 )
 
@@ -35,7 +36,7 @@ func TestTaskDef(t *testing.T) {
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: containersvc.GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
 	opts := &containersvc.RunTaskOptions{
@@ -138,7 +139,7 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: containersvc.GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
 	opts := &containersvc.CreateServiceOptions{

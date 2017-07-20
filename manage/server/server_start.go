@@ -12,13 +12,15 @@ import (
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log"
 	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
 )
 
+// StartServer creates the manage http server and listen for requests.
 func StartServer(cluster string, azs []string, manageDNSName string, managePort int,
-	containersvcIns containersvc.ContainerSvc, dbIns db.DB, dnsIns dns.DNS, serverInfo server.Info,
-	serverIns server.Server, tlsEnabled bool, caFile, certFile, keyFile string) error {
+	containersvcIns containersvc.ContainerSvc, dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog,
+	serverInfo server.Info, serverIns server.Server, tlsEnabled bool, caFile, certFile, keyFile string) error {
 	// register the management service dnsname
 	dnsname := manageDNSName
 	domain := dns.GenDefaultDomainName(cluster)
@@ -41,7 +43,7 @@ func StartServer(cluster string, azs []string, manageDNSName string, managePort 
 	}
 
 	// create the management http server
-	serv := NewManageHTTPServer(cluster, azs, dnsname, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	serv := NewManageHTTPServer(cluster, azs, dnsname, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 
 	// listen on all ips, as manageserver runs inside the container
 	addr := ":" + strconv.Itoa(managePort)

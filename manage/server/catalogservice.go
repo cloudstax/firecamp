@@ -162,7 +162,8 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 
 func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
 	serviceUUID string, replicas int64, admin string, adminPasswd string, requuid string) {
-	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, serviceUUID, replicas, s.manageurl, admin, adminPasswd)
+	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, replicas, s.manageurl, admin, adminPasswd)
 
 	task := &serviceTask{
 		serviceUUID: serviceUUID,

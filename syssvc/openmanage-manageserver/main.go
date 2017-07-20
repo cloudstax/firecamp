@@ -21,6 +21,8 @@ import (
 	"github.com/cloudstax/openmanage/db/controldb/client"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/dns/awsroute53"
+	"github.com/cloudstax/openmanage/log"
+	"github.com/cloudstax/openmanage/log/awscloudwatch"
 	"github.com/cloudstax/openmanage/manage/server"
 	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/server/awsec2"
@@ -94,6 +96,7 @@ func main() {
 	}
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
+	logIns := awscloudwatch.NewLog(sess, region, *platform)
 
 	cluster := ""
 	var containersvcIns containersvc.ContainerSvc
@@ -148,7 +151,7 @@ func main() {
 		addr := dns.GetDefaultControlDBAddr(cluster)
 		dbIns = controldbcli.NewControlDBCli(addr)
 
-		createControlDB(ctx, region, cluster, containersvcIns, serverIns, serverInfo)
+		createControlDB(ctx, region, cluster, logIns, containersvcIns, serverIns, serverInfo)
 		waitControlDBReady(ctx, cluster, containersvcIns)
 
 	default:
@@ -156,12 +159,13 @@ func main() {
 	}
 
 	err = manageserver.StartServer(cluster, azs, *manageDNSName, *managePort, containersvcIns,
-		dbIns, dnsIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
+		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 
 	glog.Fatalln("StartServer error", err)
 }
 
-func createControlDB(ctx context.Context, region string, cluster string, containersvcIns containersvc.ContainerSvc, serverIns server.Server, serverInfo server.Info) {
+func createControlDB(ctx context.Context, region string, cluster string, logIns cloudlog.CloudLog,
+	containersvcIns containersvc.ContainerSvc, serverIns server.Server, serverInfo server.Info) {
 	// check if the controldb service exists.
 	exist, err := containersvcIns.IsServiceExist(ctx, cluster, common.ControlDBServiceName)
 	if err != nil {
@@ -191,7 +195,7 @@ func createControlDB(ctx context.Context, region string, cluster string, contain
 
 	// create the controldb service
 	serviceUUID := utils.GenControlDBServiceUUID(volID)
-	logDriver := containersvc.GenAWSLogDriverForStream(region, cluster,
+	logConfig := logIns.CreateLogConfigForStream(ctx, cluster,
 		common.ControlDBServiceName, serviceUUID, common.ControlDBServiceName)
 
 	commonOpts := &containersvc.CommonOptions{
@@ -205,7 +209,7 @@ func createControlDB(ctx context.Context, region string, cluster string, contain
 			MaxMemMB:        common.ControlDBMaxMemMB,
 			ReserveMemMB:    common.ControlDBReserveMemMB,
 		},
-		LogDriver: logDriver,
+		LogConfig: logConfig,
 	}
 
 	kv := &common.EnvKeyValuePair{

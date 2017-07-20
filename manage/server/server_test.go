@@ -24,6 +24,7 @@ import (
 	"github.com/cloudstax/openmanage/db/awsdynamodb"
 	"github.com/cloudstax/openmanage/db/controldb/client"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
@@ -40,13 +41,14 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 29
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -66,13 +68,14 @@ func TestServerMgrOperationsWithControlDB(t *testing.T) {
 
 	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+2))
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 15
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -104,6 +107,7 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	}
 
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
@@ -111,7 +115,7 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	cluster := "cluster1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 7
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 	dbIns.WaitSystemTablesDeleted(ctx, 120)

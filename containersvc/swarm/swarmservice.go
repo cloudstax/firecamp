@@ -97,8 +97,8 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 			Mounts: mounts,
 		},
 		LogDriver: &swarm.Driver{
-			Name:    opts.Common.LogDriver.Name,
-			Options: opts.Common.LogDriver.Options,
+			Name:    opts.Common.LogConfig.Name,
+			Options: opts.Common.LogConfig.Options,
 		},
 	}
 	if opts.Common.Resource != nil {
@@ -549,8 +549,8 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 		DNSOptions: make([]string, 0),
 
 		LogConfig: container.LogConfig{
-			Type:   opts.Common.LogDriver.Name,
-			Config: opts.Common.LogDriver.Options,
+			Type:   opts.Common.LogConfig.Name,
+			Config: opts.Common.LogConfig.Options,
 		},
 	}
 

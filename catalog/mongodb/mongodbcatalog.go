@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/utils"
 )
@@ -68,13 +69,11 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID string,
-	replicas int64, manageurl string, admin string, adminPass string) *containersvc.RunTaskOptions {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
+	serviceUUID string, replicas int64, manageurl string, admin string, adminPass string) *containersvc.RunTaskOptions {
 	replSetName := req.ServiceName
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName,
 		replSetName, replicas, manageurl, admin, adminPass)
-
-	logDriver := containersvc.GenAWSLogDriverForStream(req.Region, req.Cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,
@@ -87,7 +86,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, serviceUUID str
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		LogDriver: logDriver,
+		LogConfig: logConfig,
 	}
 
 	return &containersvc.RunTaskOptions{

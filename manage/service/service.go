@@ -17,12 +17,14 @@ import (
 	"github.com/cloudstax/openmanage/utils"
 )
 
-// Service creation requires 3 steps
+// Service creation requires 5 steps
 // 1. decide the cluster and service name, the number of replicas for the service,
 //    serviceMember size and available zone.
-// 2. call our script to create the service with all service attributes.
+// 2. call CreateService() to create the service with all service attributes in DB.
 // 3. create the task definition and service in ECS in the target cluster with
 //    the same service name and replica number.
+// 4. create other related resources such as aws cloudwatch log group
+// 5. add the service init task if necessary. The init task will set the service state to ACTIVE.
 
 // Here is the implementation for step 2.
 // - create device: check device items, assign the next block device name to the service,
@@ -32,7 +34,7 @@ import (
 // - create the service item in DynamoDB
 // - create the service attribute record with CREATING state.
 // - create the desired number of serviceMembers, and create IDLE serviceMember items in DB.
-// - update the service attribute state to ACTIVE.
+// - update the service attribute state to INITIALIZING.
 // The failure handling is simple. If the script failed at some step, user will get error and retry.
 // Could have a background scanner to clean up the dead service, in case user didn't retry.
 

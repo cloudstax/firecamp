@@ -13,6 +13,8 @@ import (
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/containersvc/awsecs"
+	"github.com/cloudstax/openmanage/log"
+	"github.com/cloudstax/openmanage/log/awscloudwatch"
 	"github.com/cloudstax/openmanage/server/awsec2"
 )
 
@@ -44,6 +46,7 @@ func main() {
 	}
 
 	ecsIns := awsecs.NewAWSEcs(sess)
+	logIns := awscloudwatch.NewLog(sess, awsRegion, common.ContainerPlatformECS)
 
 	// create context
 	ctx := context.Background()
@@ -68,7 +71,8 @@ func main() {
 	}
 
 	// create the manage service
-	createOpts := genCreateOptions(awsRegion, *cluster, *dbtype)
+	logConfig := logIns.CreateLogConfigForStream(ctx, *cluster, common.ManageServiceName, "", common.ManageServiceName)
+	createOpts := genCreateOptions(awsRegion, *cluster, *dbtype, logConfig)
 	err = ecsIns.CreateService(ctx, createOpts)
 	if err != nil {
 		glog.Fatalln("create the manage service error", err, common.ManageServiceName)
@@ -84,7 +88,7 @@ func main() {
 	fmt.Println("The manage service is ready")
 }
 
-func genCreateOptions(region string, cluster string, dbtype string) *containersvc.CreateServiceOptions {
+func genCreateOptions(region string, cluster string, dbtype string, logConfig *cloudlog.LogConfig) *containersvc.CreateServiceOptions {
 	// create the env variables for the manage service container
 	kv1 := &common.EnvKeyValuePair{
 		Name:  common.ENV_CONTAINER_PLATFORM,
@@ -95,8 +99,6 @@ func genCreateOptions(region string, cluster string, dbtype string) *containersv
 		Value: dbtype,
 	}
 	envkvs := []*common.EnvKeyValuePair{kv1, kv2}
-
-	logDriver := containersvc.GenAWSLogDriverForStream(region, cluster, common.ManageServiceName, "", common.ManageServiceName)
 
 	// create the management http server service
 	commonOpts := &containersvc.CommonOptions{
@@ -110,7 +112,7 @@ func genCreateOptions(region string, cluster string, dbtype string) *containersv
 			MaxMemMB:        common.ManageMaxMemMB,
 			ReserveMemMB:    common.ManageReserveMemMB,
 		},
-		LogDriver: logDriver,
+		LogConfig: logConfig,
 	}
 
 	return &containersvc.CreateServiceOptions{

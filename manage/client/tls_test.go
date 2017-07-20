@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 	"github.com/cloudstax/openmanage/manage/server"
 	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/utils"
@@ -25,11 +26,12 @@ func TestTLSMgrOperationsWithMemDB(t *testing.T) {
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
+	logIns := jsonfilelog.NewLog()
 	serverIns := server.NewMemServer()
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	// listen on a different port. not sure why, but when simply go test to run both client_test and tls_test,
 	// tls_test failed with like "server gave HTTP response to HTTPS client".
 	addr := "127.0.0.1:" + strconv.Itoa(common.ManageHTTPServerPort+2)

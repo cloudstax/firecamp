@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cloudstax/openmanage/common"
-
 	"golang.org/x/net/context"
+
+	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/log/jsonfile"
 )
 
 func TestMemContainerSvc(t *testing.T) {
@@ -44,7 +45,7 @@ func TestMemContainerSvc(t *testing.T) {
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
 	opts := &RunTaskOptions{
@@ -88,7 +89,7 @@ func serviceTest(ctx context.Context, t *testing.T, e *MemContainerSvc, cluster 
 			MaxMemMB:        int64(128),
 			ReserveMemMB:    int64(16),
 		},
-		LogDriver: GenJSONFileLogDriver(),
+		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
 	opts := &CreateServiceOptions{

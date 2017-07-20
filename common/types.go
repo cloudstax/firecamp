@@ -21,9 +21,6 @@ const (
 	LogDriverName     = "openmanagelogs"
 	LOGDRIVER_DEFAULT = "json-file"
 	LOGDRIVER_AWSLOGS = "awslogs"
-	AWSLOGS_REGION    = "awslogs-region"
-	AWSLOGS_GROUP     = "awslogs-group"
-	AWSLOGS_STREAM    = "awslogs-stream"
 
 	DefaultLogDir = "/var/log/" + SystemName
 
