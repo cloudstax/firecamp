@@ -17,12 +17,6 @@
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
 
-    "ServiceLogRetentionDays":{
-      "Type": "Integer",
-      "Description": "The service log retention days.",
-      "Default": 10
-    },
-
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
@@ -299,18 +293,6 @@
               }
             }
           ]
-        }
-      }
-    },
-
-    "CloudWatchLogGroup":{
-      "Type": "AWS::Logs::LogGroup",
-      "Properties" : {
-        "LogGroupName" : {
-          "Ref": "ECSClusterName"
-        },
-        "RetentionInDays" : {
-          "Ref": "ServiceLogRetentionDays"
         }
       }
     },

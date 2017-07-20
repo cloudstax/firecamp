@@ -21,6 +21,8 @@ const (
 	// see http://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html
 	logStream       = "awslogs-stream"
 	logStreamPrefix = "awslogs-stream-prefix"
+
+	defaultLogRetentionDays = 30
 )
 
 // Log implements the cloudlog interface for AWS CloudWatchLogs.
@@ -83,12 +85,22 @@ func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, se
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	group := l.genLogGroupName(cluster, service, serviceUUID)
-	req := &cloudwatchlogs.CreateLogGroupInput{
+	crreq := &cloudwatchlogs.CreateLogGroupInput{
 		LogGroupName: aws.String(group),
 	}
-	_, err := l.cli.CreateLogGroup(req)
+	_, err := l.cli.CreateLogGroup(crreq)
 	if err != nil && err.(awserr.Error).Code() != cloudwatchlogs.ErrCodeResourceAlreadyExistsException {
 		glog.Errorln("CreateLogGroup error", err, group, "requuid", requuid)
+		return err
+	}
+
+	putReq := &cloudwatchlogs.PutRetentionPolicyInput{
+		LogGroupName:    aws.String(group),
+		RetentionInDays: aws.Int64(defaultLogRetentionDays),
+	}
+	_, err = l.cli.PutRetentionPolicy(putReq)
+	if err != nil {
+		glog.Errorln("PutRetentionPolicy error", err, group, "requuid", requuid)
 		return err
 	}
 
