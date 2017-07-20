@@ -37,7 +37,7 @@ func TestCloudWatchLog(t *testing.T) {
 	if cfg.Name != driverName {
 		t.Fatalf("expect log driver name %s, got %s", driverName, cfg.Name)
 	}
-	if cfg.Options[logStream] != stream {
+	if cfg.Options[logStreamPrefix] != stream {
 		t.Fatalf("expect log stream %s, got %s", stream, cfg.Options)
 	}
 
@@ -46,8 +46,20 @@ func TestCloudWatchLog(t *testing.T) {
 		t.Fatalf("InitializeServiceLogConfig error %s, cluster %s", err, cluster)
 	}
 
+	// initialize again to test creating the same log group
+	err = ins.InitializeServiceLogConfig(ctx, cluster, service, serviceUUID)
+	if err != nil {
+		t.Fatalf("InitializeServiceLogConfig again error %s, cluster %s", err, cluster)
+	}
+
 	err = ins.DeleteServiceLogConfig(ctx, cluster, service, serviceUUID)
 	if err != nil {
 		t.Fatalf("DeleteServiceLogConfig error %s, cluster %s", err, cluster)
+	}
+
+	// delete again to test deleting unexist log group
+	err = ins.DeleteServiceLogConfig(ctx, cluster, service, serviceUUID)
+	if err != nil {
+		t.Fatalf("DeleteServiceLogConfig again error %s, cluster %s", err, cluster)
 	}
 }
