@@ -26,6 +26,23 @@
     }
   },
   "Resources":{
+    "OpenManageServerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join":[
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "manageserver"
+            ]
+          ]
+        },
+        "RetentionInDays": "30"
+      }
+    },
     "ECSCluster":{
       "Type":"AWS::ECS::Cluster",
       "Properties" : {
@@ -35,6 +52,7 @@
       }
     },
     "OpenManageServerTaskdefinition":{
+      "DependsOn": "OpenManageServerLogGroup",
       "Type":"AWS::ECS::TaskDefinition",
       "Properties":{
         "Family":{
@@ -73,6 +91,26 @@
                 "Protocol": "tcp"
               }
             ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-region": {
+                  "Ref": "AWS::Region"
+                },
+                "awslogs-group": {
+                  "Fn::Join":[
+                    "-",
+                    [
+                      {
+                        "Ref": "ECSClusterName"
+                      },
+                      "manageserver"
+                    ]
+                  ]
+                },
+                "awslogs-stream-prefix": "manageserver"
+              }
+            },
             "Environment":[
               {
                 "Name": "CONTAINER_PLATFORM",

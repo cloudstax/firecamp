@@ -86,7 +86,7 @@
                   "Effect":"Allow",
                   "Action":[
                     "logs:Create*",
-                    "logs:PutLogEvents"
+                    "logs:Put*",
                     "logs:Delete*"
                   ],
                   "Resource":"*"
