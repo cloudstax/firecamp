@@ -16,6 +16,11 @@ import (
 	"github.com/cloudstax/openmanage/common"
 )
 
+func SetLogToStd() {
+	flag.Set("logtostderr", "true")
+	flag.Set("stderrthreshold", "INFO")
+}
+
 func SetLogDir() {
 	// glog has log_dir flag to specify the log dir
 	f := flag.Lookup("log_dir")
