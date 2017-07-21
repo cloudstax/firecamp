@@ -22,6 +22,13 @@ const (
 	logStream       = "awslogs-stream"
 	logStreamPrefix = "awslogs-stream-prefix"
 
+	// Currently cloudwatch logs takes every log line as one event.
+	// Docker awslogs driver supports multiline pattern from 17.05.
+	// https://docs.docker.com/engine/admin/logging/awslogs/
+	// TODO enable it later.
+	// It is not urgent to enable it now. AWS CloudWatch console and cli support "text" view mode.
+	// aws logs get-log-events --log-group-name A --log-stream-name a --output text > a.log
+
 	defaultLogRetentionDays = 30
 )
 

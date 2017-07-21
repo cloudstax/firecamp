@@ -5,6 +5,7 @@ datadir=/data
 cfgfile=$datadir/conf/mongod.conf
 dbdir=$datadir/db
 configdbdir=$datadir/configdb
+syscfgfile=$datadir/conf/sys.conf
 
 # sanity check to make sure the volume is mounted to /data.
 if [ ! -d "$datadir" ]; then
@@ -18,6 +19,12 @@ if [ ! -f "$cfgfile" ]; then
   exit 1
 fi
 
+# sanity check to make sure the sys config file is created.
+if [ ! -f "$syscfgfile" ]; then
+  echo "error: $syscfgfile not exist." >&2
+  exit 1
+fi
+
 # create the db data and config data dirs.
 if [ ! -d "$dbdir" ]; then
   mkdir $dbdir
@@ -27,19 +34,18 @@ if [ ! -d "$configdbdir" ]; then
   mkdir $configdbdir
 fi
 
-echo "$dbdir $configdbdir and $cfgfile exist"
-
-# start the log rotate job in the background
-if [ "$(id -u)" = '0' ]; then
-  /startlogrotate.sh &
-fi
-
 # allow the container to be started with `--user`
 if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   chown -R mongodb $datadir
   echo "gosu mongodb $BASH_SOURCE $@"
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
+
+echo "$dbdir $configdbdir and $cfgfile exist"
+
+# print out the sys config file
+cat $syscfgfile
+echo ""
 
 if [ "$1" = 'mongod' ]; then
   numa='numactl --interleave=all'

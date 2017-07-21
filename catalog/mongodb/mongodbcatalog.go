@@ -118,7 +118,7 @@ func GenReplicaConfigs(azs []string, service string, replicas int64, replSetName
 		index := i % len(azs)
 		netcontent := fmt.Sprintf(mongoDBConfNetwork, port)
 		replcontent := fmt.Sprintf(mongoDBConfRepl, replSetName)
-		content := mongoDBConfHead + mongoDBConfStorage + mongoDBConfLog + netcontent + replcontent + mongoDBConfEnd
+		content := mongoDBConfHead + mongoDBConfStorage + netcontent + replcontent + mongoDBConfEnd
 		mongoCfg := &manage.ReplicaConfigFile{
 			FileName: mongoDBConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -216,12 +216,14 @@ storage:
       cacheSizeGB: 1
 `
 
-	mongoDBConfLog = `
-# where to write logging data.
-systemLog:
-  destination: file
-  path: /var/log/mongodb/mongod.log
-`
+	// leave systemLog.destination to empty, so MongoDB will send log to stdout.
+	// The container log driver will handle the log.
+	//	mongoDBConfLog = `
+	//# where to write logging data.
+	//systemLog:
+	//  destination: file
+	//  path: /var/log/mongodb/mongod.log
+	//`
 
 	mongoDBConfNetwork = `
 # network interfaces, bind 0.0.0.0
