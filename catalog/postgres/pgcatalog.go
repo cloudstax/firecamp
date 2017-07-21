@@ -184,6 +184,8 @@ wal_keep_segments = 32
 # TODO enable it with archiving to S3
 #archive_mode    = on
 #archive_command = 'cp %p /path_to/archive/%f'
+
+log_line_prefix = '%t %c %u %r '
 `
 
 	primaryPgHbaConf = `
@@ -208,6 +210,8 @@ host   replication      %s                all                    md5
 listen_addresses = '*'
 
 hot_standby = on
+
+log_line_prefix = '%t %c %u %r '
 `
 	standbyPgHbaConf = `
 # TYPE  DATABASE        USER            ADDRESS                 METHOD

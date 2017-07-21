@@ -16,6 +16,7 @@ PGUSER="postgres"
 ROLE_PRIMARY="primary"
 ROLE_STANDBY="standby"
 
+syscfgfile=$PGConfDIR/sys.conf
 
 SanityCheck() {
   # sanity check to make sure the volume is mounted to $PGDATA.
@@ -28,6 +29,12 @@ SanityCheck() {
   if [ ! -f "$PGConf" ] || [ ! -f "$PGHbaConf" ] || [ ! -f "$PGConfigFile" ]
   then
     echo "error: $PGConf or $PGHbaConf or $PGConfigFile not exist." >&2
+    exit 1
+  fi
+
+  # sanity check to make sure the sys config file is created.
+  if [ ! -f "$syscfgfile" ]; then
+    echo "error: $syscfgfile not exist." >&2
     exit 1
   fi
 
@@ -114,6 +121,10 @@ if [ "$(id -u)" = '0' ]; then
 	exec gosu postgres "$BASH_SOURCE" "$@"
 fi
 
+
+# print out the sys config file
+cat $syscfgfile
+echo ""
 
 # load the configs from the config file, including the container role (primary or slave),
 # primary hostname, postgres password, replication user & password.
