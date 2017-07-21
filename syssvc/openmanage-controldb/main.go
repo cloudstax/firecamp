@@ -26,7 +26,9 @@ var (
 func main() {
 	flag.Parse()
 
-	utils.SetLogDir()
+	// log to std, the manageserver container will send the logs to such as AWS CloudWatch.
+	utils.SetLogToStd()
+	//utils.SetLogDir()
 
 	if *tls && (*certFile == "" || *keyFile == "") {
 		fmt.Println("invalid command, please pass cert file and key file for tls", *certFile, *keyFile)
