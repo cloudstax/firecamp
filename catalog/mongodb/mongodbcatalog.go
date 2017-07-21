@@ -42,7 +42,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 	volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs, err := GenReplicaConfigs(azs, service, replicas, replSetName, defaultPort)
+	replicaCfgs, err := GenReplicaConfigs(azs, service, replicas, replSetName, defaultPort, res.MaxMemMB)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(azs []string, service string, replicas int64, replSetName string, port int64) ([]*manage.ReplicaConfig, error) {
+func GenReplicaConfigs(azs []string, service string, replicas int64, replSetName string, port int64, maxMemMB int64) ([]*manage.ReplicaConfig, error) {
 	// generate the keyfile for MongoDB internal auth between members of the replica set.
 	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
 	keyfileContent, err := genKeyfileContent()
@@ -118,7 +118,23 @@ func GenReplicaConfigs(azs []string, service string, replicas int64, replSetName
 		index := i % len(azs)
 		netcontent := fmt.Sprintf(mongoDBConfNetwork, port)
 		replcontent := fmt.Sprintf(mongoDBConfRepl, replSetName)
-		content := mongoDBConfHead + mongoDBConfStorage + netcontent + replcontent + mongoDBConfEnd
+		var content string
+		if maxMemMB == common.DefaultMaxMemoryMB {
+			// no max memory limit, mongodb will compute the cache size based on the node's memory.
+			content = mongoDBConfHead + mongoDBConfStorage + netcontent + replcontent + mongoDBConfEnd
+		} else {
+			// max memory is limited. compute cache size, max(50% of max memory - 1GB, 256MB).
+			// https://docs.mongodb.com/manual/reference/configuration-options/#storage-options
+			defaultCacheSizeMB := int64(256)
+			cacheSizeMB := maxMemMB/2 - 1024
+			if cacheSizeMB < defaultCacheSizeMB {
+				cacheSizeMB = defaultCacheSizeMB
+			}
+			// align cache size to 256MB
+			cacheSizeGB := float64(cacheSizeMB/defaultCacheSizeMB) * 0.25
+			cacheContent := fmt.Sprintf(mongoDBConfCache, cacheSizeGB)
+			content = mongoDBConfHead + mongoDBConfStorage + cacheContent + netcontent + replcontent + mongoDBConfEnd
+		}
 		mongoCfg := &manage.ReplicaConfigFile{
 			FileName: mongoDBConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -210,10 +226,12 @@ storage:
   journal:
     enabled: true
   engine: wiredTiger
-#  mmapv1:
+`
+
+	mongoDBConfCache = `
   wiredTiger:
     engineConfig:
-      cacheSizeGB: 1
+      cacheSizeGB: %v
 `
 
 	// leave systemLog.destination to empty, so MongoDB will send log to stdout.
