@@ -22,16 +22,18 @@ import (
 // The catalog service command tool to create/query the catalog service.
 
 var (
-	op           = flag.String("op", "", "The operation type, such as create-service")
-	serviceType  = flag.String("service-type", "", "The catalog service type: mongodb|postgresql")
-	cluster      = flag.String("cluster", "default", "The ECS cluster")
-	serverURL    = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
-	region       = flag.String("region", "", "The target AWS region")
-	service      = flag.String("service-name", "", "The target service name in ECS")
-	replicas     = flag.Int64("replicas", 3, "The number of replicas for the service")
-	volSizeGB    = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	cpuUnits     = flag.Int64("cpu-units", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
-	reserveMemMB = flag.Int64("soft-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
+	op              = flag.String("op", "", "The operation type, such as create-service")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql")
+	cluster         = flag.String("cluster", "default", "The ECS cluster")
+	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
+	region          = flag.String("region", "", "The target AWS region")
+	service         = flag.String("service-name", "", "The target service name in ECS")
+	replicas        = flag.Int64("replicas", 3, "The number of replicas for the service")
+	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
+	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
+	reserveCPUUnits = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
+	maxMemMB        = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
+	reserveMemMB    = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
 	admin       = flag.String("admin", "dbadmin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
@@ -189,9 +191,9 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 			ServiceName: *service,
 		},
 		Resource: &common.Resources{
-			MaxCPUUnits:     common.DefaultMaxCPUUnits,
-			ReserveCPUUnits: *cpuUnits,
-			MaxMemMB:        common.DefaultMaxMemoryMB,
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Replicas:     *replicas,
@@ -247,9 +249,9 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 			ServiceName: *service,
 		},
 		Resource: &common.Resources{
-			MaxCPUUnits:     common.DefaultMaxCPUUnits,
-			ReserveCPUUnits: *cpuUnits,
-			MaxMemMB:        common.DefaultMaxMemoryMB,
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Replicas:       *replicas,

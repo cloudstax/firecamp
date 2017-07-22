@@ -252,6 +252,10 @@
               [
                 "#!/bin/bash -x\n",
 
+                "# set madvise for THP (Transparent Huge Pages), as THP might impact the performance for some services, such as MongoDB and Reddis\n",
+                "# https://www.kernel.org/doc/Documentation/vm/transhuge.txt\n",
+                "echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled\n",
+
                 "# install docker\n",
                 "yum install -y docker\n",
                 "service docker start\n",
