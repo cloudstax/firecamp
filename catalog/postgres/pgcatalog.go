@@ -25,7 +25,7 @@ const (
 
 // The default PostgreSQL catalog service. By default,
 // 1) One PostgreSQL has 1 primary and 2 secondary replicas across 3 availability zones.
-// 2) Listen on the standard MongoDB port, 5432.
+// 2) Listen on the standard port, 5432.
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(region string, azs []string,
