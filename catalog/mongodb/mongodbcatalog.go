@@ -34,7 +34,7 @@ const (
 
 // The default MongoDB ReplicaSet catalog service. By default,
 // 1) One MongoDB ReplicaSet has 1 primary and 2 secondary replicas across 3 availability zones.
-// 2) Listen on the standard MongoDB port, 27017.
+// 2) Listen on the standard port, 27017.
 // 3) The ReplicaSetName is the service name.
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.

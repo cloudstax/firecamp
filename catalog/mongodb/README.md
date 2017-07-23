@@ -6,5 +6,15 @@ The OpenManage MongoDB follows the offical [security checklist](https://docs.mon
 
 **Logging**
 
-The MongoDB container writes the logs to a file. MongoDB does not rotate the logs by default. See MongoDB Administration, [Rotate Log Files](https://docs.mongodb.com/manual/tutorial/rotate-log-files): "MongoDB only rotates logs in response to the [logRotate](https://docs.mongodb.com/manual/reference/command/logRotate/#dbcmd.logRotate) command, or when the mongod or mongos process receives a SIGUSR1 signal from the operating system". So the log file could grow infinitely. The OpenManage MongoDB uses the logrotate tool to monitor and notify MongoDB to rotate the log file. [See the reference discussion](https://stackoverflow.com/questions/5004626/mongodb-log-file-growth). And the logs will be sent to CloudWatch to avoid consuming too much local storage capacity.
+The MongoDB logs are sent to the Cloud Logs, such as AWS CloudWatch logs. Could easily check what happens to MongoDB through CloudWatch logs.
+
+The current latest Amazon Linux AMI uses Docker 17.03, which does not support the custom logging driver. So the awslogs driver is directly used.
+
+Every service will have its own log group. For example, create the MongoDB service, mymongo, on cluster t1. The log group t1-mymongo-uuid will be created for the service. A log stream is created for every container. The OpenManage MongoDB container will log its service member at startup. We could get the full logs of one service member by simply checking the server member log entry in the log streams.
+
+The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI updates to use higher Docker version and supports the custom loggint driver, we will switch to the OpenManage CloudWatch log driver. The OpenManage CloudWatch log driver will send the logs of one service member to one log stream, no matter where the container runs on.
+
+**Cache**
+
+By default, the MongoDB instance inside the container assumes the whole node's memory could be used, and calculate the cache size accordingly. In case you want to limit the memory size, could set the max-memory when creating the service.
 
