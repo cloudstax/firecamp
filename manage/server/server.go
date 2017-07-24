@@ -259,7 +259,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 	createOpts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
 		ContainerPath: req.ContainerPath,
-		Port:          req.Port,
+		PortMappings:  req.PortMappings,
 		Replicas:      req.Replicas,
 	}
 

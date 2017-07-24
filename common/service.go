@@ -38,6 +38,12 @@ type Resources struct {
 	ReserveMemMB    int64
 }
 
+// PortMapping defines the container port to host port mapping.
+type PortMapping struct {
+	ContainerPort int64
+	HostPort      int64
+}
+
 // ServiceStatus represents the service's running status.
 // TODO add more status. For example, the members are running on which nodes.
 type ServiceStatus struct {

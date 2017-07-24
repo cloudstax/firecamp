@@ -567,14 +567,17 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 		}
 	}
 
-	if opts.Port != -1 {
-		portMappings := []*ecs.PortMapping{
-			{
-				ContainerPort: aws.Int64(opts.Port),
-				HostPort:      aws.Int64(opts.Port),
+	if len(opts.PortMappings) != 0 {
+		portMappings := make([]*ecs.PortMapping, len(opts.PortMappings))
+		for i, portmap := range opts.PortMappings {
+			p := &ecs.PortMapping{
+				ContainerPort: aws.Int64(portmap.ContainerPort),
+				HostPort:      aws.Int64(portmap.HostPort),
 				Protocol:      aws.String(tcpProtocol),
-			},
+			}
+			portMappings[i] = p
 		}
+
 		params.ContainerDefinitions[0].PortMappings = portMappings
 	}
 

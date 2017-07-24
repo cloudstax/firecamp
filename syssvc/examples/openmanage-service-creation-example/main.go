@@ -156,6 +156,11 @@ func main() {
 
 func createAndWaitService(ctx context.Context, cli *client.ManageClient, replicaCfgs []*manage.ReplicaConfig, containerImage string) {
 	// create the service at the openmanage control plane and the container platform.
+	p := common.PortMapping{
+		ContainerPort: *port,
+		HostPort:      *port,
+	}
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
@@ -174,7 +179,7 @@ func createAndWaitService(ctx context.Context, cli *client.ManageClient, replica
 		Replicas:       *replicas,
 		VolumeSizeGB:   *volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
-		Port:           *port,
+		PortMappings:   []common.PortMapping{p},
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,

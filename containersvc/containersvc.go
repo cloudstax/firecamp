@@ -33,7 +33,7 @@ type CommonOptions struct {
 type CreateServiceOptions struct {
 	Common        *CommonOptions
 	ContainerPath string // The mount path inside container
-	Port          int64
+	PortMappings  []common.PortMapping
 	Replicas      int64
 	Envkvs        []*common.EnvKeyValuePair
 }

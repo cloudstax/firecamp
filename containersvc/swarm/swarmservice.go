@@ -143,6 +143,23 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 		},
 	}
 
+	if len(opts.PortMappings) != 0 {
+		ports := make([]swarm.PortConfig, len(opts.PortMappings))
+		for i, p := range opts.PortMappings {
+			ports[i] = swarm.PortConfig{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    uint32(p.ContainerPort),
+				PublishedPort: uint32(p.HostPort),
+				PublishMode:   swarm.PortConfigPublishModeHost,
+			}
+		}
+
+		epSpec := &swarm.EndpointSpec{
+			Ports: ports,
+		}
+		serviceSpec.EndpointSpec = epSpec
+	}
+
 	serviceOpts := types.ServiceCreateOptions{}
 
 	resp, err := cli.ServiceCreate(ctx, serviceSpec, serviceOpts)

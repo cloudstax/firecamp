@@ -103,10 +103,14 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		},
 		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
+	portmapping := common.PortMapping{
+		ContainerPort: 23011,
+		HostPort:      23011,
+	}
 	createOpts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
 		ContainerPath: "",
-		Port:          int64(23011),
+		PortMappings:  []common.PortMapping{portmapping},
 		Replicas:      replicas,
 	}
 

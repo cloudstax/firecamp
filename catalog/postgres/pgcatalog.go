@@ -34,6 +34,11 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, defaultPort, adminPasswd, replUser, replPasswd)
 
+	portmapping := common.PortMapping{
+		ContainerPort: defaultPort,
+		HostPort:      defaultPort,
+	}
+
 	return &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -47,7 +52,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 		Replicas:       replicas,
 		VolumeSizeGB:   volSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
-		Port:           defaultPort,
+		PortMappings:   []common.PortMapping{portmapping},
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,

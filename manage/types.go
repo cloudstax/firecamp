@@ -65,7 +65,7 @@ type CreateServiceRequest struct {
 	Replicas       int64
 	VolumeSizeGB   int64
 	ContainerPath  string // The mount path inside container
-	Port           int64
+	PortMappings   []common.PortMapping
 	Envkvs         []*common.EnvKeyValuePair
 
 	RegisterDNS    bool

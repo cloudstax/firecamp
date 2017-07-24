@@ -219,10 +219,15 @@ func createControlDB(ctx context.Context, region string, cluster string, logIns 
 		Value: *platform,
 	}
 
+	p := common.PortMapping{
+		ContainerPort: common.ControlDBServerPort,
+		HostPort:      common.ControlDBServerPort,
+	}
+
 	createOpts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
 		ContainerPath: common.ControlDBDefaultDir,
-		Port:          common.ControlDBServerPort,
+		PortMappings:  []common.PortMapping{p},
 		Replicas:      int64(1),
 		Envkvs:        []*common.EnvKeyValuePair{kv},
 	}

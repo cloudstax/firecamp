@@ -142,10 +142,15 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 		LogConfig: jsonfilelog.CreateJSONFileLogConfig(),
 	}
 
+	p := common.PortMapping{
+		ContainerPort: 23011,
+		HostPort:      23011,
+	}
+
 	opts := &containersvc.CreateServiceOptions{
 		Common:        commonOpts,
 		ContainerPath: containerPath,
-		Port:          int64(23011),
+		PortMappings:  []common.PortMapping{p},
 		Replicas:      int64(0),
 	}
 
