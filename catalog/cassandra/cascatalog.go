@@ -22,6 +22,7 @@ const (
 
 	yamlConfFileName   = "cassandra.yaml"
 	rackdcConfFileName = "cassandra-rackdc.properties"
+	logConfFileName    = "logback.xml"
 )
 
 // The default Cassandra catalog service. By default,
@@ -65,8 +66,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(region string, cluster string, service string, azs []string, replicas int64) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
-	seedMember := utils.GenServiceMemberName(service, 0)
-	seedHost := dns.GenDNSName(seedMember, domain)
+	seeds := genSeedHosts(int64(len(azs)), replicas, service, domain)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < int(replicas); i++ {
@@ -76,7 +76,7 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 
 		// create the cassandra.yaml file
 		memberHost := dns.GenDNSName(member, domain)
-		customContent := fmt.Sprintf(yamlConfigs, cluster, seedHost, memberHost, memberHost, memberHost, memberHost)
+		customContent := fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -91,11 +91,37 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 			Content:  content,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg}
+		// create the logback.xml file
+		logCfg := &manage.ReplicaConfigFile{
+			FileName: logConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  logConfContent,
+		}
+
+		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, logCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs
+}
+
+func genSeedHosts(azCount int64, replicas int64, service string, domain string) string {
+	seedCount := azCount
+	if seedCount > replicas {
+		seedCount = replicas
+	}
+	seedHostSep := ","
+	seedHost := ""
+	for i := int64(0); i < seedCount; i++ {
+		member := utils.GenServiceMemberName(service, i)
+		host := dns.GenDNSName(member, domain)
+		if i == (seedCount - 1) {
+			seedHost += host
+		} else {
+			seedHost += host + seedHostSep
+		}
+	}
+	return seedHost
 }
 
 const (
@@ -241,5 +267,28 @@ back_pressure_strategy:
         - high_ratio: 0.90
           factor: 5
           flow: FAST
+`
+
+	logConfContent = `
+<configuration scan="true">
+  <jmxConfigurator />
+  <!-- STDOUT console appender to stdout (INFO level) -->
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+    <encoder>
+      <pattern>%-5level [%thread] %date{ISO8601} %F:%L - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+
+  <logger name="org.apache.cassandra" level="INFO"/>
+  <logger name="com.thinkaurelius.thrift" level="ERROR"/>
+</configuration>
 `
 )

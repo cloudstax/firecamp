@@ -5,6 +5,7 @@ DATA_DIR=/data
 CONFIG_DIR=$DATA_DIR/conf
 CASSANDRA_YAML_FILE=$CONFIG_DIR/cassandra.yaml
 CASSANDRA_RACKDC_FILE=$CONFIG_DIR/cassandra-rackdc.properties
+CASSANDRA_LOG_FILE=$CONFIG_DIR/logback.xml
 syscfgfile=$CONFIG_DIR/sys.conf
 
 # sanity check to make sure the volume is mounted to /data.
@@ -25,6 +26,10 @@ if [ ! -f "$CASSANDRA_RACKDC_FILE" ]; then
   echo "error: $CASSANDRA_RACKDC_FILE not exist." >&2
   exit 1
 fi
+if [ ! -f "$CASSANDRA_LOG_FILE" ]; then
+  echo "error: $CASSANDRA_LOG_FILE not exist." >&2
+  exit 1
+fi
 
 # sanity check to make sure the sys config file is created.
 if [ ! -f "$syscfgfile" ]; then
@@ -35,6 +40,7 @@ fi
 if [ "$(id -u)" = '0' ]; then
   cp $CASSANDRA_YAML_FILE /etc/cassandra/
   cp $CASSANDRA_RACKDC_FILE /etc/cassandra/
+  cp $CASSANDRA_LOG_FILE /etc/cassandra/
 fi
 
 # allow the container to be started with `--user`
