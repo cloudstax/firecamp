@@ -521,6 +521,11 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 
 	params := &ecs.RegisterTaskDefinitionInput{
 		Family: aws.String(taskDefFamily),
+		// by default, use Host mode for the stateful services.
+		// according to https://docs.docker.com/engine/reference/run/#network-settings,
+		// "Compared to the default bridge mode, the host mode gives significantly better networking performance".
+		// Performance is critical for the stateful services.
+		NetworkMode: aws.String(ecs.NetworkModeHost),
 		//TaskRoleArn: aws.String("String"),
 
 		ContainerDefinitions: []*ecs.ContainerDefinition{

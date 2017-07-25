@@ -23,7 +23,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -68,7 +68,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -140,6 +140,8 @@ func main() {
 			createMongoDBService(ctx, cli)
 		case catalog.CatalogService_PostgreSQL:
 			createPostgreSQLService(ctx, cli)
+		case catalog.CatalogService_Cassandra:
+			createCassandraService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL)
@@ -269,6 +271,39 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The postgresql service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createCassandraService(ctx context.Context, cli *client.ManageClient) {
+	if *replicas == 0 || *volSizeGB == 0 {
+		fmt.Println("please specify the valid replica number and volume size")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateCassandraRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Replicas:     *replicas,
+		VolumeSizeGB: *volSizeGB,
+	}
+
+	err := cli.CatalogCreateCassandraService(ctx, req)
+	if err != nil {
+		fmt.Println("create cassandra service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The cassandra service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

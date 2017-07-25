@@ -19,6 +19,7 @@ const (
 	CatalogOpPrefix           = SpecialOpPrefix + "Catalog-"
 	CatalogCreateMongoDBOp    = CatalogOpPrefix + "Create-MongoDB"
 	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
+	CatalogCreateCassandraOp  = CatalogOpPrefix + "Create-Cassandra"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 
@@ -181,6 +182,15 @@ type CatalogCreatePostgreSQLRequest struct {
 	AdminPasswd    string
 	ReplUser       string
 	ReplUserPasswd string
+}
+
+// CatalogCreateCassandraRequest creates a Cassandra service.
+type CatalogCreateCassandraRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+
+	Replicas     int64
+	VolumeSizeGB int64
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

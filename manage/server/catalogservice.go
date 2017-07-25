@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/openmanage/catalog"
+	"github.com/cloudstax/openmanage/catalog/cassandra"
 	"github.com/cloudstax/openmanage/catalog/mongodb"
 	"github.com/cloudstax/openmanage/catalog/postgres"
 	"github.com/cloudstax/openmanage/common"
@@ -23,6 +24,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createMongoDBService(ctx, r, requuid)
 	case manage.CatalogCreatePostgreSQLOp:
 		return s.createPGService(ctx, r, requuid)
+	case manage.CatalogCreateCassandraOp:
+		return s.createCasService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	default:
@@ -202,6 +205,34 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	}
 
 	// PG does not require additional init work. set PG initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateCassandraRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateCassandraRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateCassandraRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := cascatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+	_, err = s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// Cassandra does not require additional init work. set Cassandra initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 

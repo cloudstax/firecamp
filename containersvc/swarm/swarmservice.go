@@ -96,6 +96,10 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 			Image:  opts.Common.ContainerImage,
 			Mounts: mounts,
 		},
+		// docker swarm service does not allow "host" network. By default, "bridge" will be used.
+		//Networks: []swarm.NetworkAttachmentConfig{
+		//	swarm.NetworkAttachmentConfig{Target: "host"},
+		//},
 		LogDriver: &swarm.Driver{
 			Name:    opts.Common.LogConfig.Name,
 			Options: opts.Common.LogConfig.Options,

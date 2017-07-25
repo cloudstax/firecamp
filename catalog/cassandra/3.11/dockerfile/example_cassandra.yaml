@@ -1,0 +1,44 @@
+# apply below minimal configs to default_cassandra.yaml to create the actual cassandra.yaml
+#
+# Note: has to set "Network Mode" to "host" in task def.
+#
+# useful discusssion, http://stackoverflow.com/questions/26892330/cassandra-datastax-enterprise-using-amazon-elastic-ip
+# Listen Address - This is the ip address other Cassandra nodes will use to talk to this node. You want this to be your internal AWS IP Address for performance.
+# RPC Address - This is the address your client connects to, probably the one you want to configure to match your external AWS address if your client is not sitting in AWS or in the same AWS region.
+# Broadcast Address - If you are using multiple data centers or AWS Regions, where not all the nodes have access to each other via internal IP. You can specify the external IP address for the nodes in different data centers can still talk to each other. In many cases you don't need this setting at all, it will default to your Listen Address.
+
+cluster_name: 'cluster1'
+
+hints_directory: /data/hints
+# recommend to have separate disks for commitlog and data(SSTable).
+commitlog_directory: /data/commitlog
+data_file_directories:
+    - /data/data
+saved_caches_directory: /data/saved_caches
+
+# The other option is batch mode, plus commitlog_sync_batch_window_in_ms.
+# TODO it is a perf vs data persistency config. is 10s too long? consider the disk is SSD?
+#commitlog_sync: periodic
+#commitlog_sync_period_in_ms: 10000
+
+seed_provider:
+    - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+      parameters:
+          # seeds is actually a comma-delimited list of addresses.
+          # Ex: "<ip1>,<ip2>,<ip3>"
+          - seeds: "mycas-0.cluster1-openmanage.com"
+
+listen_address: mycas-0.cluster1-openmanage.com
+broadcast_address: mycas-0.cluster1-openmanage.com
+rpc_address: mycas-0.cluster1-openmanage.com
+broadcast_rpc_address: mycas-0.cluster1-openmanage.com
+
+# TODO If your data directories are backed by SSD, you should increase this
+# to the number of cores
+#concurrent_compactors: 1
+
+# TODO should we enable cross_node_timeout?
+#cross_node_timeout: false
+
+endpoint_snitch: GossipingPropertyFileSnitch
+
