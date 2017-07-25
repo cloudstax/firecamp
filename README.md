@@ -13,7 +13,7 @@ With OpenManage, you are able to quickly and efficiently respond to the stateful
 * **Manage the stateful service data easily.**
 * **Move from one cloud to another freely.**
 
-The OpenManage platform is one step towards the free Serverless Cloud. The customer could easily run any service with no management overhead on any Cloud. Currently the platform has built-in integrations for MongoDB and PostgreSQL. MySQL and Cassandra are coming soon. More services will be integrated in the future.
+The OpenManage platform is one step towards the free Serverless Cloud. The customer could easily run any service with no management overhead on any Cloud. Currently the platform has built-in integrations for MongoDB, PostgreSQL and Cassandra. MySQL is coming soon. More services will be integrated in the future.
 
 ## Key Features
 
@@ -50,3 +50,4 @@ The OpenManage cluster could be easily installed using AWS CloudFormation. For t
 ## Catalog Services
 * [MongoDB](https://github.com/cloudstax/openmanage/tree/master/catalog/mongodb)
 * [PostgreSQL](https://github.com/cloudstax/openmanage/tree/master/catalog/postgres)
+* [Cassandra](https://github.com/cloudstax/openmanage/tree/master/catalog/cassandra)
