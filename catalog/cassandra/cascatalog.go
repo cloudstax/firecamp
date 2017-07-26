@@ -154,6 +154,18 @@ endpoint_snitch: GossipingPropertyFileSnitch
 
 `
 
+	yamlSecurityConfigs = `
+authenticator: PasswordAuthenticator
+authorizer: AllowAllAuthorizer
+role_manager: CassandraRoleManager
+roles_validity_in_ms: 2000
+roles_update_interval_in_ms: 2000
+permissions_validity_in_ms: 2000
+permissions_update_interval_in_ms: 2000
+credentials_validity_in_ms: 2000
+credentials_update_interval_in_ms: 2000
+`
+
 	yamlDefaultConfigs = `
 # The rest configs are the same with default cassandra.yaml
 num_tokens: 256
@@ -164,12 +176,6 @@ max_hints_delivery_threads: 2
 hints_flush_period_in_ms: 10000
 max_hints_file_size_in_mb: 128
 batchlog_replay_throttle_in_kb: 1024
-authenticator: AllowAllAuthenticator
-authorizer: AllowAllAuthorizer
-role_manager: CassandraRoleManager
-roles_validity_in_ms: 2000
-permissions_validity_in_ms: 2000
-credentials_validity_in_ms: 2000
 partitioner: org.apache.cassandra.dht.Murmur3Partitioner
 cdc_enabled: false
 disk_failure_policy: stop
