@@ -8,10 +8,9 @@ import (
 const separator = "="
 
 // CreateSysConfigFile creates the content for the sys.conf file.
-// like:
-// SERVICE_MEMBER=memberName
-func CreateSysConfigFile(memberName string) *manage.ReplicaConfigFile {
-	content := SYS_SERVICE_MEMBER + separator + memberName
+// example: SERVICE_MEMBER=mycas-0.cluster-openmanage.com
+func CreateSysConfigFile(memberDNSName string) *manage.ReplicaConfigFile {
+	content := SYS_SERVICE_MEMBER + separator + memberDNSName
 	return &manage.ReplicaConfigFile{
 		FileName: SYS_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,

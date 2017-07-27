@@ -74,12 +74,13 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < int(replicas); i++ {
-		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
-		sysCfg := catalog.CreateSysConfigFile(member)
+		memberHost := dns.GenDNSName(member, domain)
+
+		// create the sys.conf file
+		sysCfg := catalog.CreateSysConfigFile(memberHost)
 
 		// create the cassandra.yaml file
-		memberHost := dns.GenDNSName(member, domain)
 		customContent := fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,

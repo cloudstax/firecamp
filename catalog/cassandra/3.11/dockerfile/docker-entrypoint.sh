@@ -49,9 +49,11 @@ if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
 	exec gosu cassandra "$BASH_SOURCE" "$@"
 fi
 
-# print out the sys config file
-cat $syscfgfile
-echo ""
+# source the sys config file
+. $syscfgfile
+echo $SERVICE_MEMBER
+/checkdns.sh $SERVICE_MEMBER
+echo
 
 echo "$@"
 exec "$@"

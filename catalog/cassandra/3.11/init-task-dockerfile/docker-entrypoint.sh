@@ -19,6 +19,8 @@ then
   exit 1
 fi
 
+/checkdns.sh $SERVICE_NODE
+
 echo "alter keyspace system_auth at $REGION to 3 replicas for service $SERVICE_NAME"
 
 # increase the replication factor for the system_auth keyspace to 3

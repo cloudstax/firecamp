@@ -30,6 +30,7 @@ ENV CASSANDRA_VERSION 3.11.0
 RUN apt-get update \
 	&& apt-get install -y \
     curl \
+    dnsutils \
     cassandra="$CASSANDRA_VERSION" \
     cassandra-tools="$CASSANDRA_VERSION" \
 	&& rm -rf /var/lib/apt/lists/*
@@ -37,5 +38,6 @@ RUN apt-get update \
 # https://issues.apache.org/jira/browse/CASSANDRA-11661
 RUN sed -ri 's/^(JVM_PATCH_VERSION)=.*/\1=25/' /etc/cassandra/cassandra-env.sh
 
+COPY checkdns.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
