@@ -87,4 +87,10 @@ echo
 docker build -t $image $path
 docker push $image
 
+target=$system"-cassandra-init"
+image="${org}${target}:${version}"
+path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
+echo
+docker build -t $image $path
+docker push $image
 

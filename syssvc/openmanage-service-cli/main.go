@@ -218,7 +218,48 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		Admin:       *admin,
 		AdminPasswd: *adminPasswd,
 	}
+	waitServiceInit(ctx, cli, initReq)
+}
 
+func createCassandraService(ctx context.Context, cli *client.ManageClient) {
+	if *replicas == 0 || *volSizeGB == 0 {
+		fmt.Println("please specify the valid replica number and volume size")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateCassandraRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Replicas:     *replicas,
+		VolumeSizeGB: *volSizeGB,
+	}
+
+	err := cli.CatalogCreateCassandraService(ctx, req)
+	if err != nil {
+		fmt.Println("create cassandra service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is created, wait till it gets initialized")
+
+	initReq := &manage.CatalogCheckServiceInitRequest{
+		ServiceType: catalog.CatalogService_Cassandra,
+		Service:     req.Service,
+	}
+
+	waitServiceInit(ctx, cli, initReq)
+}
+
+func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
 	sleepSeconds := time.Duration(5) * time.Second
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
@@ -271,39 +312,6 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The postgresql service is created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
-}
-
-func createCassandraService(ctx context.Context, cli *client.ManageClient) {
-	if *replicas == 0 || *volSizeGB == 0 {
-		fmt.Println("please specify the valid replica number and volume size")
-		os.Exit(-1)
-	}
-
-	req := &manage.CatalogCreateCassandraRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
-		Resource: &common.Resources{
-			MaxCPUUnits:     *maxCPUUnits,
-			ReserveCPUUnits: *reserveCPUUnits,
-			MaxMemMB:        *maxMemMB,
-			ReserveMemMB:    *reserveMemMB,
-		},
-		Replicas:     *replicas,
-		VolumeSizeGB: *volSizeGB,
-	}
-
-	err := cli.CatalogCreateCassandraService(ctx, req)
-	if err != nil {
-		fmt.Println("create cassandra service error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("The cassandra service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

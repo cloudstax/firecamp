@@ -99,6 +99,9 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 					return errmsg, errcode
 				}
 
+			case catalog.CatalogService_Cassandra:
+				s.addCasInitTask(ctx, req.Service, attr.ServiceUUID, requuid)
+
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 			}
@@ -226,14 +229,35 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 	// create the service in the control plane and the container platform
 	crReq := cascatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
-	_, err = s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// Cassandra does not require additional init work. set Cassandra initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
+
+	// run the init task in the background
+	s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
+
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
+	req *manage.ServiceCommonRequest, serviceUUID string, requuid string) {
+	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	taskOpts := cascatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl)
+
+	task := &serviceTask{
+		serviceUUID: serviceUUID,
+		serviceName: req.ServiceName,
+		serviceType: catalog.CatalogService_Cassandra,
+		opts:        taskOpts,
+	}
+
+	s.catalogSvcInit.addInitTask(ctx, task)
+
+	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
 func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -254,7 +278,12 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 	switch req.ServiceType {
 	case catalog.CatalogService_MongoDB:
 		return s.setMongoDBInit(ctx, req, requuid)
-	// no special handling for PostgreSQL
+	// PostgreSQL does not require to run the init task.
+	case catalog.CatalogService_Cassandra:
+		// simply set service initialized
+		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+
 	default:
 		glog.Errorln("unknown service type", req)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest

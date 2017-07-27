@@ -19,14 +19,14 @@ saved_caches_directory: /data/saved_caches
 # auth, refer to http://cassandra.apache.org/doc/latest/operating/security.html
 # http://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
 authenticator: PasswordAuthenticator
-authorizer: AllowAllAuthorizer
+authorizer: CassandraAuthorizer
 role_manager: CassandraRoleManager
-roles_validity_in_ms: 2000
-roles_update_interval_in_ms: 2000
-permissions_validity_in_ms: 2000
-permissions_update_interval_in_ms: 2000
-credentials_validity_in_ms: 2000
-credentials_update_interval_in_ms: 2000
+roles_validity_in_ms: 10000
+roles_update_interval_in_ms: 4000
+permissions_validity_in_ms: 10000
+permissions_update_interval_in_ms: 4000
+credentials_validity_in_ms: 10000
+credentials_update_interval_in_ms: 4000
 
 
 # The other option is batch mode, plus commitlog_sync_batch_window_in_ms.

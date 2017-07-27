@@ -5,14 +5,18 @@ import (
 
 	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/utils"
 )
 
 const (
-	// ContainerImage is the main PostgreSQL running container.
+	// ContainerImage is the main Cassandra running container.
 	ContainerImage = common.ContainerNamePrefix + "cassandra:" + common.Version
+	// InitContainerImage initializes the Cassandra cluster.
+	InitContainerImage = common.ContainerNamePrefix + "cassandra-init:" + common.Version
 
 	intraNodePort    = 7000
 	tlsIntraNodePort = 7001
@@ -80,7 +84,7 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,
 			FileMode: common.DefaultConfigFileMode,
-			Content:  customContent + yamlDefaultConfigs,
+			Content:  customContent + yamlSecurityConfigs + yamlDefaultConfigs,
 		}
 
 		index := i % len(azs)
@@ -124,6 +128,49 @@ func genSeedHosts(azCount int64, replicas int64, service string, domain string) 
 	return seedHost
 }
 
+// GenDefaultInitTaskRequest returns the default Cassandra init task request.
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
+	serviceUUID string, manageurl string) *containersvc.RunTaskOptions {
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, manageurl)
+
+	commonOpts := &containersvc.CommonOptions{
+		Cluster:        req.Cluster,
+		ServiceName:    req.ServiceName,
+		ServiceUUID:    serviceUUID,
+		ContainerImage: InitContainerImage,
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
+		},
+		LogConfig: logConfig,
+	}
+
+	return &containersvc.RunTaskOptions{
+		Common:   commonOpts,
+		TaskType: common.TaskTypeInit,
+		Envkvs:   envkvs,
+	}
+}
+
+// GenInitTaskEnvKVPairs generates the environment key-values for the init task.
+func GenInitTaskEnvKVPairs(region string, cluster string, service string, manageurl string) []*common.EnvKeyValuePair {
+	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
+	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
+	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+
+	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_Cassandra}
+
+	domain := dns.GenDefaultDomainName(cluster)
+	dnsname := dns.GenDNSName(utils.GenServiceMemberName(service, 0), domain)
+	kvnode := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NODE, Value: dnsname}
+
+	return []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvnode}
+}
+
 const (
 	rackdcProps = `
 dc=%s
@@ -156,14 +203,14 @@ endpoint_snitch: GossipingPropertyFileSnitch
 
 	yamlSecurityConfigs = `
 authenticator: PasswordAuthenticator
-authorizer: AllowAllAuthorizer
+authorizer: CassandraAuthorizer
 role_manager: CassandraRoleManager
-roles_validity_in_ms: 2000
-roles_update_interval_in_ms: 2000
-permissions_validity_in_ms: 2000
-permissions_update_interval_in_ms: 2000
-credentials_validity_in_ms: 2000
-credentials_update_interval_in_ms: 2000
+roles_validity_in_ms: 10000
+roles_update_interval_in_ms: 4000
+permissions_validity_in_ms: 10000
+permissions_update_interval_in_ms: 4000
+credentials_validity_in_ms: 10000
+credentials_update_interval_in_ms: 4000
 `
 
 	yamlDefaultConfigs = `
