@@ -121,11 +121,6 @@ if [ "$(id -u)" = '0' ]; then
 	exec gosu postgres "$BASH_SOURCE" "$@"
 fi
 
-
-# print out the sys config file
-cat $syscfgfile
-echo ""
-
 # load the configs from the config file, including the container role (primary or slave),
 # primary hostname, postgres password, replication user & password.
 . "$PGConfigFile"
@@ -136,6 +131,17 @@ then
   echo "error: please write all required configs in the config file $PGConfigFile." >&2
   exit 1
 fi
+
+
+# load the sys config file
+. $syscfgfile
+echo $SERVICE_MEMBER
+echo "primary host $PRIMARY_HOST"
+# wait for dns update
+/checkdns.sh $SERVICE_MEMBER
+/checkdns.sh $PRIMARY_HOST
+echo ""
+
 
 # if PG_VERSION file does not exist, db is not initialized
 if [ ! -s "$PGDATA/PG_VERSION" ]; then

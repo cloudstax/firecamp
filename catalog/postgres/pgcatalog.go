@@ -69,23 +69,24 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryMember, primaryHost, port, adminPasswd, replUser, replPasswd)
+	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
 	for i := 1; i < int(replicas); i++ {
 		index := i % len(azs)
 		member := utils.GenServiceMemberName(service, int64(i))
-		replicaCfgs[i] = genStandbyConfig(azs[index], member, primaryHost, port, adminPasswd, replUser, replPasswd)
+		memberHost := dns.GenDNSName(member, domain)
+		replicaCfgs[i] = genStandbyConfig(azs[index], memberHost, primaryHost, port, adminPasswd, replUser, replPasswd)
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(az string, primaryMember string, primaryHost string, port int64,
+func genPrimaryConfig(az string, primaryHost string, port int64,
 	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(primaryMember)
+	cfg0 := catalog.CreateSysConfigFile(primaryHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
@@ -114,10 +115,10 @@ func genPrimaryConfig(az string, primaryMember string, primaryHost string, port 
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
 }
 
-func genStandbyConfig(az string, member string, primaryHost string, port int64,
+func genStandbyConfig(az string, memberHost string, primaryHost string, port int64,
 	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(member)
+	cfg0 := catalog.CreateSysConfigFile(memberHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
