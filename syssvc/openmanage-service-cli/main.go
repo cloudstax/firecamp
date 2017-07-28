@@ -92,7 +92,7 @@ func usage() {
 		case opGetConfig:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
 		case opCleanDNS:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -vpc=vpcid\n", opCleanDNS)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -vpcid=vpcid\n", opCleanDNS)
 		default:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s|%s|%s> --help\n",
 				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
