@@ -10,9 +10,12 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/dns/awsroute53"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/manage/client"
 	"github.com/cloudstax/openmanage/server/awsec2"
@@ -50,6 +53,9 @@ var (
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
+
+	// the parameter for cleanDNS operation
+	vpcID = flag.String("vpcid", "", "The VPCID that the cluster runs on")
 )
 
 const (
@@ -62,6 +68,9 @@ const (
 	opGet         = "get-service"
 	opListMembers = "list-members"
 	opGetConfig   = "get-config"
+	// opCleanDNS will cleanup the left over manage server dns record and HostedZone in AWS Route53,
+	// as CloudFormation stack deletion could not delete them from Route53.
+	opCleanDNS = "clean-dns"
 )
 
 func usage() {
@@ -82,9 +91,11 @@ func usage() {
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opListMembers)
 		case opGetConfig:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
+		case opCleanDNS:
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -vpc=vpcid\n", opCleanDNS)
 		default:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s|%s> --help\n",
-				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s|%s|%s> --help\n",
+				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
 		}
 	}
 }
@@ -93,7 +104,7 @@ func main() {
 	usage()
 	flag.Parse()
 
-	if *op != opList && *service == "" {
+	if *op != opList && *op != opCleanDNS && *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
@@ -172,6 +183,9 @@ func main() {
 
 	case opGetConfig:
 		getConfig(ctx, cli)
+
+	case opCleanDNS:
+		cleanDNS(ctx, cli)
 
 	default:
 		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s\n",
@@ -467,4 +481,58 @@ func getConfig(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("%+v\n", *cfg)
+}
+
+func cleanDNS(ctx context.Context, cli *client.ManageClient) {
+	if *vpcID == "" {
+		fmt.Println("please specify the valid cluster VPCID")
+		os.Exit(-1)
+	}
+
+	config := aws.NewConfig().WithRegion(*region)
+	sess, err := session.NewSession(config)
+	if err != nil {
+		fmt.Println("failed to create session, error", err)
+		os.Exit(-1)
+	}
+	dnsIns := awsroute53.NewAWSRoute53(sess)
+
+	domain := dns.GenDefaultDomainName(*cluster)
+
+	private := true
+	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(ctx, domain, *vpcID, *region, private)
+	if err != nil {
+		fmt.Println("get aws route53 hostedZoneID error", err)
+		os.Exit(-1)
+	}
+
+	dnsname := dns.GenDNSName(common.ManageServiceName, domain)
+	hostname, err := dnsIns.GetDNSRecord(ctx, dnsname, hostedZoneID)
+	if err != nil {
+		if err == dns.ErrHostedZoneNotFound {
+			fmt.Println("aws route53 hostedZone is already deleted")
+			return
+		}
+		if err != dns.ErrDNSRecordNotFound {
+			fmt.Println("delete the manage server dns record error", err)
+			os.Exit(-1)
+		}
+		// err == dns.ErrDNSRecordNotFound, continue to delete hosted zone
+	} else {
+		// delete the dns record
+		err = dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, hostedZoneID)
+		if err != nil {
+			fmt.Println("delete the manage server dns record error", err)
+			os.Exit(-1)
+		}
+	}
+
+	// delete the route53 hosted zone
+	err = dnsIns.DeleteHostedZone(ctx, hostedZoneID)
+	if err != nil && err != dns.ErrHostedZoneNotFound {
+		fmt.Println("delete the aws route53 hostedZone error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("deleted the manage server dns record and aws route53 hostedZone")
 }
