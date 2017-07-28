@@ -341,13 +341,13 @@
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "SubnetID": {
+          "SubnetIDs": {
             "Ref": "Subnet1ID"
           },
-          "DesiredCapacityPerAZ": {
+          "DesiredCapacity": {
             "Ref": "DesiredCapacityPerAZ"
           },
-          "MaxSizePerAZ":{
+          "MaxSize":{
             "Ref": "MaxSizePerAZ"
           },
           "EcsSecurityGroupID": {
@@ -396,13 +396,13 @@
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "SubnetID": {
+          "SubnetIDs": {
             "Ref": "Subnet2ID"
           },
-          "DesiredCapacityPerAZ": {
+          "DesiredCapacity": {
             "Ref": "DesiredCapacityPerAZ"
           },
-          "MaxSizePerAZ":{
+          "MaxSize":{
             "Ref": "MaxSizePerAZ"
           },
           "EcsSecurityGroupID": {
@@ -451,13 +451,13 @@
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "SubnetID": {
+          "SubnetIDs": {
             "Ref": "Subnet3ID"
           },
-          "DesiredCapacityPerAZ": {
+          "DesiredCapacity": {
             "Ref": "DesiredCapacityPerAZ"
           },
-          "MaxSizePerAZ":{
+          "MaxSize":{
             "Ref": "MaxSizePerAZ"
           },
           "EcsSecurityGroupID": {

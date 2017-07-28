@@ -19,9 +19,14 @@
       "Type":"AWS::EC2::VPC::Id",
       "Description":"Select a VPC that allows instances to access the Internet."
     },
-    "AvailabilityZone": {
-      "Type": "AWS::EC2::AvailabilityZone::Name",
-      "Description": "The Availability Zone to deploy the ECS instances."
+    "Subnets": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "AvailabilityZones": {
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
     },
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
@@ -44,12 +49,12 @@
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
       "Description": "Allowed CIDR block to access SSH or the openmanage manage http server."
     },
-    "DesiredCapacityPerAZ":{
+    "DesiredCapacity":{
       "Type":"Number",
       "Default":"1",
       "Description":"Number of instances to launch in one AutoScalingGroup."
     },
-    "MaxSizePerAZ":{
+    "MaxSize":{
       "Type":"Number",
       "Default":"1",
       "Description":"Maximum number of instances that can be launched in one AutoScalingGroup."
@@ -279,16 +284,18 @@
             "Ref": "OpenManageDBType"
           },
           "AvailabilityZones": {
-            "Ref": "AvailabilityZone"
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
           }
         }
       }
     },
     "OpenManageECSService":{
-      "DependsOn": [
-        "ECSClusterStack",
-        "DynamoDBTables"
-      ],
+      "DependsOn": "DynamoDBTables",
       "Type":"AWS::ECS::Service",
       "Properties":{
         "Cluster":{
@@ -329,7 +336,7 @@
     },
 
     "ECSAutoScalingGroup1": {
-      "DependsOn": [ "ECSClusterStack", "EC2InstanceProfileStack" ],
+      "DependsOn": "ECSClusterStack",
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
@@ -353,14 +360,19 @@
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "AvailabilityZone":{
-            "Ref": "AvailabilityZone"
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "Subnets"
+              }
+            ]
           },
-          "DesiredCapacityPerAZ": {
-            "Ref": "DesiredCapacityPerAZ"
+          "DesiredCapacity": {
+            "Ref": "DesiredCapacity"
           },
-          "MaxSizePerAZ":{
-            "Ref": "MaxSizePerAZ"
+          "MaxSize":{
+            "Ref": "MaxSize"
           },
           "EcsSecurityGroupID": {
             "Ref": "EcsSecurityGroup"

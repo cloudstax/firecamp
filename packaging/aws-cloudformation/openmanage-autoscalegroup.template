@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates an AutoScalingGroup in one AvailabilityZone for the ECS cluster.",
+  "Description": "This template creates an AutoScalingGroup in the subnets for the ECS cluster.",
   "Parameters":{
     "ECSClusterName":{
       "Type":"String",
@@ -15,22 +15,17 @@
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
     },
-    "SubnetID":{
-      "Type":"String",
-      "Default": "",
-      "Description":"The SubnetID in the VPC."
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
-    "AvailabilityZone": {
-      "Type":"String",
-      "Default": "",
-      "Description": "The Availability Zone to deploy the ECS instances."
-    },
-    "DesiredCapacityPerAZ":{
+    "DesiredCapacity":{
       "Type":"Number",
       "Default":"1",
       "Description":"Number of instances to launch in your ECS cluster."
     },
-    "MaxSizePerAZ":{
+    "MaxSize":{
       "Type":"Number",
       "Default":"1",
       "Description":"Maximum number of instances that can be launched in your ECS cluster."
@@ -138,71 +133,22 @@
       }
     }
   },
-  "Conditions": {
-    "SubnetIDCondition": {
-      "Fn::Not": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "SubnetID"
-            },
-            ""
-          ]
-        }
-      ]
-    },
-    "AvailabilityZoneCondition": {
-      "Fn::Not": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "AvailabilityZone"
-            },
-            ""
-          ]
-        }
-      ]
-    }
-  },
   "Resources":{
     "ECSAutoScalingGroup":{
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
         "VPCZoneIdentifier": {
-          "Fn::If": [
-            "SubnetIDCondition",
-            [
-              {
-                "Ref": "SubnetID"
-              }
-            ],
-            {
-              "Ref": "AWS::NoValue"
-            }
-          ]
-        },
-        "AvailabilityZones": {
-          "Fn::If": [
-            "AvailabilityZoneCondition",
-            [
-              {
-                "Ref": "AvailabilityZone"
-              }
-            ],
-            {
-              "Ref": "AWS::NoValue"
-            }
-          ]
+          "Ref": "SubnetIDs"
         },
         "LaunchConfigurationName":{
           "Ref":"ContainerInstances"
         },
         "MinSize":"1",
         "MaxSize":{
-          "Ref":"MaxSizePerAZ"
+          "Ref":"MaxSize"
         },
         "DesiredCapacity":{
-          "Ref":"DesiredCapacityPerAZ"
+          "Ref":"DesiredCapacity"
         }
       },
       "CreationPolicy":{
