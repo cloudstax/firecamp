@@ -42,6 +42,7 @@ RUN echo "deb http://repo.mongodb.org/apt/debian jessie/mongodb-org/$MONGO_MAJOR
 RUN set -x \
 	&& apt-get update \
 	&& apt-get install -y \
+    dnsutils \
 		${MONGO_PACKAGE}=$MONGO_VERSION \
 		${MONGO_PACKAGE}-server=$MONGO_VERSION \
 		${MONGO_PACKAGE}-shell=$MONGO_VERSION \
@@ -51,8 +52,7 @@ RUN set -x \
 	&& rm -rf /var/lib/mongodb \
 	&& mv /etc/mongod.conf /etc/mongod.conf.orig
 
-COPY mongologrotate.sh /
-COPY startlogrotate.sh /
+COPY checkdns.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "mongod", "-f", "/data/conf/mongod.conf"]
 

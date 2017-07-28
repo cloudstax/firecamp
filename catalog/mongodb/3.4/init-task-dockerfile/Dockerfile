@@ -21,8 +21,10 @@ RUN set -x \
 	&& apt-get update \
 	&& apt-get install -y \
     curl \
+    dnsutils \
 		${MONGO_PACKAGE}-shell=$MONGO_VERSION \
 	&& rm -rf /var/lib/apt/lists/*
 
+COPY checkdns.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

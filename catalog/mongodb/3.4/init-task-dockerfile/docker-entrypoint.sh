@@ -36,6 +36,9 @@ then
   exit 1
 fi
 
+# wait till master dns is ready
+/checkdns.sh $SERVICE_MASTER
+
 # 1) Initialize the MongoDB ReplicaSet.
 # get all members
 OIFS=$IFS

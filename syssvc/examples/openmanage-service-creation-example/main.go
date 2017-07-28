@@ -133,7 +133,7 @@ func main() {
 			*replSetName = *service
 		}
 
-		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(zones, *service, *replicas, *replSetName, *port, -1)
+		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(zones, *cluster, *service, *replicas, *replSetName, *port, -1)
 		if err != nil {
 			fmt.Println("GenReplicaConfigs error", err)
 			os.Exit(-1)

@@ -43,8 +43,10 @@ fi
 
 echo "$dbdir $configdbdir and $cfgfile exist"
 
-# print out the sys config file
-cat $syscfgfile
+# load the sys config file
+. $syscfgfile
+echo $SERVICE_MEMBER
+/checkdns.sh $SERVICE_MEMBER
 echo ""
 
 if [ "$1" = 'mongod' ]; then
