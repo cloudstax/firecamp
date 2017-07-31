@@ -398,6 +398,26 @@ func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *man
 	return manage.ConvertHTTPError(resp.StatusCode)
 }
 
+// CatalogCreateZooKeeperService creates a new catalog ZooKeeper service.
+func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *manage.CatalogCreateZooKeeperRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateZooKeeperOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
 // CatalogCheckServiceInit checks if a catalog service is initialized.
 func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (initialized bool, statusMsg string, err error) {
 	b, err := json.Marshal(r)

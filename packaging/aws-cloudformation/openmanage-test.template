@@ -205,7 +205,7 @@
           },
           {
             "IpProtocol": "tcp",
-            "FromPort": "3000",
+            "FromPort": "2000",
             "ToPort": "30000",
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
@@ -224,7 +224,7 @@
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
-            "FromPort": "3000",
+            "FromPort": "2000",
             "ToPort": "30000",
             "SourceSecurityGroupId": {
               "Ref": "EcsSecurityGroup"

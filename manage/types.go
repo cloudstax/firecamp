@@ -20,6 +20,7 @@ const (
 	CatalogCreateMongoDBOp    = CatalogOpPrefix + "Create-MongoDB"
 	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
 	CatalogCreateCassandraOp  = CatalogOpPrefix + "Create-Cassandra"
+	CatalogCreateZooKeeperOp  = CatalogOpPrefix + "Create-ZooKeeper"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 
@@ -186,6 +187,15 @@ type CatalogCreatePostgreSQLRequest struct {
 
 // CatalogCreateCassandraRequest creates a Cassandra service.
 type CatalogCreateCassandraRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+
+	Replicas     int64
+	VolumeSizeGB int64
+}
+
+// CatalogCreateZooKeeperRequest creates a ZooKeeper service.
+type CatalogCreateZooKeeperRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 

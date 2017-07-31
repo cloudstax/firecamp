@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/openmanage/catalog/cassandra"
 	"github.com/cloudstax/openmanage/catalog/mongodb"
 	"github.com/cloudstax/openmanage/catalog/postgres"
+	"github.com/cloudstax/openmanage/catalog/zookeeper"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/db"
 	"github.com/cloudstax/openmanage/manage"
@@ -26,6 +27,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createPGService(ctx, r, requuid)
 	case manage.CatalogCreateCassandraOp:
 		return s.createCasService(ctx, r, requuid)
+	case manage.CatalogCreateZooKeeperOp:
+		return s.createZkService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	default:
@@ -101,6 +104,15 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 			case catalog.CatalogService_Cassandra:
 				s.addCasInitTask(ctx, req.Service, attr.ServiceUUID, requuid)
+
+			case catalog.CatalogService_ZooKeeper:
+				// zookeeper does not require additional init work. set initialized
+				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+				if errcode == http.StatusOK {
+					initialized = true
+				} else {
+					return errmsg, errcode
+				}
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -201,13 +213,45 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	// create the service in the control plane and the container platform
 	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster, req.Service.ServiceName,
 		req.Replicas, req.VolumeSizeGB, req.AdminPasswd, req.ReplUser, req.ReplUserPasswd, req.Resource)
-	_, err = s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
+	glog.Infoln("created postgresql service", serviceUUID, "requuid", requuid, req.Service)
+
 	// PG does not require additional init work. set PG initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateZooKeeperRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateZooKeeperRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateZooKeeperRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := zkcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
+
+	// zookeeper does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
