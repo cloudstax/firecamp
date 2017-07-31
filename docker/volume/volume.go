@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -204,23 +205,8 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
 	if serviceAttr.RegisterDNS {
-		dnsName := dns.GenDNSName(member.MemberName, serviceAttr.DomainName)
-		privateIP := d.serverInfo.GetPrivateIP()
-		err := d.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
-		if err != nil {
-			errmsg := fmt.Sprintf("UpdateDNSRecord error %s service %s member %s, requuid %s",
-				err, serviceAttr, member, requuid)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-
-		// wait till DNS record lookup returns private ip. This is to make sure DB doesn't
-		// get the invalid old host at the replication initialization.
-		dnsIP, err := d.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
-		if err != nil {
-			errmsg := fmt.Sprintf("WaitDNSRecordUpdated error %s, expect privateIP %s got %s, service %s member %s, requuid %s",
-				err, privateIP, dnsIP, serviceAttr, member, requuid)
-			glog.Errorln(errmsg)
+		errmsg := d.updateDNS(ctx, serviceAttr, member, requuid)
+		if errmsg != "" {
 			return volume.Response{Err: errmsg}
 		}
 	}
@@ -360,6 +346,51 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 
 	glog.Infoln("Unmount done", r, "requuid", requuid)
 	return volume.Response{}
+}
+
+func (d *OpenManageVolumeDriver) updateDNS(ctx context.Context, serviceAttr *common.ServiceAttr, member *common.ServiceMember, requuid string) (errmsg string) {
+	dnsName := dns.GenDNSName(member.MemberName, serviceAttr.DomainName)
+	privateIP := d.serverInfo.GetPrivateIP()
+	err := d.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
+	if err != nil {
+		errmsg = fmt.Sprintf("UpdateDNSRecord error %s service %s member %s, requuid %s",
+			err, serviceAttr, member, requuid)
+		glog.Errorln(errmsg)
+		return errmsg
+	}
+
+	// make sure DNS returns the updated record
+	dnsIP, err := d.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
+	if err != nil {
+		errmsg = fmt.Sprintf("WaitDNSRecordUpdated error %s, expect privateIP %s got %s, service %s member %s, requuid %s",
+			err, privateIP, dnsIP, serviceAttr, member, requuid)
+		glog.Errorln(errmsg)
+		return errmsg
+	}
+
+	// wait till the DNS record lookup on the node returns the updated ip.
+	// This is to make sure DB doesn't get the invalid old host at the replication initialization.
+	//
+	// TODO After service is created, the first time DNS lookup from AWS Route53 takes around 60s.
+	// Any way to enhance it? Also if container fails over to another node, the DNS lookup takes
+	// around 16s to get the new ip, even if the default TTL is set to 3s.
+	glog.Infoln("DNS record updated", dnsName, "wait till the local host refreshes it, requuid", requuid)
+	maxWaitSeconds := time.Duration(90) * time.Second
+	sleepSeconds := time.Duration(3) * time.Second
+	for t := time.Duration(0); t < maxWaitSeconds; t += sleepSeconds {
+		addrs, err := net.LookupHost(dnsName)
+		if err == nil && len(addrs) == 1 && addrs[0] == privateIP {
+			glog.Infoln("LookupHost", dnsName, "gets the local privateIP", privateIP, "requuid", requuid)
+			return ""
+		}
+		glog.Infoln("LookupHost", dnsName, "error", err, "get ip", addrs, "requuid", requuid)
+		time.Sleep(sleepSeconds)
+	}
+
+	errmsg = fmt.Sprintf("local host waits the dns refreshes timed out, dnsname %s privateIP %s, requuid %s, service %s member %s",
+		dnsName, privateIP, requuid, serviceAttr, member)
+	glog.Errorln(errmsg)
+	return errmsg
 }
 
 func (d *OpenManageVolumeDriver) getServiceAttrAndMember(ctx context.Context,
