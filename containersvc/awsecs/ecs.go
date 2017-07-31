@@ -751,13 +751,13 @@ func (s *AWSEcs) updateService(ctx context.Context, ecscli *ecs.ECS, cluster str
 		DesiredCount: aws.Int64(desiredCount),
 	}
 
-	resp, err := ecscli.UpdateService(params)
+	_, err := ecscli.UpdateService(params)
 	if err != nil {
 		glog.Errorln("UpdateService error", err, "service", service, "cluster", cluster)
 		return err
 	}
 
-	glog.Infoln("updated service desiredCount", service, desiredCount, "resp", resp)
+	glog.Infoln("updated service desiredCount", service, desiredCount)
 	return nil
 }
 
@@ -770,6 +770,12 @@ func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string
 		if s.isServiceNotFoundError(err) || err.(awserr.Error).Code() == serviceNotActiveException {
 			return nil
 		}
+		return err
+	}
+
+	err = s.waitServiceStop(ctx, ecscli, cluster, service, common.DefaultServiceWaitSeconds)
+	if err != nil {
+		glog.Errorln("waitServiceStop error", err, "service", service)
 		return err
 	}
 
@@ -790,7 +796,7 @@ func (s *AWSEcs) RestartService(ctx context.Context, cluster string, service str
 
 	err = s.waitServiceStop(ctx, ecscli, cluster, service, common.DefaultServiceWaitSeconds)
 	if err != nil {
-		glog.Errorln("WaitServiceStop error", err, "service", service)
+		glog.Errorln("waitServiceStop error", err, "service", service)
 		return err
 	}
 
@@ -833,13 +839,13 @@ func (s *AWSEcs) DeleteService(ctx context.Context, cluster string, service stri
 			Cluster: aws.String(cluster),
 		}
 
-		resp, err := ecscli.DeleteService(params)
+		_, err := ecscli.DeleteService(params)
 		if err != nil {
 			glog.Errorln("DeleteService error", err, "service", service, "cluster", cluster)
 			return err
 		}
 
-		glog.Infoln("deleted service", service, "cluster", cluster, "resp", resp)
+		glog.Infoln("deleted service", service, "cluster", cluster)
 
 		taskDef = *svc.TaskDefinition
 
