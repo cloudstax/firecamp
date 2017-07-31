@@ -25,6 +25,6 @@ RUN set -x \
 		${MONGO_PACKAGE}-shell=$MONGO_VERSION \
 	&& rm -rf /var/lib/apt/lists/*
 
-COPY checkdns.sh /
+COPY waitdns.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

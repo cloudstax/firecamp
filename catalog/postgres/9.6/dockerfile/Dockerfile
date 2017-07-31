@@ -63,7 +63,7 @@ RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgres
 
 ENV PATH /usr/lib/postgresql/$PG_MAJOR/bin:$PATH
 
-COPY checkdns.sh /
+COPY waitdns.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "postgres"]
 

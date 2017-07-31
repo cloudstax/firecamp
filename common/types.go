@@ -26,7 +26,7 @@ const (
 
 	NameSeparator = "-"
 
-	ServiceMemberDomainNameTTLSeconds = 10
+	ServiceMemberDomainNameTTLSeconds = 3
 
 	// A ECS container instance has 1,024 cpu units for every CPU core
 	DefaultMaxCPUUnits     = -1

@@ -36,17 +36,25 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
-  chown -R mongodb $datadir
+  datadiruser=$(stat -c "%U" $datadir)
+  if [ "$datadiruser" != "mongodb" ]; then
+    chown -R mongodb $datadir
+  fi
+  # the mongodb init will recreate mongod.conf, chown to mongodb
+  datadiruser=$(stat -c "%U" $cfgfile)
+  if [ "$datadiruser" != "mongodb" ]; then
+    chown mongodb $cfgfile
+  fi
+
   echo "gosu mongodb $BASH_SOURCE $@"
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
 
-echo "$dbdir $configdbdir and $cfgfile exist"
+#echo "$dbdir $configdbdir and $cfgfile exist"
 
 # load the sys config file
 . $syscfgfile
 echo $SERVICE_MEMBER
-/checkdns.sh $SERVICE_MEMBER
 echo ""
 
 if [ "$1" = 'mongod' ]; then

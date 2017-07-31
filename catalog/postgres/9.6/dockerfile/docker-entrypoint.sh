@@ -43,8 +43,6 @@ SanityCheck() {
     mkdir $PGDATA
     chmod 700 $PGDATA
   fi
-
-  echo "PostgreSQL sanity check passes"
 }
 
 InitPrimaryDB() {
@@ -138,8 +136,8 @@ fi
 echo $SERVICE_MEMBER
 echo "primary host $PRIMARY_HOST"
 # wait for dns update
-/checkdns.sh $SERVICE_MEMBER
-/checkdns.sh $PRIMARY_HOST
+/waitdns.sh $SERVICE_MEMBER
+/waitdns.sh $PRIMARY_HOST
 echo ""
 
 

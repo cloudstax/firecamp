@@ -59,18 +59,16 @@ target=$system"-mongodb"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/mongodb/3.4/dockerfile/"
 echo
-cp ${TOPWD}/catalog/checkdns.sh ${path}
 docker build -t $image $path
-rm -f ${path}/checkdns.sh
 docker push $image
 
 target=$system"-mongodb-init"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/mongodb/3.4/init-task-dockerfile/"
 echo
-cp ${TOPWD}/catalog/checkdns.sh ${path}
+cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
-rm -f ${path}/checkdns.sh
+rm -f ${path}/waitdns.sh
 docker push $image
 
 
@@ -79,9 +77,9 @@ target=$system"-postgres"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/postgres/9.6/dockerfile/"
 echo
-cp ${TOPWD}/catalog/checkdns.sh ${path}
+cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
-rm -f ${path}/checkdns.sh
+rm -f ${path}/waitdns.sh
 docker push $image
 
 
@@ -90,17 +88,23 @@ target=$system"-cassandra"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/cassandra/3.11/dockerfile/"
 echo
-cp ${TOPWD}/catalog/checkdns.sh ${path}
 docker build -t $image $path
-rm -f ${path}/checkdns.sh
 docker push $image
 
 target=$system"-cassandra-init"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
 echo
-cp ${TOPWD}/catalog/checkdns.sh ${path}
+cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
-rm -f ${path}/checkdns.sh
+rm -f ${path}/waitdns.sh
 docker push $image
 
+
+# build zookeeper docker image
+target=$system"-zookeeper"
+image="${org}${target}:${version}"
+path="${TOPWD}/catalog/zookeeper/3.4.10/dockerfile/"
+echo
+docker build -t $image $path
+docker push $image

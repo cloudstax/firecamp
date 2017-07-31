@@ -5,6 +5,7 @@ const (
 	CatalogService_MongoDB    = "mongodb"
 	CatalogService_PostgreSQL = "postgresql"
 	CatalogService_Cassandra  = "cassandra"
+	CatalogService_ZooKeeper  = "zookeeper"
 
 	// The system variables in the sys.conf file
 	SYS_FILE_NAME      = "sys.conf"

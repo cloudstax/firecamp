@@ -1,23 +1,19 @@
 #!/bin/sh
 
-# This script waits for the dns update.
+# This script waits for the dns lookup.
 
-SERVICE_MEMBER=$1
+dnsname=$1
 
-echo "check dns for $SERVICE_MEMBER"
+echo "check dns for $dnsname"
 date
 
-# When the service is created at the first time, Route53 looks need around 60 seconds
-# to get the dns entry. So the cluster would require at least 60 seconds to initialize.
+# When the service is created at the first time, lookup the ip from Route53 needs around 60 seconds.
+# Some task, such as init task, needs to talk to the service members. So has to wait till the ip could be looked up.
 
-# TODO if container fails over to another node, the dns check will get the previous
-# address. This looks not cause any issue. Could consider to wait till the dns lookup
-# get the local address.
-
-# wait max 120 seconds.
-for i in `seq 1 40`
+# wait max 90 seconds.
+for i in `seq 1 30`
 do
-  host $SERVICE_MEMBER
+  host $dnsname
   if [ "$?" = "0" ]; then
     break
   fi

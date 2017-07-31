@@ -19,7 +19,8 @@ then
   exit 1
 fi
 
-/checkdns.sh $SERVICE_NODE
+# wait till the service node dns is ready
+/waitdns.sh $SERVICE_NODE
 
 echo "alter keyspace system_auth at $REGION to 3 replicas for service $SERVICE_NAME"
 

@@ -45,14 +45,17 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
-	chown -R cassandra $DATA_DIR
+  datadiruser=$(stat -c "%U" $DATA_DIR)
+  if [ "$datadiruser" != "cassandra" ]; then
+	  chown -R cassandra $DATA_DIR
+  fi
+
 	exec gosu cassandra "$BASH_SOURCE" "$@"
 fi
 
 # source the sys config file
 . $syscfgfile
 echo $SERVICE_MEMBER
-/checkdns.sh $SERVICE_MEMBER
 echo
 
 echo "$@"
