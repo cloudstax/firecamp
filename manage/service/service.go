@@ -350,6 +350,26 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			}
 			glog.V(1).Infoln("deleted config file", c.FileID, m.ServiceUUID, "requuid", requuid)
 		}
+
+		// check if the volume is still in-use. This might be possible at some corner case.
+		// Probably happens at the below sequence during the test: 1) volume attached to the node,
+		// 2) volume driver gets restarted, 3) delete the service. The volume is not detached.
+		// Checked the volume driver log, looks volume driver only received the “Get” request and
+		// returned volume not mounted. No unmount call to the volume driver.
+		volState, err := s.serverIns.GetVolumeState(ctx, m.VolumeID)
+		if err != nil {
+			// TODO continue if volume not found
+			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
+			return err
+		}
+		if volState == server.VolumeStateInUse {
+			glog.Errorln("the service volume is still in use, detach it, requuid", requuid, m)
+			err = s.serverIns.DetachVolume(ctx, m.VolumeID, m.ServerInstanceID, m.DeviceName)
+			if err != nil {
+				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
+				return err
+			}
+		}
 	}
 
 	// delete all serviceMember records in DB
