@@ -29,7 +29,7 @@ const (
 	// max retry count for volume state
 	// detach volume (in-use to available) may take more than 6 seconds.
 	maxRetryCount               = 10
-	defaultSleepTime            = 1 * time.Second
+	defaultSleepTime            = 2 * time.Second
 	defaultSleepTimeForInstance = 3 * time.Second
 
 	// aws volume state

@@ -136,7 +136,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.checkAndCreateServiceMembers(ctx, serviceUUID, deviceName, req)
+	err = s.checkAndCreateServiceMembers(ctx, serviceAttr, req)
 	if err != nil {
 		glog.Errorln("checkAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
@@ -659,13 +659,13 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 }
 
 func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
-	serviceUUID string, devName string, req *manage.CreateServiceRequest) error {
+	sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list to find out how many serviceMembers were already created
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	members, err := s.dbIns.ListServiceMembers(ctx, sattr.ServiceUUID)
 	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 		return err
 	}
 
@@ -683,19 +683,31 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 	for i := int64(len(members)); i < req.Replicas; i++ {
 		memberName := utils.GenServiceMemberName(req.Service.ServiceName, i)
 
+		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
+		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
+		dnsname := dns.GenDNSName(memberName, sattr.DomainName)
+		// faked host ip
+		hostIP := "127.0.0.1"
+		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.HostedZoneID)
+		if err != nil {
+			// ignore the error. When container is created, the actual dns record will be created.
+			glog.Errorln("UpdateDNSRecord error", err, "dnsname", dnsname, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+		}
+		glog.Infoln("updated member dns", dnsname, "to", hostIP, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+
 		// check and create the config file first
 		replicaCfg := req.ReplicaConfigs[i]
-		cfgs, err := s.checkAndCreateConfigFile(ctx, serviceUUID, memberName, replicaCfg)
+		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, memberName, replicaCfg)
 		if err != nil {
-			glog.Errorln("checkAndCreateConfigFile error", err, "service", serviceUUID,
+			glog.Errorln("checkAndCreateConfigFile error", err, "service", sattr.ServiceUUID,
 				"member", memberName, "requuid", requuid)
 			return err
 		}
 
-		member, err := s.createServiceMember(ctx, serviceUUID, req.VolumeSizeGB,
-			req.ReplicaConfigs[i].Zone, devName, memberName, cfgs)
+		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, req.VolumeSizeGB,
+			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, cfgs)
 		if err != nil {
-			glog.Errorln("create serviceMember failed, serviceUUID", serviceUUID, "member", memberName,
+			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
 			return err
 		}
@@ -703,7 +715,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 	}
 
 	glog.Infoln("created", req.Replicas-int64(len(members)), "serviceMembers for serviceUUID",
-		serviceUUID, req.Service, "requuid", requuid)
+		sattr.ServiceUUID, req.Service, "requuid", requuid)
 
 	// EBS volume creation is async in the background. Volume state will be creating,
 	// then available. block waiting here, as EBS Volume creation is pretty fast,
