@@ -36,11 +36,11 @@ fi
 # allow the container to be started with `--user`
 if [ "$1" = 'zkServer.sh' -a "$(id -u)" = '0' ]; then
   datadiruser=$(stat -c "%U" $datadir)
-  if [ "$datadiruser" != "zookeeper" ]; then
-    chown -R zookeeper "$datadir"
+  if [ "$datadiruser" != "$ZOO_USER" ]; then
+    chown -R "$ZOO_USER" "$datadir"
   fi
 
-  exec gosu zookeeper "$BASH_SOURCE" "$@"
+  exec su-exec "$ZOO_USER" "$BASH_SOURCE" "$@"
 fi
 
 # copy myid file if it doesn't exist

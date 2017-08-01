@@ -33,6 +33,10 @@ The Cassandra key cache is enabled, and the row cache is disabled. The key cache
 
 Note: the OpenManage Cassandra assumes the whole node is only used by Cassandra. We may consider to limit the max cpu and memory for Cassandra container in the future.
 
+**Logging**
+
+The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
+
 
 Refs:
 
