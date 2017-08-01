@@ -1,5 +1,5 @@
 Name:           openmanage-dockervolume
-Version:        0.5
+Version:        0.6
 Release:        1
 Vendor:         CloudStax
 License:        Apache 2.0
@@ -33,5 +33,7 @@ install openmanage-dockervolume.conf $RPM_BUILD_ROOT/%{init_dir}/openmanage-dock
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Wed Jun 7 2017 <luo.junius@gmail.com> - 0.5-0
+* Wed Aug 1 2017 <junius@cloudstax.io> - 0.6-0
+- fix the dns lookup wait
+* Wed Jun 7 2017 <junius@cloudstax.io> - 0.5-0
 - Initial version

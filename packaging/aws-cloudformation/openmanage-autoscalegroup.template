@@ -211,7 +211,7 @@
                 "# docker plugin install cloudstax/openmanage-dockerlogs\n",
 
                 "# install cloudstax ecs init\n",
-                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/latest/packages/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
+                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/v06/packages/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "echo ECS_CLUSTER=",
                 {
@@ -221,8 +221,8 @@
                 "start ecs\n",
 
                 "# install openmanage docker volume driver\n",
-                "wget -O /tmp/openmanage-dockervolume-0.5-1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/latest/packages/openmanage-dockervolume-0.5-1.x86_64.rpm\n",
-                "rpm -ivh /tmp/openmanage-dockervolume-0.5-1.x86_64.rpm\n",
+                "wget -O /tmp/openmanage-dockervolume-0.6-1.x86_64.rpm https://s3.amazonaws.com/cloudstax/openmanage/releases/v06/packages/openmanage-dockervolume-0.6-1.x86_64.rpm\n",
+                "rpm -ivh /tmp/openmanage-dockervolume-0.6-1.x86_64.rpm\n",
                 "start openmanage-dockervolume\n",
 
                 "yum install -y aws-cfn-bootstrap\n",
