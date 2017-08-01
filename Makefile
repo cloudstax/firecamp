@@ -1,7 +1,7 @@
 
 .PHONY: build docker test sources rpm
 
-version=0.6
+version=latest
 
 install:
 	./scripts/install.sh

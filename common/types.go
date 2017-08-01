@@ -1,7 +1,7 @@
 package common
 
 const (
-	Version = "0.6"
+	Version = "latest"
 
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
