@@ -296,6 +296,11 @@ func (r *AWSRoute53) GetDNSRecord(ctx context.Context, dnsName string, hostedZon
 	return record, nil
 }
 
+// LookupLocalDNS looks up the given host using the local resolver.
+func (r *AWSRoute53) LookupLocalDNS(ctx context.Context, dnsName string) (dnsIP string, err error) {
+	return dns.LookupHost(dnsName)
+}
+
 // DeleteDNSRecord deletes one dns record.
 func (r *AWSRoute53) DeleteDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error {
 	return r.changeServiceDNSRecord(ctx, route53.ChangeActionDelete, dnsName, hostIP, hostedZoneID)

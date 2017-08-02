@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -378,12 +377,12 @@ func (d *OpenManageVolumeDriver) updateDNS(ctx context.Context, serviceAttr *com
 	maxWaitSeconds := time.Duration(90) * time.Second
 	sleepSeconds := time.Duration(3) * time.Second
 	for t := time.Duration(0); t < maxWaitSeconds; t += sleepSeconds {
-		addrs, err := net.LookupHost(dnsName)
-		if err == nil && len(addrs) == 1 && addrs[0] == privateIP {
-			glog.Infoln("LookupHost", dnsName, "gets the local privateIP", privateIP, "requuid", requuid)
+		addr, err := d.dnsIns.LookupLocalDNS(ctx, dnsName)
+		if err == nil && addr == privateIP {
+			glog.Infoln("LookupLocalDNS", dnsName, "gets the local privateIP", privateIP, "requuid", requuid)
 			return ""
 		}
-		glog.Infoln("LookupHost", dnsName, "error", err, "get ip", addrs, "requuid", requuid)
+		glog.Infoln("LookupLocalDNS", dnsName, "error", err, "get ip", addr, "requuid", requuid)
 		time.Sleep(sleepSeconds)
 	}
 

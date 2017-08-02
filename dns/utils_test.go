@@ -19,6 +19,14 @@ func TestDomain(t *testing.T) {
 	if err != ErrDomainNotFound {
 		t.Fatalf("expect ErrDomainNotFound for test.com, got %s", err)
 	}
+
+	addr, err := LookupHost("localhost")
+	if err != nil {
+		t.Fatalf("LookupHost localhost error %s", err)
+	}
+	if addr != "127.0.0.1" {
+		t.Fatalf("LookupHost localhost expect 127.0.0.1, get %s", addr)
+	}
 }
 
 func TestMgt(t *testing.T) {

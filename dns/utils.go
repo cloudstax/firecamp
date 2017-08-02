@@ -1,6 +1,9 @@
 package dns
 
 import (
+	"errors"
+	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -124,4 +127,17 @@ func GetDefaultControlDBAddr(cluster string) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.ControlDBServiceName, domain)
 	return dnsname + ":" + strconv.Itoa(common.ControlDBServerPort)
+}
+
+// LookupHost looks up the given host using the local resolver.
+func LookupHost(host string) (addr string, err error) {
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return "", err
+	}
+	if len(addrs) != 1 {
+		errmsg := fmt.Sprintf("get more than 1 address for %s, %s", host, addrs)
+		return "", errors.New(errmsg)
+	}
+	return addrs[0], nil
 }

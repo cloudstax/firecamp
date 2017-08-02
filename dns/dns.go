@@ -25,4 +25,7 @@ type DNS interface {
 	WaitDNSRecordUpdated(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) (dnsIP string, err error)
 	GetDNSRecord(ctx context.Context, dnsName string, hostedZoneID string) (hostIP string, err error)
 	DeleteDNSRecord(ctx context.Context, dnsName string, hostIP string, hostedZoneID string) error
+
+	// LookupLocalDNS looks up the given host using the local resolver.
+	LookupLocalDNS(ctx context.Context, dnsName string) (dnsIP string, err error)
 }

@@ -116,6 +116,17 @@ func (m *MockDNS) GetDNSRecord(ctx context.Context, dnsName string, hostedZoneID
 	return "", ErrHostedZoneNotFound
 }
 
+func (m *MockDNS) LookupLocalDNS(ctx context.Context, dnsName string) (dnsIP string, err error) {
+	for _, zone := range m.hostedZoneMap {
+		host, ok := zone.records[dnsName]
+		if ok {
+			return host, nil
+		}
+	}
+
+	return "", ErrDNSRecordNotFound
+}
+
 func (m *MockDNS) GetHostedZoneIDByName(ctx context.Context, domainName string, vpcID string, vpcRegion string, private bool) (hostedZoneID string, err error) {
 	m.mlock.Lock()
 	defer m.mlock.Unlock()

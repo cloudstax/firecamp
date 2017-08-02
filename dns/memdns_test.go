@@ -65,6 +65,14 @@ func TestDNS(t *testing.T) {
 		t.Fatalf("expect hostIP %s, get %s", hostIP, hostIP1)
 	}
 
+	hostIP1, err = d.LookupLocalDNS(ctx, dnsname)
+	if err != nil {
+		t.Fatalf("LookupDNS error %s", err)
+	}
+	if hostIP1 != hostIP {
+		t.Fatalf("expect hostIP %s, get %s", hostIP, hostIP1)
+	}
+
 	err = d.DeleteDNSRecord(ctx, dnsname, hostIP, hostedZoneID)
 	if err != nil {
 		t.Fatalf("DeleteDNSRecord error %s", err)
