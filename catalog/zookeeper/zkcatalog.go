@@ -14,7 +14,8 @@ const (
 	// ContainerImage is the main ZooKeeper running container.
 	ContainerImage = common.ContainerNamePrefix + "zookeeper:" + common.Version
 
-	clientPort      = 2181
+	// ClientPort is the port at which the clients will connect
+	ClientPort      = 2181
 	peerConnectPort = 2888
 	leaderElectPort = 3888
 
@@ -37,7 +38,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 	replicaCfgs := GenReplicaConfigs(region, cluster, service, azs, replicas, res.MaxMemMB)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: clientPort, HostPort: clientPort},
+		{ContainerPort: ClientPort, HostPort: ClientPort},
 		{ContainerPort: peerConnectPort, HostPort: peerConnectPort},
 		{ContainerPort: leaderElectPort, HostPort: leaderElectPort},
 	}

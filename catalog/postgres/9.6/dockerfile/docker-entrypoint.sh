@@ -111,6 +111,7 @@ if [ "$(id -u)" = '0' ]; then
   	echo "chown -R $PGUSER $PGDIR"
   	chown -R $PGUSER "$PGDIR"
   fi
+  chown -R $PGUSER "$PGConfDIR"
 
 	mkdir -p /var/run/postgresql
 	chown -R postgres /var/run/postgresql

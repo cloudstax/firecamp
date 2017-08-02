@@ -49,6 +49,7 @@ if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
   if [ "$datadiruser" != "cassandra" ]; then
 	  chown -R cassandra $DATA_DIR
   fi
+  chown -R cassandra "$CONFIG_DIR"
 
 	exec gosu cassandra "$BASH_SOURCE" "$@"
 fi

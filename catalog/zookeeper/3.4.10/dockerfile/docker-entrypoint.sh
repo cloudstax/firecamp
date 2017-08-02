@@ -39,6 +39,7 @@ if [ "$1" = 'zkServer.sh' -a "$(id -u)" = '0' ]; then
   if [ "$datadiruser" != "$ZOO_USER" ]; then
     chown -R "$ZOO_USER" "$datadir"
   fi
+  chown -R "$ZOO_USER" "$confdir"
 
   exec su-exec "$ZOO_USER" "$BASH_SOURCE" "$@"
 fi

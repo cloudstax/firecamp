@@ -2,14 +2,19 @@
 set -e
 
 datadir=/data
-cfgfile=$datadir/conf/mongod.conf
 dbdir=$datadir/db
 configdbdir=$datadir/configdb
-syscfgfile=$datadir/conf/sys.conf
+confdir=$datadir/conf
+cfgfile=$confdir/mongod.conf
+syscfgfile=$confdir/sys.conf
 
 # sanity check to make sure the volume is mounted to /data.
 if [ ! -d "$datadir" ]; then
   echo "error: $datadir not exist. Please make sure the volume is mounted to $datadir." >&2
+  exit 1
+fi
+if [ ! -d "$confdir" ]; then
+  echo "error: $confdir not exist." >&2
   exit 1
 fi
 
@@ -41,10 +46,7 @@ if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
     chown -R mongodb $datadir
   fi
   # the mongodb init will recreate mongod.conf, chown to mongodb
-  datadiruser=$(stat -c "%U" $cfgfile)
-  if [ "$datadiruser" != "mongodb" ]; then
-    chown mongodb $cfgfile
-  fi
+  chown -R mongodb $confdir
 
   echo "gosu mongodb $BASH_SOURCE $@"
   exec gosu mongodb "$BASH_SOURCE" "$@"
