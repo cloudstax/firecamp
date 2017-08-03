@@ -20,8 +20,10 @@ const (
 	// follow http://docs.confluent.io/current/kafka/deployment.html
 	// The KAFKA_JVM_PERFORMANCE_OPTS is combined of the default opts in kafka-run-class.sh and
 	// http://docs.confluent.io/current/kafka/deployment.html#jvm
-	defaultReplFactor = 3
-	defaultXmxMB      = 6144
+	defaultReplFactor     = 3
+	defaultInsyncReplicas = 2
+	defaultMaxPartitions  = 8
+	defaultXmxMB          = 6144
 
 	serverPropConfFileName = "server.properties"
 	javaEnvConfFileName    = "java.env"
@@ -69,10 +71,18 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 	allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
-	// If the number of members(replicas) < 3, adjust the replication factor to 1
+	// adjust the default configs by the number of members(replicas)
 	replFactor := defaultReplFactor
 	if int(replicas) < defaultReplFactor {
 		replFactor = int(replicas)
+	}
+	minInsyncReplica := defaultInsyncReplicas
+	if int(replicas) < defaultInsyncReplicas {
+		minInsyncReplica = int(replicas)
+	}
+	numPartitions := defaultMaxPartitions
+	if int(replicas) < defaultMaxPartitions {
+		numPartitions = int(replicas)
 	}
 
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
@@ -83,12 +93,13 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 		sysCfg := catalog.CreateSysConfigFile(memberHost)
 
 		// create the server.properties file
+		index := i % len(azs)
 		topicDel := "false"
 		if allowTopicDel {
 			topicDel = "true"
 		}
-		content := fmt.Sprintf(serverPropContent, i, topicDel, memberHost,
-			replFactor, replFactor, replFactor, retentionHours, zkServers)
+		content := fmt.Sprintf(serverPropConfig, i, azs[i], topicDel, numPartitions, memberHost,
+			replFactor, replFactor, replFactor, minInsyncReplica, retentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -111,12 +122,11 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 		logCfg := &manage.ReplicaConfigFile{
 			FileName: logConfFileName,
 			FileMode: common.DefaultConfigFileMode,
-			Content:  logConfContent,
+			Content:  logConfConfig,
 		}
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, logCfg}
 
-		index := i % len(azs)
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -140,11 +150,14 @@ func genZkServerList(zkattr *common.ServiceAttr) string {
 const (
 	zkServerSep = ","
 
-	serverPropContent = `
+	serverPropConfig = `
 # The id of the broker. This must be set to a unique integer for each broker.
 broker.id=%d
+broker.rack=%s
 
 delete.topic.enable=%s
+auto.create.topics.enable=true
+num.partitions=%d
 
 listeners=PLAINTEXT://%s:9092
 
@@ -153,6 +166,8 @@ log.dirs=/data/kafka
 offsets.topic.replication.factor=%d
 transaction.state.log.replication.factor=%d
 transaction.state.log.min.isr=%d
+min.insync.replicas=%d
+
 unclean.leader.election.enable=false
 
 log.retention.hours=%d
@@ -169,7 +184,7 @@ KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
 KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
 `
 
-	logConfContent = `
+	logConfConfig = `
 log4j.rootLogger=INFO, stdout
 
 log4j.appender.stdout=org.apache.log4j.ConsoleAppender
