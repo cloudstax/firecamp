@@ -20,19 +20,19 @@ cp ${TOPWD}/syssvc/openmanage-dockerlogs/config.json ${path}
 docker plugin rm -f $image || true
 docker plugin create $image $path
 docker plugin push $image
-echo
 
 
 # build test busybox docker image
+echo
+echo "build test busybox image for ecs and swarm unit test"
 target="${system}-busybox"
 image="${org}${target}:${version}"
 path="${TOPWD}/containersvc/busybox-test-dockerfile/"
-echo "build test busybox image for ecs and swarm unit test"
 docker build -t $image $path
 docker push $image
-echo
 
 # build manageserver docker image
+echo
 target=$system"-manageserver"
 image="${org}${target}:${version}"
 binfile=$target
@@ -41,10 +41,10 @@ cp $GOPATH/bin/$binfile $path
 docker build -t $image $path
 rm -f $path$binfile
 docker push $image
-echo
 
 
 # build controldb docker image
+echo
 target=$system"-controldb"
 image="${org}${target}:${version}"
 binfile=$target
@@ -62,8 +62,8 @@ image="${org}${target}:${version}"
 path="${TOPWD}/catalog/mongodb/3.4/dockerfile/"
 docker build -t $image $path
 docker push $image
-echo
 
+echo
 target=$system"-mongodb-init"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/mongodb/3.4/init-task-dockerfile/"
@@ -71,10 +71,10 @@ cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
 rm -f ${path}/waitdns.sh
 docker push $image
-echo
 
 
 # build postgres docker image
+echo
 target=$system"-postgres"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/postgres/9.6/dockerfile/"
@@ -82,17 +82,17 @@ cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
 rm -f ${path}/waitdns.sh
 docker push $image
-echo
 
 
 # build cassandra docker image
+echo
 target=$system"-cassandra"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/cassandra/3.11/dockerfile/"
 docker build -t $image $path
 docker push $image
-echo
 
+echo
 target=$system"-cassandra-init"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
@@ -100,22 +100,21 @@ cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
 rm -f ${path}/waitdns.sh
 docker push $image
-echo
 
 
 # build zookeeper docker image
+echo
 target=$system"-zookeeper"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/zookeeper/3.4.10/dockerfile/"
 docker build -t $image $path
 docker push $image
-echo
 
 
 # build kafka docker image
+echo
 target=$system"-kafka"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/kafka/0.11/dockerfile/"
 docker build -t $image $path
 docker push $image
-echo
