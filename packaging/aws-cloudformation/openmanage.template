@@ -196,6 +196,14 @@
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
             }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9092",
+            "ToPort": "9092",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
           }
         ]
       }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/catalog/cassandra"
+	"github.com/cloudstax/openmanage/catalog/kafka"
 	"github.com/cloudstax/openmanage/catalog/mongodb"
 	"github.com/cloudstax/openmanage/catalog/postgres"
 	"github.com/cloudstax/openmanage/catalog/zookeeper"
@@ -29,6 +30,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createCasService(ctx, r, requuid)
 	case manage.CatalogCreateZooKeeperOp:
 		return s.createZkService(ctx, r, requuid)
+	case manage.CatalogCreateKafkaOp:
+		return s.createKafkaService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	default:
@@ -96,11 +99,10 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			case catalog.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
 				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-				if errcode == http.StatusOK {
-					initialized = true
-				} else {
+				if errcode != http.StatusOK {
 					return errmsg, errcode
 				}
+				initialized = true
 
 			case catalog.CatalogService_Cassandra:
 				s.addCasInitTask(ctx, req.Service, attr.ServiceUUID, requuid)
@@ -108,11 +110,18 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			case catalog.CatalogService_ZooKeeper:
 				// zookeeper does not require additional init work. set initialized
 				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-				if errcode == http.StatusOK {
-					initialized = true
-				} else {
+				if errcode != http.StatusOK {
 					return errmsg, errcode
 				}
+				initialized = true
+
+			case catalog.CatalogService_Kafka:
+				// Kafka does not require additional init work. set initialized
+				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+				if errcode != http.StatusOK {
+					return errmsg, errcode
+				}
+				initialized = true
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -252,6 +261,52 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
 
 	// zookeeper does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateKafkaRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateKafkaRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateKafkaRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// get the zk service
+	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.ZkServiceName)
+	if err != nil {
+		glog.Errorln("get zk service", req.ZkServiceName, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("get zk service", zksvc, "requuid", requuid)
+
+	zkattr, err := s.dbIns.GetServiceAttr(ctx, zksvc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("get zk service attr", zksvc.ServiceUUID, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := kafkacatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource,
+		req.AllowTopicDel, req.RetentionHours, zkattr)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
+
+	// kafka does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 

@@ -38,7 +38,7 @@ func (s *MemServer) WaitVolumeAttached(ctx context.Context, volID string) error 
 }
 
 func (s *MemServer) GetVolumeState(ctx context.Context, volID string) (state string, err error) {
-	return "", common.ErrInternal
+	return VolumeStateAvailable, nil
 }
 
 func (s *MemServer) GetVolumeInfo(ctx context.Context, volID string) (info VolumeInfo, err error) {

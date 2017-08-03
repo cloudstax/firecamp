@@ -26,7 +26,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -47,8 +47,13 @@ var (
 	keyFile     = flag.String("key-file", "", "the key file")
 
 	// The postgres service creation specific parameters.
-	replUser       = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
-	replUserPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
+	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
+	pgReplUserPasswd = flag.String("pg-replpasswd", "replpassword", "The PostgreSQL password for the standby DB to access the primary")
+
+	// The kafka service creation specific parameters
+	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion, default: false")
+	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours, default: 168 hours")
+	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
@@ -77,7 +82,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -104,10 +109,6 @@ func main() {
 	usage()
 	flag.Parse()
 
-	if *op != opList && *op != opCleanDNS && *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
-	}
 	if *tlsEnabled && (*caFile == "" || *certFile == "" || *keyFile == "") {
 		fmt.Printf("tls enabled without ca file %s cert file %s or key file %s\n", caFile, certFile, keyFile)
 		os.Exit(-1)
@@ -155,6 +156,8 @@ func main() {
 			createCassandraService(ctx, cli)
 		case catalog.CatalogService_ZooKeeper:
 			createZkService(ctx, cli)
+		case catalog.CatalogService_Kafka:
+			createKafkaService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
@@ -198,6 +201,10 @@ func main() {
 }
 
 func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
@@ -239,6 +246,10 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func createCassandraService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
@@ -297,6 +308,10 @@ func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *man
 }
 
 func createZkService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
@@ -329,7 +344,52 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
+func createKafkaService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *replicas == 0 || *volSizeGB == 0 || *kafkaZkService == "" {
+		fmt.Println("please specify the valid replica number, volume size and zookeeper service name")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateKafkaRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Replicas:     *replicas,
+		VolumeSizeGB: *volSizeGB,
+
+		AllowTopicDel:  *kafkaAllowTopicDel,
+		RetentionHours: *kafkaRetentionHours,
+		ZkServiceName:  *kafkaZkService,
+	}
+
+	err := cli.CatalogCreateKafkaService(ctx, req)
+	if err != nil {
+		fmt.Println("create kafka service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The kafka service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
 func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
@@ -351,8 +411,8 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 		VolumeSizeGB:   *volSizeGB,
 		Admin:          defaultPGAdmin,
 		AdminPasswd:    *adminPasswd,
-		ReplUser:       *replUser,
-		ReplUserPasswd: *replUserPasswd,
+		ReplUser:       *pgReplUser,
+		ReplUserPasswd: *pgReplUserPasswd,
 	}
 
 	err := cli.CatalogCreatePostgreSQLService(ctx, req)
@@ -392,6 +452,10 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 }
 
 func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	req := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: *serviceType,
 		Service: &manage.ServiceCommonRequest{
@@ -436,6 +500,10 @@ func listServices(ctx context.Context, cli *client.ManageClient) {
 }
 
 func getService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	req := &manage.ServiceCommonRequest{
 		Region:      *region,
 		Cluster:     *cluster,
@@ -452,6 +520,10 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	// list all service members
 	serviceReq := &manage.ServiceCommonRequest{
 		Region:      *region,
@@ -473,6 +545,10 @@ func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
 	// list all service members
 	members := listServiceMembers(ctx, cli)
 
@@ -516,7 +592,7 @@ func getConfig(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("%+v\n", *cfg)
+	fmt.Printf("%+v\n", *cfg)
 }
 
 func cleanDNS(ctx context.Context, cli *client.ManageClient) {

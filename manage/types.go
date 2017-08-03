@@ -21,6 +21,7 @@ const (
 	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
 	CatalogCreateCassandraOp  = CatalogOpPrefix + "Create-Cassandra"
 	CatalogCreateZooKeeperOp  = CatalogOpPrefix + "Create-ZooKeeper"
+	CatalogCreateKafkaOp      = CatalogOpPrefix + "Create-Kafka"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 
@@ -201,6 +202,20 @@ type CatalogCreateZooKeeperRequest struct {
 
 	Replicas     int64
 	VolumeSizeGB int64
+}
+
+// CatalogCreateKafkaRequest creates a Kafka service.
+type CatalogCreateKafkaRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+
+	Replicas     int64
+	VolumeSizeGB int64
+
+	AllowTopicDel  bool
+	RetentionHours int64
+	// the existing ZooKeeper service that Kafka will use.
+	ZkServiceName string
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
