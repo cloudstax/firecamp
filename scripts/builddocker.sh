@@ -118,3 +118,11 @@ image="${org}${target}:${version}"
 path="${TOPWD}/catalog/kafka/0.11/dockerfile/"
 docker build -t $image $path
 docker push $image
+
+# build redis docker image
+echo
+target=$system"-redis"
+image="${org}${target}:${version}"
+path="${TOPWD}/catalog/redis/4.0.1/dockerfile/"
+docker build -t $image $path
+docker push $image

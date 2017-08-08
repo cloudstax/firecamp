@@ -198,9 +198,20 @@
               [
                 "#!/bin/bash -x\n",
 
-                "# set madvise for THP (Transparent Huge Pages), as THP might impact the performance for some services, such as MongoDB and Reddis\n",
+                "# set never for THP (Transparent Huge Pages), as THP might impact the performance for some services\n",
+                "# such as MongoDB and Reddis. Could set to madvise if some service really benefits from madvise.\n",
                 "# https://www.kernel.org/doc/Documentation/vm/transhuge.txt\n",
-                "echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled\n",
+                "echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled\n",
+
+                "# increase somaxconn to 512 for such as Redis\n",
+                "echo \"net.core.somaxconn=512\" >> /etc/sysctl.conf\n",
+                "sysctl -w net.core.somaxconn=512\n",
+                "echo \"net.ipv4.tcp_max_syn_backlog=512\" >> /etc/sysctl.conf\n",
+                "sysctl -w net.ipv4.tcp_max_syn_backlog=512\n",
+
+                "# set overcommit to 1 as required by Redis. Would not cause issue to other services\n",
+                "echo \"vm.overcommit_memory=1\" >> /etc/sysctl.conf\n",
+                "sysctl -w vm.overcommit_memory=1\n",
 
                 "# install docker\n",
                 "yum install -y docker\n",

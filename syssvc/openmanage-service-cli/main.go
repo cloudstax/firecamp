@@ -26,7 +26,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -55,6 +55,14 @@ var (
 	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours, default: 168 hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 
+	// The redis service creation specific parameters.
+	redisShards           = flag.Int64("redis-shards", 1, "The number of shards for the Redis service")
+	redisReplicasPerShard = flag.Int64("redis-replicas-pershard", 1, "The number of replicas in one Redis shard")
+	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
+	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
+	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
+	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", "noeviction", "The Redis eviction policy when the memory limit is reached")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -82,7 +90,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: openmanage-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -158,6 +166,8 @@ func main() {
 			createZkService(ctx, cli)
 		case catalog.CatalogService_Kafka:
 			createKafkaService(ctx, cli)
+		case catalog.CatalogService_Redis:
+			createRedisService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
@@ -381,6 +391,50 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The kafka service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createRedisService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *maxMemMB == common.DefaultMaxMemoryMB || *volSizeGB == 0 {
+		fmt.Println("please specify the valid max memory and volume size")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateRedisRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+
+		Shards:           *redisShards,
+		ReplicasPerShard: *redisReplicasPerShard,
+		VolumeSizeGB:     *volSizeGB,
+
+		DisableAOF:      *redisDisableAOF,
+		AuthPass:        *redisAuthPass,
+		ReplTimeoutSecs: *redisReplTimeoutSecs,
+		MaxMemPolicy:    *redisMaxMemPolicy,
+	}
+
+	err := cli.CatalogCreateRedisService(ctx, req)
+	if err != nil {
+		fmt.Println("create redis service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The redis service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

@@ -204,7 +204,16 @@
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
             }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
           }
+
         ]
       }
     },
