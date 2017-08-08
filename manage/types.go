@@ -22,6 +22,7 @@ const (
 	CatalogCreateCassandraOp  = CatalogOpPrefix + "Create-Cassandra"
 	CatalogCreateZooKeeperOp  = CatalogOpPrefix + "Create-ZooKeeper"
 	CatalogCreateKafkaOp      = CatalogOpPrefix + "Create-Kafka"
+	CatalogCreateRedisOp      = CatalogOpPrefix + "Create-Redis"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 

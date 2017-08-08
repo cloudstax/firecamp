@@ -16,7 +16,7 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	replicasPerShard := int64(2)
 	disableAOF := false
 	authPass := "pass"
-	replTimeoutSecs := int64(60)
+	replTimeoutSecs := int64(30)
 
 	// test 3 shards and 2 replicas each shard
 	replcfgs := GenReplicaConfigs(cluster, service, azs, maxMemMB, maxMemPolicy,
@@ -32,9 +32,10 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	}
 
 	content := strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
-	content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-openmanage.com")
+	//content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-openmanage.com")
+	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-openmanage.com", "")
 	if content != content1 {
-		t.Fatalf("redis conf content mismatch, %s", content)
+		t.Fatalf("redis conf content mismatch, %s \nexpect %s", content, content1)
 	}
 
 	// test 4 shards and 3 replicas each shard
@@ -54,14 +55,16 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
-	content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-openmanage.com")
+	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-openmanage.com")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-openmanage.com", "\nslaveof service1-0.c1-openmanage.com 6379\n")
 	if content != content1 {
-		t.Fatalf("redis conf content mismatch, %s", content)
+		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 	content = strings.TrimSuffix(replcfgs[4].Configs[1].Content, defaultConfigs)
-	content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-openmanage.com")
+	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-openmanage.com")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-openmanage.com", "\nslaveof service1-3.c1-openmanage.com 6379\n")
 	if content != content1 {
-		t.Fatalf("redis conf content mismatch, %s", content)
+		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 
 	// test 1 shards and 3 replicas each shard
@@ -78,9 +81,10 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-openmanage.com", 536870912)
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-openmanage.com", 536870912)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-1.c1-openmanage.com", 536870912, "\nslaveof service1-0.c1-openmanage.com 6379")
 	if content != content1 {
-		t.Fatalf("redis conf content mismatch, %s", content)
+		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 
 	// test 1 shards and 1 replicas each shard
@@ -97,9 +101,11 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-openmanage.com", 1073741824)
+	content += "\n"
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-openmanage.com", 1073741824)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-0.c1-openmanage.com", 1073741824, "")
 	if content != content1 {
-		t.Fatalf("redis conf content mismatch, %s", content)
+		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 
 }
@@ -139,7 +145,7 @@ masterauth pass
 appendonly yes
 appendfilename "appendonly.aof"
 appendfsync everysec
-
+%s
 cluster-enabled yes
 cluster-config-file /data/redis-cluster.conf
 cluster-node-timeout 15000
@@ -183,4 +189,5 @@ masterauth pass
 appendonly yes
 appendfilename "appendonly.aof"
 appendfsync everysec
+%s
 `

@@ -12,6 +12,7 @@ import (
 	"github.com/cloudstax/openmanage/catalog/kafka"
 	"github.com/cloudstax/openmanage/catalog/mongodb"
 	"github.com/cloudstax/openmanage/catalog/postgres"
+	"github.com/cloudstax/openmanage/catalog/redis"
 	"github.com/cloudstax/openmanage/catalog/zookeeper"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/db"
@@ -32,6 +33,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createZkService(ctx, r, requuid)
 	case manage.CatalogCreateKafkaOp:
 		return s.createKafkaService(ctx, r, requuid)
+	case manage.CatalogCreateRedisOp:
+		return s.createRedisService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	default:
@@ -307,6 +310,43 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
 
 	// kafka does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateRedisRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateRedisRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateRedisRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = rediscatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("CatalogCreateRedisRequest parameters are not valid, requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Shards, req.ReplicasPerShard, req.VolumeSizeGB,
+		req.DisableAOF, req.AuthPass, req.ReplTimeoutSecs, req.MaxMemPolicy)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created redis service", serviceUUID, "requuid", requuid, req.Service)
+
+	// redis does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 

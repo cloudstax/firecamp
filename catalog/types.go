@@ -7,6 +7,7 @@ const (
 	CatalogService_Cassandra  = "cassandra"
 	CatalogService_ZooKeeper  = "zookeeper"
 	CatalogService_Kafka      = "kafka"
+	CatalogService_Redis      = "redis"
 
 	// The system variables in the sys.conf file
 	SYS_FILE_NAME      = "sys.conf"

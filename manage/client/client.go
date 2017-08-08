@@ -438,6 +438,26 @@ func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.
 	return manage.ConvertHTTPError(resp.StatusCode)
 }
 
+// CatalogCreateRedisService creates a new catalog Redis service.
+func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.CatalogCreateRedisRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateRedisOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
 // CatalogCheckServiceInit checks if a catalog service is initialized.
 func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (initialized bool, statusMsg string, err error) {
 	b, err := json.Marshal(r)

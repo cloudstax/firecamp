@@ -115,7 +115,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB int64, maxMemPolicy string,
 	shards int64, replicasPerShard int64, disableAOF bool, authPass string, replTimeoutSecs int64) []*manage.ReplicaConfig {
 	// adjust the replTimeoutSecs if needed
-	if replTimeoutSecs > minReplTimeoutSecs {
+	if replTimeoutSecs < minReplTimeoutSecs {
 		replTimeoutSecs = minReplTimeoutSecs
 	}
 	if len(maxMemPolicy) == 0 {
@@ -132,9 +132,14 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 
 	replicaCfgs := make([]*manage.ReplicaConfig, replicasPerShard*shards)
 	for shard := int64(0); shard < shards; shard++ {
+		masterMember := utils.GenServiceMemberName(service, shard*replicasPerShard)
+		masterMemberHost := dns.GenDNSName(masterMember, domain)
+
 		for i := int64(0); i < replicasPerShard; i++ {
 			// create the sys.conf file
-			member := genServiceShardMemberName(service, shard, i)
+			// TODO enable custom shard member name
+			//member := genServiceShardMemberName(service, shard, i)
+			member := utils.GenServiceMemberName(service, shard*replicasPerShard+i)
 			memberHost := dns.GenDNSName(member, domain)
 			sysCfg := catalog.CreateSysConfigFile(memberHost)
 
@@ -145,6 +150,9 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 			}
 			if !disableAOF {
 				redisContent += aofConfigs
+			}
+			if replicasPerShard != 1 && i != int64(0) {
+				redisContent += fmt.Sprintf(replConfigs, masterMemberHost, listenPort)
 			}
 			if shards != 1 {
 				redisContent += clusterConfigs
@@ -216,6 +224,10 @@ masterauth %s
 appendonly yes
 appendfilename "appendonly.aof"
 appendfsync everysec
+`
+
+	replConfigs = `
+slaveof %s %d
 `
 
 	clusterConfigs = `
