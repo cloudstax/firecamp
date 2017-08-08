@@ -218,6 +218,31 @@ type CatalogCreateKafkaRequest struct {
 	ZkServiceName string
 }
 
+// CatalogCreateRedisRequest creates a Redis service.
+type CatalogCreateRedisRequest struct {
+	Service *ServiceCommonRequest
+	// Resources.MaxMemoryMB should always be set.
+	// if cluster mode is enabled (Shards >= 3), the actual redis memory will be
+	// Resources.MaxMemoryMB - default output buffer for the slaves (512MB).
+	Resource *common.Resources
+
+	// The number of shards for Redis cluster, minimal 3.
+	// Setting to 1 will disable cluster mode. 2 is invalid.
+	Shards           int64
+	ReplicasPerShard int64
+
+	VolumeSizeGB int64
+
+	// whether disable Redis "append only file", not recommended unless for cache only.
+	DisableAOF bool
+	// The AUTH password, recommended to set it for production environment. Empty string means disable it.
+	AuthPass string
+	// minimal 60s, not recommend to change unless necessary. see Redis Readme for details.
+	ReplTimeoutSecs int64
+	// how Redis will select what to remove when maxmemory is reached
+	MaxMemPolicy string
+}
+
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
 type CatalogCheckServiceInitRequest struct {
 	ServiceType string
