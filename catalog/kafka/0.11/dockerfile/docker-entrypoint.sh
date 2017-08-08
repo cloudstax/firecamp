@@ -39,11 +39,6 @@ if [ ! -f "$javaenvfile" ]; then
   exit 1
 fi
 
-#if [ "$(id -u)" = '0' ]; then
-  # increase the max open files
-#  ulimit -n 90000
-#fi
-
 # allow the container to be started with `--user`
 if [ "$1" = 'kafka-server-start.sh' -a "$(id -u)" = '0' ]; then
   rootdiruser=$(stat -c "%U" $rootdir)
