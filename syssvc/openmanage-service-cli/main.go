@@ -62,6 +62,7 @@ var (
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
 	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", "noeviction", "The Redis eviction policy when the memory limit is reached")
+	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
 
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
@@ -417,15 +418,17 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
+		Options: &manage.CatalogRedisOptions{
+			Shards:           *redisShards,
+			ReplicasPerShard: *redisReplicasPerShard,
+			VolumeSizeGB:     *volSizeGB,
 
-		Shards:           *redisShards,
-		ReplicasPerShard: *redisReplicasPerShard,
-		VolumeSizeGB:     *volSizeGB,
-
-		DisableAOF:      *redisDisableAOF,
-		AuthPass:        *redisAuthPass,
-		ReplTimeoutSecs: *redisReplTimeoutSecs,
-		MaxMemPolicy:    *redisMaxMemPolicy,
+			DisableAOF:      *redisDisableAOF,
+			AuthPass:        *redisAuthPass,
+			ReplTimeoutSecs: *redisReplTimeoutSecs,
+			MaxMemPolicy:    *redisMaxMemPolicy,
+			ConfigCmdName:   *redisConfigCmdName,
+		},
 	}
 
 	err := cli.CatalogCreateRedisService(ctx, req)

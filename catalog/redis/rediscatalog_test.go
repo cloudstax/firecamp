@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/cloudstax/openmanage/manage"
 )
 
 func TestRedisCatalogFuncs(t *testing.T) {
@@ -11,16 +13,19 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	service := "service1"
 	azs := []string{"az1", "az2", "az3"}
 	maxMemMB := int64(1024)
-	maxMemPolicy := ""
-	shards := int64(3)
-	replicasPerShard := int64(2)
-	disableAOF := false
-	authPass := "pass"
-	replTimeoutSecs := int64(30)
+	opts := &manage.CatalogRedisOptions{
+		Shards:           int64(3),
+		ReplicasPerShard: int64(2),
+		VolumeSizeGB:     int64(1),
+		DisableAOF:       false,
+		AuthPass:         "pass",
+		ReplTimeoutSecs:  int64(30),
+		MaxMemPolicy:     "",
+		ConfigCmdName:    "",
+	}
 
 	// test 3 shards and 2 replicas each shard
-	replcfgs := GenReplicaConfigs(cluster, service, azs, maxMemMB, maxMemPolicy,
-		shards, replicasPerShard, disableAOF, authPass, replTimeoutSecs)
+	replcfgs := GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 6 {
 		t.Fatalf("expect 6 replica configs, get %d", len(replcfgs))
 	}
@@ -33,16 +38,15 @@ func TestRedisCatalogFuncs(t *testing.T) {
 
 	content := strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
 	//content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-openmanage.com")
-	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-openmanage.com", "")
+	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-openmanage.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect %s", content, content1)
 	}
 
 	// test 4 shards and 3 replicas each shard
-	shards = 4
-	replicasPerShard = 3
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, maxMemPolicy,
-		shards, replicasPerShard, disableAOF, authPass, replTimeoutSecs)
+	opts.Shards = 4
+	opts.ReplicasPerShard = 3
+	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 12 {
 		t.Fatalf("expect 12 replica configs, get %d", len(replcfgs))
 	}
@@ -56,22 +60,21 @@ func TestRedisCatalogFuncs(t *testing.T) {
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
 	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-openmanage.com")
-	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-openmanage.com", "\nslaveof service1-0.c1-openmanage.com 6379\n")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-openmanage.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 	content = strings.TrimSuffix(replcfgs[4].Configs[1].Content, defaultConfigs)
 	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-openmanage.com")
-	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-openmanage.com", "\nslaveof service1-3.c1-openmanage.com 6379\n")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-openmanage.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 
 	// test 1 shards and 3 replicas each shard
-	shards = 1
-	replicasPerShard = 3
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, maxMemPolicy,
-		shards, replicasPerShard, disableAOF, authPass, replTimeoutSecs)
+	opts.Shards = 1
+	opts.ReplicasPerShard = 3
+	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 3 {
 		t.Fatalf("expect 3 replica configs, get %d", len(replcfgs))
 	}
@@ -88,10 +91,9 @@ func TestRedisCatalogFuncs(t *testing.T) {
 	}
 
 	// test 1 shards and 1 replicas each shard
-	shards = 1
-	replicasPerShard = 1
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, maxMemPolicy,
-		shards, replicasPerShard, disableAOF, authPass, replTimeoutSecs)
+	opts.Shards = 1
+	opts.ReplicasPerShard = 1
+	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 1 {
 		t.Fatalf("expect 1 replica configs, get %d", len(replcfgs))
 	}
@@ -138,6 +140,11 @@ client-output-buffer-limit normal 0 0 0
 client-output-buffer-limit slave 512mb 512mb 0
 client-output-buffer-limit pubsub 32mb 8mb 60
 
+rename-command FLUSHALL ""
+rename-command FLUSHDB ""
+rename-command SHUTDOWN ""
+rename-command CONFIG ""
+
 requirepass pass
 masterauth pass
 
@@ -145,7 +152,7 @@ masterauth pass
 appendonly yes
 appendfilename "appendonly.aof"
 appendfsync everysec
-%s
+
 cluster-enabled yes
 cluster-config-file /data/redis-cluster.conf
 cluster-node-timeout 15000
@@ -181,6 +188,11 @@ repl-timeout 60
 client-output-buffer-limit normal 0 0 0
 client-output-buffer-limit slave 512mb 512mb 0
 client-output-buffer-limit pubsub 32mb 8mb 60
+
+rename-command FLUSHALL ""
+rename-command FLUSHDB ""
+rename-command SHUTDOWN ""
+rename-command CONFIG ""
 
 requirepass pass
 masterauth pass

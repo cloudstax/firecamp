@@ -336,8 +336,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 
 	// create the service in the control plane and the container platform
 	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Shards, req.ReplicasPerShard, req.VolumeSizeGB,
-		req.DisableAOF, req.AuthPass, req.ReplTimeoutSecs, req.MaxMemPolicy)
+		req.Service.ServiceName, req.Resource, req.Options)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

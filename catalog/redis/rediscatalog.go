@@ -42,16 +42,16 @@ const (
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
-	return validateRequest(r.Shards, r.ReplicasPerShard, r.Resource.MaxMemMB, r.MaxMemPolicy)
+	return validateRequest(r.Resource.MaxMemMB, r.Options)
 }
 
-func validateRequest(shards int64, replicasPerShard int64, maxMemMB int64, maxMemPolicy string) error {
-	if replicasPerShard < 1 || shards == invalidShards ||
+func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
+	if opts.ReplicasPerShard < 1 || opts.Shards == invalidShards ||
 		maxMemMB == common.DefaultMaxMemoryMB ||
-		(shards != 1 && maxMemMB < defaultSlaveClientOutputBufferMB) {
+		(opts.Shards != 1 && maxMemMB < defaultSlaveClientOutputBufferMB) {
 		return common.ErrInvalidArgs
 	}
-	switch maxMemPolicy {
+	switch opts.MaxMemPolicy {
 	case "":
 		return nil
 	case maxMemPolicyAllKeysLRU:
@@ -77,16 +77,14 @@ func validateRequest(shards int64, replicasPerShard int64, maxMemMB int64, maxMe
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
-	service string, res *common.Resources, shards int64, replicasPerShard int64, volSizeGB int64,
-	disableAOF bool, authPass string, replTimeoutSecs int64, maxMemPolicy string) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, res.MaxMemMB, maxMemPolicy,
-		shards, replicasPerShard, disableAOF, authPass, replTimeoutSecs)
+	replicaCfgs := GenReplicaConfigs(cluster, service, azs, res.MaxMemMB, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
 	}
-	if shards >= minClusterShards {
+	if opts.Shards >= minClusterShards {
 		m := common.PortMapping{ContainerPort: clusterPort, HostPort: clusterPort}
 		portMappings = append(portMappings, m)
 	}
@@ -101,8 +99,8 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicasPerShard * shards,
-		VolumeSizeGB:   volSizeGB,
+		Replicas:       opts.ReplicasPerShard * opts.Shards,
+		VolumeSizeGB:   opts.VolumeSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
@@ -112,49 +110,55 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB int64, maxMemPolicy string,
-	shards int64, replicasPerShard int64, disableAOF bool, authPass string, replTimeoutSecs int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB int64,
+	opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
 	// adjust the replTimeoutSecs if needed
+	replTimeoutSecs := opts.ReplTimeoutSecs
 	if replTimeoutSecs < minReplTimeoutSecs {
 		replTimeoutSecs = minReplTimeoutSecs
 	}
+	maxMemPolicy := opts.MaxMemPolicy
 	if len(maxMemPolicy) == 0 {
 		maxMemPolicy = maxMemPolicyNoEviction
 	}
-
 	redisMaxMemBytes := maxMemMB * 1024 * 1024
-	if replicasPerShard != 1 {
+	if opts.ReplicasPerShard != 1 {
 		// replication mode needs to reserve some memory for the output buffer to slave
 		redisMaxMemBytes -= defaultSlaveClientOutputBufferMB * 1024 * 1024
 	}
 
 	domain := dns.GenDefaultDomainName(cluster)
 
-	replicaCfgs := make([]*manage.ReplicaConfig, replicasPerShard*shards)
-	for shard := int64(0); shard < shards; shard++ {
-		masterMember := utils.GenServiceMemberName(service, shard*replicasPerShard)
+	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
+	for shard := int64(0); shard < opts.Shards; shard++ {
+		masterMember := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
 
-		for i := int64(0); i < replicasPerShard; i++ {
+		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			// create the sys.conf file
 			// TODO enable custom shard member name
 			//member := genServiceShardMemberName(service, shard, i)
-			member := utils.GenServiceMemberName(service, shard*replicasPerShard+i)
+			member := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard+i)
 			memberHost := dns.GenDNSName(member, domain)
 			sysCfg := catalog.CreateSysConfigFile(memberHost)
 
 			// create the redis.conf file
-			redisContent := fmt.Sprintf(redisConfigs, memberHost, listenPort, redisMaxMemBytes, maxMemPolicy, replTimeoutSecs)
-			if len(authPass) != 0 {
-				redisContent += fmt.Sprintf(authConfig, authPass, authPass)
+			redisContent := fmt.Sprintf(redisConfigs, memberHost, listenPort,
+				redisMaxMemBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
+			if len(opts.AuthPass) != 0 {
+				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
 			}
-			if !disableAOF {
+			if !opts.DisableAOF {
 				redisContent += aofConfigs
 			}
-			if replicasPerShard != 1 && i != int64(0) {
-				redisContent += fmt.Sprintf(replConfigs, masterMemberHost, listenPort)
-			}
-			if shards != 1 {
+			if opts.Shards == 1 {
+				// master-slave mode or single instance mode
+				if opts.ReplicasPerShard != 1 && i != int64(0) {
+					// master-slave mode, set the master ip for the slave
+					redisContent += fmt.Sprintf(replConfigs, masterMemberHost, listenPort)
+				}
+			} else {
+				// cluster mode
 				redisContent += clusterConfigs
 			}
 
@@ -172,7 +176,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 			azIndex := int(i) % len(azs)
 			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], Configs: configs}
 
-			replicaCfgs[replicasPerShard*shard+i] = replicaCfg
+			replicaCfgs[opts.ReplicasPerShard*shard+i] = replicaCfg
 		}
 	}
 	return replicaCfgs
@@ -212,6 +216,11 @@ repl-timeout %d
 client-output-buffer-limit normal 0 0 0
 client-output-buffer-limit slave 512mb 512mb 0
 client-output-buffer-limit pubsub 32mb 8mb 60
+
+rename-command FLUSHALL ""
+rename-command FLUSHDB ""
+rename-command SHUTDOWN ""
+rename-command CONFIG "%s"
 `
 
 	authConfig = `
