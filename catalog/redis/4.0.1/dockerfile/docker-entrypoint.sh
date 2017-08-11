@@ -6,6 +6,8 @@ datadir=/data/redis
 confdir=/data/conf
 cfgfile=$confdir/redis.conf
 syscfgfile=$confdir/sys.conf
+clustercfgfile=$confdir/cluster.info
+redisnodefile=$rootdir/redis-node.conf
 
 REDIS_USER=redis
 
@@ -51,7 +53,6 @@ fi
 # load the sys config file
 . $syscfgfile
 echo $SERVICE_MEMBER
-echo ""
 
 echo "$@"
 exec "$@"

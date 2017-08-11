@@ -18,13 +18,20 @@ const (
 	listenPort  = 6379
 	clusterPort = 16379
 
+	// every node will announce its ip, for example,
+	// 20.20.1.1 for the first replica of shard0,
+	// 20.20.2.3 for the third replica of shard1,
+	defaultAnnounceIPPrefix = "20.20"
+	ipSep                   = "."
+
 	minClusterShards                 = 3
 	invalidShards                    = 2
 	minReplTimeoutSecs               = 60
 	defaultSlaveClientOutputBufferMB = 512
 	shardName                        = "shard"
 
-	redisConfFileName = "redis.conf"
+	redisConfFileName        = "redis.conf"
+	redisClusterInfoFileName = "cluster.info"
 
 	maxMemPolicyVolatileLRU    = "volatile-lru"
 	maxMemPolicyAllKeysLRU     = "allkeys-lru"
@@ -129,10 +136,15 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 
 	domain := dns.GenDefaultDomainName(cluster)
 
+	// generate the cluster.info content
+	clusterInfo := genClusterInfo(service, domain, opts.Shards, opts.ReplicasPerShard)
+
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
 	for shard := int64(0); shard < opts.Shards; shard++ {
 		masterMember := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
+
+		shardAnnounceIP := defaultAnnounceIPPrefix + ipSep + strconv.Itoa(int(shard)+1)
 
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			// create the sys.conf file
@@ -159,7 +171,8 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 				}
 			} else {
 				// cluster mode
-				redisContent += clusterConfigs
+				memberAnnounceIP := shardAnnounceIP + ipSep + strconv.Itoa(int(i)+1)
+				redisContent += fmt.Sprintf(clusterConfigs, memberAnnounceIP)
 			}
 
 			redisContent += defaultConfigs
@@ -170,7 +183,13 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 				Content:  redisContent,
 			}
 
-			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg}
+			clusterInfoCfg := &manage.ReplicaConfigFile{
+				FileName: redisClusterInfoFileName,
+				FileMode: common.DefaultConfigFileMode,
+				Content:  clusterInfo,
+			}
+
+			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg, clusterInfoCfg}
 
 			// distribute the replicas of one shard to different availability zones
 			azIndex := int(i) % len(azs)
@@ -186,6 +205,20 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 func genServiceShardMemberName(serviceName string, shard int64, replicasInShard int64) string {
 	shardMemberName := serviceName + common.NameSeparator + shardName + strconv.FormatInt(shard, 10)
 	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
+}
+
+func genClusterInfo(service string, domain string, shards int64, replicasPerShard int64) string {
+	clusterInfo := ""
+	for shard := int64(0); shard < shards; shard++ {
+		shardAnnounceIP := defaultAnnounceIPPrefix + ipSep + strconv.Itoa(int(shard)+1)
+		for i := int64(0); i < replicasPerShard; i++ {
+			member := utils.GenServiceMemberName(service, shard*replicasPerShard+i)
+			memberHost := dns.GenDNSName(member, domain)
+			memberAnnounceIP := shardAnnounceIP + ipSep + strconv.Itoa(int(i)+1)
+			clusterInfo += fmt.Sprintf("%s %s\n", memberHost, memberAnnounceIP)
+		}
+	}
+	return clusterInfo
 }
 
 const (
@@ -241,11 +274,13 @@ slaveof %s %d
 
 	clusterConfigs = `
 cluster-enabled yes
-cluster-config-file /data/redis-cluster.conf
+cluster-config-file /data/redis-node.conf
 cluster-node-timeout 15000
 cluster-slave-validity-factor 10
 cluster-migration-barrier 1
 cluster-require-full-coverage yes
+
+cluster-announce-ip %s
 `
 
 	defaultConfigs = `
