@@ -1,9 +1,8 @@
 # [OpenManage](https://github.com/cloudstax/openmanage)
 
-*OpenManage* is an open-source platform to easily setup, manage and scale the Dockerized stateful services. The platform deeply integrates with the popular open source stateful services, such as MongoDB, PostgreSQL, MySQL, Cassandra, ZooKeeper, Kafka, ElasticSearch, etc. The platform manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different node, the platform will maintain the membership and move the data volume as well.
+**OpenManage is an open-source platform to easily setup, manage and scale the Dockerized stateful services. The customer could easily run any service with no management overhead on any cloud. The OpenManage platform is one step towards the free Serverless Cloud. The application functions could freely talk to any stateful service. It makes it easy to develop and test the functions locally with the stateful service, and run in any cloud at scale with the same stateful service.**
 
-The platform is built on top of all popular container orchestration frameworks, including
-[Amazon EC2 Container Service](https://aws.amazon.com/ecs/), [Docker Swarm](https://docs.docker.com/engine/swarm/), [Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io). You could use any container orchestration framework you want.
+The OpenManage platform deeply integrates with the popular open source stateful services, such as MongoDB, PostgreSQL, MySQL, Cassandra, ZooKeeper, Kafka, Redis, ElasticSearch, etc. The platform manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different node, the platform will maintain the membership and move the data volume as well.
 
 With OpenManage, you are able to quickly and efficiently respond to the stateful service demands:
 * **Deploy a stateful service quickly.**
@@ -13,13 +12,11 @@ With OpenManage, you are able to quickly and efficiently respond to the stateful
 * **Manage the stateful service data easily.**
 * **Move from one cloud to another freely.**
 
-The OpenManage platform is one step towards the free Serverless Cloud. The customer could easily run any service with no management overhead on any Cloud. Currently the platform has built-in integrations for MongoDB, PostgreSQL, Cassandra and ZooKeeper. MySQL and Kafka are coming soon. More services will be integrated in the future.
-
 ## Key Features
 
-**Cross Container Orchestration Frameworks**: The platform is built on top of the popular container orchestration frameworks. Currently the platform supports [Amazon EC2 Container Service](https://aws.amazon.com/ecs/). The [Docker Swarm](https://docs.docker.com/engine/swarm/) on Amazon Web Services is coming soon. Other container orchestration frameworks (Mesos and Kubernetes) will be supported in the future.
+**Cross Container Orchestration Frameworks**: The platform is built on top of the popular container orchestration frameworks. Currently the platform supports [Amazon EC2 Container Service](https://aws.amazon.com/ecs/). The [Docker Swarm](https://docs.docker.com/engine/swarm/) on Amazon Web Services is coming soon. Other container orchestration frameworks ([Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io)) will be supported in the future.
 
-**Cross Clouds**: Currently support Amazon Web Services. Will support Google Cloud and Microsoft Azure Cloud in the future.
+**Cross Clouds**: Currently support Amazon Web Services. Will support Google Cloud, Microsoft Azure Cloud, Private and Hybrid Cloud in the future.
 
 **Easy Deploy**: The platform's Catalog service integrates the stateful services. The customer could simply call a single command to deploy a stateful service, such as a MongoDB ReplicaSet.
 
@@ -52,3 +49,7 @@ The OpenManage cluster could be easily installed using AWS CloudFormation. For t
 * [PostgreSQL](https://github.com/cloudstax/openmanage/tree/master/catalog/postgres)
 * [Cassandra](https://github.com/cloudstax/openmanage/tree/master/catalog/cassandra)
 * [ZooKeeper](https://github.com/cloudstax/openmanage/tree/master/catalog/zookeeper)
+* [Kafka](https://github.com/cloudstax/openmanage/tree/master/catalog/kafka)
+* Redis: coming soon.
+* MySQL: coming soon.
+* ElasticSearch: coming soon.
