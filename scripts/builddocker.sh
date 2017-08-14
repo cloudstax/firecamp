@@ -119,10 +119,23 @@ path="${TOPWD}/catalog/kafka/0.11/dockerfile/"
 docker build -t $image $path
 docker push $image
 
+
 # build redis docker image
 echo
 target=$system"-redis"
 image="${org}${target}:${version}"
 path="${TOPWD}/catalog/redis/4.0.1/dockerfile/"
+cp ${TOPWD}/catalog/waitdns.sh ${path}
 docker build -t $image $path
+rm -f ${path}/waitdns.sh
 docker push $image
+
+echo
+target=$system"-redis-init"
+image="${org}${target}:${version}"
+path="${TOPWD}/catalog/redis/4.0.1/init-task-dockerfile/"
+cp ${TOPWD}/catalog/waitdns.sh ${path}
+docker build -t $image $path
+rm -f ${path}/waitdns.sh
+docker push $image
+

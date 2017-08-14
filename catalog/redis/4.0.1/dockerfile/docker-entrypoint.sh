@@ -54,5 +54,18 @@ fi
 . $syscfgfile
 echo $SERVICE_MEMBER
 
+/waitdns.sh $SERVICE_MEMBER
+# check service member dns name again. if lookup fails, the script will exit.
+host $SERVICE_MEMBER
+
+if [ -f "$clustercfgfile" ]; then
+  # cluster is already initialized, check and update the master's address
+  /routing.sh $clustercfgfile $redisnodefile
+  if [ "$?" != "0" ]; then
+    echo "update redis routing ip failed"
+    exit 2
+  fi
+fi
+
 echo "$@"
 exec "$@"
