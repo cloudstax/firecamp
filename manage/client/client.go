@@ -485,23 +485,3 @@ func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.Ca
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.Initialized, res.StatusMessage, err
 }
-
-// CatalogSetServiceInit sets the catalog service initialized.
-func (c *ManageClient) CatalogSetServiceInit(ctx context.Context, r *manage.CatalogSetServiceInitRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogSetServiceInitOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp.StatusCode)
-}

@@ -25,6 +25,7 @@ const (
 	CatalogCreateRedisOp      = CatalogOpPrefix + "Create-Redis"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
+	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
 
 	// response headers
 	RequestID       = "x-RequestId"
@@ -260,6 +261,11 @@ type CatalogCheckServiceInitRequest struct {
 
 	Admin       string
 	AdminPasswd string
+
+	// Redis specific fields.
+	// TODO they should be moved to ServiceAttr.UserData.
+	Shards           int64
+	ReplicasPerShard int64
 }
 
 // CatalogCheckServiceInitResponse returns the service init status
@@ -269,9 +275,20 @@ type CatalogCheckServiceInitResponse struct {
 }
 
 // CatalogSetServiceInitRequest sets the catalog service initialized.
+// This is an internal request sent from the service's init task.
+// It should not be called directly by the application.
 type CatalogSetServiceInitRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
 	ServiceType string
+}
+
+// CatalogSetRedisInitRequest sets the Redis catalog service initialized.
+type CatalogSetRedisInitRequest struct {
+	Region      string
+	Cluster     string
+	ServiceName string
+	// The Redis node ids, format: "MemberName RedisNodeID Role(master/slave)"
+	NodeIds []string
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/openmanage/catalog"
+	"github.com/cloudstax/openmanage/catalog/redis"
 	"github.com/cloudstax/openmanage/common"
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/dns/awsroute53"
@@ -254,6 +255,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		AdminPasswd: *adminPasswd,
 	}
 	waitServiceInit(ctx, cli, initReq)
+	waitServiceRunning(ctx, cli, req.Service)
 }
 
 func createCassandraService(ctx context.Context, cli *client.ManageClient) {
@@ -296,6 +298,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	waitServiceInit(ctx, cli, initReq)
+	waitServiceRunning(ctx, cli, req.Service)
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
@@ -437,8 +440,18 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The redis service is created, wait for all containers running")
+	if rediscatalog.IsClusterMode(*redisShards) {
+		fmt.Println("The service is created, wait till it gets initialized")
 
+		initReq := &manage.CatalogCheckServiceInitRequest{
+			ServiceType: catalog.CatalogService_Redis,
+			Service:     req.Service,
+		}
+
+		waitServiceInit(ctx, cli, initReq)
+	}
+
+	fmt.Println("The service is created, wait for all containers running")
 	waitServiceRunning(ctx, cli, req.Service)
 }
 

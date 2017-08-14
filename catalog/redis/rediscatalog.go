@@ -6,7 +6,9 @@ import (
 
 	"github.com/cloudstax/openmanage/catalog"
 	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/openmanage/containersvc"
 	"github.com/cloudstax/openmanage/dns"
+	"github.com/cloudstax/openmanage/log"
 	"github.com/cloudstax/openmanage/manage"
 	"github.com/cloudstax/openmanage/utils"
 )
@@ -14,15 +16,11 @@ import (
 const (
 	// ContainerImage is the main running container.
 	ContainerImage = common.ContainerNamePrefix + "redis:" + common.Version
+	// InitContainerImage initializes the Redis cluster.
+	InitContainerImage = common.ContainerNamePrefix + "redis-init:" + common.Version
 
 	listenPort  = 6379
 	clusterPort = 16379
-
-	// every node will announce its ip, for example,
-	// 20.20.1.1 for the first replica of shard0,
-	// 20.20.2.3 for the third replica of shard1,
-	defaultAnnounceIPPrefix = "20.20"
-	ipSep                   = "."
 
 	minClusterShards                 = 3
 	invalidShards                    = 2
@@ -41,6 +39,11 @@ const (
 	maxMemPolicyAllKeysRandom  = "allkeys-random"
 	maxMemPolicyVolatileTTL    = "volatile-ttl"
 	maxMemPolicyNoEviction     = "noeviction"
+
+	envShards           = "SHARDS"
+	envReplicasPerShard = "REPLICAS_PERSHARD"
+	envMasters          = "REDIS_MASTERS"
+	envSlaves           = "REDIS_SLAVES"
 )
 
 // The default Redis catalog service. By default,
@@ -136,15 +139,10 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 
 	domain := dns.GenDefaultDomainName(cluster)
 
-	// generate the cluster.info content
-	clusterInfo := genClusterInfo(service, domain, opts.Shards, opts.ReplicasPerShard)
-
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
 	for shard := int64(0); shard < opts.Shards; shard++ {
 		masterMember := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
-
-		shardAnnounceIP := defaultAnnounceIPPrefix + ipSep + strconv.Itoa(int(shard)+1)
 
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			// create the sys.conf file
@@ -166,13 +164,12 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 			if opts.Shards == 1 {
 				// master-slave mode or single instance mode
 				if opts.ReplicasPerShard != 1 && i != int64(0) {
-					// master-slave mode, set the master ip for the slave
+					// master-slave mode, set the master dnsname for the slave
 					redisContent += fmt.Sprintf(replConfigs, masterMemberHost, listenPort)
 				}
 			} else {
 				// cluster mode
-				memberAnnounceIP := shardAnnounceIP + ipSep + strconv.Itoa(int(i)+1)
-				redisContent += fmt.Sprintf(clusterConfigs, memberAnnounceIP)
+				redisContent += clusterConfigs
 			}
 
 			redisContent += defaultConfigs
@@ -183,13 +180,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 				Content:  redisContent,
 			}
 
-			clusterInfoCfg := &manage.ReplicaConfigFile{
-				FileName: redisClusterInfoFileName,
-				FileMode: common.DefaultConfigFileMode,
-				Content:  clusterInfo,
-			}
-
-			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg, clusterInfoCfg}
+			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg}
 
 			// distribute the replicas of one shard to different availability zones
 			azIndex := int(i) % len(azs)
@@ -207,18 +198,109 @@ func genServiceShardMemberName(serviceName string, shard int64, replicasInShard 
 	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
 }
 
-func genClusterInfo(service string, domain string, shards int64, replicasPerShard int64) string {
-	clusterInfo := ""
+// IsClusterInfoFile checks if the file is the cluster info file
+func IsClusterInfoFile(filename string) bool {
+	return filename == redisClusterInfoFileName
+}
+
+// IsClusterMode checks if the service is created with the cluster mode.
+func IsClusterMode(shards int64) bool {
+	return shards >= minClusterShards
+}
+
+// GenDefaultInitTaskRequest returns the default service init task request.
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, shards int64, replicasPerShard int64,
+	logConfig *cloudlog.LogConfig, serviceUUID string, manageurl string) *containersvc.RunTaskOptions {
+
+	// sanity check
+	if !IsClusterMode(shards) {
+		return nil
+	}
+
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard)
+
+	commonOpts := &containersvc.CommonOptions{
+		Cluster:        req.Cluster,
+		ServiceName:    req.ServiceName,
+		ServiceUUID:    serviceUUID,
+		ContainerImage: InitContainerImage,
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
+		},
+		LogConfig: logConfig,
+	}
+
+	return &containersvc.RunTaskOptions{
+		Common:   commonOpts,
+		TaskType: common.TaskTypeInit,
+		Envkvs:   envkvs,
+	}
+}
+
+// GenInitTaskEnvKVPairs generates the environment key-values for the init task.
+// The init task is only required for the Redis cluster mode.
+func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
+	service string, shards int64, replicasPerShard int64) []*common.EnvKeyValuePair {
+
+	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
+	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
+	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
+	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
+	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetRedisInitOp}
+
+	domain := dns.GenDefaultDomainName(cluster)
+
+	masters := ""
+	slaves := ""
 	for shard := int64(0); shard < shards; shard++ {
-		shardAnnounceIP := defaultAnnounceIPPrefix + ipSep + strconv.Itoa(int(shard)+1)
 		for i := int64(0); i < replicasPerShard; i++ {
+			//member := genServiceShardMemberName(service, shard, i)
 			member := utils.GenServiceMemberName(service, shard*replicasPerShard+i)
 			memberHost := dns.GenDNSName(member, domain)
-			memberAnnounceIP := shardAnnounceIP + ipSep + strconv.Itoa(int(i)+1)
-			clusterInfo += fmt.Sprintf("%s %s\n", memberHost, memberAnnounceIP)
+
+			if i == int64(0) {
+				// the first member in one shard is the master
+				if len(masters) == 0 {
+					masters += memberHost
+				} else {
+					masters += common.ENV_VALUE_SEPARATOR + memberHost
+				}
+			} else {
+				// slave member
+				if len(slaves) == 0 {
+					slaves += memberHost
+				} else {
+					slaves += common.ENV_VALUE_SEPARATOR + memberHost
+				}
+			}
 		}
 	}
-	return clusterInfo
+
+	kvshards := &common.EnvKeyValuePair{Name: envShards, Value: strconv.FormatInt(shards, 10)}
+	kvreplicaspershard := &common.EnvKeyValuePair{Name: envReplicasPerShard, Value: strconv.FormatInt(replicasPerShard, 10)}
+	kvmasters := &common.EnvKeyValuePair{Name: envMasters, Value: masters}
+	kvslaves := &common.EnvKeyValuePair{Name: envSlaves, Value: slaves}
+
+	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice,
+		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
+	return envkvs
+}
+
+// CreateClusterInfoFile returns the ReplicaConfigFile for the cluster.info file.
+func CreateClusterInfoFile(nodeIDs []string) *manage.ReplicaConfigFile {
+	content := ""
+	for _, node := range nodeIDs {
+		content += fmt.Sprintf("%s\n", node)
+	}
+	return &manage.ReplicaConfigFile{
+		FileName: redisClusterInfoFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 }
 
 const (
@@ -279,8 +361,6 @@ cluster-node-timeout 15000
 cluster-slave-validity-factor 10
 cluster-migration-barrier 1
 cluster-require-full-coverage yes
-
-cluster-announce-ip %s
 `
 
 	defaultConfigs = `
@@ -330,8 +410,6 @@ repl-disable-tcp-nodelay no
 # repl-backlog-size 1mb
 # repl-backlog-ttl 3600
 slave-priority 100
-# slave-announce-ip 5.5.5.5
-# slave-announce-port 1234
 
 
 lazyfree-lazy-eviction no

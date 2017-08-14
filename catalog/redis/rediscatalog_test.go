@@ -8,7 +8,21 @@ import (
 	"github.com/cloudstax/openmanage/manage"
 )
 
-func TestRedisCatalogFuncs(t *testing.T) {
+func TestRedisFuncs(t *testing.T) {
+	nodeIDs := []string{"1 id-1 master", "2 id-2 master", "3 id-3 master"}
+	content := `1 id-1 master
+2 id-2 master
+3 id-3 master
+`
+	//	ioutil.WriteFile("/tmp/1", []byte(content), 0644)
+
+	cfg := CreateClusterInfoFile(nodeIDs)
+	if cfg.Content != content {
+		t.Fatalf("content mismatch, expect\n %s\n get\n %s", content, cfg.Content)
+	}
+}
+
+func TestRedisConfigs(t *testing.T) {
 	cluster := "c1"
 	service := "service1"
 	azs := []string{"az1", "az2", "az3"}
@@ -154,7 +168,7 @@ appendfilename "appendonly.aof"
 appendfsync everysec
 
 cluster-enabled yes
-cluster-config-file /data/redis-cluster.conf
+cluster-config-file /data/redis-node.conf
 cluster-node-timeout 15000
 cluster-slave-validity-factor 10
 cluster-migration-barrier 1

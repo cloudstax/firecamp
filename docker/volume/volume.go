@@ -674,6 +674,8 @@ func (d *OpenManageVolumeDriver) findIdleMember(ctx context.Context,
 			continue
 		}
 
+		// TODO selects the idle member on the same node, the container platform may reschedule the task on the same node.
+
 		// TODO better to get all idle members and randomly select one, as the concurrent
 		//			tasks may find the same idle member around the same time.
 		_, ok := taskIDs[member.TaskID]
