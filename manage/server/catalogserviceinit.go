@@ -78,6 +78,10 @@ func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceUUID string
 func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// the init task will be handled in the background. ctx cancel will be called
+	// when the request is returned. create a new context for the init task.
+	initCtx := utils.NewRequestContext(context.Background(), requuid)
+
 	c.tlock.Lock()
 	defer c.tlock.Unlock()
 
@@ -96,7 +100,7 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 
 	task.statusMessage = fmt.Sprintf(waitServiceRunningMsg, 0)
 	c.tasks[task.serviceUUID] = task
-	go c.runInitTask(ctx, task, requuid)
+	go c.runInitTask(initCtx, task, requuid)
 
 	glog.Infoln("add init task", task, "requuid", requuid)
 	return nil
