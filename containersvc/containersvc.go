@@ -46,6 +46,8 @@ type RunTaskOptions struct {
 
 // ContainerSvc defines the cluster, service and task related functions
 type ContainerSvc interface {
+	// IsServiceExist checks if service exists. If not exist, return false & nil. If exists, return true & nil.
+	// If meets any error, error will be returned.
 	IsServiceExist(ctx context.Context, cluster string, service string) (bool, error)
 	CreateService(ctx context.Context, opts *CreateServiceOptions) error
 	GetServiceStatus(ctx context.Context, cluster string, service string) (*common.ServiceStatus, error)

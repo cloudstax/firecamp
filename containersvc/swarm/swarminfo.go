@@ -1,6 +1,9 @@
 package swarmsvc
 
 import (
+	"strings"
+
+	"github.com/cloudstax/openmanage/common"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
@@ -28,14 +31,33 @@ func NewSwarmInfo() (*SwarmInfo, error) {
 		return nil, err
 	}
 
-	managers := make([]string, len(info.Swarm.RemoteManagers))
-	for i, m := range info.Swarm.RemoteManagers {
-		managers[i] = m.Addr
+	managers, err := formatManagerAddrs(&info)
+	if err != nil {
+		return nil, err
+	}
+	glog.Infoln("swarm managers", managers, info.Swarm.RemoteManagers)
+
+	// check if the local node is Swarm manager
+	clusterID := info.Swarm.Cluster.ID
+	if !info.Swarm.ControlAvailable {
+		// the local node is not Swarm manager, info will not include the clusterID.
+		scli := NewSwarmClient(managers, false, "", "", "")
+		cli, err := scli.NewClient()
+		if err != nil {
+			glog.Errorln("NewClient to swarm manager error", err, managers)
+			return nil, err
+		}
+		minfo, err := cli.Info(context.Background())
+		if err != nil {
+			glog.Errorln("get swarm manager info error", err, managers)
+			return nil, err
+		}
+		clusterID = minfo.Swarm.Cluster.ID
 	}
 
 	s := &SwarmInfo{
 		localContainerInsID: info.Swarm.NodeID,
-		clusterID:           info.Swarm.Cluster.ID,
+		clusterID:           clusterID,
 		managers:            managers,
 	}
 	return s, nil
@@ -63,4 +85,29 @@ func getDockerInfo() (info types.Info, err error) {
 
 	// get info
 	return cli.Info(context.Background())
+}
+
+func formatManagerAddrs(info *types.Info) ([]string, error) {
+	// By default, docker swarm managerAddrs is ip:2377. TLS is enabled to talk with swarm manager on port 2377.
+	// The default swarm manager tls files are not exposed for the external usage. If the client wants
+	// to talk with swarm manager on 2377, we have to manually create the tls files, and update swarm manager
+	// to use our tls files. Then client could talk with swarm manager using the same tls files.
+	//
+	// Another option is to have docker daemon listen on another port, such as 2376. So the remote docker client
+	// in the manageserver and volume driver could talk to swarm manager via 2376 without tls.
+	// ref: https://forums.docker.com/t/cannot-connect-to-cluster-created-with-swarm-mode/16826/7
+	swarmManagerNonTLSPort := "2376"
+
+	managers := make([]string, len(info.Swarm.RemoteManagers))
+	for i, m := range info.Swarm.RemoteManagers {
+		// m.Addr format is, ip:2377
+		addrs := strings.Split(m.Addr, ":")
+		if len(addrs) != 2 {
+			glog.Errorln("invalid managerAddrs", m.Addr)
+			return nil, common.ErrInternal
+		}
+		managers[i] = "http://" + addrs[0] + ":" + swarmManagerNonTLSPort
+	}
+
+	return managers, nil
 }

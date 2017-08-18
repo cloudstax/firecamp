@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -44,6 +43,9 @@ func main() {
 	//
 	// to enable tls, modify /etc/default/docker
 	// #DOCKER_OPTS="-H tcp://0.0.0.0:2376 --tlsverify --tlscacert=/home/junius/.certs/ca.pem --tlscert=/home/junius/.certs/cert.pem --tlskey=/home/junius/.certs/key.pem"
+	//
+	// Amazon Linux AMI: see /etc/init.d/docker, OPTIONS is configed in /etc/sysconfig/docker
+	// OPTIONS="--default-ulimit nofile=1024:4096 -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock"
 
 	flag.Parse()
 
@@ -52,22 +54,31 @@ func main() {
 		os.Exit(-1)
 	}
 
-	addr := *host + ":" + strconv.Itoa(*port)
-	addrs := []string{addr}
-	e := swarmsvc.NewSwarmSvc(addrs, *tlsVerify, *caFile, *certFile, *keyFile)
+	info, err := swarmsvc.NewSwarmInfo()
+	if err != nil {
+		fmt.Println("NewSwarmInfo error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println(info.GetContainerClusterID(), info.GetLocalContainerInstanceID(), info.GetSwarmManagers())
+
+	//addr := *host + ":" + strconv.Itoa(*port)
+	//addrs := []string{addr}
+	//e := swarmsvc.NewSwarmSvc(addrs, *tlsVerify, *caFile, *certFile, *keyFile)
+	e := swarmsvc.NewSwarmSvc(info.GetSwarmManagers(), *tlsVerify, *caFile, *certFile, *keyFile)
 
 	ctx := context.Background()
 
-	err := testService(ctx, e)
+	err = testService(ctx, e)
 	if err != nil {
 		fmt.Println("\n== testService error", err)
-		return
+		os.Exit(-1)
 	}
 
 	err = testTask(ctx, e)
 	if err != nil {
 		fmt.Println("\n== testTask error", err)
-		return
+		os.Exit(-1)
 	}
 
 	fmt.Println("\n== pass ==")

@@ -2,10 +2,8 @@ package swarmsvc
 
 import (
 	"io"
-	"net/http"
 	"time"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -13,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/tlsconfig"
 	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
@@ -46,32 +43,27 @@ const (
 // select another node to run the task.
 // At v1, the task is simply run on the swarm manager node. This is not a big issue, as
 // the task would usually run some simple job, such as setup the MongoDB ReplicaSet.
-//
-// TODO only talk with the first manager. Support retrying other managers on failure.
 type SwarmSvc struct {
-	// the swarm manager listening address, such as tcp://127.0.0.1:2376
-	managerAddrs []string
-	tlsVerify    bool
-	caFile       string
-	certFile     string
-	keyFile      string
+	cli *SwarmClient
 }
 
 // NewSwarmSvc creates a new SwarmSvc instance
 func NewSwarmSvc(managerAddrs []string, tlsVerify bool, caFile, certFile, keyFile string) *SwarmSvc {
-	s := &SwarmSvc{
+	cli := &SwarmClient{
 		managerAddrs: managerAddrs,
 		tlsVerify:    tlsVerify,
 		caFile:       caFile,
 		certFile:     certFile,
 		keyFile:      keyFile,
 	}
-	return s
+	return &SwarmSvc{
+		cli: cli,
+	}
 }
 
 // CreateService creates a swarm service
 func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("CreateService newClient error", err, "options", opts)
 		return err
@@ -93,45 +85,43 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 
 	taskTemplate := swarm.TaskSpec{
 		ContainerSpec: swarm.ContainerSpec{
-			Image:  opts.Common.ContainerImage,
-			Mounts: mounts,
+			Image:     opts.Common.ContainerImage,
+			Mounts:    mounts,
+			DNSConfig: &swarm.DNSConfig{},
 		},
 		// docker swarm service does not allow "host" network. By default, "bridge" will be used.
 		//Networks: []swarm.NetworkAttachmentConfig{
 		//	swarm.NetworkAttachmentConfig{Target: "host"},
 		//},
+		Resources: &swarm.ResourceRequirements{
+			Limits:       &swarm.Resources{},
+			Reservations: &swarm.Resources{},
+		},
+		RestartPolicy: &swarm.RestartPolicy{
+			Condition: swarm.RestartPolicyConditionAny,
+		},
+		Placement: &swarm.Placement{},
 		LogDriver: &swarm.Driver{
 			Name:    opts.Common.LogConfig.Name,
 			Options: opts.Common.LogConfig.Options,
 		},
 	}
 	if opts.Common.Resource != nil {
-		res := &swarm.ResourceRequirements{}
-		setRes := false
 		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
-			limits := &swarm.Resources{}
 			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {
-				limits.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.MaxCPUUnits)
+				taskTemplate.Resources.Limits.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.MaxCPUUnits)
 			}
 			if opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
-				limits.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.MaxMemMB)
+				taskTemplate.Resources.Limits.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.MaxMemMB)
 			}
-			res.Limits = limits
-			setRes = true
 		}
 		if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
-			reserve := &swarm.Resources{}
 			if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
-				reserve.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.ReserveCPUUnits)
+				taskTemplate.Resources.Reservations.NanoCPUs = s.cpuUnits2NanoCPUs(opts.Common.Resource.ReserveCPUUnits)
 			}
 			if opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
-				reserve.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.ReserveMemMB)
+				taskTemplate.Resources.Reservations.MemoryBytes = s.memoryMB2Bytes(opts.Common.Resource.ReserveMemMB)
 			}
-			res.Reservations = reserve
-			setRes = true
-		}
-		if setRes {
-			taskTemplate.Resources = res
 		}
 	}
 
@@ -186,9 +176,9 @@ func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, s
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
 
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
-		glog.Errorln("ListActiveServiceTasks newClient error", err)
+		glog.Errorln("ListActiveServiceTasks.cli.NewClient error", err)
 		return nil, err
 	}
 
@@ -215,7 +205,7 @@ func (s *SwarmSvc) GetServiceTask(ctx context.Context, cluster string, service s
 	filterArgs.Add(filterDesiredState, taskStateRunning)
 	filterArgs.Add(filterNode, containerInstanceID)
 
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("GetServiceTask newClient error", err)
 		return "", err
@@ -247,7 +237,7 @@ func (s *SwarmSvc) GetServiceTask(ctx context.Context, cluster string, service s
 // GetTaskContainerInstance returns the ContainerInstanceID the task runs on
 func (s *SwarmSvc) GetTaskContainerInstance(ctx context.Context, cluster string,
 	serviceTaskID string) (containerInstanceID string, err error) {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("GetTaskContainerInstance newClient error", err, "service taskID", serviceTaskID)
 		return "", err
@@ -275,14 +265,17 @@ func (s *SwarmSvc) listTasks(cli *client.Client, filterArgs filters.Args) ([]swa
 
 // IsServiceExist checks whether the service exists
 func (s *SwarmSvc) IsServiceExist(ctx context.Context, cluster string, service string) (bool, error) {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
-		glog.Errorln("IsServiceExists newClient error", err, "service", service)
+		glog.Errorln("IsServiceExists.cli.NewClient error", err, "service", service)
 		return false, err
 	}
 
 	_, err = s.inspectService(ctx, cli, service)
 	if err != nil {
+		if err == common.ErrNotFound {
+			return false, nil
+		}
 		glog.Errorln("inspect service error", err, "service", service, "cluster", cluster)
 		return false, err
 	}
@@ -307,9 +300,9 @@ func (s *SwarmSvc) inspectService(ctx context.Context, cli *client.Client, servi
 
 // GetServiceStatus gets the service's status.
 func (s *SwarmSvc) GetServiceStatus(ctx context.Context, cluster string, service string) (*common.ServiceStatus, error) {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
-		glog.Errorln("GetServiceStatus newClient error", err, "service", service)
+		glog.Errorln("GetServiceStatus.cli.NewClient error", err, "service", service)
 		return nil, err
 	}
 
@@ -365,7 +358,7 @@ func (s *SwarmSvc) listRunningServiceTasks(ctx context.Context, cli *client.Clie
 
 // WaitServiceRunning waits till all tasks are running or time out.
 func (s *SwarmSvc) WaitServiceRunning(ctx context.Context, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("WaitServiceRunning newClient error", err)
 		return err
@@ -438,7 +431,7 @@ func (s *SwarmSvc) updateServiceReplicas(ctx context.Context, cli *client.Client
 
 // StopService stops all service containers
 func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service string) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("StopService newClient error", err, "service", service)
 		return err
@@ -462,7 +455,7 @@ func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service stri
 
 // RestartService stops all service containers and then starts them again.
 func (s *SwarmSvc) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("RestartService newClient error", err, "service", service)
 		return err
@@ -495,7 +488,7 @@ func (s *SwarmSvc) RestartService(ctx context.Context, cluster string, service s
 
 // DeleteService delets a swarm service
 func (s *SwarmSvc) DeleteService(ctx context.Context, cluster string, service string) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("DeleteService newClient error", err, "service", service)
 		return err
@@ -517,7 +510,7 @@ func (s *SwarmSvc) DeleteService(ctx context.Context, cluster string, service st
 // RunTask creates and runs the task once.
 // It does 3 steps: 1) pull the image, 2) create the container, 3) start the container.
 func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions) (taskID string, err error) {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("DeleteService newClient error", err, "task", taskID)
 		return "", err
@@ -620,7 +613,7 @@ func (s *SwarmSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOption
 
 // WaitTaskComplete waits till the task container completes
 func (s *SwarmSvc) WaitTaskComplete(ctx context.Context, cluster string, taskID string, maxWaitSeconds int64) error {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("WaitTaskComplete newClient error", err, "taskID", taskID)
 		return err
@@ -653,7 +646,7 @@ func (s *SwarmSvc) WaitTaskComplete(ctx context.Context, cluster string, taskID 
 
 // GetTaskStatus returns the task's status.
 func (s *SwarmSvc) GetTaskStatus(ctx context.Context, cluster string, taskID string) (*common.TaskStatus, error) {
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("newClient error", err, "taskID", taskID)
 		return nil, err
@@ -683,7 +676,7 @@ func (s *SwarmSvc) GetTaskStatus(ctx context.Context, cluster string, taskID str
 func (s *SwarmSvc) DeleteTask(ctx context.Context, cluster string, service string, taskType string) error {
 	containerName := s.genTaskContainerName(cluster, service, taskType)
 
-	cli, err := s.newClient()
+	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("DeleteTask newClient error", err, containerName)
 		return err
@@ -704,31 +697,6 @@ func (s *SwarmSvc) DeleteTask(ctx context.Context, cluster string, service strin
 
 func (s *SwarmSvc) genTaskContainerName(cluster string, service string, taskType string) string {
 	return cluster + common.NameSeparator + service + common.NameSeparator + taskType
-}
-
-func (s *SwarmSvc) newClient() (*client.Client, error) {
-	var httpclient *http.Client
-	if s.tlsVerify {
-		options := tlsconfig.Options{
-			CAFile:   s.caFile,
-			CertFile: s.certFile,
-			KeyFile:  s.keyFile,
-			//InsecureSkipVerify: s.tlsVerify,
-		}
-		tlsc, err := tlsconfig.Client(options)
-		if err != nil {
-			glog.Errorln("tlsconfig.Client error", err)
-			return nil, err
-		}
-
-		httpclient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsc,
-			},
-		}
-	}
-
-	return client.NewClient(s.managerAddrs[0], api.DefaultVersion, httpclient, nil)
 }
 
 func (s *SwarmSvc) memoryMB2Bytes(size int64) int64 {
