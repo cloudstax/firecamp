@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,6 +22,7 @@ import (
 	"github.com/cloudstax/openmanage/dns"
 	"github.com/cloudstax/openmanage/dns/awsroute53"
 	"github.com/cloudstax/openmanage/docker/volume"
+	"github.com/cloudstax/openmanage/server"
 	"github.com/cloudstax/openmanage/server/awsec2"
 	"github.com/cloudstax/openmanage/utils"
 )
@@ -41,6 +43,22 @@ func main() {
 
 	// not log error to std
 	flag.Set("stderrthreshold", "FATAL")
+
+	// testmode is to test the driver locally
+	testmode := os.Getenv("TESTMODE")
+	if ok, _ := strconv.ParseBool(testmode); ok {
+		glog.Infoln("new test volume driver")
+
+		driver := openmanagedockervolume.NewVolumeDriver(db.NewMemDB(), dns.NewMockDNS(), server.NewMemServer(),
+			server.NewMockServerInfo(), containersvc.NewMemContainerSvc(), containersvc.NewMockContainerSvcInfo())
+
+		h := volume.NewHandler(driver)
+		err := h.ServeUnix(common.VolumeDriverName, 0)
+		if err != nil {
+			glog.Fatalln("ServeUnix failed, error", err)
+		}
+		return
+	}
 
 	region, err := awsec2.GetLocalEc2Region()
 	if err != nil {
