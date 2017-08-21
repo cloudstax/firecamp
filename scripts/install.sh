@@ -5,9 +5,8 @@ protoc -I db/controldb/protocols/ db/controldb/protocols/controldb.proto --go_ou
 
 cd syssvc/openmanage-controldb; go install; cd -
 
+# TODO remove the dockervolume install when switch from rpm to plugin
 cd syssvc/openmanage-dockervolume; go install; cd -
-
-cd syssvc/openmanage-dockerlogs; go install --ldflags '-extldflags "-static"'; cd -
 
 cd syssvc/openmanage-manageserver; go install; cd -
 

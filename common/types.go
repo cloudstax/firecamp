@@ -15,6 +15,8 @@ const (
 	// If this name is changed, please change docker/volume/aws-ecs-agent-patch/openmanage_task_engine.go as well.
 	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
 	// ecs-agent on openmanage code.
+	// TODO rename it as docker plugin think OpenManageVolumeDriver.sock is too long.
+	//      change it to be the same with socket in syssvc/openmanage-dockervolume/config.json
 	VolumeDriverName = "OpenManageVolumeDriver"
 
 	// Do NOT change the log driver name.

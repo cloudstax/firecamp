@@ -60,6 +60,8 @@ func NewSwarmInfo() (*SwarmInfo, error) {
 		clusterID:           clusterID,
 		managers:            managers,
 	}
+
+	glog.Infoln("NewSwarmInfo nodeID", s.localContainerInsID, "clusterID", s.clusterID)
 	return s, nil
 }
 

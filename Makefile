@@ -7,7 +7,13 @@ install:
 	./scripts/install.sh
 
 docker: install
-	./scripts/builddocker.sh $(version)
+	./scripts/builddocker.sh $(version) all
+
+plugin:
+	./scripts/builddocker.sh $(version) plugin
+
+catalogs:
+	./scripts/builddocker.sh $(version) catalogs
 
 test:
 	./scripts/gotest.sh
@@ -23,4 +29,4 @@ rpm: install
 
 clean:
 	-rm -rf build
-	-rm $(GOPATH)/bin/openmanage*
+	-rm $(GOPATH)/bin/openmanage* || true
