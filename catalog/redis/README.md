@@ -13,29 +13,15 @@ Currently the slaves are read-only. If the master goes down, Redis will become r
 ### Redis Static IP address
 Both Redis Sentinel and Cluster require to use a static IP address to represent a Redis member, the hostname is not allowed. See Redis issues [2706](https://github.com/antirez/redis/issues/2410), [2410](https://github.com/antirez/redis/issues/2410), [2565](https://github.com/antirez/redis/issues/2565), [2323](https://github.com/antirez/redis/pull/2323).
 
-If the containers fail over to other nodes at the same time, Redis is not able to handle it and will mark the cluster fail. This could happen at some conditions. For example, a 3 master Redis cluster, all 3 nodes go down around the same time, and the containers are rescheduled to another 3 nodes.
+If the containers fail over to other nodes, the containers' IPs will change. Redis is not able to handle it and will mark the cluster fail. For example, a 3 shards Redis cluster, each shard has 1 master and 1 slave. If we stop all 6 containers at the same time, container framework will rescheudle all containers. Some containers may run on a different node and have a different ip, which could be used by another container before restart. Redis will be confused about the master-slave relationship and mark the cluster fail.
 
-There are some possible solutions to solve this static IP address issue.
+Basically this requires the ability to bind the static IP with one container. One option is to use the virtual network that the container orchestration framework provides, or the third-party network plugin for the framework. But to access the services outside the container cluster, would have to access the services through the nodes' public IPs, Load Balancer, or using the Proxy Verb. [Kubernetes access cluster services](https://kubernetes.io/docs/tasks/administer-cluster/access-cluster-services/) and [Kubernetes Publishing services](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services---service-types) discuss about it. Using the Proxy Verb has some limitations. For example, Kubernetes Proxy Verb only works for HTTP/HTTPS. Accessing through the public IPs directly is not easy. Every node has its own public IP. When the container moves from one node to another, the public IP to access the container will also change. This requires the customers to detect the public IP change of the container. Load Balancer could help to detect the public IP change automatically. The Cloud Load Balancer introduces the additional cost and the additional network hop.
 
-1. Manually update the redis-node.conf.
+The OpenManage platform follows a simpler way that leverages the multiple IPs ability of one instance. The platform assigns one private IP for every Redis memeber. When container moves to a new node, the OpenManage platform unassigns the secondary ip from the old node and assigns it to the new node. So all members could talk with each other via these assigned static IPs. This also provides the flexibility to access the service from anywhere, as long as the application (independent process or function) is running in the same VPC.
 
-This is a specific workaround for Redis. The OpenManage records the master id that Redis generates for every member. When the container starts, it checks the IPs of all members, updates the redis-node.conf if necessary, and then start the Redis server.
+This is also a common solution for public/private clouds. AWS/Azure/GCP all supports multiple IPs for one vm. Linux supports to assign multiple IPs to one network interface. For example, one EC2 instance could have [multiple private IP addresses](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/MultipleIP.html). After assigning a new IP, need to add it to an active network interface, so other nodes could access it. Could use the ip addr command like "sudo ip addr add 172.31.8.118/20 dev eth0".
 
-2. Use the container network plugin to assign a static ip to every member.
-
-Would need to use some current network plugin or develop our own network plugin.
-
-3. Assign a EC2 private ip to every member.
-
-One EC2 instance could have [multiple private IP addresses](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/MultipleIP.html). After assigning a new IP, need to add it to an active network interface, so other nodes could access it. Could use the ip addr command like "sudo ip addr add 172.31.8.118/20 dev eth0". We could assign one private IP for every Redis memeber. When container moves to a new node, the OpenManage driver could unassign the secondary ip from the old node and assign it to the new node. So all members could talk with each other via the assigned private IPs.
-
-This solution is limited by the maximum private ips for one instance. See [IP Addresses Per Network Interface Per Instance Type](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI). If one EC2 instance reaches the maximum private IPs, it could not serve more service. While, this is not a blocking issue. It is not a common case to run many services on a single node.
-
-4. Wait the underline container framework to support the virtual ip per container.
-
-This depends on when the container frameworks could support it.
-
-For now, as the first solution works and is the simplest way, we use it for Redis cluster. After we get clearer IP address requirements from more services, we will revisit the solution.
+This solution is limited by the maximum private ips for one instance. See [IP Addresses Per Network Interface Per Instance Type](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI). If one EC2 instance reaches the maximum private IPs, it could not serve more service. While, this is not a big issue. The m1.large instance supports up to 10 IPv4 addresses per network interface. And it is not a common case to run many stateful services on a single node in production.
 
 
 ## Data Persistence
