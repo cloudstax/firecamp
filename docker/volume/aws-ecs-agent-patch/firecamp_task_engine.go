@@ -8,7 +8,7 @@ import (
 )
 
 // Define here again to avoid the dependency on githut.com/cloudstax/firecamp
-const volumeDriver = "FireCampVolumeDriver"
+const volumeDriver = "firecampvol"
 
 // Create a taskDefinition at AWS ECS console, created one volume, "Name" my-ecs-volume,
 // "Source Path" /test-volume. Then in "Container Definitions", create "Mount Points",

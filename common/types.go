@@ -17,7 +17,7 @@ const (
 	// ecs-agent on firecamp code.
 	// TODO rename it as docker plugin think FireCampVolumeDriver.sock is too long.
 	//      change it to be the same with socket in syssvc/firecamp-dockervolume/config.json
-	VolumeDriverName = "FireCampVolumeDriver"
+	VolumeDriverName = "firecampvol"
 
 	// Do NOT change the log driver name.
 	LogDriverName     = "firecamplogs"

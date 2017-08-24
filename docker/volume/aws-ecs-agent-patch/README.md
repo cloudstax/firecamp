@@ -13,3 +13,9 @@ To manually run the agent container, please initialize the agent first.
 2. If the system is reboot after ecs-agent initialized, run: docker start ecs-agent-containerID.
 
 Could also use RPM to automatically install the agent. The RPM could be downloaded from the CloudStax S3 bucket for every release. The RPM is built from [CloudStax Amazon ECS Container Agent](http://github.com/cloudstax/amazon-ecs-agent), which is a fork of the [Amazon ECS Init](https://github.com/aws/amazon-ecs-init) with the patch applied.
+
+https://help.github.com/articles/syncing-a-fork/
+
+git fetch upstream
+git checkout master
+git merge upstream/master

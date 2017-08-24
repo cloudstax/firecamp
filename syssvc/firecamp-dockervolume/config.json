@@ -4,7 +4,7 @@
 	"entrypoint": ["/firecamp-dockervolume"],
 	"interface": {
 		"types": ["docker.volumedriver/1.0"],
-		"socket": "omvol.sock"
+		"socket": "firecampvol.sock"
   },
 	"linux": {
 		"capabilities": ["CAP_SYS_ADMIN"]
@@ -12,6 +12,16 @@
 	"network": {
     "type": "host"
   },
+  "mounts": [
+    {
+      "destination": "/var/log/firecamp",
+      "source": "/var/log/firecamp",
+      "options": [
+        "rbind"
+      ],
+      "type": "bind"
+    }
+  ],
 	"env": [
 		{
 			"name": "LOG_LEVEL",
