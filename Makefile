@@ -20,13 +20,13 @@ test:
 
 rpm: install
 	mkdir -p build/SOURCES
-	cp $(GOPATH)/bin/openmanage-dockervolume openmanage-dockervolume
-	cp packaging/openmanage-dockervolume/rpm/openmanage-dockervolume.conf openmanage-dockervolume.conf
-	tar -czf build/SOURCES/openmanage-dockervolume.tgz openmanage-dockervolume openmanage-dockervolume.conf
-	rpmbuild --define '%_topdir $(PWD)/build' -bb packaging/openmanage-dockervolume/rpm/openmanage-dockervolume.spec
-	rm openmanage-dockervolume
-	rm openmanage-dockervolume.conf
+	cp $(GOPATH)/bin/firecamp-dockervolume firecamp-dockervolume
+	cp packaging/firecamp-dockervolume/rpm/firecamp-dockervolume.conf firecamp-dockervolume.conf
+	tar -czf build/SOURCES/firecamp-dockervolume.tgz firecamp-dockervolume firecamp-dockervolume.conf
+	rpmbuild --define '%_topdir $(PWD)/build' -bb packaging/firecamp-dockervolume/rpm/firecamp-dockervolume.spec
+	rm firecamp-dockervolume
+	rm firecamp-dockervolume.conf
 
 clean:
 	-rm -rf build
-	-rm $(GOPATH)/bin/openmanage* || true
+	-rm $(GOPATH)/bin/firecamp* || true

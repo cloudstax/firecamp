@@ -1,6 +1,6 @@
-The OpenManage ZooKeeper container is based on openjdk. The data volume will be mounted to the /data directory inside container. All ZooKeeper data will be stored under it.
+The FireCamp ZooKeeper container is based on openjdk. The data volume will be mounted to the /data directory inside container. All ZooKeeper data will be stored under it.
 
-By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memory, you could specify the "max-memory" when creating the ZooKeeper service by the openmanage-service-cli.
+By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memory, you could specify the "max-memory" when creating the ZooKeeper service by the firecamp-service-cli.
 
 **Topology**
 

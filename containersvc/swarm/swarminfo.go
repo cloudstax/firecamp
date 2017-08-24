@@ -3,7 +3,7 @@ package swarmsvc
 import (
 	"strings"
 
-	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/firecamp/common"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"

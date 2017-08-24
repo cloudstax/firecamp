@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/firecamp/common"
 )
 
 const LoopFileDir = "/tmp/"

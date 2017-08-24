@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/db/controldb"
-	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/db/controldb"
+	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestServiceSvc(t *testing.T) {

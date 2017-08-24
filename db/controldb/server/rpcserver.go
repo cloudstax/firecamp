@@ -10,9 +10,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/cloudstax/openmanage/common"
-	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 type controlserver struct {

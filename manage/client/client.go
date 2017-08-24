@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/manage"
 )
 
 // ManageClient is the client to talk with the management service.
@@ -19,7 +19,7 @@ type ManageClient struct {
 }
 
 // NewManageClient creates a new ManageClient instance.
-// Example serverURL: https://openmanage-manageserver.cluster-openmanage.com:27040/
+// Example serverURL: https://firecamp-manageserver.cluster-firecamp.com:27040/
 func NewManageClient(serverURL string, tlsConf *tls.Config) *ManageClient {
 	cli := &http.Client{}
 	if tlsConf != nil {

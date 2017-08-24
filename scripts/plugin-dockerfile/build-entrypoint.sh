@@ -1,6 +1,6 @@
 #!/bin/sh
 
-codedir=/go/src/github.com/cloudstax/openmanage
+codedir=/go/src/github.com/cloudstax/firecamp
 
 ls -al /go/src/github.com/cloudstax/
 
@@ -10,12 +10,12 @@ if [ ! -d "$codedir" ]; then
   exit 1
 fi
 
-echo "build openmanage-dockervolume"
-cd $codedir/syssvc/openmanage-dockervolume
+echo "build firecamp-dockervolume"
+cd $codedir/syssvc/firecamp-dockervolume
 go install --ldflags '-extldflags "-static"'
 
-echo "build openmanage-dockerlogs"
-cd $codedir/syssvc/openmanage-dockerlogs
+echo "build firecamp-dockerlogs"
+cd $codedir/syssvc/firecamp-dockerlogs
 go install --ldflags '-extldflags "-static"'
 
 ls /go/bin/

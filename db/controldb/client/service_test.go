@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/manage/service"
-	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage/service"
+	"github.com/cloudstax/firecamp/server"
 )
 
 func TestServiceWithControlDB(t *testing.T) {

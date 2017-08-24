@@ -1,7 +1,7 @@
 package manage
 
 import (
-	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/firecamp/common"
 )
 
 const (

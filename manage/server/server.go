@@ -11,15 +11,15 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/log"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/manage/service"
-	"github.com/cloudstax/openmanage/server"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/log"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/manage/service"
+	"github.com/cloudstax/firecamp/server"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 // The ManageHTTPServer is the management http server for the service management.

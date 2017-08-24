@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/server"
 )
 
 // AWS DNS (Route53) supports 10,000 resource record sets per hosted zone.
@@ -22,7 +22,7 @@ import (
 // For one cluster, the default domain name would be cluster-DomainNameSuffix.com,
 // which will be used to create the hosted zone.
 // For one service in the cluster, the dns name of one service member would be
-// serviceMember.cluster-DomainNameSuffix.com. For example, db-0.cluster-openmanage.com
+// serviceMember.cluster-DomainNameSuffix.com. For example, db-0.cluster-firecamp.com
 //
 // AWS VPC belongs to one region. The EC2 instances in different AZs could use the same VPC.
 //
@@ -43,7 +43,7 @@ func GenDNSName(svcMemberName string, domainName string) string {
 }
 
 // GenDefaultDomainName generates the default domain name for the cluster
-// example: cluster-openmanage.com
+// example: cluster-firecamp.com
 func GenDefaultDomainName(clusterName string) string {
 	return clusterName + common.NameSeparator + common.DomainNameSuffix + common.DomainSeparator + common.DomainCom
 }
@@ -79,7 +79,7 @@ func GetDomainNameFromDNSName(dnsname string) (string, error) {
 }
 
 // GetDefaultManageServiceDNSName returns the default management service dnsname.
-// example: openmanage-manageserver.cluster-openmanage.com
+// example: firecamp-manageserver.cluster-firecamp.com
 func GetDefaultManageServiceDNSName(cluster string) string {
 	domain := GenDefaultDomainName(cluster)
 	return GenDNSName(common.ManageServiceName, domain)
@@ -94,7 +94,7 @@ func GetManageServiceURL(dnsname string, tlsEnabled bool) string {
 }
 
 // GetDefaultManageServiceURL returns the default management service address.
-// example: https://openmanage-manageserver.cluster-openmanage.com:27040/
+// example: https://firecamp-manageserver.cluster-firecamp.com:27040/
 func GetDefaultManageServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.ManageServiceName, domain)
@@ -104,7 +104,7 @@ func GetDefaultManageServiceURL(cluster string, tlsEnabled bool) string {
 	return "http://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
 }
 
-// FormatManageServiceURL formats the url to like https://openmanage-manageserver.cluster-openmanage.com:27040/
+// FormatManageServiceURL formats the url to like https://firecamp-manageserver.cluster-firecamp.com:27040/
 func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	if !strings.HasPrefix(surl, "http") {
 		// add http prefix
@@ -122,7 +122,7 @@ func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 }
 
 // GetDefaultControlDBAddr returns the default controldb service address,
-// example: openmanage-controldb.cluster-openmanage.com:27030
+// example: firecamp-controldb.cluster-firecamp.com:27030
 func GetDefaultControlDBAddr(cluster string) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.ControlDBServiceName, domain)

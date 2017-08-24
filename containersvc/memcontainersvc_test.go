@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/log/jsonfile"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/log/jsonfile"
 )
 
 func TestMemContainerSvc(t *testing.T) {

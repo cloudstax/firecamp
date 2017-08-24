@@ -8,7 +8,7 @@ version=$1
 buildtarget=$2
 
 org="cloudstax/"
-system="openmanage"
+system="firecamp"
 
 BuildPlugin() {
   path="${TOPWD}/scripts/plugin-dockerfile"
@@ -22,15 +22,15 @@ BuildPlugin() {
   containername="$system-buildtest"
   docker rm $containername || true
   # the build container not exist, create and run it
-  docker run --name $containername -v ${TOPWD}:/go/src/github.com/cloudstax/openmanage $image
+  docker run --name $containername -v ${TOPWD}:/go/src/github.com/cloudstax/firecamp $image
 
   # build the volume plugin
-  volumePluginPath="${TOPWD}/syssvc/openmanage-dockervolume/dockerfile"
+  volumePluginPath="${TOPWD}/syssvc/firecamp-dockervolume/dockerfile"
   volumePluginImage="${org}$system-volumedriver"
-	echo "### docker build: rootfs image with openmanage-dockervolume"
-	docker cp $containername:/go/bin/openmanage-dockervolume $volumePluginPath
+	echo "### docker build: rootfs image with firecamp-dockervolume"
+	docker cp $containername:/go/bin/firecamp-dockervolume $volumePluginPath
 	docker build -q -t ${volumePluginImage}:rootfs $volumePluginPath
-  rm -f $volumePluginPath/openmanage-dockervolume
+  rm -f $volumePluginPath/firecamp-dockervolume
 
   echo "### create the plugin rootfs directory"
   volumePluginBuildPath="${TOPWD}/build/volumeplugin"
@@ -38,7 +38,7 @@ BuildPlugin() {
   docker rm -vf tmp || true
 	docker create --name tmp ${volumePluginImage}:rootfs
 	docker export tmp | tar -x -C $volumePluginBuildPath/rootfs
-	cp ${TOPWD}/syssvc/openmanage-dockervolume/config.json $volumePluginBuildPath
+	cp ${TOPWD}/syssvc/firecamp-dockervolume/config.json $volumePluginBuildPath
 	docker rm -vf tmp
 
 	echo "### create new plugin ${volumePluginImage}:${version}"
@@ -48,12 +48,12 @@ BuildPlugin() {
 
 
   # build the log plugin
-  logPluginPath="${TOPWD}/syssvc/openmanage-dockerlogs/dockerfile"
+  logPluginPath="${TOPWD}/syssvc/firecamp-dockerlogs/dockerfile"
   logPluginImage="${org}$system-logdriver"
-	echo "### docker build: rootfs image with openmanage-dockerlogs"
-	docker cp $containername:/go/bin/openmanage-dockerlogs $logPluginPath
+	echo "### docker build: rootfs image with firecamp-dockerlogs"
+	docker cp $containername:/go/bin/firecamp-dockerlogs $logPluginPath
 	docker build -q -t ${logPluginImage}:rootfs $logPluginPath
-  rm -f $logPluginPath/openmanage-dockerlogs
+  rm -f $logPluginPath/firecamp-dockerlogs
 
   echo "### create the plugin rootfs directory"
   logPluginBuildPath="${TOPWD}/build/logplugin"
@@ -61,7 +61,7 @@ BuildPlugin() {
   docker rm -vf tmp || true
 	docker create --name tmp ${logPluginImage}:rootfs
 	docker export tmp | tar -x -C $logPluginBuildPath/rootfs
-	cp ${TOPWD}/syssvc/openmanage-dockerlogs/config.json $logPluginBuildPath
+	cp ${TOPWD}/syssvc/firecamp-dockerlogs/config.json $logPluginBuildPath
 	docker rm -vf tmp
 
 	echo "### create new plugin ${logPluginImage}:${version}"
@@ -86,7 +86,7 @@ BuildCatalogImages() {
   target=$system"-manageserver"
   image="${org}${target}:${version}"
   binfile=$target
-  path="${TOPWD}/syssvc/openmanage-manageserver/dockerfile/"
+  path="${TOPWD}/syssvc/firecamp-manageserver/dockerfile/"
   cp $GOPATH/bin/$binfile $path
   docker build -t $image $path
   rm -f $path$binfile
@@ -98,7 +98,7 @@ BuildCatalogImages() {
   target=$system"-controldb"
   image="${org}${target}:${version}"
   binfile=$target
-  path="${TOPWD}/syssvc/openmanage-controldb/dockerfile/"
+  path="${TOPWD}/syssvc/firecamp-controldb/dockerfile/"
   cp $GOPATH/bin/$binfile $path
   docker build -t $image $path
   rm -f $path$binfile

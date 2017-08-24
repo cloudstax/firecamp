@@ -1,4 +1,4 @@
-package openmanagedockerlogs
+package firecampdockerlogs
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cloudstax/openmanage/docker/log/awslogs"
+	"github.com/cloudstax/firecamp/docker/log/awslogs"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	protoio "github.com/gogo/protobuf/io"

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudstax/openmanage/manage"
+	"github.com/cloudstax/firecamp/manage"
 )
 
 func TestRedisFuncs(t *testing.T) {
@@ -51,8 +51,8 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	content := strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
-	//content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-openmanage.com")
-	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-openmanage.com")
+	//content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-firecamp.com")
+	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-firecamp.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect %s", content, content1)
 	}
@@ -73,14 +73,14 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
-	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-openmanage.com")
-	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-openmanage.com")
+	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-firecamp.com")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-firecamp.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 	content = strings.TrimSuffix(replcfgs[4].Configs[1].Content, defaultConfigs)
-	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-openmanage.com")
-	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-openmanage.com")
+	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-firecamp.com")
+	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-firecamp.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
@@ -98,8 +98,8 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
-	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-openmanage.com", 536870912)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-1.c1-openmanage.com", 536870912, "\nslaveof service1-0.c1-openmanage.com 6379")
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-firecamp.com", 536870912)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-1.c1-firecamp.com", 536870912, "\nslaveof service1-0.c1-firecamp.com 6379")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
@@ -118,8 +118,8 @@ func TestRedisConfigs(t *testing.T) {
 
 	content = strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
 	content += "\n"
-	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-openmanage.com", 1073741824)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-0.c1-openmanage.com", 1073741824, "")
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-firecamp.com", 1073741824)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-0.c1-firecamp.com", 1073741824, "")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}

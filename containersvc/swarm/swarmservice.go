@@ -15,8 +15,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 )
 
 const (

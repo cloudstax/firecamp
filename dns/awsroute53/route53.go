@@ -10,9 +10,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 // Route53 related const
@@ -70,7 +70,7 @@ func (r *AWSRoute53) createHostedZone(ctx context.Context, domainName string, vp
 		CallerReference: aws.String(callerRef),
 		Name:            aws.String(domainName),
 		HostedZoneConfig: &route53.HostedZoneConfig{
-			Comment:     aws.String("hosted zone for openmanage services"),
+			Comment:     aws.String("hosted zone for firecamp services"),
 			PrivateZone: aws.Bool(private),
 		},
 		VPC: &route53.VPC{

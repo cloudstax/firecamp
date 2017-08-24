@@ -9,8 +9,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 // create the file, append checksum and then data to the file

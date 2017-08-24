@@ -6,8 +6,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/db"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/db"
 )
 
 func ConvertToHTTPError(err error) (errmsg string, errcode int) {

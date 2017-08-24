@@ -1,4 +1,4 @@
-package openmanagedockervolume
+package firecampdockervolume
 
 import (
 	"flag"
@@ -9,21 +9,21 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/manage/service"
-	"github.com/cloudstax/openmanage/server"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/manage/service"
+	"github.com/cloudstax/firecamp/server"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestVolumeDriver(t *testing.T) {
 	flag.Parse()
 	//flag.Set("stderrthreshold", "INFO")
 
-	// create OpenManageVolumeDriver
+	// create FireCampVolumeDriver
 	dbIns := db.NewMemDB()
 	mockDNS := dns.NewMockDNS()
 	serverIns := server.NewLoopServer()
@@ -130,7 +130,7 @@ func TestVolumeInDifferentZone(t *testing.T) {
 	flag.Parse()
 	//flag.Set("stderrthreshold", "INFO")
 
-	// create OpenManageVolumeDriver
+	// create FireCampVolumeDriver
 	dbIns := db.NewMemDB()
 	mockDNS := dns.NewMockDNS()
 	serverIns := server.NewLoopServer()
@@ -197,7 +197,7 @@ func TestVolumeInDifferentZone(t *testing.T) {
 	}
 }
 
-func volumeMountTest(t *testing.T, driver *OpenManageVolumeDriver, svcUUID string) {
+func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string) {
 	// mount the volume
 	mreq := volume.MountRequest{Name: svcUUID}
 	mresp := driver.Mount(mreq)
@@ -239,8 +239,8 @@ func volumeMountTest(t *testing.T, driver *OpenManageVolumeDriver, svcUUID strin
 	//runlsblk()
 }
 
-func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *OpenManageVolumeDriver,
-	driver2 *OpenManageVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember) {
+func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *FireCampVolumeDriver,
+	driver2 *FireCampVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember) {
 	// mount the volume
 	mreq := volume.MountRequest{Name: svcUUID}
 	mresp := driver.Mount(mreq)
@@ -283,7 +283,7 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 	//runlsblk()
 }
 
-func unmount(svcUUID string, driver *OpenManageVolumeDriver, t *testing.T, expecterr bool) {
+func unmount(svcUUID string, driver *FireCampVolumeDriver, t *testing.T, expecterr bool) {
 	ureq := volume.UnmountRequest{Name: svcUUID}
 	uresp := driver.Unmount(ureq)
 	if expecterr {

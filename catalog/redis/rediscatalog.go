@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/cloudstax/openmanage/catalog"
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/log"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/log"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (

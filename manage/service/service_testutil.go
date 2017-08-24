@@ -8,10 +8,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {

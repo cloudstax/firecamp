@@ -3,12 +3,12 @@ package kafkacatalog
 import (
 	"fmt"
 
-	"github.com/cloudstax/openmanage/catalog"
-	"github.com/cloudstax/openmanage/catalog/zookeeper"
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (

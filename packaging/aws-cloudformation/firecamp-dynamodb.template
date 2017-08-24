@@ -1,0 +1,239 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates the DynamoDB tables for the FireCamp ECS cluster.",
+  "Parameters":{
+    "ECSClusterName":{
+      "Type":"String",
+      "Description":"Name of the ECS cluster.",
+      "Default":"default",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "ReadCapacityUnits":{
+      "Type":"Number",
+      "Default":"5",
+      "Description":"The  maximum number of strongly consistent reads consumed per second."
+    },
+    "WriteCapacityUnits":{
+      "Type":"Number",
+      "Default":"5",
+      "Description":"The  maximum number of writes consumed per second."
+    }
+  },
+  "Resources" : {
+    "DeviceTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "TableName" : {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "firecamp-device-table"
+            ]
+          ]
+        },
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "ClusterName",
+            "AttributeType" : "S"
+          },
+          {
+            "AttributeName" : "DeviceName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "ClusterName",
+            "KeyType" : "HASH"
+          },
+          {
+            "AttributeName" : "DeviceName",
+            "KeyType" : "RANGE"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {
+            "Ref": "ReadCapacityUnits"
+          },
+          "WriteCapacityUnits" : {
+            "Ref": "WriteCapacityUnits"
+          }
+        }
+      }
+    },
+    "ServiceTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "TableName" : {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "firecamp-service-table"
+            ]
+          ]
+        },
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "ClusterName",
+            "AttributeType" : "S"
+          },
+          {
+            "AttributeName" : "ServiceName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "ClusterName",
+            "KeyType" : "HASH"
+          },
+          {
+            "AttributeName" : "ServiceName",
+            "KeyType" : "RANGE"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {
+            "Ref": "ReadCapacityUnits"
+          },
+          "WriteCapacityUnits" : {
+            "Ref": "WriteCapacityUnits"
+          }
+        }
+      }
+    },
+    "ServiceAttrTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "TableName" : {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "firecamp-serviceattr-table"
+            ]
+          ]
+        },
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "KeyType" : "HASH"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {
+            "Ref": "ReadCapacityUnits"
+          },
+          "WriteCapacityUnits" : {
+            "Ref": "WriteCapacityUnits"
+          }
+        }
+      }
+    },
+    "MemberTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "TableName" : {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "firecamp-servicemember-table"
+            ]
+          ]
+        },
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "AttributeType" : "S"
+          },
+          {
+            "AttributeName" : "MemberName",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "KeyType" : "HASH"
+          },
+          {
+            "AttributeName" : "MemberName",
+            "KeyType" : "RANGE"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {
+            "Ref": "ReadCapacityUnits"
+          },
+          "WriteCapacityUnits" : {
+            "Ref": "WriteCapacityUnits"
+          }
+        }
+      }
+    },
+    "ConfigTable" : {
+      "Type" : "AWS::DynamoDB::Table",
+      "Properties" : {
+        "TableName" : {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ECSClusterName"
+              },
+              "firecamp-config-table"
+            ]
+          ]
+        },
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "AttributeType" : "S"
+          },
+          {
+            "AttributeName" : "ConfigFileID",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "ServiceUUID",
+            "KeyType" : "HASH"
+          },
+          {
+            "AttributeName" : "ConfigFileID",
+            "KeyType" : "RANGE"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {
+            "Ref": "ReadCapacityUnits"
+          },
+          "WriteCapacityUnits" : {
+            "Ref": "WriteCapacityUnits"
+          }
+        }
+      }
+    }
+  }
+}

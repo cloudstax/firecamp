@@ -7,10 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/log/jsonfile"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/log/jsonfile"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestTaskDef(t *testing.T) {

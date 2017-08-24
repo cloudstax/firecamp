@@ -13,7 +13,7 @@ import (
 	"github.com/nu7hatch/gouuid"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/firecamp/common"
 )
 
 func SetLogToStd() {

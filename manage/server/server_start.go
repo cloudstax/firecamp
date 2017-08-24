@@ -8,13 +8,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/log"
-	"github.com/cloudstax/openmanage/server"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/log"
+	"github.com/cloudstax/firecamp/server"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 // StartServer creates the manage http server and listen for requests.

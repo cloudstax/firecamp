@@ -7,9 +7,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 // CreateService puts a new db.Service into DB

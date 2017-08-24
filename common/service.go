@@ -92,9 +92,9 @@ type ServiceAttr struct {
 	// whether the service members need to know each other, such as database replicas.
 	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
 	RegisterDNS bool
-	// for v1, DomainName would be the default domain, such as cluster-openmanage.com
+	// for v1, DomainName would be the default domain, such as cluster-firecamp.com
 	DomainName string
-	// The AWS Route53 HostedZone for the current openmanage cluster.
+	// The AWS Route53 HostedZone for the current firecamp cluster.
 	HostedZoneID string
 
 	// The service admin and password. The password will be deleted once the service is initialized.

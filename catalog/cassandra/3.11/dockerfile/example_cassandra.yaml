@@ -39,12 +39,12 @@ seed_provider:
       parameters:
           # seeds is actually a comma-delimited list of addresses.
           # Ex: "<ip1>,<ip2>,<ip3>"
-          - seeds: "mycas-0.cluster1-openmanage.com"
+          - seeds: "mycas-0.cluster1-firecamp.com"
 
-listen_address: mycas-0.cluster1-openmanage.com
-broadcast_address: mycas-0.cluster1-openmanage.com
-rpc_address: mycas-0.cluster1-openmanage.com
-broadcast_rpc_address: mycas-0.cluster1-openmanage.com
+listen_address: mycas-0.cluster1-firecamp.com
+broadcast_address: mycas-0.cluster1-firecamp.com
+rpc_address: mycas-0.cluster1-firecamp.com
+broadcast_rpc_address: mycas-0.cluster1-firecamp.com
 
 # TODO If your data directories are backed by SSD, you should increase this
 # to the number of cores

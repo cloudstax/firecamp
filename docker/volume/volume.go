@@ -1,4 +1,4 @@
-package openmanagedockervolume
+package firecampdockervolume
 
 import (
 	"crypto/md5"
@@ -18,12 +18,12 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/containersvc"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/dns"
-	"github.com/cloudstax/openmanage/server"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/server"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -44,9 +44,9 @@ type driverVolume struct {
 	connections int
 }
 
-// OpenManageVolumeDriver is the docker volume plugin.
-type OpenManageVolumeDriver struct {
-	// the default root dir, volume will be mounted to /mnt/openmanage/serviceUUID
+// FireCampVolumeDriver is the docker volume plugin.
+type FireCampVolumeDriver struct {
+	// the default root dir, volume will be mounted to /mnt/firecamp/serviceUUID
 	root string
 
 	// the local mounted volumes, key: serviceUUID
@@ -69,10 +69,10 @@ type OpenManageVolumeDriver struct {
 	containerInfo   containersvc.Info
 }
 
-// NewVolumeDriver creates a new OpenManageVolumeDriver instance
+// NewVolumeDriver creates a new FireCampVolumeDriver instance
 func NewVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serverInfo server.Info,
-	containersvcIns containersvc.ContainerSvc, containerInfo containersvc.Info) *OpenManageVolumeDriver {
-	d := &OpenManageVolumeDriver{
+	containersvcIns containersvc.ContainerSvc, containerInfo containersvc.Info) *FireCampVolumeDriver {
+	d := &FireCampVolumeDriver{
 		root:            defaultRoot,
 		volumes:         map[string]*driverVolume{},
 		volumesLock:     &sync.Mutex{},
@@ -87,7 +87,7 @@ func NewVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serve
 }
 
 // Create checks if volume is mounted or service exists in DB
-func (d *OpenManageVolumeDriver) Create(r volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) Create(r volume.Request) volume.Response {
 	serviceUUID := r.Name
 
 	// check if volume is in cache
@@ -118,14 +118,14 @@ func (d *OpenManageVolumeDriver) Create(r volume.Request) volume.Response {
 }
 
 // Remove simply tries to remove mounted volume
-func (d *OpenManageVolumeDriver) Remove(r volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) Remove(r volume.Request) volume.Response {
 	d.removeMountedVolume(r.Name)
 	glog.Infoln("Remove request done", r)
 	return volume.Response{}
 }
 
 // Get returns the mountPath if volume is mounted
-func (d *OpenManageVolumeDriver) Get(r volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
 	serviceUUID := r.Name
 	mountPath := d.mountpoint(serviceUUID)
 
@@ -143,13 +143,13 @@ func (d *OpenManageVolumeDriver) Get(r volume.Request) volume.Response {
 }
 
 // Path returns the volume mountPath
-func (d *OpenManageVolumeDriver) Path(r volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) Path(r volume.Request) volume.Response {
 	mountPath := d.mountpoint(r.Name)
 	return volume.Response{Mountpoint: mountPath}
 }
 
 // List lists all mounted volumes
-func (d *OpenManageVolumeDriver) List(r volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -164,13 +164,13 @@ func (d *OpenManageVolumeDriver) List(r volume.Request) volume.Response {
 }
 
 // Capabilities is always local
-func (d *OpenManageVolumeDriver) Capabilities(volume.Request) volume.Response {
+func (d *FireCampVolumeDriver) Capabilities(volume.Request) volume.Response {
 	return volume.Response{
 		Capabilities: volume.Capability{Scope: "local"},
 	}
 }
 
-func (d *OpenManageVolumeDriver) genReqUUID(serviceUUID string) string {
+func (d *FireCampVolumeDriver) genReqUUID(serviceUUID string) string {
 	t := time.Now().Unix()
 	requuid := d.serverInfo.GetPrivateIP() + common.NameSeparator +
 		serviceUUID + common.NameSeparator + strconv.FormatInt(t, 10)
@@ -178,7 +178,7 @@ func (d *OpenManageVolumeDriver) genReqUUID(serviceUUID string) string {
 }
 
 // Mount mounts the volume to the host.
-func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
+func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	glog.Infoln("handle Mount ", r)
 
 	// r.Name is serviceUUID
@@ -277,7 +277,7 @@ func (d *OpenManageVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 }
 
 // Unmount the volume.
-func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response {
+func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response {
 	serviceUUID := r.Name
 	mountPath := d.mountpoint(serviceUUID)
 
@@ -347,7 +347,7 @@ func (d *OpenManageVolumeDriver) Unmount(r volume.UnmountRequest) volume.Respons
 	return volume.Response{}
 }
 
-func (d *OpenManageVolumeDriver) updateDNS(ctx context.Context, serviceAttr *common.ServiceAttr, member *common.ServiceMember, requuid string) (errmsg string) {
+func (d *FireCampVolumeDriver) updateDNS(ctx context.Context, serviceAttr *common.ServiceAttr, member *common.ServiceMember, requuid string) (errmsg string) {
 	dnsName := dns.GenDNSName(member.MemberName, serviceAttr.DomainName)
 	privateIP := d.serverInfo.GetPrivateIP()
 	err := d.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, serviceAttr.HostedZoneID)
@@ -392,7 +392,7 @@ func (d *OpenManageVolumeDriver) updateDNS(ctx context.Context, serviceAttr *com
 	return errmsg
 }
 
-func (d *OpenManageVolumeDriver) getServiceAttrAndMember(ctx context.Context,
+func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context,
 	serviceUUID string, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
 	var err error
 	// check if the volume is for the controldb service
@@ -449,7 +449,7 @@ func (d *OpenManageVolumeDriver) getServiceAttrAndMember(ctx context.Context,
 	return serviceAttr, member, ""
 }
 
-func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath string, member *common.ServiceMember, requuid string) error {
+func (d *FireCampVolumeDriver) createConfigFile(ctx context.Context, mountPath string, member *common.ServiceMember, requuid string) error {
 	// if the service does not need the config file, return
 	if len(member.Configs) == 0 {
 		glog.Infoln("no config file", member, "requuid", requuid)
@@ -515,7 +515,7 @@ func (d *OpenManageVolumeDriver) createConfigFile(ctx context.Context, mountPath
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string) {
+func (d *FireCampVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string) {
 	// check if the mount path exists
 	_, err := os.Stat(mountPath)
 	if err != nil {
@@ -546,7 +546,7 @@ func (d *OpenManageVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string
 
 // getMemberForTask will get one idle member, not used or owned by down task,
 // detach it and update the new owner in DB.
-func (d *OpenManageVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
+func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
 	// find one idle member
 	member, err = d.findIdleMember(ctx, serviceAttr, requuid)
 	if err != nil {
@@ -591,7 +591,7 @@ func (d *OpenManageVolumeDriver) getMemberForTask(ctx context.Context, serviceAt
 	return newMember, nil
 }
 
-func (d *OpenManageVolumeDriver) detachControlDBVolume(ctx context.Context, volID string, requuid string) error {
+func (d *FireCampVolumeDriver) detachControlDBVolume(ctx context.Context, volID string, requuid string) error {
 	volInfo, err := d.serverIns.GetVolumeInfo(ctx, volID)
 	if err != nil {
 		glog.Errorln("GetVolumeInfo error", err, volID, "requuid", requuid)
@@ -617,7 +617,7 @@ func (d *OpenManageVolumeDriver) detachControlDBVolume(ctx context.Context, volI
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.ServiceMember, *common.ServiceAttr) {
+func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.ServiceMember, *common.ServiceAttr) {
 	mtime := time.Now().UnixNano()
 	// construct the vol for the controldb service
 	// could actually get the taksID, as only one controldb task is running at any time.
@@ -640,7 +640,7 @@ func (d *OpenManageVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID st
 	return member, attr
 }
 
-func (d *OpenManageVolumeDriver) findIdleMember(ctx context.Context,
+func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 	serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
 	// list all tasks of the service
 	// docker swarm: docker node ps -f name=serviceName node
@@ -699,11 +699,11 @@ func (d *OpenManageVolumeDriver) findIdleMember(ctx context.Context,
 	return nil, common.ErrInternal
 }
 
-func (d *OpenManageVolumeDriver) mountpoint(serviceUUID string) string {
+func (d *FireCampVolumeDriver) mountpoint(serviceUUID string) string {
 	return filepath.Join(d.root, serviceUUID)
 }
 
-func (d *OpenManageVolumeDriver) attachVolume(ctx context.Context, member common.ServiceMember, requuid string) error {
+func (d *FireCampVolumeDriver) attachVolume(ctx context.Context, member common.ServiceMember, requuid string) error {
 	// attach volume to host
 	err := d.serverIns.AttachVolume(ctx, member.VolumeID, member.ServerInstanceID, member.DeviceName)
 	if err != nil {
@@ -726,7 +726,7 @@ func (d *OpenManageVolumeDriver) attachVolume(ctx context.Context, member common
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) detachVolumeFromLastOwner(ctx context.Context, volID string,
+func (d *FireCampVolumeDriver) detachVolumeFromLastOwner(ctx context.Context, volID string,
 	serverInsID string, device string, requuid string) error {
 	// if volume is not attached to any instance, return
 	if serverInsID == db.DefaultServerInstanceID {
@@ -786,7 +786,7 @@ func (d *OpenManageVolumeDriver) detachVolumeFromLastOwner(ctx context.Context, 
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) getMountedVolume(serviceUUID string) *common.ServiceMember {
+func (d *FireCampVolumeDriver) getMountedVolume(serviceUUID string) *common.ServiceMember {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -797,7 +797,7 @@ func (d *OpenManageVolumeDriver) getMountedVolume(serviceUUID string) *common.Se
 	return vol.member
 }
 
-func (d *OpenManageVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *common.ServiceMember {
+func (d *FireCampVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *common.ServiceMember {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -812,14 +812,14 @@ func (d *OpenManageVolumeDriver) getMountedVolumeAndIncRef(serviceUUID string) *
 	return vol.member
 }
 
-func (d *OpenManageVolumeDriver) addMountedVolume(serviceUUID string, member *common.ServiceMember) {
+func (d *FireCampVolumeDriver) addMountedVolume(serviceUUID string, member *common.ServiceMember) {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
 	d.volumes[serviceUUID] = &driverVolume{member: member, connections: 1}
 }
 
-func (d *OpenManageVolumeDriver) removeMountedVolume(serviceUUID string) {
+func (d *FireCampVolumeDriver) removeMountedVolume(serviceUUID string) {
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
 
@@ -837,7 +837,7 @@ func (d *OpenManageVolumeDriver) removeMountedVolume(serviceUUID string) {
 	glog.Infoln("volume is still in use, not remove", vol.member, "connections", vol.connections)
 }
 
-func (d *OpenManageVolumeDriver) checkAndCreateMountPath(mountPath string) error {
+func (d *FireCampVolumeDriver) checkAndCreateMountPath(mountPath string) error {
 	fi, err := os.Lstat(mountPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -864,7 +864,7 @@ func (d *OpenManageVolumeDriver) checkAndCreateMountPath(mountPath string) error
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) removeMountPath(mountPath string) error {
+func (d *FireCampVolumeDriver) removeMountPath(mountPath string) error {
 	err := os.Remove(mountPath)
 	if err != nil {
 		glog.Errorln("failed to remove mountPath", mountPath, "error", err)
@@ -873,7 +873,7 @@ func (d *OpenManageVolumeDriver) removeMountPath(mountPath string) error {
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) mountFS(source string, target string) error {
+func (d *FireCampVolumeDriver) mountFS(source string, target string) error {
 	args := d.getMountArgs(source, target, defaultFSType, defaultMountOptions)
 
 	command := exec.Command(args[0], args[1:]...)
@@ -887,7 +887,7 @@ func (d *OpenManageVolumeDriver) mountFS(source string, target string) error {
 	return err
 }
 
-func (d *OpenManageVolumeDriver) getMountArgs(source, target, fstype string, options []string) []string {
+func (d *FireCampVolumeDriver) getMountArgs(source, target, fstype string, options []string) []string {
 	var args []string
 	args = append(args, "mount")
 
@@ -905,7 +905,7 @@ func (d *OpenManageVolumeDriver) getMountArgs(source, target, fstype string, opt
 	return args
 }
 
-func (d *OpenManageVolumeDriver) unmountFS(target string) error {
+func (d *FireCampVolumeDriver) unmountFS(target string) error {
 	var args []string
 	args = append(args, "umount", target)
 
@@ -921,7 +921,7 @@ func (d *OpenManageVolumeDriver) unmountFS(target string) error {
 }
 
 // formats the source device
-func (d *OpenManageVolumeDriver) formatFS(source string) error {
+func (d *FireCampVolumeDriver) formatFS(source string) error {
 	var args []string
 	args = append(args, defaultMkfs, source)
 	command := exec.Command(args[0], args[1:]...)
@@ -936,7 +936,7 @@ func (d *OpenManageVolumeDriver) formatFS(source string) error {
 	return nil
 }
 
-func (d *OpenManageVolumeDriver) isFormatted(source string) bool {
+func (d *FireCampVolumeDriver) isFormatted(source string) bool {
 	//d.lsblk()
 
 	var args []string
@@ -953,7 +953,7 @@ func (d *OpenManageVolumeDriver) isFormatted(source string) bool {
 	return true
 }
 
-func (d *OpenManageVolumeDriver) lsblk() {
+func (d *FireCampVolumeDriver) lsblk() {
 	var args []string
 	args = append(args, "lsblk")
 
@@ -962,7 +962,7 @@ func (d *OpenManageVolumeDriver) lsblk() {
 	glog.Infoln("arguments", args, "output", string(output[:]), "error", err)
 }
 
-func (d *OpenManageVolumeDriver) isDeviceMountToPath(mountPath string) bool {
+func (d *FireCampVolumeDriver) isDeviceMountToPath(mountPath string) bool {
 	// check whether there is device mounted to the mountPath
 	var args []string
 	args = append(args, "lsblk")

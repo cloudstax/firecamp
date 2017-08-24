@@ -7,20 +7,20 @@ const (
 	ContainerPlatformSwarm = "swarm"
 
 	OrgName             = "cloudstax"
-	SystemName          = "openmanage"
+	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
 	// Do NOT change the volume driver name.
 	// VolumeDriverName is the name for docker volume driver
-	// If this name is changed, please change docker/volume/aws-ecs-agent-patch/openmanage_task_engine.go as well.
-	// Has the separate definition in openmanage_task_engine.go aims to avoid the dependency of
-	// ecs-agent on openmanage code.
-	// TODO rename it as docker plugin think OpenManageVolumeDriver.sock is too long.
-	//      change it to be the same with socket in syssvc/openmanage-dockervolume/config.json
-	VolumeDriverName = "OpenManageVolumeDriver"
+	// If this name is changed, please change docker/volume/aws-ecs-agent-patch/firecamp_task_engine.go as well.
+	// Has the separate definition in firecamp_task_engine.go aims to avoid the dependency of
+	// ecs-agent on firecamp code.
+	// TODO rename it as docker plugin think FireCampVolumeDriver.sock is too long.
+	//      change it to be the same with socket in syssvc/firecamp-dockervolume/config.json
+	VolumeDriverName = "FireCampVolumeDriver"
 
 	// Do NOT change the log driver name.
-	LogDriverName     = "openmanagelogs"
+	LogDriverName     = "firecamplogs"
 	LOGDRIVER_DEFAULT = "json-file"
 	LOGDRIVER_AWSLOGS = "awslogs"
 

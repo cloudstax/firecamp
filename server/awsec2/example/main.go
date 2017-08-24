@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/server/awsec2"
+	"github.com/cloudstax/firecamp/server/awsec2"
 )
 
 func main() {

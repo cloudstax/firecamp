@@ -6,13 +6,13 @@ index 50d2a61..3495e10 100644
 
  	containerName := "ecs-" + task.Family + "-" + task.Version + "-" + name + "-" + utils.RandHex()
 
-+	seelog.Infof("openmanage volume task.Family %s, task.Version %s, task %s", task.Family, task.Version, task)
-+	seelog.Infof("openmanage volume creating container name %s, DockerConfig %s, VolumesFrom %s, MountPoints %s, Links %s, container %s", containerName, container.DockerConfig, container.VolumesFrom, container.MountPoints, container.Links, container)
-+	seelog.Infof("openmanage volume hostConfig Binds %s, VolumesFrom %s, VolumeDriver %s, hostConfig %s", hostConfig.Binds, hostConfig.VolumesFrom, hostConfig.VolumeDriver, hostConfig)
++	seelog.Infof("firecamp volume task.Family %s, task.Version %s, task %s", task.Family, task.Version, task)
++	seelog.Infof("firecamp volume creating container name %s, DockerConfig %s, VolumesFrom %s, MountPoints %s, Links %s, container %s", containerName, container.DockerConfig, container.VolumesFrom, container.MountPoints, container.Links, container)
++	seelog.Infof("firecamp volume hostConfig Binds %s, VolumesFrom %s, VolumeDriver %s, hostConfig %s", hostConfig.Binds, hostConfig.VolumesFrom, hostConfig.VolumeDriver, hostConfig)
 +
 +	hostConfig = AddVolumeDriver(hostConfig, engine.cfg.Cluster, task.Arn, task.Family)
 +
-+	seelog.Infof("openmanage volume updated hostConfig Binds %s, VolumeDriver %s", hostConfig.Binds, hostConfig.VolumeDriver)
++	seelog.Infof("firecamp volume updated hostConfig Binds %s, VolumeDriver %s", hostConfig.Binds, hostConfig.VolumeDriver)
 +
  	// Pre-add the container in case we stop before the next, more useful,
  	// AddContainer call. This ensures we have a way to get the container if

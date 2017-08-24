@@ -7,17 +7,17 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/catalog"
-	"github.com/cloudstax/openmanage/catalog/cassandra"
-	"github.com/cloudstax/openmanage/catalog/kafka"
-	"github.com/cloudstax/openmanage/catalog/mongodb"
-	"github.com/cloudstax/openmanage/catalog/postgres"
-	"github.com/cloudstax/openmanage/catalog/redis"
-	"github.com/cloudstax/openmanage/catalog/zookeeper"
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/manage"
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/mongodb"
+	"github.com/cloudstax/firecamp/catalog/postgres"
+	"github.com/cloudstax/firecamp/catalog/redis"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,

@@ -3,7 +3,7 @@
 # This script does 3 things:
 # 1) Initialize the MongoDB ReplicaSet.
 # 2) Create the admin user.
-# 3) Tell the openmanage manage server to set MongoDB service initialized.
+# 3) Tell the firecamp manage server to set MongoDB service initialized.
 
 # could not "set -e", which will exit if any command fails.
 # The task may end at any time. For example, node crashes before set service initialized.
@@ -14,10 +14,10 @@
 
 #export REGION="us-west-1"
 #export CLUSTER="default"
-#export MANAGE_SERVER_URL="openmanage-manageserver.cluster-openmanage.com:27040"
-#export SERVICE_NAME="openmanage-mongodb-1rep"
-#export SERVICE_MASTER="openmanage-mongodb-1rep-0.cluster-openmanage.com"
-#export SERVICE_MEMBERS="openmanage-mongodb-1rep-1.cluster-openmanage.com,openmanage-mongodb-1rep-2.cluster-openmanage.com"
+#export MANAGE_SERVER_URL="firecamp-manageserver.cluster-firecamp.com:27040"
+#export SERVICE_NAME="firecamp-mongodb-1rep"
+#export SERVICE_MASTER="firecamp-mongodb-1rep-0.cluster-firecamp.com"
+#export SERVICE_MEMBERS="firecamp-mongodb-1rep-1.cluster-firecamp.com,firecamp-mongodb-1rep-2.cluster-firecamp.com"
 #export REPLICA_SET_NAME="rep-rs0"
 #export SERVICE_TYPE="mongodb"
 #export OP="Catalog-Set-Service-Init"
@@ -65,7 +65,7 @@ echo "$output"
 # example output
 #output="MongoDB shell version: 3.2.10 connecting to: f25b11c002e3 {\"info\":\"try querying local.system.replset to see current configuration\",\"ok\":0,\"errmsg\":\"already initialized\",\"code\":23}"
 #output="MongoDB shell version: 3.2.10 connecting to: f25b11c002e3 {"ok":1}"
-#output="MongoDB shell version: 3.2.10 connecting to: openmanage-mongodb-1rep.cluster-openmanage.com/test 2017-04-10T20:13:33.911+0000 I NETWORK [thread1] getaddrinfo(\"openmanage-mongodb-1rep.cluster-openmanage.com\") failed: Name or service not known 2017-04-10T20:13:33.921+0000 E QUERY [thread1] Error: couldn't initialize connection to host openmanage-mongodb-1rep.cluster-openmanage.com, address is invalid : connect@src/mongo/shell/mongo.js:231:14 @(connect):1:6"
+#output="MongoDB shell version: 3.2.10 connecting to: firecamp-mongodb-1rep.cluster-firecamp.com/test 2017-04-10T20:13:33.911+0000 I NETWORK [thread1] getaddrinfo(\"firecamp-mongodb-1rep.cluster-firecamp.com\") failed: Name or service not known 2017-04-10T20:13:33.921+0000 E QUERY [thread1] Error: couldn't initialize connection to host firecamp-mongodb-1rep.cluster-firecamp.com, address is invalid : connect@src/mongo/shell/mongo.js:231:14 @(connect):1:6"
 
 
 # analyze the initialization results
@@ -98,7 +98,7 @@ sleep 10
 echo "start creating the admin user"
 
 # get the latest master. If the original master fails, another standby may become the new master.
-# example output: "primary" : "mymongo-1.t1-openmanage.com:27017",
+# example output: "primary" : "mymongo-1.t1-firecamp.com:27017",
 currentMaster=$(mongo --host $SERVICE_MASTER --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }' | awk -F ":" '{ print $1 }')
 if [ -z "$currentMaster" ]
 then
@@ -144,7 +144,7 @@ fi
 echo "admin user $ADMIN_USER created"
 
 
-# 3) Tell the openmanage manage server to set MongoDB service initialized.
+# 3) Tell the firecamp manage server to set MongoDB service initialized.
 # set MongoDB service initialized
 echo "set MongoDB service initialized"
 

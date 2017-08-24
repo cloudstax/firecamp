@@ -22,5 +22,5 @@ docker run --name ecs-agent \
     --env=ECS_DATADIR=/data/ \
     --env=ECS_ENABLE_TASK_IAM_ROLE=true \
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
-    cloudstax/openmanage-amazon-ecs-agent:latest
+    cloudstax/firecamp-amazon-ecs-agent:latest
 

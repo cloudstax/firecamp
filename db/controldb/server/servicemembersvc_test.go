@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/db"
-	"github.com/cloudstax/openmanage/db/controldb"
-	pb "github.com/cloudstax/openmanage/db/controldb/protocols"
+	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/db/controldb"
+	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
 )
 
 func TestServiceMemberReadWriter(t *testing.T) {

@@ -1,4 +1,4 @@
-package openmanagedockerlogs
+package firecampdockerlogs
 
 import (
 	"bytes"

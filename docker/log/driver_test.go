@@ -1,4 +1,4 @@
-package openmanagedockerlogs
+package firecampdockerlogs
 
 import (
 	"os"
@@ -16,7 +16,7 @@ import (
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/utils"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestLogDriver(t *testing.T) {

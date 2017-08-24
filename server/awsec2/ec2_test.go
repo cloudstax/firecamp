@@ -9,8 +9,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/openmanage/common"
-	"github.com/cloudstax/openmanage/server"
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/server"
 )
 
 var e *AWSEc2

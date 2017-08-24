@@ -17,17 +17,17 @@
 
 #export REGION="us-west-1"
 #export CLUSTER="c1"
-#export MANAGE_SERVER_URL="openmanage-manageserver.c1-openmanage.com:27040"
+#export MANAGE_SERVER_URL="firecamp-manageserver.c1-firecamp.com:27040"
 #export SERVICE_NAME="myredis"
 #export SERVICE_PORT="6379"
 #export OP="Catalog-Set-Redis-Init"
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
-#export REDIS_MASTERS="myredis-0.c1-openmanage.com,myredis-1.c1-openmanage.com,myredis-2.c1-openmanage.com"
-#export REDIS_SLAVES="myredis-3.c1-openmanage.com,myredis-4.c1-openmanage.com,myredis-5.c1-openmanage.com"
-# The service masters should be myredis-shard0-0.c1-openmanage.com,myredis-shard1-0.c1-openmanage.com,myredis-shard2-0.c1-openmanage.com
-# The service slaves should be myredis-shard0-1.c1-penmanage.com,myredis-shard1-1.c1-openmanage.com,myredis-shard2-1.c1-openmanage.com
+#export REDIS_MASTERS="myredis-0.c1-firecamp.com,myredis-1.c1-firecamp.com,myredis-2.c1-firecamp.com"
+#export REDIS_SLAVES="myredis-3.c1-firecamp.com,myredis-4.c1-firecamp.com,myredis-5.c1-firecamp.com"
+# The service masters should be myredis-shard0-0.c1-firecamp.com,myredis-shard1-0.c1-firecamp.com,myredis-shard2-0.c1-firecamp.com
+# The service slaves should be myredis-shard0-1.c1-penmanage.com,myredis-shard1-1.c1-firecamp.com,myredis-shard2-1.c1-firecamp.com
 
 # check the environment parameters
 if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$MANAGE_SERVER_URL" -o -z "$SERVICE_NAME" -o -z "$SERVICE_PORT" -o -z "$OP" ]
@@ -120,7 +120,7 @@ SetServiceInit() {
 
   echo "$nodeids"
 
-  # 4) Tell the openmanage manage server to set service initialized.
+  # 4) Tell the firecamp manage server to set service initialized.
   # set service initialized
   echo "set service initialized"
 

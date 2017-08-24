@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cloudstax/openmanage/common"
+	"github.com/cloudstax/firecamp/common"
 )
 
 func TestDomain(t *testing.T) {
@@ -33,7 +33,7 @@ func TestMgt(t *testing.T) {
 	cluster := "c1"
 	tlsEnabled := true
 	portStr := strconv.Itoa(common.ManageHTTPServerPort)
-	expect := "https://openmanage-manageserver.c1-openmanage.com:" + portStr + "/"
+	expect := "https://firecamp-manageserver.c1-firecamp.com:" + portStr + "/"
 	url := GetDefaultManageServiceURL(cluster, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
@@ -42,17 +42,17 @@ func TestMgt(t *testing.T) {
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatManageServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("firecamp-manageserver.c1-firecamp.com:"+portStr, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatManageServiceURL("https://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("https://firecamp-manageserver.c1-firecamp.com:"+portStr, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
 
 	tlsEnabled = false
-	expect = "http://openmanage-manageserver.c1-openmanage.com:" + portStr + "/"
+	expect = "http://firecamp-manageserver.c1-firecamp.com:" + portStr + "/"
 	url = GetDefaultManageServiceURL(cluster, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
@@ -61,11 +61,11 @@ func TestMgt(t *testing.T) {
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatManageServiceURL("openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("firecamp-manageserver.c1-firecamp.com:"+portStr, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
-	url = FormatManageServiceURL("http://openmanage-manageserver.c1-openmanage.com:"+portStr, tlsEnabled)
+	url = FormatManageServiceURL("http://firecamp-manageserver.c1-firecamp.com:"+portStr, tlsEnabled)
 	if url != expect {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
@@ -74,14 +74,14 @@ func TestMgt(t *testing.T) {
 func TestControldb(t *testing.T) {
 	cluster := "cluster"
 	portStr := strconv.Itoa(common.ControlDBServerPort)
-	expect := "openmanage-controldb.cluster-openmanage.com:" + portStr
+	expect := "firecamp-controldb.cluster-firecamp.com:" + portStr
 	addr := GetDefaultControlDBAddr(cluster)
 	if addr != expect {
 		t.Fatalf("GetDefaultControlDBAddr expect %s, got %s", expect, addr)
 	}
 
 	cluster = "c1"
-	expect = "openmanage-controldb.c1-openmanage.com:" + portStr
+	expect = "firecamp-controldb.c1-firecamp.com:" + portStr
 	addr = GetDefaultControlDBAddr(cluster)
 	if addr != expect {
 		t.Fatalf("GetDefaultControlDBAddr expect %s, got %s", expect, addr)
