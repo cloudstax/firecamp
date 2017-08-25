@@ -60,6 +60,13 @@ func main() {
 		return
 	}
 
+	targetPlatform := *platform
+	// when the driver runs as the docker plugin, could only set the configs via the os environment variable.
+	envplatform := os.Getenv("PLATFORM")
+	if envplatform != targetPlatform {
+		targetPlatform = envplatform
+	}
+
 	region, err := awsec2.GetLocalEc2Region()
 	if err != nil {
 		glog.Fatalln("awsec2 GetLocalEc2Region error", err)
@@ -74,7 +81,7 @@ func main() {
 	var info containersvc.Info
 	var containersvcIns containersvc.ContainerSvc
 
-	switch *platform {
+	switch targetPlatform {
 	case common.ContainerPlatformECS:
 		info, err = awsecs.NewEcsInfo()
 		if err != nil {
@@ -108,7 +115,7 @@ func main() {
 		containersvcIns = swarmsvc.NewSwarmSvc(sinfo.GetSwarmManagers(), *tlsVerify, *caFile, *certFile, *keyFile)
 
 	default:
-		glog.Fatalln("unsupport container platform", *platform)
+		glog.Fatalln("unsupport container platform", targetPlatform)
 	}
 
 	ec2Info, err := awsec2.NewEc2Info(sess)
@@ -130,7 +137,7 @@ func main() {
 
 	driver := firecampdockervolume.NewVolumeDriver(dbIns, dnsIns, ec2Ins, ec2Info, containersvcIns, info)
 
-	glog.Infoln("NewScDriver, ec2InstanceID", ec2Info.GetLocalInstanceID(), "region", region,
+	glog.Infoln("NewScDriver, platform", targetPlatform, "ec2InstanceID", ec2Info.GetLocalInstanceID(), "region", region,
 		"ContainerInstanceID", info.GetLocalContainerInstanceID(),
 		"tlsVerify", *tlsVerify, "ca file", *caFile, "cert file", *certFile, "key file", *keyFile)
 	glog.Flush()

@@ -1,39 +1,58 @@
 {
-	"description": "firecamp volume plugin for docker",
-	"documentation": "-",
-	"entrypoint": ["/firecamp-dockervolume"],
-	"interface": {
-		"types": ["docker.volumedriver/1.0"],
-		"socket": "firecampvol.sock"
+  "description": "firecamp volume plugin for docker",
+  "documentation": "-",
+  "entrypoint": ["/firecamp-dockervolume"],
+  "interface": {
+    "types": ["docker.volumedriver/1.0"],
+    "socket": "firecampvol.sock"
   },
-	"linux": {
-		"capabilities": ["CAP_SYS_ADMIN"]
-	},
-	"network": {
+  "linux": {
+    "AllowAllDevices": true,
+    "capabilities": ["CAP_SYS_ADMIN"],
+    "Devices": null
+  },
+  "network": {
     "type": "host"
   },
   "mounts": [
     {
       "destination": "/var/log/firecamp",
       "source": "/var/log/firecamp",
-      "options": [
-        "rbind"
-      ],
-      "type": "bind"
+      "type": "bind",
+      "options": ["rbind"]
+    },
+    {
+      "Source": "/var/run/docker.sock",
+      "Destination": "/var/run/docker.sock",
+      "Type": "bind",
+      "Options": ["rbind"]
+    },
+    {
+      "Source": "/dev",
+      "Destination": "/dev",
+      "Type": "bind",
+      "Options": ["rbind"]
     }
   ],
-	"env": [
-		{
-			"name": "LOG_LEVEL",
-			"description": "Set log level to output for plugin logs",
-			"value": "info",
-			"settable": ["value"]
-		},
-		{
-			"name": "TESTMODE",
-			"description": "Set the plugin to work on test mode",
-			"value": "true",
-			"settable": ["value"]
-		}
-	]
+  "PropagatedMount": "/mnt/firecamp",
+  "env": [
+    {
+      "name": "LOG_LEVEL",
+      "description": "Set log level to output for plugin logs",
+      "value": "info",
+      "settable": ["value"]
+    },
+    {
+      "name": "TESTMODE",
+      "description": "Set the plugin to work on test mode",
+      "value": "false",
+      "settable": ["value"]
+    },
+    {
+      "name": "PLATFORM",
+      "description": "The container platform that FireCamp runs on, such as ecs, swarm, etc",
+      "value": "ecs",
+      "settable": ["value"]
+    }
+  ]
 }
