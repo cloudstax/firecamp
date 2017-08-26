@@ -1,14 +1,25 @@
 package engine
 
 import (
+	"errors"
 	"strings"
+
+	"github.com/aws/amazon-ecs-agent/agent/api"
 
 	"github.com/cihub/seelog"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+type VolumeDriverConfigError struct {
+	msg string
+}
+
+func (err *VolumeDriverConfigError) Error() string     { return err.msg }
+func (err *VolumeDriverConfigError) ErrorName() string { return "VolumeDriverConfigError" }
+
 // Define here again to avoid the dependency on githut.com/cloudstax/firecamp
-const volumeDriver = "firecampvol"
+const volumeDriver = "cloudstax/firecamp-volume"
+const versionKey = "VERSION"
 
 // Create a taskDefinition at AWS ECS console, created one volume, "Name" my-ecs-volume,
 // "Source Path" /test-volume. Then in "Container Definitions", create "Mount Points",
@@ -26,17 +37,26 @@ const volumeDriver = "firecampvol"
 // AddVolumeDriver updates the docker container volume config, if the task
 // belongs to the service registered to us.
 // update HostConfig with "-v volumename:/data --volume-driver=ourDriver"
-func AddVolumeDriver(hostConfig *docker.HostConfig, cluster string, taskArn string, taskDef string) (newConfig *docker.HostConfig) {
+func AddVolumeDriver(hostConfig *docker.HostConfig, container *api.Container, cluster string, taskArn string, taskDef string) (newConfig *docker.HostConfig, err *VolumeDriverConfigError) {
 	if setVolumeDriver(hostConfig, cluster, taskArn, taskDef) {
+		// get the volume driver version from environment
+		version, ok := container.Environment[versionKey]
+		if !ok {
+			err := errors.New("firecamp container environment does not have version")
+			seelog.Error("firecamp container environment does not have version", container.Environment,
+				"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+			return nil, &VolumeDriverConfigError{err.Error()}
+		}
+
 		// set volume-driver in docker HostConfig
-		hostConfig.VolumeDriver = volumeDriver
+		hostConfig.VolumeDriver = volumeDriver + ":" + version
 
 		seelog.Info("Add volume driver", hostConfig.VolumeDriver,
 			"to HostConfig Binds", hostConfig.Binds,
 			"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
 	}
 
-	return hostConfig
+	return hostConfig, nil
 }
 
 func setVolumeDriver(hostConfig *docker.HostConfig, cluster string, taskArn string, taskDef string) bool {
