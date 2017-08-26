@@ -10,17 +10,18 @@ const (
 	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
-	// Do NOT change the volume driver name.
-	// VolumeDriverName is the name for docker volume driver
-	// If this name is changed, please change docker/volume/aws-ecs-agent-patch/firecamp_task_engine.go as well.
+	// VolumeDriverName is the name for docker volume driver.
+	// Do NOT change the volume driver name. If this name is changed,
+	// please update the volume driver plugin in scripts/builddocker.sh.
+	// please also update docker/volume/aws-ecs-agent-patch/firecamp_task_engine.go,
 	// Has the separate definition in firecamp_task_engine.go aims to avoid the dependency of
 	// ecs-agent on firecamp code.
-	// TODO rename it as docker plugin think FireCampVolumeDriver.sock is too long.
-	//      change it to be the same with socket in syssvc/firecamp-dockervolume/config.json
-	VolumeDriverName = "firecampvol"
+	VolumeDriverName = OrgName + "/" + SystemName + "-" + "volume"
 
-	// Do NOT change the log driver name.
-	LogDriverName     = "firecamplogs"
+	// LogDriverName is the name for docker log driver.
+	// Do NOT change the log driver name. If this name is changed,
+	// please update the log driver plugin in scripts/builddocker.sh.
+	LogDriverName     = OrgName + "/" + SystemName + "-" + "log"
 	LOGDRIVER_DEFAULT = "json-file"
 	LOGDRIVER_AWSLOGS = "awslogs"
 
@@ -85,6 +86,10 @@ type EnvKeyValuePair struct {
 
 // define the common environment keys
 const (
+	// this is for passing the firecamp version to AWS ECS task definition.
+	// the ECS agent patch will construct the correct volume plugin name with it.
+	ENV_VERSION = "VERSION"
+
 	ENV_VALUE_SEPARATOR = ","
 
 	ENV_REGION            = "REGION"

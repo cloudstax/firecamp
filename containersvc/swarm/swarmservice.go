@@ -77,7 +77,7 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 			Target:   opts.ContainerPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
-				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName},
+				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},
 			},
 		}
 		mounts = []mounttypes.Mount{mount}

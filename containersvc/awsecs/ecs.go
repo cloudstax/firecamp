@@ -586,18 +586,24 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 		params.ContainerDefinitions[0].PortMappings = portMappings
 	}
 
-	if len(opts.Envkvs) != 0 {
-		// pass the target environment keyvalue pairs to task
-		envkvpairs := make([]*ecs.KeyValuePair, len(opts.Envkvs))
-		for i, kv := range opts.Envkvs {
-			kvpair := &ecs.KeyValuePair{
-				Name:  aws.String(kv.Name),
-				Value: aws.String(kv.Value),
-			}
-			envkvpairs[i] = kvpair
+	// pass the target environment keyvalue pairs to task
+	envkvpairs := make([]*ecs.KeyValuePair, len(opts.Envkvs)+1)
+	for i, kv := range opts.Envkvs {
+		kvpair := &ecs.KeyValuePair{
+			Name:  aws.String(kv.Name),
+			Value: aws.String(kv.Value),
 		}
-		params.ContainerDefinitions[0].Environment = envkvpairs
+		envkvpairs[i] = kvpair
 	}
+
+	// pass the firecamp version to ecs agent
+	versionkv := &ecs.KeyValuePair{
+		Name:  aws.String(common.ENV_VERSION),
+		Value: aws.String(common.Version),
+	}
+	envkvpairs[len(opts.Envkvs)] = versionkv
+
+	params.ContainerDefinitions[0].Environment = envkvpairs
 
 	svc := ecs.New(s.sess)
 	resp, err := svc.RegisterTaskDefinition(params)
