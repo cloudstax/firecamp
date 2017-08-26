@@ -225,10 +225,6 @@
 
                 "service docker start\n",
 
-                "# TODO enable log driver after upgrade to 17.05/06\n",
-                "# install firecamp docker log driver\n",
-                "# docker plugin install cloudstax/firecamp-dockerlogs\n",
-
                 "# install cloudstax ecs init\n",
                 "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/packages/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
                 "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
@@ -239,10 +235,13 @@
                 " >> /etc/ecs/ecs.config\n",
                 "start ecs\n",
 
-                "# install firecamp docker volume driver\n",
-                "wget -O /tmp/firecamp-dockervolume-0.6-1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/packages/firecamp-dockervolume-0.6-1.x86_64.rpm\n",
-                "rpm -ivh /tmp/firecamp-dockervolume-0.6-1.x86_64.rpm\n",
-                "start firecamp-dockervolume\n",
+                "# install firecamp docker volume plugin\n",
+                "mkdir -p /var/log/firecamp\n",
+                "docker plugin install --grant-all-permissions cloudstax/firecamp-volume:latest\n",
+
+                "# TODO enable log driver after upgrade to 17.05/06\n",
+                "# install firecamp docker log driver\n",
+                "# docker plugin install cloudstax/firecamp-logs\n",
 
                 "yum install -y aws-cfn-bootstrap\n",
                 "# Signal success\n",
