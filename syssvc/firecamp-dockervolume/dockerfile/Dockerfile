@@ -1,7 +1,7 @@
 FROM alpine:3.5
 
 RUN apk update
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache xfsprogs e2fsprogs ca-certificates
 
 RUN mkdir -p /run/docker/plugins /mnt/firecamp
 

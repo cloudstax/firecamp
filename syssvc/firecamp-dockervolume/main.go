@@ -27,6 +27,8 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
+const socketAddress = "/run/docker/plugins/" + common.SystemName + "vol.sock"
+
 var (
 	platform  = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
 	dbtype    = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
@@ -53,7 +55,7 @@ func main() {
 			server.NewMockServerInfo(), containersvc.NewMemContainerSvc(), containersvc.NewMockContainerSvcInfo())
 
 		h := volume.NewHandler(driver)
-		err := h.ServeUnix(common.VolumeDriverName, 0)
+		err := h.ServeUnix(socketAddress, 0)
 		if err != nil {
 			glog.Fatalln("ServeUnix failed, error", err)
 		}
@@ -143,7 +145,9 @@ func main() {
 	glog.Flush()
 
 	h := volume.NewHandler(driver)
-	err = h.ServeUnix(common.VolumeDriverName, 0)
+
+	glog.Infoln("start listening on", socketAddress)
+	err = h.ServeUnix(socketAddress, 0)
 	if err != nil {
 		glog.Fatalln("ServeUnix failed, error", err)
 	}

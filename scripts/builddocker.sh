@@ -26,7 +26,7 @@ BuildPlugin() {
 
   # build the volume plugin
   volumePluginPath="${TOPWD}/syssvc/firecamp-dockervolume/dockerfile"
-  volumePluginImage="${org}$system-volumedriver"
+  volumePluginImage="${org}$system-volume"
 	echo "### docker build: rootfs image with firecamp-dockervolume"
 	docker cp $containername:/go/bin/firecamp-dockervolume $volumePluginPath
 	docker build -q -t ${volumePluginImage}:rootfs $volumePluginPath
@@ -49,7 +49,7 @@ BuildPlugin() {
 
   # build the log plugin
   logPluginPath="${TOPWD}/syssvc/firecamp-dockerlogs/dockerfile"
-  logPluginImage="${org}$system-logdriver"
+  logPluginImage="${org}$system-log"
 	echo "### docker build: rootfs image with firecamp-dockerlogs"
 	docker cp $containername:/go/bin/firecamp-dockerlogs $logPluginPath
 	docker build -q -t ${logPluginImage}:rootfs $logPluginPath
@@ -78,7 +78,7 @@ BuildCatalogImages() {
   target="${system}-busybox"
   image="${org}${target}:${version}"
   path="${TOPWD}/containersvc/busybox-test-dockerfile/"
-  docker build -t $image $path
+  docker build -q -t $image $path
   docker push $image
 
   # build manageserver docker image
@@ -88,7 +88,7 @@ BuildCatalogImages() {
   binfile=$target
   path="${TOPWD}/syssvc/firecamp-manageserver/dockerfile/"
   cp $GOPATH/bin/$binfile $path
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f $path$binfile
   docker push $image
 
@@ -100,7 +100,7 @@ BuildCatalogImages() {
   binfile=$target
   path="${TOPWD}/syssvc/firecamp-controldb/dockerfile/"
   cp $GOPATH/bin/$binfile $path
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f $path$binfile
   docker push $image
   echo
@@ -110,7 +110,7 @@ BuildCatalogImages() {
   target=$system"-mongodb"
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/mongodb/3.4/dockerfile/"
-  docker build -t $image $path
+  docker build -q -t $image $path
   docker push $image
 
   echo
@@ -118,7 +118,7 @@ BuildCatalogImages() {
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/mongodb/3.4/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
 
@@ -129,7 +129,7 @@ BuildCatalogImages() {
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/postgres/9.6/dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
 
@@ -139,7 +139,7 @@ BuildCatalogImages() {
   target=$system"-cassandra"
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/cassandra/3.11/dockerfile/"
-  docker build -t $image $path
+  docker build -q -t $image $path
   docker push $image
 
   echo
@@ -147,7 +147,7 @@ BuildCatalogImages() {
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
 
@@ -157,7 +157,7 @@ BuildCatalogImages() {
   target=$system"-zookeeper"
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/zookeeper/3.4.10/dockerfile/"
-  docker build -t $image $path
+  docker build -q -t $image $path
   docker push $image
 
 
@@ -166,7 +166,7 @@ BuildCatalogImages() {
   target=$system"-kafka"
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/kafka/0.11/dockerfile/"
-  docker build -t $image $path
+  docker build -q -t $image $path
   docker push $image
 
 
@@ -176,7 +176,7 @@ BuildCatalogImages() {
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/redis/4.0.1/dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
 
@@ -185,7 +185,7 @@ BuildCatalogImages() {
   image="${org}${target}:${version}"
   path="${TOPWD}/catalog/redis/4.0.1/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -t $image $path
+  docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
 }
