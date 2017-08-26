@@ -940,17 +940,25 @@ func (d *FireCampVolumeDriver) isFormatted(source string) bool {
 	//d.lsblk()
 
 	var args []string
-	args = append(args, "blkid", source)
+	args = append(args, "blkid", "-p -u filesystem", source)
 
 	command := exec.Command(args[0], args[1:]...)
 	output, err := command.CombinedOutput()
+	ostr := string(output[:])
 	if err != nil {
-		glog.Infoln("volume is not formatted, arguments", args, "output", string(output[:]), "error", err)
+		// the caller ensure the volume is attached, here return false.
+		// if the volume is not attached, the later format will fail and return error.
+		glog.Errorln("check device error", err, "arguments", args, "output", ostr)
 		return false
 	}
 
-	glog.Infoln("volume is formatted, arguments", args, "output", string(output[:]))
-	return true
+	if len(output) != 0 {
+		glog.Infoln("volume is formatted, arguments", args, "output", ostr)
+		return true
+	}
+
+	glog.Infoln("volume is not formatted, arguments", args, "output", ostr)
+	return false
 }
 
 func (d *FireCampVolumeDriver) lsblk() {
