@@ -81,7 +81,7 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 		sysCfg := catalog.CreateSysConfigFile(memberHost)
 
 		// create the cassandra.yaml file
-		customContent := fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost)
+		customContent := fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -197,10 +197,12 @@ seed_provider:
 # docker swarm does not allow service to use "host" network. So the container
 # could not listen on the member's dnsname.
 # Leaving it blank leaves it up to InetAddress.getLocalHost().
-listen_address: ""
+#listen_address: ""
+listen_address: %s
 broadcast_address: %s
 # rpc listen on all interfaces.
-rpc_address: 0.0.0.0
+#rpc_address: 0.0.0.0
+rpc_address: %s
 broadcast_rpc_address: %s
 
 endpoint_snitch: GossipingPropertyFileSnitch
