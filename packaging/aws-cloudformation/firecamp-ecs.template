@@ -81,7 +81,7 @@
             },
             "Cpu":"256",
             "Essential":"true",
-            "Image":"cloudstax/firecamp-manageserver:latest",
+            "Image":"cloudstax/firecamp-manageserver:v07",
             "Memory":"4096",
             "MemoryReservation":"256",
             "PortMappings":[

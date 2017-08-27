@@ -1,5 +1,5 @@
 Name:           firecamp-dockervolume
-Version:        0.6
+Version:        0.7
 Release:        1
 Vendor:         CloudStax
 License:        Apache 2.0
@@ -33,6 +33,8 @@ install firecamp-dockervolume.conf $RPM_BUILD_ROOT/%{init_dir}/firecamp-dockervo
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Aug 24 2017 <junius@cloudstax.io> - 0.7-0
+- rename to firecamp
 * Wed Aug 1 2017 <junius@cloudstax.io> - 0.6-0
 - fix the dns lookup wait
 * Wed Jun 7 2017 <junius@cloudstax.io> - 0.5-0
