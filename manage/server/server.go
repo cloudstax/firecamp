@@ -41,6 +41,7 @@ import (
 // hosted zone. One federation HostedZone is created for all clusters.
 // Note: the federation HostedZone could include multiple VPCs at multiple Regions.
 type ManageHTTPServer struct {
+	platform  string
 	region    string
 	cluster   string
 	manageurl string
@@ -55,10 +56,12 @@ type ManageHTTPServer struct {
 }
 
 // NewManageHTTPServer creates a ManageHTTPServer instance
-func NewManageHTTPServer(cluster string, azs []string, managedns string, dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog,
-	serverIns server.Server, serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
+func NewManageHTTPServer(platform string, cluster string, azs []string, managedns string,
+	dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog, serverIns server.Server,
+	serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
 	svc := manageservice.NewManageService(dbIns, serverIns, dnsIns)
 	s := &ManageHTTPServer{
+		platform:        platform,
 		region:          serverInfo.GetLocalRegion(),
 		cluster:         cluster,
 		manageurl:       dns.GetManageServiceURL(managedns, false),

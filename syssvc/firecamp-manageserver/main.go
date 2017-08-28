@@ -160,7 +160,7 @@ func main() {
 		glog.Fatalln("unknown db type", dbtype)
 	}
 
-	err = manageserver.StartServer(cluster, azs, *manageDNSName, *managePort, containersvcIns,
+	err = manageserver.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 
 	glog.Fatalln("StartServer error", err)

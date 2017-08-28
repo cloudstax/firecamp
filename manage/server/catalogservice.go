@@ -396,8 +396,8 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := cascatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
+		s.cluster, req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

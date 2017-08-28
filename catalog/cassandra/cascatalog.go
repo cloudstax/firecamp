@@ -34,10 +34,10 @@ const (
 // 2) Listen on the standard ports, 7000 7001 7199 9042 9160.
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string,
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(region, cluster, service, azs, replicas)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: intraNodePort, HostPort: intraNodePort},
@@ -68,7 +68,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(region string, cluster string, service string, azs []string, replicas int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 	seeds := genSeedHosts(int64(len(azs)), replicas, service, domain)
 
@@ -81,7 +81,18 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 		sysCfg := catalog.CreateSysConfigFile(memberHost)
 
 		// create the cassandra.yaml file
-		customContent := fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
+		customContent := ""
+		if platform == common.ContainerPlatformECS {
+			// ECS allows to use the host network. So we use the host network for better performance.
+			// Cassandra could listen on the member's dnsname.
+			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
+		} else {
+			// leave listen_address blank and set rpc_address to 0.0.0.0 is for docker swarm.
+			// docker swarm does not allow service to use "host" network. So the container
+			// could not listen on the member's dnsname.
+			// For the blank listen_address, Cassandra will use InetAddress.getLocalHost().
+			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, "", memberHost, "0.0.0.0", memberHost)
+		}
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -193,15 +204,8 @@ seed_provider:
       parameters:
           - seeds: "%s"
 
-# leave listen_address blank and set rpc_address to 0.0.0.0 is for docker swarm.
-# docker swarm does not allow service to use "host" network. So the container
-# could not listen on the member's dnsname.
-# Leaving it blank leaves it up to InetAddress.getLocalHost().
-#listen_address: ""
 listen_address: %s
 broadcast_address: %s
-# rpc listen on all interfaces.
-#rpc_address: 0.0.0.0
 rpc_address: %s
 broadcast_rpc_address: %s
 

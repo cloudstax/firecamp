@@ -18,7 +18,7 @@ import (
 )
 
 // StartServer creates the manage http server and listen for requests.
-func StartServer(cluster string, azs []string, manageDNSName string, managePort int,
+func StartServer(platform string, cluster string, azs []string, manageDNSName string, managePort int,
 	containersvcIns containersvc.ContainerSvc, dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog,
 	serverInfo server.Info, serverIns server.Server, tlsEnabled bool, caFile, certFile, keyFile string) error {
 	// register the management service dnsname
@@ -43,7 +43,7 @@ func StartServer(cluster string, azs []string, manageDNSName string, managePort 
 	}
 
 	// create the management http server
-	serv := NewManageHTTPServer(cluster, azs, dnsname, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	serv := NewManageHTTPServer(platform, cluster, azs, dnsname, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 
 	// listen on all ips, as manageserver runs inside the container
 	addr := ":" + strconv.Itoa(managePort)

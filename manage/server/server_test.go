@@ -48,7 +48,8 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
+		dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 29
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -75,7 +76,8 @@ func TestServerMgrOperationsWithControlDB(t *testing.T) {
 
 	ctx := context.Background()
 
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
+		dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 15
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
@@ -115,7 +117,8 @@ func TestServerMgrOperationsWithDynamoDB(t *testing.T) {
 	cluster := "cluster1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
-	mgtsvc := NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
+		dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 7
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 	dbIns.WaitSystemTablesDeleted(ctx, 120)

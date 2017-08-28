@@ -43,7 +43,8 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
+		manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort)
 
 	lis, err := net.Listen("tcp", addr)
@@ -87,7 +88,8 @@ func TestClientMgrOperationsWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
+		manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)
@@ -146,7 +148,8 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	cluster := "cluster1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
+		manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
 
 	lis, err := net.Listen("tcp", addr)

@@ -31,7 +31,8 @@ func TestTLSMgrOperationsWithMemDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(cluster, azs, manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
+	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
+		manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	// listen on a different port. not sure why, but when simply go test to run both client_test and tls_test,
 	// tls_test failed with like "server gave HTTP response to HTTPS client".
 	addr := "127.0.0.1:" + strconv.Itoa(common.ManageHTTPServerPort+2)
