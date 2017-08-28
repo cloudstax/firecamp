@@ -29,6 +29,11 @@
 			"Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 		},
 		{
+			"ImportPath": "github.com/aws/amazon-ecs-agent/agent/api",
+			"Comment": "v1.14.4",
+			"Rev": "f94beb472760dac30e6c1fccdcdc5e0a2e66cb60"
+		},
+		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
 			"Comment": "v1.10.11-1-gaafdacd",
 			"Rev": "aafdacd0d6e625a7a2782bef5f9942d6fc4c9f30"
@@ -568,6 +573,11 @@
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
 			"Comment": "v1.0.0",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
+			"ImportPath": "github.com/sirupsen/logrus",
+			"Comment": "1.0.2-2-g51dc0fc",
+			"Rev": "51dc0fc64317a2861273909081f9c315786533eb"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
