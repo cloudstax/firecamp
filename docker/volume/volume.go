@@ -940,7 +940,7 @@ func (d *FireCampVolumeDriver) isFormatted(source string) bool {
 	//d.lsblk()
 
 	var args []string
-	args = append(args, "blkid", "-p -u filesystem", source)
+	args = append(args, "blkid", "-p", "-u", "filesystem", source)
 
 	command := exec.Command(args[0], args[1:]...)
 	output, err := command.CombinedOutput()
