@@ -98,7 +98,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 		if allowTopicDel {
 			topicDel = "true"
 		}
-		content := fmt.Sprintf(serverPropConfig, i, azs[i], topicDel, numPartitions, memberHost,
+		content := fmt.Sprintf(serverPropConfig, i, azs[index], topicDel, numPartitions, memberHost,
 			replFactor, replFactor, replFactor, minInsyncReplica, retentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,
