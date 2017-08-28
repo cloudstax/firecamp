@@ -16,7 +16,6 @@ const (
 	ServiceStatusDeleted  = "DELETED"
 
 	// The status of one task
-	TaskStatusPending = "PENDING"
 	TaskStatusRunning = "RUNNING"
 	TaskStatusStopped = "STOPPED"
 

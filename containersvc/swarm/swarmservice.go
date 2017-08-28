@@ -661,14 +661,24 @@ func (s *SwarmSvc) GetTaskStatus(ctx context.Context, cluster string, taskID str
 		return nil, err
 	}
 
+	// for the status string, see docker code container/state.go
+	status := common.TaskStatusRunning
+	if cjson.State.Status == "exited" ||
+		cjson.State.Status == "dead" ||
+		cjson.State.Status == "removing" ||
+		cjson.State.Dead {
+		glog.Infoln("task", taskID, "is stopped, state", cjson.State)
+		status = common.TaskStatusStopped
+	}
+
 	taskStatus := &common.TaskStatus{
-		Status:        cjson.State.Status,
+		Status:        status,
 		StoppedReason: cjson.State.Error,
 		StartedAt:     cjson.State.StartedAt,
 		FinishedAt:    cjson.State.FinishedAt,
 	}
 
-	glog.Infoln("get task", taskID, "status", taskStatus)
+	glog.Infoln("get task", taskID, "status", status, "State", cjson.State)
 	return taskStatus, nil
 }
 

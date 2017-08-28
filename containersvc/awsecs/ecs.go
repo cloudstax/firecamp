@@ -33,7 +33,6 @@ const (
 	serviceStatusDraining = "DRAINING"
 	serviceStatusInactive = "INACTIVE"
 
-	taskStatusPending = "PENDING"
 	taskStatusRunning = "RUNNING"
 	taskStatusStopped = "STOPPED"
 
