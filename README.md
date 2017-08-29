@@ -55,3 +55,12 @@ The FireCamp cluster could be easily installed using AWS CloudFormation. For the
 * Redis: coming soon.
 * MySQL: coming soon.
 * ElasticSearch: coming soon.
+
+## Questions and Issues
+If you have any questions or feedbacks, please feel free to check / ask on [Google Groups](https://groups.google.com/forum/#!forum/firecamp-users), or [Stackoverflow](https://stackoverflow.com/questions/tagged/firecamp)
+
+If you hit an issue or bug, or want to propose some features or improvements, please feel free to create an issue on github. When creating the issue or bug, please help to include the detail information so we could troubleshoot and fix as soon as possible.
+-   *Reproduce Steps.* Include the detail steps to reproduce the problem.
+-   *Specific.* Include as much detail as possible: which version, what environment, etc.
+-   *Unique.* Please do not duplicate existing tickets.
+-   *Scoped to a Single Bug.* One bug per report.
