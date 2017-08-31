@@ -86,10 +86,10 @@ func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, res.MaxMemMB, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res.MaxMemMB, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
@@ -120,7 +120,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string, cluster string,
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB int64,
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, maxMemMB int64,
 	opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
 	// adjust the replTimeoutSecs if needed
 	replTimeoutSecs := opts.ReplTimeoutSecs
@@ -150,7 +150,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, maxMemMB in
 			//member := genServiceShardMemberName(service, shard, i)
 			member := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard+i)
 			memberHost := dns.GenDNSName(member, domain)
-			sysCfg := catalog.CreateSysConfigFile(memberHost)
+			sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 			// create the redis.conf file
 			redisContent := fmt.Sprintf(redisConfigs, memberHost, listenPort,

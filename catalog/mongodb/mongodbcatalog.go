@@ -38,11 +38,11 @@ const (
 // 3) The ReplicaSetName is the service name.
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string, cluster string, service string, replicas int64,
-	volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
+	service string, replicas int64, volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs, err := GenReplicaConfigs(azs, cluster, service, replicas, replSetName, defaultPort, res.MaxMemMB)
+	replicaCfgs, err := GenReplicaConfigs(platform, azs, cluster, service, replicas, replSetName, defaultPort, res.MaxMemMB)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,8 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(azs []string, cluster string, service string, replicas int64, replSetName string, port int64, maxMemMB int64) ([]*manage.ReplicaConfig, error) {
+func GenReplicaConfigs(platform string, azs []string, cluster string, service string,
+	replicas int64, replSetName string, port int64, maxMemMB int64) ([]*manage.ReplicaConfig, error) {
 	// generate the keyfile for MongoDB internal auth between members of the replica set.
 	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
 	keyfileContent, err := genKeyfileContent()
@@ -119,7 +120,7 @@ func GenReplicaConfigs(azs []string, cluster string, service string, replicas in
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 		// create the mongod.conf file
 		index := i % len(azs)

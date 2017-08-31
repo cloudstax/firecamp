@@ -78,7 +78,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		memberHost := dns.GenDNSName(member, domain)
 
 		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 		// create the cassandra.yaml file
 		customContent := ""

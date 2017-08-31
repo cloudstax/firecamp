@@ -10,6 +10,7 @@ import (
 )
 
 func TestKafkaCatalog(t *testing.T) {
+	platform := common.ContainerPlatformECS
 	cluster := "c1"
 	kafkaservice := "k1"
 	azs := []string{"az1"}
@@ -29,7 +30,7 @@ func TestKafkaCatalog(t *testing.T) {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)
 	}
 
-	cfgs := GenReplicaConfigs(cluster, kafkaservice, azs, replicas, maxMemMB, allowTopicDel, retentionHours, zkservers)
+	cfgs := GenReplicaConfigs(platform, cluster, kafkaservice, azs, replicas, maxMemMB, allowTopicDel, retentionHours, zkservers)
 	if len(cfgs) != int(replicas) {
 		t.Fatalf("expect %d replica configs, get %d", replicas, len(cfgs))
 	}

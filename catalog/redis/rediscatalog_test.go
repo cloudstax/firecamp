@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/manage"
 )
 
@@ -23,6 +24,7 @@ func TestRedisFuncs(t *testing.T) {
 }
 
 func TestRedisConfigs(t *testing.T) {
+	platform := common.ContainerPlatformECS
 	cluster := "c1"
 	service := "service1"
 	azs := []string{"az1", "az2", "az3"}
@@ -39,7 +41,7 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	// test 3 shards and 2 replicas each shard
-	replcfgs := GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
+	replcfgs := GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 6 {
 		t.Fatalf("expect 6 replica configs, get %d", len(replcfgs))
 	}
@@ -60,7 +62,7 @@ func TestRedisConfigs(t *testing.T) {
 	// test 4 shards and 3 replicas each shard
 	opts.Shards = 4
 	opts.ReplicasPerShard = 3
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 12 {
 		t.Fatalf("expect 12 replica configs, get %d", len(replcfgs))
 	}
@@ -88,7 +90,7 @@ func TestRedisConfigs(t *testing.T) {
 	// test 1 shards and 3 replicas each shard
 	opts.Shards = 1
 	opts.ReplicasPerShard = 3
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 3 {
 		t.Fatalf("expect 3 replica configs, get %d", len(replcfgs))
 	}
@@ -107,7 +109,7 @@ func TestRedisConfigs(t *testing.T) {
 	// test 1 shards and 1 replicas each shard
 	opts.Shards = 1
 	opts.ReplicasPerShard = 1
-	replcfgs = GenReplicaConfigs(cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
 	if len(replcfgs) != 1 {
 		t.Fatalf("expect 1 replica configs, get %d", len(replcfgs))
 	}

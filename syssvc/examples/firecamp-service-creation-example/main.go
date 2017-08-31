@@ -31,6 +31,7 @@ import (
 // 3) Run the initialization task.
 
 var (
+	platform   = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
 	serverURL  = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	tlsEnabled = flag.Bool("tls-enabled", false, "whether tls is enabled")
 	caFile     = flag.String("ca-file", "", "the ca file")
@@ -133,7 +134,7 @@ func main() {
 			*replSetName = *service
 		}
 
-		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(zones, *cluster, *service, *replicas, *replSetName, *port, -1)
+		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(*platform, zones, *cluster, *service, *replicas, *replSetName, *port, -1)
 		if err != nil {
 			fmt.Println("GenReplicaConfigs error", err)
 			os.Exit(-1)
@@ -143,7 +144,7 @@ func main() {
 		initializeMongodb(ctx, cli)
 
 	case servicePostgres:
-		replicaCfgs := pgcatalog.GenReplicaConfigs(*cluster, *service, zones, *replicas, *port, *adminPasswd, *replUser, *replPasswd)
+		replicaCfgs := pgcatalog.GenReplicaConfigs(*platform, *cluster, *service, zones, *replicas, *port, *adminPasswd, *replUser, *replPasswd)
 		createAndWaitService(ctx, cli, replicaCfgs, pgcatalog.ContainerImage)
 
 		initializePostgreSQL(ctx, cli)

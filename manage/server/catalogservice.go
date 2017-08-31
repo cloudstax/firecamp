@@ -174,7 +174,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
 	if err != nil {
 		glog.Errorln("mongodbcatalog GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
@@ -228,7 +228,7 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster, req.Service.ServiceName,
+	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName,
 		req.Replicas, req.VolumeSizeGB, req.AdminPasswd, req.ReplUser, req.ReplUserPasswd, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
@@ -258,7 +258,7 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := zkcatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+	crReq := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
@@ -303,7 +303,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := kafkacatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+	crReq := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource,
 		req.AllowTopicDel, req.RetentionHours, zkattr)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
@@ -340,7 +340,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.region, s.azs, s.cluster,
+	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {

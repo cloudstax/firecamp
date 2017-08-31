@@ -35,12 +35,12 @@ const (
 // 2) Listen on the standard ports, 9092.
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string,
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources,
 	allowTopicDel bool, retentionHours int64, zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
 	zkServers := genZkServerList(zkattr)
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, res.MaxMemMB, allowTopicDel, retentionHours, zkServers)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, res.MaxMemMB, allowTopicDel, retentionHours, zkServers)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
@@ -67,8 +67,8 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(cluster string, service string, azs []string, replicas int64, maxMemMB int64,
-	allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
+	maxMemMB int64, allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	// adjust the default configs by the number of members(replicas)
@@ -90,7 +90,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 		// create the server.properties file
 		index := i % len(azs)

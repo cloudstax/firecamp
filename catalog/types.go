@@ -10,6 +10,5 @@ const (
 	CatalogService_Redis      = "redis"
 
 	// The system variables in the sys.conf file
-	SYS_FILE_NAME      = "sys.conf"
-	SYS_SERVICE_MEMBER = "SERVICE_MEMBER"
+	SYS_FILE_NAME = "sys.conf"
 )

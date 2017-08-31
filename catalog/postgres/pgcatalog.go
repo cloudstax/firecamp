@@ -28,11 +28,11 @@ const (
 // 2) Listen on the standard port, 5432.
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string,
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64,
 	adminPasswd string, replUser string, replPasswd string, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(cluster, service, azs, replicas, defaultPort, adminPasswd, replUser, replPasswd)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, defaultPort, adminPasswd, replUser, replPasswd)
 
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
@@ -61,7 +61,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(cluster string, service string, azs []string, replicas int64,
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
 	port int64, adminPasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 
@@ -69,7 +69,7 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
+	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
@@ -77,16 +77,16 @@ func GenReplicaConfigs(cluster string, service string, azs []string, replicas in
 		index := i % len(azs)
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		replicaCfgs[i] = genStandbyConfig(azs[index], memberHost, primaryHost, port, adminPasswd, replUser, replPasswd)
+		replicaCfgs[i] = genStandbyConfig(platform, azs[index], memberHost, primaryHost, port, adminPasswd, replUser, replPasswd)
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(az string, primaryHost string, port int64,
+func genPrimaryConfig(platform string, az string, primaryHost string, port int64,
 	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(primaryHost)
+	cfg0 := catalog.CreateSysConfigFile(platform, primaryHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
@@ -115,10 +115,10 @@ func genPrimaryConfig(az string, primaryHost string, port int64,
 	return &manage.ReplicaConfig{Zone: az, Configs: configs}
 }
 
-func genStandbyConfig(az string, memberHost string, primaryHost string, port int64,
+func genStandbyConfig(platform, az string, memberHost string, primaryHost string, port int64,
 	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(memberHost)
+	cfg0 := catalog.CreateSysConfigFile(platform, memberHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)

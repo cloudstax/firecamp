@@ -32,10 +32,10 @@ const (
 // 2) Listen on the standard ports, 2181 2888 3888.
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(region string, azs []string,
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(region, cluster, service, azs, replicas, res.MaxMemMB)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas, res.MaxMemMB)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ClientPort, HostPort: ClientPort},
@@ -64,7 +64,7 @@ func GenDefaultCreateServiceRequest(region string, azs []string,
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(region string, cluster string, service string, azs []string, replicas int64, maxMemMB int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64, maxMemMB int64) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 	serverList := genServerList(service, domain, replicas)
 
@@ -73,7 +73,7 @@ func GenReplicaConfigs(region string, cluster string, service string, azs []stri
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 		// create the zoo.cfg file
 		content := fmt.Sprintf(zooConfigs, serverList)
