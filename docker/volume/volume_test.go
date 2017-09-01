@@ -92,6 +92,9 @@ func TestVolumeDriver(t *testing.T) {
 		rundf()
 	}
 
+	// test again with volume name as uuid+index
+	volumeMountTest(t, driver, uuid1+"-0")
+
 	// create the 2nd service
 	service2 := "service2"
 	req.Service.ServiceName = service2

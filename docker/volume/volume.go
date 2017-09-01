@@ -126,7 +126,17 @@ func (d *FireCampVolumeDriver) Remove(r volume.Request) volume.Response {
 
 // Get returns the mountPath if volume is mounted
 func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
+	var err error
 	serviceUUID := r.Name
+	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
+		serviceUUID, _, err = containersvc.ParseVolumeSource(r.Name)
+		if err != nil {
+			errmsg := fmt.Sprintf("invalid volume name %s, error: %s", r, err)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+	}
+
 	mountPath := d.mountpoint(serviceUUID)
 
 	member := d.getMountedVolume(serviceUUID)
@@ -144,7 +154,18 @@ func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
 
 // Path returns the volume mountPath
 func (d *FireCampVolumeDriver) Path(r volume.Request) volume.Response {
-	mountPath := d.mountpoint(r.Name)
+	var err error
+	serviceUUID := r.Name
+	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
+		serviceUUID, _, err = containersvc.ParseVolumeSource(r.Name)
+		if err != nil {
+			errmsg := fmt.Sprintf("invalid volume name %s, error: %s", r, err)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+	}
+
+	mountPath := d.mountpoint(serviceUUID)
 	return volume.Response{Mountpoint: mountPath}
 }
 
@@ -181,8 +202,18 @@ func (d *FireCampVolumeDriver) genReqUUID(serviceUUID string) string {
 func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	glog.Infoln("handle Mount ", r)
 
-	// r.Name is serviceUUID
+	var err error
 	serviceUUID := r.Name
+	memberIndex := int64(-1)
+	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
+		serviceUUID, memberIndex, err = containersvc.ParseVolumeSource(r.Name)
+		if err != nil {
+			errmsg := fmt.Sprintf("invalid volume name %s, error: %s", r, err)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+	}
+
 	mountPath := d.mountpoint(serviceUUID)
 
 	ctx := context.Background()
@@ -197,7 +228,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// get the service attr and the service member for the current container
-	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, requuid)
+	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, memberIndex, requuid)
 	if errmsg != "" {
 		return volume.Response{Err: errmsg}
 	}
@@ -211,7 +242,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// create the mountPath if necessary
-	err := d.checkAndCreateMountPath(mountPath)
+	err = d.checkAndCreateMountPath(mountPath)
 	if err != nil {
 		errmsg := fmt.Sprintf("Mount failed, check/create mount path %s error %s, requuid %s", mountPath, err, requuid)
 		glog.Errorln(errmsg)
@@ -278,7 +309,17 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 
 // Unmount the volume.
 func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response {
+	var err error
 	serviceUUID := r.Name
+	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
+		serviceUUID, _, err = containersvc.ParseVolumeSource(r.Name)
+		if err != nil {
+			errmsg := fmt.Sprintf("invalid volume name %s, error: %s", r, err)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+	}
+
 	mountPath := d.mountpoint(serviceUUID)
 
 	ctx := context.Background()
@@ -318,7 +359,7 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 
 	// last container for the volume, umount fs
 	glog.Infoln("last container for the volume", r, "unmount fs", mountPath, "requuid", requuid)
-	err := d.unmountFS(mountPath)
+	err = d.unmountFS(mountPath)
 	if err != nil {
 		errmsg := fmt.Sprintf("Unmount failed, umount fs %s error %s requuid %s", mountPath, err, requuid)
 		glog.Errorln(errmsg)
@@ -392,8 +433,8 @@ func (d *FireCampVolumeDriver) updateDNS(ctx context.Context, serviceAttr *commo
 	return errmsg
 }
 
-func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context,
-	serviceUUID string, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
+func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serviceUUID string,
+	memberIndex int64, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
 	var err error
 	// check if the volume is for the controldb service
 	if utils.IsControlDBService(serviceUUID) {
@@ -438,7 +479,7 @@ func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context,
 	glog.Infoln("get application service attr", serviceAttr, "requuid", requuid)
 
 	// get one member for this mount
-	member, err = d.getMemberForTask(ctx, serviceAttr, requuid)
+	member, err = d.getMemberForTask(ctx, serviceAttr, memberIndex, requuid)
 	if err != nil {
 		errmsg := fmt.Sprintf("Mount failed, get service member error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
 		glog.Errorln(errmsg)
@@ -546,12 +587,24 @@ func (d *FireCampVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string) 
 
 // getMemberForTask will get one idle member, not used or owned by down task,
 // detach it and update the new owner in DB.
-func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
-	// find one idle member
-	member, err = d.findIdleMember(ctx, serviceAttr, requuid)
-	if err != nil {
-		glog.Errorln("findIdleMember error", err, "requuid", requuid, "service", serviceAttr)
-		return nil, err
+func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr,
+	memberIndex int64, requuid string) (member *common.ServiceMember, err error) {
+	if memberIndex != int64(-1) {
+		glog.Infoln("member index is passed in", memberIndex, "requuid", requuid, serviceAttr)
+
+		memberName := utils.GenServiceMemberName(serviceAttr.ServiceName, memberIndex)
+		member, err = d.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberName)
+		if err != nil {
+			glog.Errorln("GetServiceMember error", err, "memberName", memberName, "requuid", requuid, "service", serviceAttr)
+			return nil, err
+		}
+	} else {
+		// find one idle member
+		member, err = d.findIdleMember(ctx, serviceAttr, requuid)
+		if err != nil {
+			glog.Errorln("findIdleMember error", err, "requuid", requuid, "service", serviceAttr)
+			return nil, err
+		}
 	}
 
 	// detach volume from the last owner
@@ -563,15 +616,22 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 
 	glog.Infoln("got and detached member volume", member, "requuid", requuid)
 
-	// get taskID of the local task.
-	// assume only one task on one node for one service. It does not make sense to run
-	// like mongodb primary and standby on the same node.
-	localTaskID, err := d.containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName,
-		serviceAttr.ServiceName, d.containerInfo.GetLocalContainerInstanceID())
-	if err != nil {
-		glog.Errorln("get local task id error", err, "requuid", requuid,
-			"containerInsID", d.containerInfo.GetLocalContainerInstanceID(), "service attr", serviceAttr)
-		return nil, err
+	localTaskID := ""
+	if memberIndex != int64(-1) {
+		// the container framework passes in the member index for the volume.
+		// no need to get the real task id, simply set to the server instance id.
+		localTaskID = d.serverInfo.GetLocalInstanceID()
+	} else {
+		// get taskID of the local task.
+		// assume only one task on one node for one service. It does not make sense to run
+		// like mongodb primary and standby on the same node.
+		localTaskID, err = d.containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName,
+			serviceAttr.ServiceName, d.containerInfo.GetLocalContainerInstanceID())
+		if err != nil {
+			glog.Errorln("get local task id error", err, "requuid", requuid,
+				"containerInsID", d.containerInfo.GetLocalContainerInstanceID(), "service attr", serviceAttr)
+			return nil, err
+		}
 	}
 
 	// update service member owner in db.

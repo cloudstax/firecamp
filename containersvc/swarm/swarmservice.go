@@ -73,7 +73,7 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 	if len(opts.ContainerPath) != 0 {
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
-			Source:   opts.Common.ServiceUUID,
+			Source:   containersvc.GenVolumeSourceForSwarm(opts.Common.ServiceUUID),
 			Target:   opts.ContainerPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
