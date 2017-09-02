@@ -113,16 +113,21 @@ func main() {
 		containersvcIns = awsecs.NewAWSEcs(sess)
 
 	case common.ContainerPlatformSwarm:
-		info, err := swarmsvc.NewSwarmInfo()
+		cluster = os.Getenv(common.ENV_CLUSTER)
+		if len(cluster) == 0 {
+			glog.Fatalln("Swarm cluster name is not set")
+		}
+
+		info, err := swarmsvc.NewSwarmInfo(cluster)
 		if err != nil {
 			glog.Fatalln("NewSwarmInfo error", err)
 		}
 
 		cluster = info.GetContainerClusterID()
-		// use the same tls configs with the manageserver.
-		// TODO separate tls configs for swarm.
-		containersvcIns = swarmsvc.NewSwarmSvc(info.GetSwarmManagers(),
-			*tlsEnabled, *caFile, *certFile, *keyFile)
+		containersvcIns, err = swarmsvc.NewSwarmSvc()
+		if err != nil {
+			glog.Fatalln("NewSwarmSvc error", err)
+		}
 
 	default:
 		glog.Fatalln("unsupport container platform", *platform)

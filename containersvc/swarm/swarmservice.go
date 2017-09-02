@@ -48,17 +48,17 @@ type SwarmSvc struct {
 }
 
 // NewSwarmSvc creates a new SwarmSvc instance
-func NewSwarmSvc(managerAddrs []string, tlsVerify bool, caFile, certFile, keyFile string) *SwarmSvc {
-	cli := &SwarmClient{
-		managerAddrs: managerAddrs,
-		tlsVerify:    tlsVerify,
-		caFile:       caFile,
-		certFile:     certFile,
-		keyFile:      keyFile,
+func NewSwarmSvc() (*SwarmSvc, error) {
+	cli, err := NewSwarmClient()
+	if err != nil {
+		return nil, err
 	}
-	return &SwarmSvc{
+
+	s := &SwarmSvc{
 		cli: cli,
 	}
+
+	return s, nil
 }
 
 // CreateService creates a swarm service

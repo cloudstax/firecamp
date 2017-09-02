@@ -43,11 +43,18 @@ func main() {
 		if err != nil {
 			glog.Fatalln("NewEcsInfo error", err)
 		}
+
 	case common.ContainerPlatformSwarm:
-		info, err = swarmsvc.NewSwarmInfo()
+		cluster := os.Getenv(common.ENV_CLUSTER)
+		if len(cluster) == 0 {
+			glog.Fatalln("cluster name env is not set for swarm")
+		}
+
+		info, err = swarmsvc.NewSwarmInfo(cluster)
 		if err != nil {
 			glog.Fatalln("NewSwarmInfo error", err)
 		}
+
 	default:
 		glog.Fatalln("unsupport container platform", *platform)
 	}

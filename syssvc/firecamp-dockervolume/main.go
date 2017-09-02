@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -102,19 +101,22 @@ func main() {
 		containersvcIns = awsecs.NewAWSEcs(sess)
 
 	case common.ContainerPlatformSwarm:
-		if *tlsVerify && (*caFile == "" || *certFile == "" || *keyFile == "") {
-			fmt.Println("invalid command, please pass cert file and key file for tls", *certFile, *keyFile)
-			os.Exit(-1)
+		cluster := os.Getenv(common.ENV_CLUSTER)
+		if len(cluster) == 0 {
+			glog.Fatalln("Swarm cluster name is not set")
 		}
 
-		sinfo, err := swarmsvc.NewSwarmInfo()
+		sinfo, err := swarmsvc.NewSwarmInfo(cluster)
 		if err != nil {
 			glog.Fatalln("NewSwarmInfo error", err)
 		}
 
 		info = sinfo
 
-		containersvcIns = swarmsvc.NewSwarmSvc(sinfo.GetSwarmManagers(), *tlsVerify, *caFile, *certFile, *keyFile)
+		containersvcIns, err = swarmsvc.NewSwarmSvc()
+		if err != nil {
+			glog.Fatalln("NewSwarmSvc error", err)
+		}
 
 	default:
 		glog.Fatalln("unsupport container platform", targetPlatform)

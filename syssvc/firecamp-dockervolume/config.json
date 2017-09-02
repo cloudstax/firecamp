@@ -53,6 +53,13 @@
       "description": "The container platform that FireCamp runs on, such as ecs, swarm, etc",
       "value": "ecs",
       "settable": ["value"]
+    },
+    {
+      "name": "CLUSTER",
+      "description": "The Docker Swarm cluster name",
+      "value": "",
+      "settable": ["value"]
     }
+
   ]
 }

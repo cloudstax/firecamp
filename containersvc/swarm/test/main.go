@@ -4,7 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
@@ -16,12 +19,8 @@ import (
 )
 
 var (
-	host      = flag.String("host", "tcp://127.0.0.1", "the swarm manager host, example: tcp://127.0.0.1")
-	port      = flag.Int("port", 2376, "the swarm manager port, default: 2376")
-	tlsVerify = flag.Bool("tlsVerify", false, "enable/disable tlsVerify to talk with swarm manager")
-	caFile    = flag.String("tlscacert", "", "The CA file")
-	certFile  = flag.String("tlscert", "", "The TLS server certificate file")
-	keyFile   = flag.String("tlskey", "", "The TLS server key file")
+	host = flag.String("host", "tcp://127.0.0.1", "the swarm manager host, example: tcp://127.0.0.1")
+	port = flag.Int("port", 2376, "the swarm manager port, default: 2376")
 )
 
 func main() {
@@ -49,25 +48,24 @@ func main() {
 
 	flag.Parse()
 
-	if *tlsVerify && (*caFile == "" || *certFile == "" || *keyFile == "") {
-		fmt.Println("please input swarm manager cluster, service, tlsVerify and caFile/certFile/keyFile")
-		os.Exit(-1)
-	}
+	ctx := context.Background()
 
-	info, err := swarmsvc.NewSwarmInfo()
+	testTalkToLocalManager(ctx)
+	testLocalClient(ctx)
+
+	clusterName := "c1"
+	info, err := swarmsvc.NewSwarmInfo(clusterName)
 	if err != nil {
 		fmt.Println("NewSwarmInfo error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println(info.GetContainerClusterID(), info.GetLocalContainerInstanceID(), info.GetSwarmManagers())
-
-	//addr := *host + ":" + strconv.Itoa(*port)
-	//addrs := []string{addr}
-	//e := swarmsvc.NewSwarmSvc(addrs, *tlsVerify, *caFile, *certFile, *keyFile)
-	e := swarmsvc.NewSwarmSvc(info.GetSwarmManagers(), *tlsVerify, *caFile, *certFile, *keyFile)
-
-	ctx := context.Background()
+	fmt.Println(info.GetContainerClusterID(), info.GetLocalContainerInstanceID())
+	e, err := swarmsvc.NewSwarmSvc()
+	if err != nil {
+		fmt.Println("NewSwarmSvc error", err)
+		os.Exit(-1)
+	}
 
 	err = testService(ctx, e)
 	if err != nil {
@@ -82,6 +80,35 @@ func main() {
 	}
 
 	fmt.Println("\n== pass ==")
+}
+
+func testTalkToLocalManager(ctx context.Context) {
+	addr := *host + ":" + strconv.Itoa(*port)
+	cli, err := client.NewClient(addr, "1.27", nil, nil)
+	if err != nil {
+		fmt.Println("ERROR: NewClient to", addr, "error", err)
+		return
+	}
+
+	service := "service-manager"
+	svc, _, err := cli.ServiceInspectWithRaw(ctx, service, types.ServiceInspectOptions{})
+	fmt.Println("inspect service", service, "error", err, "svc", svc)
+}
+
+func testLocalClient(ctx context.Context) {
+	// this is to test docker client could talk with swarm manager via unix:///var/run/docker.sock.
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		fmt.Println("ERROR: NewEnvClient to unix sock error", err)
+		os.Exit(-1)
+	}
+
+	ver, err := cli.ServerVersion(ctx)
+	fmt.Println("docker client version", cli.ClientVersion(), "server api version", ver.APIVersion, ver, err)
+
+	service := "service-aaa"
+	svc, _, err := cli.ServiceInspectWithRaw(ctx, service, types.ServiceInspectOptions{})
+	fmt.Println("inspect service", service, "error", err, "svc", svc)
 }
 
 func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {

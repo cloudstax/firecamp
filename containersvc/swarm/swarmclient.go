@@ -1,60 +1,46 @@
 package swarmsvc
 
 import (
-	"net/http"
-
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 )
 
-// the current max docker version of Amazon Linux is 1.27
-const clientVersion = "1.27"
-
 type SwarmClient struct {
-	// the swarm manager listening address, such as http://127.0.0.1:2376
-	managerAddrs []string
-	tlsVerify    bool
-	caFile       string
-	certFile     string
-	keyFile      string
+	apiVersion string
 }
 
 // NewSwarmClient creates a new SwarmClient instance
-func NewSwarmClient(managerAddrs []string, tlsVerify bool, caFile, certFile, keyFile string) *SwarmClient {
-	s := &SwarmClient{
-		managerAddrs: managerAddrs,
-		tlsVerify:    tlsVerify,
-		caFile:       caFile,
-		certFile:     certFile,
-		keyFile:      keyFile,
+func NewSwarmClient() (*SwarmClient, error) {
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		glog.Errorln("NewEnvClient to unix sock error", err)
+		return nil, err
 	}
-	return s
+
+	// get the lower api version between client and server
+	apiVersion := cli.ClientVersion()
+	ver, err := cli.ServerVersion(context.Background())
+	if err != nil {
+		glog.Errorln("ServerVersion error", err)
+		return nil, err
+	}
+
+	if apiVersion > ver.APIVersion {
+		apiVersion = ver.APIVersion
+	}
+
+	glog.Infoln("NewSwarmClient, docker api version", apiVersion)
+
+	s := &SwarmClient{
+		apiVersion: apiVersion,
+	}
+	return s, nil
 }
 
-// NewClient returns a new docker swarm client
+// NewClient returns a new docker swarm client.
+// This function is only used by swarmservice, which is used by manageserver.
+// And the managerserver runs only on the Swarm manager nodes.
 func (s *SwarmClient) NewClient() (*client.Client, error) {
-	var httpclient *http.Client
-	if s.tlsVerify {
-		options := tlsconfig.Options{
-			CAFile:   s.caFile,
-			CertFile: s.certFile,
-			KeyFile:  s.keyFile,
-			//InsecureSkipVerify: s.tlsVerify,
-		}
-		tlsc, err := tlsconfig.Client(options)
-		if err != nil {
-			glog.Errorln("tlsconfig.Client error", err)
-			return nil, err
-		}
-
-		httpclient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsc,
-			},
-		}
-	}
-
-	// TODO only talk with the first manager. Support retrying other managers on failure.
-	return client.NewClient(s.managerAddrs[0], clientVersion, httpclient, nil)
+	return client.NewClient(client.DefaultDockerHost, s.apiVersion, nil, nil)
 }
