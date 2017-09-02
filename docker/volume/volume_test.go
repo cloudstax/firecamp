@@ -82,6 +82,8 @@ func TestVolumeDriver(t *testing.T) {
 		t.Fatalf("AddServiceTask error", err)
 	}
 
+	volumeFuncTest(t, driver, uuid1)
+
 	volumeMountTest(t, driver, uuid1)
 
 	// check the device is umounted.
@@ -197,6 +199,56 @@ func TestVolumeInDifferentZone(t *testing.T) {
 	mresp := driver.Mount(mreq)
 	if len(mresp.Err) == 0 {
 		t.Fatalf("expect error but mount volume succeed, service uuid", uuid1)
+	}
+}
+
+func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) {
+	svcslot := svcuuid + "-1"
+	path := defaultRoot + "/" + svcuuid
+
+	r := volume.Request{Name: svcuuid}
+	p := driver.Get(r)
+	if len(p.Err) != 0 || p.Volume == nil || p.Volume.Name != svcuuid {
+		t.Fatalf("Get expect volume name %s, get %v", svcuuid, p)
+	}
+
+	p = driver.Path(r)
+	if len(p.Err) != 0 || p.Mountpoint != path {
+		t.Fatalf("Get expect volume Mountpoint %s, get %v", path, p)
+	}
+
+	p = driver.Create(r)
+	if len(p.Err) != 0 {
+		t.Fatalf("Create expect success, get error %s", p.Err)
+	}
+
+	p = driver.Remove(r)
+	if len(p.Err) != 0 {
+		t.Fatalf("Remove expect success, get error %s", p.Err)
+	}
+
+	// negative case: non-exist service uuid
+	r = volume.Request{Name: "non"}
+	p = driver.Create(r)
+	if len(p.Err) == 0 {
+		t.Fatalf("Create succeeded, expect error")
+	}
+
+	p = driver.Remove(r)
+	if len(p.Err) != 0 {
+		t.Fatalf("Remove expect success, get error %s", p.Err)
+	}
+
+	// test serviceuuid-index
+	r = volume.Request{Name: svcslot}
+	p = driver.Get(r)
+	if len(p.Err) != 0 || p.Volume == nil || p.Volume.Name != svcslot {
+		t.Fatalf("Get expect volume name %s, get %v", svcslot, p)
+	}
+
+	p = driver.Path(r)
+	if len(p.Err) != 0 || p.Mountpoint != path {
+		t.Fatalf("Get expect volume Mountpoint %s, get %v", path, p)
 	}
 }
 

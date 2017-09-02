@@ -24,6 +24,11 @@ func VolumeSourceHasTaskSlot(volName string) bool {
 	return strings.Contains(volName, common.NameSeparator)
 }
 
+// GenVolumeSourceName creates the volume source name.
+func GenVolumeSourceName(serviceUUID string, index int64) string {
+	return serviceUUID + common.NameSeparator + strconv.FormatInt(index, 10)
+}
+
 // ParseVolumeSource parses the volume name. return serviceUUID, task slot, error.
 func ParseVolumeSource(volName string) (string, int64, error) {
 	strs := strings.Split(volName, common.NameSeparator)

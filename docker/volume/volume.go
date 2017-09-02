@@ -88,6 +88,8 @@ func NewVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serve
 
 // Create checks if volume is mounted or service exists in DB
 func (d *FireCampVolumeDriver) Create(r volume.Request) volume.Response {
+	glog.Infoln("Create volume", r)
+
 	serviceUUID := r.Name
 
 	// check if volume is in cache
@@ -126,6 +128,8 @@ func (d *FireCampVolumeDriver) Remove(r volume.Request) volume.Response {
 
 // Get returns the mountPath if volume is mounted
 func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
+	glog.Infoln("Get volume", r)
+
 	var err error
 	serviceUUID := r.Name
 	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
@@ -142,18 +146,20 @@ func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
 	member := d.getMountedVolume(serviceUUID)
 	if member != nil {
 		glog.Infoln("volume is mounted", r)
-		return volume.Response{Volume: &volume.Volume{Name: serviceUUID, Mountpoint: mountPath}}
+		return volume.Response{Volume: &volume.Volume{Name: r.Name, Mountpoint: mountPath}}
 	}
 
 	// volume is not mounted locally, return success. If the service doesn't exist,
 	// the later mount will fail.
 	// could not return error here, or else, amazon-ecs-agent may not start the container.
 	glog.Infoln("volume is not mounted for service", serviceUUID)
-	return volume.Response{Volume: &volume.Volume{Name: serviceUUID}}
+	return volume.Response{Volume: &volume.Volume{Name: r.Name}}
 }
 
 // Path returns the volume mountPath
 func (d *FireCampVolumeDriver) Path(r volume.Request) volume.Response {
+	glog.Infoln("Path volume", r)
+
 	var err error
 	serviceUUID := r.Name
 	if containersvc.VolumeSourceHasTaskSlot(r.Name) {
@@ -177,7 +183,15 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 	var vols []*volume.Volume
 	for _, v := range d.volumes {
 		svcuuid := v.member.ServiceUUID
-		vols = append(vols, &volume.Volume{Name: svcuuid, Mountpoint: d.mountpoint(svcuuid)})
+		memberIndex, err := utils.GetServiceMemberIndex(v.member.MemberName)
+		if err != nil {
+			errmsg := fmt.Sprintf("invalid service member name %s, error %s", v.member, err)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+
+		name := containersvc.GenVolumeSourceName(svcuuid, memberIndex)
+		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 	}
 
 	glog.Infoln("list", len(d.volumes), "volumes")
@@ -212,6 +226,8 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 			glog.Errorln(errmsg)
 			return volume.Response{Err: errmsg}
 		}
+		// docker swarm task slot starts with 1, 2, ...
+		memberIndex--
 	}
 
 	mountPath := d.mountpoint(serviceUUID)
