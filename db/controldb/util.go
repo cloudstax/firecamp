@@ -164,14 +164,14 @@ func GenDbMemberConfig(cfgs []*pb.MemberConfig) []*common.MemberConfig {
 
 func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
 	dbmember := db.CreateServiceMember(member.ServiceUUID,
-		member.VolumeID,
-		member.LastModified,
-		member.DeviceName,
+		member.MemberName,
 		member.AvailableZone,
 		member.TaskID,
 		member.ContainerInstanceID,
 		member.ServerInstanceID,
-		member.MemberName,
+		member.LastModified,
+		member.VolumeID,
+		member.DeviceName,
 		GenDbMemberConfig(member.Configs))
 	return dbmember
 }

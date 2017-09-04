@@ -242,8 +242,10 @@ func TestServiceMembers(t *testing.T) {
 		chksum := utils.GenMD5(content)
 		cfg := &common.MemberConfig{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
 		cfgs := []*common.MemberConfig{cfg}
-		s1[i] = CreateServiceMember(service1, volPrefix+c, mtime, dev1, az, taskPrefix+c,
-			contPrefix+c, hostPrefix+c, utils.GenServiceMemberName(service1, int64(i)), cfgs)
+		s1[i] = CreateServiceMember(service1,
+			utils.GenServiceMemberName(service1, int64(i)),
+			az, taskPrefix+c, contPrefix+c, hostPrefix+c,
+			mtime, volPrefix+c, dev1, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -259,8 +261,10 @@ func TestServiceMembers(t *testing.T) {
 		chksum := utils.GenMD5(content)
 		cfg := &common.MemberConfig{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
 		cfgs := []*common.MemberConfig{cfg}
-		s2[i] = CreateServiceMember(service2, volPrefix+c, mtime, dev2, az, taskPrefix+c,
-			contPrefix+c, hostPrefix+c, utils.GenServiceMemberName(service2, int64(i)), cfgs)
+		s2[i] = CreateServiceMember(service2,
+			utils.GenServiceMemberName(service2, int64(i)),
+			az, taskPrefix+c, contPrefix+c, hostPrefix+c,
+			mtime, volPrefix+c, dev2, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {

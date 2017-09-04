@@ -14,49 +14,55 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-// CreateServiceAttr puts a new db.ServiceAttr record into DB
+// The ServiceAttr does not need sort key. Every service will have only one ServiceAttr.
+// The ServiceAttr is uniquely represented by the ServiceUUID.
+
+// CreateServiceAttr puts a new ServiceAttr record into DB
 func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
-		TableName: aws.String(d.serviceAttrTableName),
+		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(attr.ServiceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix + attr.ServiceUUID),
 			},
-			db.ServiceStatus: {
+			tableSortKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix),
+			},
+			ServiceStatus: {
 				S: aws.String(attr.ServiceStatus),
 			},
-			db.LastModified: {
+			LastModified: {
 				N: aws.String(strconv.FormatInt(attr.LastModified, 10)),
 			},
-			db.Replicas: {
+			Replicas: {
 				N: aws.String(strconv.FormatInt(attr.Replicas, 10)),
 			},
-			db.VolumeSizeGB: {
+			VolumeSizeGB: {
 				N: aws.String(strconv.FormatInt(attr.VolumeSizeGB, 10)),
 			},
-			db.ClusterName: {
+			ClusterName: {
 				S: aws.String(attr.ClusterName),
 			},
-			db.ServiceName: {
+			ServiceName: {
 				S: aws.String(attr.ServiceName),
 			},
-			db.DeviceName: {
+			DeviceName: {
 				S: aws.String(attr.DeviceName),
 			},
-			db.RegisterDNS: {
+			RegisterDNS: {
 				BOOL: aws.Bool(attr.RegisterDNS),
 			},
-			db.DomainName: {
+			DomainName: {
 				S: aws.String(attr.DomainName),
 			},
-			db.HostedZoneID: {
+			HostedZoneID: {
 				S: aws.String(attr.HostedZoneID),
 			},
 		},
-		ConditionExpression:    aws.String(db.ServiceAttrPutCondition),
+		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
@@ -70,21 +76,24 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 	return nil
 }
 
-// UpdateServiceAttr updates the db.ServiceAttr in DB.
+// UpdateServiceAttr updates the ServiceAttr in DB.
 // Only support updating ServiceStatus at v1, all other attributes are immutable.
 // TODO support Replicas and VolumeSizeGB change.
 func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + db.ServiceStatus + " = :v1, " + db.LastModified + " = :v2"
-	conditionExpr := db.ServiceStatus + " = :cv1"
+	updateExpr := "SET " + ServiceStatus + " = :v1, " + LastModified + " = :v2"
+	conditionExpr := ServiceStatus + " = :cv1"
 
 	params := &dynamodb.UpdateItemInput{
-		TableName: aws.String(d.serviceAttrTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(oldAttr.ServiceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix + oldAttr.ServiceUUID),
+			},
+			tableSortKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix),
 			},
 		},
 		UpdateExpression:    aws.String(updateExpr),
@@ -114,16 +123,19 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 	return nil
 }
 
-// GetServiceAttr gets the db.ServiceAttr from DB
+// GetServiceAttr gets the ServiceAttr from DB
 func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr *common.ServiceAttr, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(d.serviceAttrTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix + serviceUUID),
+			},
+			tableSortKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix),
 			},
 		},
 		ConsistentRead:         aws.Bool(true),
@@ -141,34 +153,34 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	replicas, err := strconv.ParseInt(*(resp.Item[db.Replicas].N), 10, 64)
+	replicas, err := strconv.ParseInt(*(resp.Item[Replicas].N), 10, 64)
 	if err != nil {
 		glog.Errorln("Atoi Replicas error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
-	volSize, err := strconv.ParseInt(*(resp.Item[db.VolumeSizeGB].N), 10, 64)
+	volSize, err := strconv.ParseInt(*(resp.Item[VolumeSizeGB].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt VolumeSizeGB error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
-	mtime, err := strconv.ParseInt(*(resp.Item[db.LastModified].N), 10, 64)
+	mtime, err := strconv.ParseInt(*(resp.Item[LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
 
 	attr = db.CreateServiceAttr(
-		*(resp.Item[db.ServiceUUID].S),
-		*(resp.Item[db.ServiceStatus].S),
+		serviceUUID,
+		*(resp.Item[ServiceStatus].S),
 		mtime,
 		replicas,
 		volSize,
-		*(resp.Item[db.ClusterName].S),
-		*(resp.Item[db.ServiceName].S),
-		*(resp.Item[db.DeviceName].S),
-		*(resp.Item[db.RegisterDNS].BOOL),
-		*(resp.Item[db.DomainName].S),
-		*(resp.Item[db.HostedZoneID].S))
+		*(resp.Item[ClusterName].S),
+		*(resp.Item[ServiceName].S),
+		*(resp.Item[DeviceName].S),
+		*(resp.Item[RegisterDNS].BOOL),
+		*(resp.Item[DomainName].S),
+		*(resp.Item[HostedZoneID].S))
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil
@@ -183,13 +195,16 @@ func (d *DynamoDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) er
 	// should we reject if some serviceMember still exists? probably not, as aws ecs allows service to be deleted with serviceMembers left.
 
 	params := &dynamodb.DeleteItemInput{
-		TableName: aws.String(d.serviceAttrTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix + serviceUUID),
+			},
+			tableSortKey: {
+				S: aws.String(serviceAttrPartitionKeyPrefix),
 			},
 		},
-		ConditionExpression:    aws.String(db.ServiceAttrDelCondition),
+		ConditionExpression:    aws.String(tablePartitionKeyDelCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 

@@ -13,13 +13,12 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
 )
 
 const (
-	TablePartitionKey = "PartitionKey"
-	TableSortKey      = "SortKey"
+	tablePartitionKey = "PartitionKey"
+	tableSortKey      = "SortKey"
 
 	devicePartitionKeyPrefix  = "DeviceKey-"
 	servicePartitionKeyPrefix = "ServiceKey-"
@@ -80,21 +79,21 @@ func createDeviceTable(dbIns *dynamodb.DynamoDB, tableName string) error {
 		TableName: aws.String(tableName),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
 			{
-				AttributeName: aws.String(db.ClusterName),
+				AttributeName: aws.String(awsdynamodb.ClusterName),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 			{
-				AttributeName: aws.String(db.DeviceName),
+				AttributeName: aws.String(awsdynamodb.DeviceName),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 		},
 		KeySchema: []*dynamodb.KeySchemaElement{
 			{
-				AttributeName: aws.String(db.ClusterName),
+				AttributeName: aws.String(awsdynamodb.ClusterName),
 				KeyType:       aws.String(dynamodb.KeyTypeHash),
 			},
 			{
-				AttributeName: aws.String(db.DeviceName),
+				AttributeName: aws.String(awsdynamodb.DeviceName),
 				KeyType:       aws.String(dynamodb.KeyTypeRange),
 			},
 		},
@@ -118,24 +117,24 @@ func createDevice(dbsvc *dynamodb.DynamoDB, tableName string, dev *common.Device
 	params := &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
+			awsdynamodb.ClusterName: {
 				S: aws.String(dev.ClusterName),
 			},
-			db.DeviceName: {
+			awsdynamodb.DeviceName: {
 				S: aws.String(dev.DeviceName),
 			},
-			db.ServiceName: {
+			awsdynamodb.ServiceName: {
 				S: aws.String(dev.ServiceName),
 			},
 		},
-		ConditionExpression:    aws.String(db.DevicePutCondition),
+		ConditionExpression:    aws.String("attribute_not_exists(" + awsdynamodb.DeviceName + ")"),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create device", dev, "error", err)
-		return awsdynamodb.ConvertError(err)
+		return err
 	}
 
 	glog.Infoln("created device", dev, "resp", resp)
@@ -146,10 +145,10 @@ func getDevice(svc *dynamodb.DynamoDB, tableName string, clusterName string, dev
 	params := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
+			awsdynamodb.ClusterName: {
 				S: aws.String(clusterName),
 			},
-			db.DeviceName: {
+			awsdynamodb.DeviceName: {
 				S: aws.String(deviceName),
 			},
 		},
@@ -167,17 +166,17 @@ func deleteDevice(svc *dynamodb.DynamoDB, tableName string, clusterName string, 
 	params := &dynamodb.DeleteItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
+			awsdynamodb.ClusterName: {
 				S: aws.String(clusterName),
 			},
-			db.DeviceName: {
+			awsdynamodb.DeviceName: {
 				S: aws.String(deviceName),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	if setCond {
-		params.ConditionExpression = aws.String(db.DeviceDelCondition)
+		params.ConditionExpression = aws.String("attribute_not_exists(" + awsdynamodb.DeviceName + ")")
 	}
 
 	resp, err := svc.DeleteItem(params)
@@ -189,21 +188,21 @@ func createTable(dbIns *dynamodb.DynamoDB, tableName string) error {
 		TableName: aws.String(tableName),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
 			{
-				AttributeName: aws.String(TablePartitionKey),
+				AttributeName: aws.String(tablePartitionKey),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 			{
-				AttributeName: aws.String(TableSortKey),
+				AttributeName: aws.String(tableSortKey),
 				AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
 			},
 		},
 		KeySchema: []*dynamodb.KeySchemaElement{
 			{
-				AttributeName: aws.String(TablePartitionKey),
+				AttributeName: aws.String(tablePartitionKey),
 				KeyType:       aws.String(dynamodb.KeyTypeHash),
 			},
 			{
-				AttributeName: aws.String(TableSortKey),
+				AttributeName: aws.String(tableSortKey),
 				KeyType:       aws.String(dynamodb.KeyTypeRange),
 			},
 		},
@@ -227,24 +226,24 @@ func shareCreateDevice(dbsvc *dynamodb.DynamoDB, tableName string, dev *common.D
 	params := &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			TablePartitionKey: {
+			tablePartitionKey: {
 				S: aws.String(devicePartitionKeyPrefix + dev.ClusterName),
 			},
-			TableSortKey: {
+			tableSortKey: {
 				S: aws.String(dev.DeviceName),
 			},
-			db.ServiceName: {
+			awsdynamodb.ServiceName: {
 				S: aws.String(dev.ServiceName),
 			},
 		},
-		ConditionExpression:    aws.String("attribute_not_exists(" + TableSortKey + ")"),
+		ConditionExpression:    aws.String("attribute_not_exists(" + tableSortKey + ")"),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create device", dev, "error", err)
-		return awsdynamodb.ConvertError(err)
+		return err
 	}
 
 	glog.Infoln("created device", dev, "resp", resp)
@@ -255,10 +254,10 @@ func shareGetDevice(svc *dynamodb.DynamoDB, tableName string, clusterName string
 	params := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			TablePartitionKey: {
+			tablePartitionKey: {
 				S: aws.String(devicePartitionKeyPrefix + clusterName),
 			},
-			TableSortKey: {
+			tableSortKey: {
 				S: aws.String(deviceName),
 			},
 		},
@@ -276,17 +275,17 @@ func shareDeleteDevice(svc *dynamodb.DynamoDB, tableName string, clusterName str
 	params := &dynamodb.DeleteItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			TablePartitionKey: {
+			tablePartitionKey: {
 				S: aws.String(devicePartitionKeyPrefix + clusterName),
 			},
-			TableSortKey: {
+			tableSortKey: {
 				S: aws.String(deviceName),
 			},
 		},
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	if setCond {
-		params.ConditionExpression = aws.String("attribute_exists(" + TableSortKey + ")")
+		params.ConditionExpression = aws.String("attribute_exists(" + tableSortKey + ")")
 	}
 
 	resp, err := svc.DeleteItem(params)

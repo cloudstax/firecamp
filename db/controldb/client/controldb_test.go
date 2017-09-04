@@ -395,8 +395,16 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		memberName := memberNamePrefix + str
 		cfg := &common.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 		cfgs := []*common.MemberConfig{cfg}
-		member := db.CreateServiceMember(serviceUUID, volIDPrefix+str, mtime, devNamePrefix+str, az,
-			taskIDPrefix+str, contInsIDPrefix+str, serverInsIDPrefix+str, memberName, cfgs)
+		member := db.CreateServiceMember(serviceUUID,
+			memberName,
+			az,
+			taskIDPrefix+str,
+			contInsIDPrefix+str,
+			serverInsIDPrefix+str,
+			mtime,
+			volIDPrefix+str,
+			devNamePrefix+str,
+			cfgs)
 		err := dbcli.CreateServiceMember(ctx, member)
 		if err != nil {
 			glog.Errorln("create serviceMember, expect success, got", err, member)
@@ -411,8 +419,16 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		}
 
 		// negative case: create the serviceMember again with different field
-		member1 := db.CreateServiceMember(serviceUUID, volIDPrefix+str, mtime, devNamePrefix+str, az,
-			taskIDPrefix+str+updateSuffix, contInsIDPrefix+str, serverInsIDPrefix+str, memberName, cfgs)
+		member1 := db.CreateServiceMember(serviceUUID,
+			memberName,
+			az,
+			taskIDPrefix+str+updateSuffix,
+			contInsIDPrefix+str,
+			serverInsIDPrefix+str,
+			mtime,
+			volIDPrefix+str,
+			devNamePrefix+str,
+			cfgs)
 		err = dbcli.CreateServiceMember(ctx, member1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing serviceMember with different field, expect db.ErrDBConditionalCheckFailed, got", err, member1)
@@ -438,9 +454,16 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		}
 
 		// update serviceMember
-		member1 = db.CreateServiceMember(serviceUUID, volIDPrefix+str, time.Now().UnixNano(), devNamePrefix+str, az,
-			taskIDPrefix+str+updateSuffix, contInsIDPrefix+str+updateSuffix,
-			serverInsIDPrefix+str+updateSuffix, memberName, cfgs)
+		member1 = db.CreateServiceMember(serviceUUID,
+			memberName,
+			az,
+			taskIDPrefix+str+updateSuffix,
+			contInsIDPrefix+str+updateSuffix,
+			serverInsIDPrefix+str+updateSuffix,
+			time.Now().UnixNano(),
+			volIDPrefix+str,
+			devNamePrefix+str,
+			cfgs)
 
 		// negative case: old member mismatch
 		err = dbcli.UpdateServiceMember(ctx, member1, member1)

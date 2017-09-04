@@ -5,6 +5,14 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// The status of one table
+	TableStatusCreating = "CREATING"
+	TableStatusUpdating = "UPDATING"
+	TableStatusDeleting = "DELETING"
+	TableStatusActive   = "ACTIVE"
+)
+
 // DB defines the DB interfaces
 //
 // The design aims to provide the flexibility to support different type of key-value DBs.

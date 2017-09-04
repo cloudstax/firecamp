@@ -18,19 +18,19 @@ func (d *DynamoDB) CreateDevice(ctx context.Context, dev *common.Device) error {
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
-		TableName: aws.String(d.deviceTableName),
+		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(dev.ClusterName),
+			tablePartitionKey: {
+				S: aws.String(devicePartitionKeyPrefix + dev.ClusterName),
 			},
-			db.DeviceName: {
+			tableSortKey: {
 				S: aws.String(dev.DeviceName),
 			},
-			db.ServiceName: {
+			ServiceName: {
 				S: aws.String(dev.ServiceName),
 			},
 		},
-		ConditionExpression:    aws.String(db.DevicePutCondition),
+		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
@@ -50,12 +50,12 @@ func (d *DynamoDB) GetDevice(ctx context.Context, clusterName string, deviceName
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(d.deviceTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(clusterName),
+			tablePartitionKey: {
+				S: aws.String(devicePartitionKeyPrefix + clusterName),
 			},
-			db.DeviceName: {
+			tableSortKey: {
 				S: aws.String(deviceName),
 			},
 		},
@@ -75,7 +75,7 @@ func (d *DynamoDB) GetDevice(ctx context.Context, clusterName string, deviceName
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	dev = db.CreateDevice(clusterName, deviceName, *(resp.Item[db.ServiceName].S))
+	dev = db.CreateDevice(clusterName, deviceName, *(resp.Item[ServiceName].S))
 
 	glog.Infoln("get device", dev, "requuid", requuid, "resp", resp)
 	return dev, nil
@@ -88,16 +88,16 @@ func (d *DynamoDB) DeleteDevice(ctx context.Context, clusterName string, deviceN
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.DeleteItemInput{
-		TableName: aws.String(d.deviceTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(clusterName),
+			tablePartitionKey: {
+				S: aws.String(devicePartitionKeyPrefix + clusterName),
 			},
-			db.DeviceName: {
+			tableSortKey: {
 				S: aws.String(deviceName),
 			},
 		},
-		ConditionExpression:    aws.String(db.DeviceDelCondition),
+		ConditionExpression:    aws.String(tableSortKeyDelCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
@@ -131,11 +131,11 @@ func (d *DynamoDB) listDevicesWithLimit(ctx context.Context, clusterName string,
 
 	for true {
 		params := &dynamodb.QueryInput{
-			TableName:              aws.String(d.deviceTableName),
-			KeyConditionExpression: aws.String(db.ClusterName + " = :v1"),
+			TableName:              aws.String(d.tableName),
+			KeyConditionExpression: aws.String(tablePartitionKey + " = :v1"),
 			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 				":v1": {
-					S: aws.String(clusterName),
+					S: aws.String(devicePartitionKeyPrefix + clusterName),
 				},
 			},
 			ConsistentRead:         aws.Bool(true),
@@ -170,15 +170,14 @@ func (d *DynamoDB) listDevicesWithLimit(ctx context.Context, clusterName string,
 		}
 
 		for _, item := range resp.Items {
-			dev := db.CreateDevice(*(item[db.ClusterName].S),
-				*(item[db.DeviceName].S), *(item[db.ServiceName].S))
+			dev := db.CreateDevice(clusterName, *(item[tableSortKey].S), *(item[ServiceName].S))
 			devs = append(devs, dev)
 		}
 
 		glog.Infoln("list", len(devs), "devices, cluster", clusterName, "LastEvaluatedKey", lastEvaluatedKey, "requuid", requuid)
 
 		if len(lastEvaluatedKey) == 0 {
-			// no more db.Devices
+			// no more Devices
 			break
 		}
 	}

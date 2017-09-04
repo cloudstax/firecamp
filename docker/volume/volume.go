@@ -699,10 +699,16 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 	// could actually get the taksID, as only one controldb task is running at any time.
 	// but taskID is useless for the controldb service, so simply use empty taskID.
 	taskID := ""
-	member := db.CreateServiceMember(serviceUUID, utils.GetControlDBVolumeID(serviceUUID), mtime,
-		d.serverIns.GetControlDBDeviceName(), d.serverInfo.GetLocalAvailabilityZone(),
-		taskID, d.containerInfo.GetLocalContainerInstanceID(),
-		d.serverInfo.GetLocalInstanceID(), common.ControlDBServiceName, nil)
+	member := db.CreateServiceMember(serviceUUID,
+		common.ControlDBServiceName,
+		d.serverInfo.GetLocalAvailabilityZone(),
+		taskID,
+		d.containerInfo.GetLocalContainerInstanceID(),
+		d.serverInfo.GetLocalInstanceID(),
+		mtime,
+		utils.GetControlDBVolumeID(serviceUUID),
+		d.serverIns.GetControlDBDeviceName(),
+		nil)
 
 	// construct the serviceAttr for the controldb service
 	// taskCounts and volSizeGB are useless for the controldb service

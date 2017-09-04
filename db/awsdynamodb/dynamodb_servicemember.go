@@ -27,40 +27,40 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
-		TableName: aws.String(d.serviceMemberTableName),
+		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(member.ServiceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceMemberPartitionKeyPrefix + member.ServiceUUID),
 			},
-			db.MemberName: {
+			tableSortKey: {
 				S: aws.String(member.MemberName),
 			},
-			db.LastModified: {
+			LastModified: {
 				N: aws.String(strconv.FormatInt(member.LastModified, 10)),
 			},
-			db.AvailableZone: {
+			AvailableZone: {
 				S: aws.String(member.AvailableZone),
 			},
-			db.TaskID: {
+			TaskID: {
 				S: aws.String(member.TaskID),
 			},
-			db.ContainerInstanceID: {
+			ContainerInstanceID: {
 				S: aws.String(member.ContainerInstanceID),
 			},
-			db.ServerInstanceID: {
+			ServerInstanceID: {
 				S: aws.String(member.ServerInstanceID),
 			},
-			db.VolumeID: {
+			VolumeID: {
 				S: aws.String(member.VolumeID),
 			},
-			db.DeviceName: {
+			DeviceName: {
 				S: aws.String(member.DeviceName),
 			},
-			db.MemberConfigs: {
+			MemberConfigs: {
 				B: configBytes,
 			},
 		},
-		ConditionExpression:    aws.String(db.ServiceMemberPutCondition),
+		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
@@ -74,7 +74,7 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 	return nil
 }
 
-// UpdateServiceMember updates the db.ServiceMember in DB
+// UpdateServiceMember updates the ServiceMember in DB
 func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -109,18 +109,18 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + db.TaskID + " = :v1, " + db.ContainerInstanceID + " = :v2, " +
-		db.ServerInstanceID + " = :v3, " + db.LastModified + " = :v4, " + db.MemberConfigs + " = :v5"
-	conditionExpr := db.TaskID + " = :cv1 AND " + db.ContainerInstanceID + " = :cv2 AND " +
-		db.ServerInstanceID + " = :cv3 AND " + db.MemberConfigs + " = :cv4"
+	updateExpr := "SET " + TaskID + " = :v1, " + ContainerInstanceID + " = :v2, " +
+		ServerInstanceID + " = :v3, " + LastModified + " = :v4, " + MemberConfigs + " = :v5"
+	conditionExpr := TaskID + " = :cv1 AND " + ContainerInstanceID + " = :cv2 AND " +
+		ServerInstanceID + " = :cv3 AND " + MemberConfigs + " = :cv4"
 
 	params := &dynamodb.UpdateItemInput{
-		TableName: aws.String(d.serviceMemberTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(oldMember.ServiceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceMemberPartitionKeyPrefix + oldMember.ServiceUUID),
 			},
-			db.MemberName: {
+			tableSortKey: {
 				S: aws.String(oldMember.MemberName),
 			},
 		},
@@ -175,12 +175,12 @@ func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, mem
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(d.serviceMemberTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 			},
-			db.MemberName: {
+			tableSortKey: {
 				S: aws.String(memberName),
 			},
 		},
@@ -199,7 +199,7 @@ func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, mem
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	member, err = d.attrsToServiceMember(resp.Item)
+	member, err = d.attrsToServiceMember(serviceUUID, resp.Item)
 	if err != nil {
 		glog.Errorln("GetServiceMember convert dynamodb attributes to serviceMember error", err, "requuid", requuid, "resp", resp)
 		return nil, err
@@ -225,11 +225,11 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 
 	for true {
 		params := &dynamodb.QueryInput{
-			TableName:              aws.String(d.serviceMemberTableName),
-			KeyConditionExpression: aws.String(db.ServiceUUID + " = :v1"),
+			TableName:              aws.String(d.tableName),
+			KeyConditionExpression: aws.String(tablePartitionKey + " = :v1"),
 			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 				":v1": {
-					S: aws.String(serviceUUID),
+					S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 				},
 			},
 			ConsistentRead:         aws.Bool(true),
@@ -270,7 +270,7 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 		}
 
 		for _, item := range resp.Items {
-			member, err := d.attrsToServiceMember(item)
+			member, err := d.attrsToServiceMember(serviceUUID, item)
 			if err != nil {
 				glog.Errorln("ListServiceMember convert dynamodb attributes to serviceMember error", err, "requuid", requuid, "item", item)
 				return nil, err
@@ -298,16 +298,16 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 	// TODO reject if any serviceMember is still attached or service item is not at DELETING status.
 
 	params := &dynamodb.DeleteItemInput{
-		TableName: aws.String(d.serviceMemberTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 			},
-			db.MemberName: {
+			tableSortKey: {
 				S: aws.String(memberName),
 			},
 		},
-		ConditionExpression:    aws.String(db.ServiceMemberDelCondition),
+		ConditionExpression:    aws.String(tableSortKeyDelCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
@@ -327,29 +327,29 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 	return nil
 }
 
-func (d *DynamoDB) attrsToServiceMember(item map[string]*dynamodb.AttributeValue) (*common.ServiceMember, error) {
-	mtime, err := strconv.ParseInt(*(item[db.LastModified].N), 10, 64)
+func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dynamodb.AttributeValue) (*common.ServiceMember, error) {
+	mtime, err := strconv.ParseInt(*(item[LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
 	var configs []*common.MemberConfig
-	err = json.Unmarshal(item[db.MemberConfigs].B, &configs)
+	err = json.Unmarshal(item[MemberConfigs].B, &configs)
 	if err != nil {
 		glog.Errorln("Unmarshal json MemberConfigs error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
-	member := db.CreateServiceMember(*(item[db.ServiceUUID].S),
-		*(item[db.VolumeID].S),
+	member := db.CreateServiceMember(serviceUUID,
+		*(item[tableSortKey].S),
+		*(item[AvailableZone].S),
+		*(item[TaskID].S),
+		*(item[ContainerInstanceID].S),
+		*(item[ServerInstanceID].S),
 		mtime,
-		*(item[db.DeviceName].S),
-		*(item[db.AvailableZone].S),
-		*(item[db.TaskID].S),
-		*(item[db.ContainerInstanceID].S),
-		*(item[db.ServerInstanceID].S),
-		*(item[db.MemberName].S),
+		*(item[VolumeID].S),
+		*(item[DeviceName].S),
 		configs)
 
 	return member, nil

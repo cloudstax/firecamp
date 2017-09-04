@@ -763,7 +763,7 @@ func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID str
 		return nil, err
 	}
 
-	member = db.CreateInitialServiceMember(serviceUUID, volID, devName, az, memberName, cfgs)
+	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)

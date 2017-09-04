@@ -20,31 +20,31 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
-		TableName: aws.String(d.configTableName),
+		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(cfg.ServiceUUID),
+			tablePartitionKey: {
+				S: aws.String(ConfigPartitionKeyPrefix + cfg.ServiceUUID),
 			},
-			db.ConfigFileID: {
+			tableSortKey: {
 				S: aws.String(cfg.FileID),
 			},
-			db.ConfigFileMD5: {
+			ConfigFileMD5: {
 				S: aws.String(cfg.FileMD5),
 			},
-			db.ConfigFileName: {
+			ConfigFileName: {
 				S: aws.String(cfg.FileName),
 			},
-			db.ConfigFileMode: {
+			ConfigFileMode: {
 				N: aws.String(strconv.FormatUint(uint64(cfg.FileMode), 10)),
 			},
-			db.LastModified: {
+			LastModified: {
 				N: aws.String(strconv.FormatInt(cfg.LastModified, 10)),
 			},
-			db.ConfigFileContent: {
+			ConfigFileContent: {
 				S: aws.String(cfg.Content),
 			},
 		},
-		ConditionExpression:    aws.String(db.ConfigFilePutCondition),
+		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
@@ -66,12 +66,12 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(d.configTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(ConfigPartitionKeyPrefix + serviceUUID),
 			},
-			db.ConfigFileID: {
+			tableSortKey: {
 				S: aws.String(fileID),
 			},
 		},
@@ -90,25 +90,25 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	mtime, err := strconv.ParseInt(*(resp.Item[db.LastModified].N), 10, 64)
+	mtime, err := strconv.ParseInt(*(resp.Item[LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
 
-	mode, err := strconv.ParseUint(*(resp.Item[db.ConfigFileMode].N), 10, 64)
+	mode, err := strconv.ParseUint(*(resp.Item[ConfigFileMode].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseUint FileMode error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
 
-	cfg, err = db.CreateConfigFile(*(resp.Item[db.ServiceUUID].S),
-		*(resp.Item[db.ConfigFileID].S),
-		*(resp.Item[db.ConfigFileMD5].S),
-		*(resp.Item[db.ConfigFileName].S),
+	cfg, err = db.CreateConfigFile(serviceUUID,
+		fileID,
+		*(resp.Item[ConfigFileMD5].S),
+		*(resp.Item[ConfigFileName].S),
 		uint32(mode),
 		mtime,
-		*(resp.Item[db.ConfigFileContent].S))
+		*(resp.Item[ConfigFileContent].S))
 	if err != nil {
 		glog.Errorln("CreateConfigFile error", err, "fileID", fileID, "serviceUUID", serviceUUID, "requuid", requuid)
 		return nil, err
@@ -126,16 +126,16 @@ func (d *DynamoDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fil
 	// TODO reject if any config file is still attached or service item is not at DELETING status.
 
 	params := &dynamodb.DeleteItemInput{
-		TableName: aws.String(d.configTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ServiceUUID: {
-				S: aws.String(serviceUUID),
+			tablePartitionKey: {
+				S: aws.String(ConfigPartitionKeyPrefix + serviceUUID),
 			},
-			db.ConfigFileID: {
+			tableSortKey: {
 				S: aws.String(fileID),
 			},
 		},
-		ConditionExpression:    aws.String(db.ConfigFileDelCondition),
+		ConditionExpression:    aws.String(tableSortKeyDelCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 

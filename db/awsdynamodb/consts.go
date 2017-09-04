@@ -1,20 +1,31 @@
-package db
+package awsdynamodb
 
 import (
 	"github.com/cloudstax/firecamp/common"
 )
 
+// DynamoDB related const
 const (
-	// Device table
-	DeviceTableName = common.SystemName + "-device-table"
-	// Service table
-	ServiceTableName = common.SystemName + "-service-table"
-	// ServiceAttr table
-	ServiceAttrTableName = common.SystemName + "-serviceattr-table"
-	// ServiceMember table
-	ServiceMemberTableName = common.SystemName + "-servicemember-table"
-	// ConfigFile table
-	ConfigTableName = common.SystemName + "-config-table"
+	InternalServerError                    = "InternalServerError"
+	LimitExceededException                 = "LimitExceededException"
+	TableInUseException                    = "TableInUseException"
+	ResourceNotFoundException              = "ResourceNotFoundException"
+	TableNotFoundException                 = "TableNotFoundException"
+	ConditionalCheckFailedException        = "ConditionalCheckFailedException"
+	ProvisionedThroughputExceededException = "ProvisionedThroughputExceededException"
+
+	tableNameSuffix   = common.SystemName + "-table"
+	tablePartitionKey = "PartitionKey"
+	tableSortKey      = "SortKey"
+
+	devicePartitionKeyPrefix        = "DeviceKey-"
+	servicePartitionKeyPrefix       = "ServiceKey-"
+	serviceAttrPartitionKeyPrefix   = "ServiceAttrKey-"
+	serviceMemberPartitionKeyPrefix = "ServiceMemberKey-"
+	ConfigPartitionKeyPrefix        = "ConfigKey-"
+
+	defaultReadCapacity  = 20
+	defaultWriteCapacity = 20
 
 	ClusterName   = "ClusterName"
 	ServiceName   = "ServiceName"
@@ -50,20 +61,9 @@ const (
 	// 2. The hash+range pair does not exist in the database.
 	// 			attribute_not_exists(hash) must be false
 	//			attribute_not_exists(range) must be false
-	ServicePutCondition       = "attribute_not_exists(" + ServiceName + ")"
-	ServiceDelCondition       = "attribute_exists(" + ServiceName + ")"
-	ServiceAttrPutCondition   = "attribute_not_exists(" + ServiceUUID + ")"
-	ServiceAttrDelCondition   = "attribute_exists(" + ServiceUUID + ")"
-	DevicePutCondition        = "attribute_not_exists(" + DeviceName + ")"
-	DeviceDelCondition        = "attribute_exists(" + DeviceName + ")"
-	ServiceMemberPutCondition = "attribute_not_exists(" + VolumeID + ")"
-	ServiceMemberDelCondition = "attribute_exists(" + VolumeID + ")"
-	ConfigFilePutCondition    = "attribute_not_exists(" + ConfigFileID + ")"
-	ConfigFileDelCondition    = "attribute_exists(" + ConfigFileID + ")"
-
-	// The status of one table
-	TableStatusCreating = "CREATING"
-	TableStatusUpdating = "UPDATING"
-	TableStatusDeleting = "DELETING"
-	TableStatusActive   = "ACTIVE"
+	// We define 2 conditions on SortKey and PartitionKey to make it clear which key is unique.
+	tableSortKeyPutCondition      = "attribute_not_exists(" + tableSortKey + ")"
+	tableSortKeyDelCondition      = "attribute_exists(" + tableSortKey + ")"
+	tablePartitionKeyPutCondition = "attribute_not_exists(" + tablePartitionKey + ")"
+	tablePartitionKeyDelCondition = "attribute_exists(" + tablePartitionKey + ")"
 )

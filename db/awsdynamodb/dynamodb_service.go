@@ -12,30 +12,26 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-// CreateService puts a new db.Service into DB
+// CreateService puts a new Service into DB
 func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error {
 	requuid := utils.GetReqIDFromContext(ctx)
-	// TODO sanity check of serviceItem. for example, status should be CREATING,
-	// Replicas should > 0, cluster should exist,
-	// taskDef should have serviceMember definitions, etc.
-	// this should be outside db interface.
 
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
-		TableName: aws.String(d.serviceTableName),
+		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(svc.ClusterName),
+			tablePartitionKey: {
+				S: aws.String(servicePartitionKeyPrefix + svc.ClusterName),
 			},
-			db.ServiceName: {
+			tableSortKey: {
 				S: aws.String(svc.ServiceName),
 			},
-			db.ServiceUUID: {
+			ServiceUUID: {
 				S: aws.String(svc.ServiceUUID),
 			},
 		},
-		ConditionExpression:    aws.String(db.ServicePutCondition),
+		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 	resp, err := dbsvc.PutItem(params)
@@ -49,18 +45,18 @@ func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error
 	return nil
 }
 
-// GetService gets the db.Service from DB
+// GetService gets the Service from DB
 func (d *DynamoDB) GetService(ctx context.Context, clusterName string, serviceName string) (svc *common.Service, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(d.serviceTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(clusterName),
+			tablePartitionKey: {
+				S: aws.String(servicePartitionKeyPrefix + clusterName),
 			},
-			db.ServiceName: {
+			tableSortKey: {
 				S: aws.String(serviceName),
 			},
 		},
@@ -80,9 +76,7 @@ func (d *DynamoDB) GetService(ctx context.Context, clusterName string, serviceNa
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	svc = db.CreateService(*(resp.Item[db.ClusterName].S),
-		*(resp.Item[db.ServiceName].S),
-		*(resp.Item[db.ServiceUUID].S))
+	svc = db.CreateService(clusterName, serviceName, *(resp.Item[ServiceUUID].S))
 
 	glog.Infoln("get service", svc, "requuid", requuid)
 	return svc, nil
@@ -97,16 +91,16 @@ func (d *DynamoDB) DeleteService(ctx context.Context, clusterName string, servic
 	// should we reject if some serviceMember still exists? probably not, as aws ecs allows service to be deleted with serviceMembers left.
 
 	params := &dynamodb.DeleteItemInput{
-		TableName: aws.String(d.serviceTableName),
+		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			db.ClusterName: {
-				S: aws.String(clusterName),
+			tablePartitionKey: {
+				S: aws.String(servicePartitionKeyPrefix + clusterName),
 			},
-			db.ServiceName: {
+			tableSortKey: {
 				S: aws.String(serviceName),
 			},
 		},
-		ConditionExpression:    aws.String(db.ServiceDelCondition),
+		ConditionExpression:    aws.String(tableSortKeyDelCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
@@ -140,11 +134,11 @@ func (d *DynamoDB) listServicesWithLimit(ctx context.Context, clusterName string
 
 	for true {
 		params := &dynamodb.QueryInput{
-			TableName:              aws.String(d.serviceTableName),
-			KeyConditionExpression: aws.String(db.ClusterName + " = :v1"),
+			TableName:              aws.String(d.tableName),
+			KeyConditionExpression: aws.String(tablePartitionKey + " = :v1"),
 			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 				":v1": {
-					S: aws.String(clusterName),
+					S: aws.String(servicePartitionKeyPrefix + clusterName),
 				},
 			},
 			ConsistentRead:         aws.Bool(true),
@@ -181,9 +175,7 @@ func (d *DynamoDB) listServicesWithLimit(ctx context.Context, clusterName string
 		}
 
 		for _, item := range resp.Items {
-			svc := db.CreateService(*(item[db.ClusterName].S),
-				*(item[db.ServiceName].S),
-				*(item[db.ServiceUUID].S))
+			svc := db.CreateService(clusterName, *(item[tableSortKey].S), *(item[ServiceUUID].S))
 			services = append(services, svc)
 		}
 

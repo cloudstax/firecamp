@@ -121,48 +121,49 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 	}
 }
 
-func CreateInitialServiceMember(serviceUUID string, volID string, devName string, az string,
-	memberName string, configs []*common.MemberConfig) *common.ServiceMember {
+func CreateInitialServiceMember(serviceUUID string, memberName string,
+	az string, volID string, devName string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
-		VolumeID:            volID,
-		LastModified:        time.Now().UnixNano(),
-		DeviceName:          devName,
+		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              DefaultTaskID,
 		ContainerInstanceID: DefaultContainerInstanceID,
 		ServerInstanceID:    DefaultServerInstanceID,
-		MemberName:          memberName,
+		LastModified:        time.Now().UnixNano(),
+		VolumeID:            volID,
+		DeviceName:          devName,
 		Configs:             configs,
 	}
 }
 
-func CreateServiceMember(serviceUUID string, volID string, mtime int64, devName string, az string,
-	taskID string, containerInstanceID string, ec2InstanceID string, memberName string, configs []*common.MemberConfig) *common.ServiceMember {
+func CreateServiceMember(serviceUUID string, memberName string,
+	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
+	volID string, devName string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
-		VolumeID:            volID,
-		LastModified:        mtime,
-		DeviceName:          devName,
+		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              taskID,
 		ContainerInstanceID: containerInstanceID,
 		ServerInstanceID:    ec2InstanceID,
-		MemberName:          memberName,
+		LastModified:        mtime,
+		VolumeID:            volID,
+		DeviceName:          devName,
 		Configs:             configs,
 	}
 }
 
 func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
 	if t1.ServiceUUID == t2.ServiceUUID &&
-		t1.VolumeID == t2.VolumeID &&
-		(skipMtime || t1.LastModified == t2.LastModified) &&
-		t1.DeviceName == t2.DeviceName &&
+		t1.MemberName == t2.MemberName &&
 		t1.AvailableZone == t2.AvailableZone &&
 		t1.TaskID == t2.TaskID &&
 		t1.ContainerInstanceID == t2.ContainerInstanceID &&
 		t1.ServerInstanceID == t2.ServerInstanceID &&
-		t1.MemberName == t2.MemberName &&
+		(skipMtime || t1.LastModified == t2.LastModified) &&
+		t1.VolumeID == t2.VolumeID &&
+		t1.DeviceName == t2.DeviceName &&
 		equalConfigs(t1.Configs, t2.Configs) {
 		return true
 	}
@@ -198,14 +199,14 @@ func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
 func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
-		VolumeID:            t1.VolumeID,
-		LastModified:        time.Now().UnixNano(),
-		DeviceName:          t1.DeviceName,
+		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              t1.TaskID,
 		ContainerInstanceID: t1.ContainerInstanceID,
 		ServerInstanceID:    t1.ServerInstanceID,
-		MemberName:          t1.MemberName,
+		LastModified:        time.Now().UnixNano(),
+		VolumeID:            t1.VolumeID,
+		DeviceName:          t1.DeviceName,
 		Configs:             c,
 	}
 }
@@ -213,14 +214,14 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConf
 func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, containerInstanceID string, ec2InstanceID string) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
-		VolumeID:            t1.VolumeID,
-		LastModified:        time.Now().UnixNano(),
-		DeviceName:          t1.DeviceName,
+		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              taskID,
 		ContainerInstanceID: containerInstanceID,
 		ServerInstanceID:    ec2InstanceID,
-		MemberName:          t1.MemberName,
+		LastModified:        time.Now().UnixNano(),
+		VolumeID:            t1.VolumeID,
+		DeviceName:          t1.DeviceName,
 		Configs:             t1.Configs,
 	}
 }

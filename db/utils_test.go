@@ -41,9 +41,10 @@ func TestDBUtils(t *testing.T) {
 	memberName := "member-1"
 	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
 	cfgs := []*common.MemberConfig{cfg}
-	member1 := CreateInitialServiceMember(serviceUUID, volID, devName, az, memberName, cfgs)
-	member2 := CreateServiceMember(serviceUUID, volID, mtime, devName, az, DefaultTaskID,
-		DefaultContainerInstanceID, DefaultServerInstanceID, memberName, cfgs)
+	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, cfgs)
+	member2 := CreateServiceMember(serviceUUID, memberName,
+		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
+		volID, devName, cfgs)
 	if !EqualServiceMember(member1, member2, true) {
 		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
 	}
