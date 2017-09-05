@@ -23,7 +23,7 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 		TableName: aws.String(d.tableName),
 		Item: map[string]*dynamodb.AttributeValue{
 			tablePartitionKey: {
-				S: aws.String(ConfigPartitionKeyPrefix + cfg.ServiceUUID),
+				S: aws.String(configPartitionKeyPrefix + cfg.ServiceUUID),
 			},
 			tableSortKey: {
 				S: aws.String(cfg.FileID),
@@ -69,7 +69,7 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			tablePartitionKey: {
-				S: aws.String(ConfigPartitionKeyPrefix + serviceUUID),
+				S: aws.String(configPartitionKeyPrefix + serviceUUID),
 			},
 			tableSortKey: {
 				S: aws.String(fileID),
@@ -129,7 +129,7 @@ func (d *DynamoDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fil
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			tablePartitionKey: {
-				S: aws.String(ConfigPartitionKeyPrefix + serviceUUID),
+				S: aws.String(configPartitionKeyPrefix + serviceUUID),
 			},
 			tableSortKey: {
 				S: aws.String(fileID),

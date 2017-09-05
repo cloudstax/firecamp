@@ -21,6 +21,9 @@ type DynamoDB struct {
 	// Creating service clients concurrently from a shared Session is safe.
 	sess      *session.Session
 	tableName string
+	// The DynamoDB table read/write capacity
+	readCapacity  int64
+	writeCapacity int64
 }
 
 // NewDynamoDB allocates a new DynamoDB instance
@@ -52,6 +55,8 @@ func NewDynamoDB(sess *session.Session, cluster string) *DynamoDB {
 	d := new(DynamoDB)
 	d.sess = sess
 	d.tableName = cluster + common.NameSeparator + tableNameSuffix
+	d.readCapacity = defaultReadCapacity
+	d.writeCapacity = defaultWriteCapacity
 	return d
 }
 
@@ -60,6 +65,8 @@ func NewTestDynamoDB(sess *session.Session, suffix string) *DynamoDB {
 	d := new(DynamoDB)
 	d.sess = sess
 	d.tableName = "TestTable" + suffix
+	d.readCapacity = 5
+	d.writeCapacity = 5
 	return d
 }
 
@@ -110,8 +117,8 @@ func (d *DynamoDB) CreateSystemTables(ctx context.Context) error {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(defaultReadCapacity),
-			WriteCapacityUnits: aws.Int64(defaultWriteCapacity),
+			ReadCapacityUnits:  aws.Int64(d.readCapacity),
+			WriteCapacityUnits: aws.Int64(d.writeCapacity),
 		},
 	}
 	resp, err := dbsvc.CreateTable(params)
