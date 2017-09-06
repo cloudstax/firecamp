@@ -1,21 +1,25 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates a new VPC and an ECS cluster with the FireCamp software. Note: The FireCamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. Note: The FireCamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
-    "ECSClusterName":{
+    "ContainerPlatform":{
+      "Type": "String",
+      "Default": "ecs",
+      "AllowedValues" : [ "ecs", "swarm" ],
+      "Description":"The container orchestration platform."
+    },
+    "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster. Could be same with the Stack name",
+      "Description":"Name of the ECS or Swarm cluster. Could be same with the Stack name",
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and ECS cluster nodes."
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
     },
-
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "Default": "cloudstax",
@@ -30,7 +34,6 @@
         "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
         "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
     },
-
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
@@ -60,7 +63,7 @@
         "Ubuntu-Server-16.04-LTS-HVM"
       ],
       "Default": "Amazon-Linux-HVM",
-        "Description": "The Linux distribution for the AMI to be used for the bastion instances",
+      "Description": "The Linux distribution for the AMI to be used for the bastion instances",
       "Type": "String"
     },
     "RemoteAccessCIDR": {
@@ -163,16 +166,15 @@
       "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
       "Type": "String"
     },
-
-    "DesiredCapacityPerAZ":{
+    "DesiredCapacity":{
       "Type":"Number",
-      "Default":"1",
-      "Description":"Number of instances to launch in your ECS cluster."
+      "Default":"3",
+      "Description":"Number of instances to launch in the cluster."
     },
-    "MaxSizePerAZ":{
+    "MaxSize":{
       "Type":"Number",
-      "Default":"1",
-      "Description":"Maximum number of instances that can be launched in your ECS cluster."
+      "Default":"3",
+      "Description":"Maximum number of instances that can be launched in the cluster."
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -344,6 +346,134 @@
         }
       }
     },
+
+    "AppAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "Application instances with access to the services in cluster"
+      }
+    },
+    "ServiceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "The access ports to the services in cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "SourceSecurityGroupId": {
+              "Fn::GetAtt": [
+                "BastionStack",
+                "Outputs.BastionSecurityGroupID"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27040",
+            "ToPort": "27040",
+            "SourceSecurityGroupId": {
+              "Fn::GetAtt": [
+                "BastionStack",
+                "Outputs.BastionSecurityGroupID"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27017",
+            "ToPort": "27017",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5432",
+            "ToPort": "5432",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9042",
+            "ToPort": "9042",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9160",
+            "ToPort": "9160",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "2181",
+            "ToPort": "2181",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9092",
+            "ToPort": "9092",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "InternalAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "The inter-server access ports in cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "2000",
+            "ToPort": "30000",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+
     "FireCampStack": {
       "DependsOn": "BastionStack",
       "Type": "AWS::CloudFormation::Stack",
@@ -363,8 +493,11 @@
           ]
         },
         "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "ContainerPlatform": {
+            "Ref": "ContainerPlatform"
+          },
+          "ClusterName": {
+            "Ref": "ClusterName"
           },
           "CFS3BucketName": {
             "Ref": "CFS3BucketName"
@@ -372,37 +505,32 @@
           "CFS3KeyPrefix": {
             "Ref": "CFS3KeyPrefix"
           },
-          "BastionSecurityGroupID": {
-            "Fn::GetAtt": [
-              "BastionStack",
-              "Outputs.BastionSecurityGroupID"
-            ]
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroup"
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "VPCID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.VPCID"
-            ]
-          },
-          "Subnet1ID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.PrivateSubnet1AID"
-            ]
-          },
-          "Subnet2ID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.PrivateSubnet2AID"
-            ]
-          },
-          "Subnet3ID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.PrivateSubnet3AID"
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              [
+                "Fn::GetAtt": [
+                  "VPCStack",
+                  "Outputs.PrivateSubnet1AID"
+                ],
+                "Fn::GetAtt": [
+                  "VPCStack",
+                  "Outputs.PrivateSubnet2AID"
+                ],
+                "Fn::GetAtt": [
+                  "VPCStack",
+                  "Outputs.PrivateSubnet3AID"
+                ]
+              ]
             ]
           },
           "AvailabilityZones": {
@@ -413,11 +541,11 @@
               }
             ]
           },
-          "DesiredCapacityPerAZ": {
-            "Ref": "DesiredCapacityPerAZ"
+          "DesiredCapacity": {
+            "Ref": "DesiredCapacity"
           },
-          "MaxSizePerAZ": {
-            "Ref": "MaxSizePerAZ"
+          "MaxSize": {
+            "Ref": "MaxSize"
           },
           "NodeInstanceType": {
             "Ref": "NodeInstanceType"
@@ -435,20 +563,9 @@
         ]
       }
     },
-    "ECSCluster":{
-      "Value":{
-        "Fn::GetAtt": [
-          "FireCampStack",
-          "Outputs.ECSCluster"
-        ]
-      }
-    },
     "AppAccessSecurityGroup":{
       "Value":{
-        "Fn::GetAtt": [
-          "FireCampStack",
-          "Outputs.AppAccessSecurityGroup"
-        ]
+        "Ref": "AppAccessSecurityGroup"
       }
     }
   }

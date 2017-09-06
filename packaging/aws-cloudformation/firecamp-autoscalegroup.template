@@ -1,10 +1,10 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates an AutoScalingGroup in the subnets for the ECS cluster.",
+  "Description": "This template creates an AutoScalingGroup in the subnets.",
   "Parameters":{
-    "ECSClusterName":{
+    "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster.",
+      "Description":"Name of the cluster.",
       "Default":"default",
       "MinLength": "1",
       "MaxLength": "255",
@@ -13,7 +13,7 @@
     },
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster instances."
     },
     "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
@@ -22,21 +22,21 @@
     },
     "DesiredCapacity":{
       "Type":"Number",
-      "Default":"1",
-      "Description":"Number of instances to launch in your ECS cluster."
+      "Default":"3",
+      "Description":"Number of instances to launch in the cluster."
     },
     "MaxSize":{
       "Type":"Number",
-      "Default":"1",
-      "Description":"Maximum number of instances that can be launched in your ECS cluster."
+      "Default":"3",
+      "Description":"Maximum number of instances that can be launched in the cluster."
     },
-    "EcsSecurityGroupID": {
+    "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The SecurityGroup to access the services in ECS cluster."
+      "Description": "The SecurityGroup to access the services in the cluster."
     },
-    "EcsInternalSecurityGroupID": {
+    "InternalAccessSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The internal SecurityGroup for ECS nodes to access each other."
+      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
     },
     "NodeInstanceProfileID": {
       "Type": "String",
@@ -134,7 +134,7 @@
     }
   },
   "Resources":{
-    "ECSAutoScalingGroup":{
+    "ServiceAutoScalingGroup":{
       "Type":"AWS::AutoScaling::AutoScalingGroup",
       "Properties":{
         "VPCZoneIdentifier": {
@@ -176,10 +176,10 @@
         },
         "SecurityGroups":[
           {
-            "Ref":"EcsSecurityGroupID"
+            "Ref":"ServiceSecurityGroupID"
           },
           {
-            "Ref":"EcsInternalSecurityGroupID"
+            "Ref":"InternalAccessSecurityGroupID"
           }
         ],
         "InstanceType":{
@@ -197,51 +197,14 @@
               "",
               [
                 "#!/bin/bash -x\n",
-
-                "# set never for THP (Transparent Huge Pages), as THP might impact the performance for some services\n",
-                "# such as MongoDB and Reddis. Could set to madvise if some service really benefits from madvise.\n",
-                "# https://www.kernel.org/doc/Documentation/vm/transhuge.txt\n",
-                "echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled\n",
-
-                "# increase somaxconn to 512 for such as Redis\n",
-                "echo \"net.core.somaxconn=512\" >> /etc/sysctl.conf\n",
-                "sysctl -w net.core.somaxconn=512\n",
-                "echo \"net.ipv4.tcp_max_syn_backlog=512\" >> /etc/sysctl.conf\n",
-                "sysctl -w net.ipv4.tcp_max_syn_backlog=512\n",
-
-                "# set overcommit to 1 as required by Redis. Would not cause issue to other services\n",
-                "echo \"vm.overcommit_memory=1\" >> /etc/sysctl.conf\n",
-                "sysctl -w vm.overcommit_memory=1\n",
-
-                "# install docker\n",
-                "yum install -y docker\n",
-
-                "# Kafka uses a very large number of files, increase the file descriptor count.\n",
-                "# AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".\n",
-                "# The container inherits the docker daemon ulimit.\n",
-                "# The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.\n",
-                "# Ubuntu is /etc/init/docker.conf\n",
-                "sed -i 's/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000\"/g' /etc/sysconfig/docker\n",
-
-                "service docker start\n",
-
-                "# install cloudstax ecs init\n",
-                "wget -O /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/packages/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
-                "rpm -ivh /tmp/cloudstax-ecs-init-1.14.2-2.amzn1.x86_64.rpm\n",
-                "echo ECS_CLUSTER=",
+                "# get and run the node init script\n",
+                "wget -O /tmp/init.sh https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/cf-templates/init.sh\n",
+                "chmod +x /tmp/init.sh\n",
+                "/tmp/init.sh ",
                 {
-                  "Ref":"ECSClusterName"
+                  "Ref":"ClusterName"
                 },
-                " >> /etc/ecs/ecs.config\n",
-                "start ecs\n",
-
-                "# install firecamp docker volume plugin\n",
-                "mkdir -p /var/log/firecamp\n",
-                "docker plugin install --grant-all-permissions cloudstax/firecamp-volume:latest\n",
-
-                "# TODO enable log driver after upgrade to 17.05/06\n",
-                "# install firecamp docker log driver\n",
-                "# docker plugin install cloudstax/firecamp-logs\n",
+                "\n",
 
                 "yum install -y aws-cfn-bootstrap\n",
                 "# Signal success\n",
@@ -250,7 +213,7 @@
                 {
                   "Ref":"AWS::StackName"
                 },
-                "         --resource ECSAutoScalingGroup ",
+                "         --resource ServiceAutoScalingGroup ",
                 "         --region ",
                 {
                   "Ref":"AWS::Region"

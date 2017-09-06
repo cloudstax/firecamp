@@ -1,10 +1,16 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will deploy an ECS cluster with the firecamp software in an existing VPC. Note: The firecamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. Note: The firecamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
   "Parameters":{
-    "ECSClusterName":{
+    "ContainerPlatform":{
+      "Type": "String",
+      "Default": "ecs",
+      "AllowedValues" : [ "ecs", "swarm" ],
+      "Description":"The container orchestration platform."
+    },
+    "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster.",
+      "Description":"Name of the cluster.",
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
@@ -12,14 +18,13 @@
     },
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
     },
-
     "VPCID":{
       "Type":"AWS::EC2::VPC::Id",
       "Description":"Select a VPC that allows instances to access the Internet."
     },
-    "Subnets": {
+    "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
       "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
       "AllowedPattern": "subnet-[0-9a-z]{8}"
@@ -52,23 +57,13 @@
     "DesiredCapacity":{
       "Type":"Number",
       "Default":"1",
-      "Description":"Number of instances to launch in one AutoScalingGroup."
+      "Description":"Number of instances to launch. For Swarm, this is the number of worker nodes. One manager node will be created automatically."
     },
     "MaxSize":{
       "Type":"Number",
       "Default":"1",
-      "Description":"Maximum number of instances that can be launched in one AutoScalingGroup."
+      "Description":"Maximum number of instances that can be launched."
     },
-    "FireCampDBType": {
-      "AllowedValues": [
-        "clouddb",
-        "controldb"
-      ],
-      "Default": "clouddb",
-      "Description": "The firecamp db type",
-      "Type": "String"
-    },
-
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
@@ -176,29 +171,21 @@
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "Instances with access to the services in ECS cluster"
+        "GroupDescription": "Instances with access to the services in the cluster"
       }
     },
-    "EcsSecurityGroup": {
+    "ServiceSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "The access ports to the services in ECS cluster",
+        "GroupDescription": "The access ports to the services in the cluster",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
             "FromPort": "22",
             "ToPort": "22",
-            "CidrIp": {
-              "Ref": "RemoteAccessCIDR"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27040",
-            "ToPort": "27040",
             "CidrIp": {
               "Ref": "RemoteAccessCIDR"
             }
@@ -214,32 +201,32 @@
         ]
       }
     },
-    "EcsInternalSecurityGroup": {
+    "InternalAccessSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "The inter-server access ports in ECS cluster",
+        "GroupDescription": "The inter-server access ports in the cluster",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
             "FromPort": "2000",
             "ToPort": "30000",
             "SourceSecurityGroupId": {
-              "Ref": "EcsSecurityGroup"
+              "Ref": "ServiceSecurityGroup"
             }
           }
         ]
       }
     },
 
-    "DynamoDBTables": {
+    "FireCampStack": {
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-dynamodb.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -252,110 +239,23 @@
           ]
         },
         "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          }
-        }
-      }
-    },
-
-    "ECSClusterStack":{
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-ecs.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "ContainerPlatform": {
+            "Ref": "ContainerPlatform"
           },
-          "FireCampDBType": {
-            "Ref": "FireCampDBType"
+          "ClusterName": {
+            "Ref": "ClusterName"
           },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          }
-        }
-      }
-    },
-    "FireCampECSService":{
-      "DependsOn": "DynamoDBTables",
-      "Type":"AWS::ECS::Service",
-      "Properties":{
-        "Cluster":{
-          "Fn::GetAtt": [
-            "ECSClusterStack",
-            "Outputs.ECSCluster"
-          ]
-        },
-        "DesiredCount":"1",
-        "ServiceName": "firecamp-manageserver",
-        "TaskDefinition":{
-          "Fn::GetAtt": [
-            "ECSClusterStack",
-            "Outputs.FireCampServerTaskdefinition"
-          ]
-        }
-      }
-    },
-
-    "EC2InstanceProfileStack":{
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-iamprofile.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        }
-      }
-    },
-
-    "ECSAutoScalingGroup1": {
-      "DependsOn": "ECSClusterStack",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroup"
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
@@ -364,29 +264,25 @@
             "Fn::Join": [
               ",",
               {
-                "Ref": "Subnets"
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
               }
             ]
           },
           "DesiredCapacity": {
             "Ref": "DesiredCapacity"
           },
-          "MaxSize":{
+          "MaxSize": {
             "Ref": "MaxSize"
           },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
-          },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
-          },
-          "NodeInstanceProfileID": {
-            "Fn::GetAtt": [
-              "EC2InstanceProfileStack",
-              "Outputs.NodeInstanceProfile"
-            ]
-          },
-          "NodeInstanceType":{
+          "NodeInstanceType": {
             "Ref": "NodeInstanceType"
           }
         }
@@ -394,14 +290,6 @@
     }
   },
   "Outputs":{
-    "ECSCluster":{
-      "Value":{
-        "Fn::GetAtt": [
-          "ECSClusterStack",
-          "Outputs.ECSCluster"
-        ]
-      }
-    },
     "AppAccessSecurityGroup":{
       "Value":{
         "Ref": "AppAccessSecurityGroup"

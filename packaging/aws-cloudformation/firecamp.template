@@ -1,27 +1,34 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template deploys an FireCamp ECS cluster on an existing VPC. The BastionSecurityGroupID is allowed to ssh to the ECS cluster nodes and access the firecamp manage http server",
+  "Description": "This template deploys an FireCamp the cluster on an existing VPC.",
   "Parameters":{
-    "BastionSecurityGroupID": {
-      "Description": "ID of the Bastion Security Group (e.g., sg-7f16e910)",
-      "Type": "AWS::EC2::SecurityGroup::Id"
+    "ServiceSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The SecurityGroup to access the services in the cluster."
     },
-
-    "ECSClusterName":{
+    "InternalAccessSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+    },
+    "ContainerPlatform":{
+      "Type": "String",
+      "Default": "ecs",
+      "AllowedValues" : [ "ecs", "swarm" ],
+      "Description":"The container orchestration platform."
+    },
+    "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster.",
+      "Description":"Name of the cluster.",
       "Default":"default",
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
     },
-
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "Default": "cloudstax",
@@ -37,40 +44,24 @@
         "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
     },
 
-    "VPCID": {
-      "Type": "AWS::EC2::VPC::Id",
-      "Description": "VPC-ID of your existing Virtual Private Cloud (VPC) where you want to deploy the ECS cluster.",
-      "AllowedPattern": "vpc-[0-9a-z]{8}"
-    },
-    "Subnet1ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the first AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-    "Subnet2ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the second AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-    "Subnet3ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy the third AutoScalingGroup.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-
     "AvailabilityZones": {
       "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
-    "DesiredCapacityPerAZ":{
-      "Type":"Number",
-      "Default":"1",
-      "Description":"Number of instances to launch in one AutoScalingGroup."
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
-    "MaxSizePerAZ":{
+    "DesiredCapacity":{
       "Type":"Number",
-      "Default":"1",
-      "Description":"Maximum number of instances that can be launched in one AutoScalingGroup."
+      "Default":"3",
+      "Description":"Number of instances to launch."
+    },
+    "MaxSize":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Maximum number of instances that can be launched."
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -121,122 +112,25 @@
         },
         "us-gov-west-1"
       ]
+    },
+    "ECSContainerPlatformCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "ContainerPlatform"
+        },
+        "ecs"
+      ]
+    },
+    "SwarmContainerPlatformCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "ContainerPlatform"
+        },
+        "swarm"
+      ]
     }
   },
   "Resources":{
-    "AppAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "Application instances with access to the services in ECS cluster"
-      }
-    },
-    "EcsSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The access ports to the services in ECS cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27040",
-            "ToPort": "27040",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27017",
-            "ToPort": "27017",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5432",
-            "ToPort": "5432",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9042",
-            "ToPort": "9042",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9160",
-            "ToPort": "9160",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2181",
-            "ToPort": "2181",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9092",
-            "ToPort": "9092",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "6379",
-            "ToPort": "6379",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          }
-
-        ]
-      }
-    },
-    "EcsInternalSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The inter-server access ports in ECS cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2000",
-            "ToPort": "30000",
-            "SourceSecurityGroupId": {
-              "Ref": "EcsSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-
     "DynamoDBTables": {
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
@@ -255,65 +149,9 @@
           ]
         },
         "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "ClusterName": {
+            "Ref": "ClusterName"
           }
-        }
-      }
-    },
-
-    "ECSClusterStack":{
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-ecs.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          }
-        }
-      }
-    },
-    "FireCampECSService":{
-      "DependsOn": [
-        "ECSClusterStack",
-        "DynamoDBTables"
-      ],
-      "Type":"AWS::ECS::Service",
-      "Properties":{
-        "Cluster":{
-          "Fn::GetAtt": [
-            "ECSClusterStack",
-            "Outputs.ECSCluster"
-          ]
-        },
-        "DesiredCount":"1",
-        "ServiceName": "firecamp-manageserver",
-        "TaskDefinition":{
-          "Fn::GetAtt": [
-            "ECSClusterStack",
-            "Outputs.FireCampServerTaskdefinition"
-          ]
         }
       }
     },
@@ -338,16 +176,14 @@
       }
     },
 
-    "ECSAutoScalingGroup1": {
-      "DependsOn": [
-        "ECSClusterStack",
-        "EC2InstanceProfileStack",
-      ],
+    "ECSClusterStack":{
       "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ECSContainerPlatformCondition",
+      "DependsOn": "DynamoDBTables",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-ecs.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -360,26 +196,39 @@
           ]
         },
         "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "ClusterName": {
+            "Ref": "ClusterName"
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
           "SubnetIDs": {
-            "Ref": "Subnet1ID"
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
           },
           "DesiredCapacity": {
-            "Ref": "DesiredCapacityPerAZ"
+            "Ref": "DesiredCapacity"
           },
           "MaxSize":{
-            "Ref": "MaxSizePerAZ"
+            "Ref": "MaxSize"
           },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroupID"
           },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroupID"
           },
           "NodeInstanceProfileID": {
             "Fn::GetAtt": [
@@ -387,22 +236,27 @@
               "Outputs.NodeInstanceProfile"
             ]
           },
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"
           }
         }
       }
     },
-    "ECSAutoScalingGroup2": {
-      "DependsOn": [
-        "ECSClusterStack",
-        "EC2InstanceProfileStack"
-      ],
+
+    "SwarmClusterStack":{
       "Type": "AWS::CloudFormation::Stack",
+      "Condition": "SwarmContainerPlatformCondition",
+      "DependsOn": "DynamoDBTables",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-swarm.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -415,81 +269,39 @@
           ]
         },
         "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
+          "ClusterName": {
+            "Ref": "ClusterName"
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
           },
-          "SubnetIDs": {
-            "Ref": "Subnet2ID"
-          },
-          "DesiredCapacity": {
-            "Ref": "DesiredCapacityPerAZ"
-          },
-          "MaxSize":{
-            "Ref": "MaxSizePerAZ"
-          },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
-          },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
-          },
-          "NodeInstanceProfileID": {
-            "Fn::GetAtt": [
-              "EC2InstanceProfileStack",
-              "Outputs.NodeInstanceProfile"
-            ]
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          }
-        }
-      }
-    },
-    "ECSAutoScalingGroup3": {
-      "DependsOn": [
-        "ECSClusterStack",
-        "EC2InstanceProfileStack"
-      ],
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
               }
-            }
-          ]
-        },
-        "Parameters": {
-          "ECSClusterName": {
-            "Ref": "ECSClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
+            ]
           },
           "SubnetIDs": {
-            "Ref": "Subnet3ID"
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
           },
           "DesiredCapacity": {
-            "Ref": "DesiredCapacityPerAZ"
+            "Ref": "DesiredCapacity"
           },
           "MaxSize":{
-            "Ref": "MaxSizePerAZ"
+            "Ref": "MaxSize"
           },
-          "EcsSecurityGroupID": {
-            "Ref": "EcsSecurityGroup"
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroupID"
           },
-          "EcsInternalSecurityGroupID": {
-            "Ref": "EcsInternalSecurityGroup"
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroupID"
           },
           "NodeInstanceProfileID": {
             "Fn::GetAtt": [
@@ -497,25 +309,16 @@
               "Outputs.NodeInstanceProfile"
             ]
           },
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"
           }
         }
-      }
-    }
-  },
-  "Outputs":{
-    "ECSCluster":{
-      "Value":{
-        "Fn::GetAtt": [
-          "ECSClusterStack",
-          "Outputs.ECSCluster"
-        ]
-      }
-    },
-    "AppAccessSecurityGroup":{
-      "Value":{
-        "Ref": "AppAccessSecurityGroup"
       }
     }
   }

@@ -2,7 +2,7 @@
   "AWSTemplateFormatVersion":"2010-09-09",
   "Description": "This template creates the ECS cluster and FireCamp TaskDefinition",
   "Parameters":{
-    "ECSClusterName":{
+    "ClusterName":{
       "Type":"String",
       "Description":"Name of the ECS cluster.",
       "Default":"default",
@@ -11,22 +11,117 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-    "FireCampDBType": {
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
+    },
+    "DBType": {
       "AllowedValues": [
         "clouddb",
         "controldb"
       ],
       "Default": "clouddb",
-      "Description": "The firecamp db type",
       "Type": "String"
     },
     "AvailabilityZones": {
       "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "DesiredCapacity":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of instances to launch."
+    },
+    "MaxSize":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Maximum number of instances that can be launched."
+    },
+    "ServiceSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The SecurityGroup to access the services in the cluster."
+    },
+    "InternalAccessSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+    },
+    "NodeInstanceProfileID": {
+      "Type": "String",
+      "Default": "",
+      "Description": "ID of the instance IAM Profile"
+    },
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+        "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+        "Default": "firecamp/releases/latest/cf-templates",
+        "Type": "String",
+        "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+        "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
+    },
+    "NodeInstanceType":{
+      "Description":"EC2 instance type",
+      "Type":"String",
+      "Default":"t2.micro",
+      "AllowedValues":[
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge"
+      ],
+      "ConstraintDescription":"Please choose a valid instance type."
+    }
+  },
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
     }
   },
   "Resources":{
-    "FireCampServerLogGroup": {
+    "ManageServerLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
         "LogGroupName": {
@@ -34,7 +129,7 @@
             "-",
             [
               {
-                "Ref": "ECSClusterName"
+                "Ref": "ClusterName"
               },
               "manageserver"
             ]
@@ -43,16 +138,7 @@
         "RetentionInDays": "30"
       }
     },
-    "ECSCluster":{
-      "Type":"AWS::ECS::Cluster",
-      "Properties" : {
-        "ClusterName" : {
-          "Ref": "ECSClusterName"
-        }
-      }
-    },
-    "FireCampServerTaskdefinition":{
-      "DependsOn": "FireCampServerLogGroup",
+    "ManageServerTaskdefinition":{
       "Type":"AWS::ECS::TaskDefinition",
       "Properties":{
         "Family":{
@@ -60,7 +146,7 @@
             "-",
             [
               {
-                "Ref":"ECSClusterName"
+                "Ref":"ClusterName"
               },
               "firecamp-manageserver"
             ]
@@ -73,7 +159,7 @@
                 "-",
                 [
                   {
-                    "Ref": "ECSClusterName"
+                    "Ref": "ClusterName"
                   },
                   "firecamp-manageserver-container"
                 ]
@@ -98,15 +184,7 @@
                   "Ref": "AWS::Region"
                 },
                 "awslogs-group": {
-                  "Fn::Join":[
-                    "-",
-                    [
-                      {
-                        "Ref": "ECSClusterName"
-                      },
-                      "manageserver"
-                    ]
-                  ]
+                  "Ref": "ManageServerLogGroup"
                 },
                 "awslogs-stream-prefix": "manageserver"
               }
@@ -119,7 +197,7 @@
               {
                 "Name": "DB_TYPE",
                 "Value": {
-                  "Ref": "FireCampDBType"
+                  "Ref": "DBType"
                 }
               },
               {
@@ -137,17 +215,83 @@
           }
         ]
       }
-    }
-  },
-  "Outputs":{
+    },
     "ECSCluster":{
-      "Value":{
-        "Ref":"ECSCluster"
+      "Type":"AWS::ECS::Cluster",
+      "Properties" : {
+        "ClusterName" : {
+          "Ref": "ClusterName"
+        }
       }
     },
-    "FireCampServerTaskdefinition":{
-      "Value":{
-        "Ref":"FireCampServerTaskdefinition"
+    "ManageServerECSService":{
+      "Type":"AWS::ECS::Service",
+      "DependsOn": "ECSCluster",
+      "Properties":{
+        "Cluster":{
+          "Ref": "ClusterName"
+        },
+        "DesiredCount":"1",
+        "ServiceName": "firecamp-manageserver",
+        "TaskDefinition":{
+          "Ref": "ManageServerTaskdefinition"
+        }
+      }
+    },
+    "ServiceAutoScalingGroup": {
+      "DependsOn": [
+        "ECSCluster"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "DesiredCapacity": {
+            "Ref": "DesiredCapacity"
+          },
+          "MaxSize":{
+            "Ref": "MaxSize"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroupID"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroupID"
+          },
+          "NodeInstanceProfileID": {
+            "Ref": "NodeInstanceProfileID"
+          },
+          "NodeInstanceType":{
+            "Ref": "NodeInstanceType"
+          }
+        }
       }
     }
   }

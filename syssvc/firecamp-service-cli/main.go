@@ -206,8 +206,8 @@ func main() {
 		cleanDNS(ctx, cli)
 
 	default:
-		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s\n",
-			opCreate, opCheckInit, opDelete, opList, opGet, opListMembers)
+		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s\n",
+			opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
 		os.Exit(-1)
 	}
 }

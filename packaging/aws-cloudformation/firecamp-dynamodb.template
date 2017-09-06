@@ -1,10 +1,10 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates the DynamoDB tables for the FireCamp ECS cluster.",
+  "Description": "This template creates the DynamoDB tables for the FireCamp cluster.",
   "Parameters":{
-    "ECSClusterName":{
+    "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS cluster.",
+      "Description":"Name of the cluster.",
       "Default":"default",
       "MinLength": "1",
       "MaxLength": "255",
@@ -31,7 +31,7 @@
             "-",
             [
               {
-                "Ref": "ECSClusterName"
+                "Ref": "ClusterName"
               },
               "firecamp-table"
             ]
