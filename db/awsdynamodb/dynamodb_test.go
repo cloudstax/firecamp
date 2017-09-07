@@ -469,3 +469,66 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("delete unexist config, expect db.ErrDBRecordNotFound, got error %s", err)
 	}
 }
+
+func TestSwarm(t *testing.T) {
+	cluster := "c1"
+	addr := "host1:2377"
+
+	ctx := context.Background()
+
+	err := dbIns.TakeInitManager(ctx, cluster, addr)
+	if err != nil {
+		t.Fatalf("TakeInitManager error %s, cluster %s addr %s", err, cluster, addr)
+	}
+
+	// negative case: put again
+	err = dbIns.TakeInitManager(ctx, cluster, addr)
+	if err != db.ErrDBConditionalCheckFailed {
+		t.Fatalf("TakeInitManager expect db.ErrDBConditionalCheckFailed, get %s, cluster %s addr %s", err, cluster, addr)
+	}
+
+	addr1, err := dbIns.GetInitManager(ctx, cluster)
+	if err != nil {
+		t.Fatalf("GetInitManager error %s, cluster %s addr %s", err, cluster, addr)
+	}
+	if addr1 != addr {
+		t.Fatalf("GetInitManager get addr %s, expect addr %s", addr1, addr)
+	}
+
+	tokenm := "manager-token"
+	tokenw := "worker-token"
+	err = dbIns.CreateJoinToken(ctx, cluster, tokenm, RoleManager)
+	if err != nil {
+		t.Fatalf("CreateJoinToken error %s, token %s", err, tokenm)
+	}
+	err = dbIns.CreateJoinToken(ctx, cluster, tokenw, RoleWorker)
+	if err != nil {
+		t.Fatalf("CreateJoinToken error %s, token %s", err, tokenw)
+	}
+
+	// negative case: put again
+	err = dbIns.CreateJoinToken(ctx, cluster, tokenm, RoleManager)
+	if err != db.ErrDBConditionalCheckFailed {
+		t.Fatalf("CreateJoinToken expect db.ErrDBConditionalCheckFailed, get %s, token %s", err, tokenm)
+	}
+	err = dbIns.CreateJoinToken(ctx, cluster, tokenw, RoleWorker)
+	if err != db.ErrDBConditionalCheckFailed {
+		t.Fatalf("CreateJoinToken expect db.ErrDBConditionalCheckFailed, get %s, token %s", err, tokenw)
+	}
+
+	token1, err := dbIns.GetJoinToken(ctx, cluster, RoleManager)
+	if err != nil {
+		t.Fatalf("GetJoinToken error %s", err)
+	}
+	if token1 != tokenm {
+		t.Fatalf("GetJoinToken get token %s, expect %s", token1, tokenm)
+	}
+
+	token1, err = dbIns.GetJoinToken(ctx, cluster, RoleWorker)
+	if err != nil {
+		t.Fatalf("GetJoinToken error %s", err)
+	}
+	if token1 != tokenw {
+		t.Fatalf("GetJoinToken get token %s, expect %s", token1, tokenw)
+	}
+}
