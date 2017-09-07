@@ -2,6 +2,18 @@
   "AWSTemplateFormatVersion":"2010-09-09",
   "Description": "This template creates an AutoScalingGroup in the subnets.",
   "Parameters":{
+    "ContainerPlatform":{
+      "Type": "String",
+      "Default": "ecs",
+      "AllowedValues" : [ "ecs", "swarm" ],
+      "Description":"The container orchestration platform."
+    },
+    "ContainerPlatformRole":{
+      "Type": "String",
+      "Default": "worker",
+      "AllowedValues" : [ "manager", "worker" ],
+      "Description":"The role in the container orchestration platform. For Swarm, one node could be a manager or worker."
+    },
     "ClusterName":{
       "Type":"String",
       "Description":"Name of the cluster.",
@@ -14,6 +26,10 @@
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster instances."
+    },
+    "AvailabilityZones": {
+      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
     "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
@@ -197,18 +213,39 @@
               "",
               [
                 "#!/bin/bash -x\n",
+                "yum install -y aws-cfn-bootstrap\n",
+
+                "version=\"latest\"\n",
                 "# get and run the node init script\n",
-                "wget -O /tmp/init.sh https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/cf-templates/init.sh\n",
+                "wget -O /tmp/init.sh https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/cf-templates/init.sh\n",
                 "chmod +x /tmp/init.sh\n",
-                "/tmp/init.sh ",
+                "/tmp/init.sh $version ",
                 {
                   "Ref":"ClusterName"
                 },
+                " ",
+                {
+                  "Ref": "ContainerPlatform"
+                },
+                " ",
+                {
+                  "Ref": "ContainerPlatformRole"
+                },
+                " ",
+                {
+                  "Fn::Join": [
+                    ",",
+                    {
+                      "Ref": "AvailabilityZones"
+                    }
+                  ]
+                },
                 "\n",
+                "res=$?\n",
+                "echo $res\n",
 
-                "yum install -y aws-cfn-bootstrap\n",
-                "# Signal success\n",
-                "/opt/aws/bin/cfn-signal -e $? ",
+                "# Signal init result\n",
+                "/opt/aws/bin/cfn-signal -e $res ",
                 "         --stack ",
                 {
                   "Ref":"AWS::StackName"

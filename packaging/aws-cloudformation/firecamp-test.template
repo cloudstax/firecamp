@@ -54,6 +54,11 @@
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
       "Description": "Allowed CIDR block to access SSH or the firecamp manage http server."
     },
+    "NumberOfManagers":{
+      "Type":"Number",
+      "Default":"1",
+      "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
+    },
     "DesiredCapacity":{
       "Type":"Number",
       "Default":"1",
@@ -275,6 +280,9 @@
                 "Ref": "AvailabilityZones"
               }
             ]
+          },
+          "NumberOfManagers": {
+            "Ref": "NumberOfManagers"
           },
           "DesiredCapacity": {
             "Ref": "DesiredCapacity"

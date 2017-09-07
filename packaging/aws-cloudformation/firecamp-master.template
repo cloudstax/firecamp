@@ -116,7 +116,6 @@
       "Default": "3",
       "Type": "String"
     },
-
     "VPCCIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "Default": "10.0.0.0/16",
@@ -165,6 +164,11 @@
       "Default": "10.0.160.0/20",
       "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
       "Type": "String"
+    },
+    "NumberOfManagers":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
     },
     "DesiredCapacity":{
       "Type":"Number",
@@ -540,6 +544,9 @@
                 "Ref": "AvailabilityZones"
               }
             ]
+          },
+          "NumberOfManagers": {
+            "Ref": "NumberOfManagers"
           },
           "DesiredCapacity": {
             "Ref": "DesiredCapacity"

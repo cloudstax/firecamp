@@ -63,12 +63,32 @@ func NewSwarmSvc() (*SwarmSvc, error) {
 
 // CreateService creates a swarm service
 func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
+	serviceSpec := s.CreateServiceSpec(opts)
+	return s.CreateSwarmService(ctx, serviceSpec, opts)
+}
+
+// CreateSwarmService creates the swarm service.
+func (s *SwarmSvc) CreateSwarmService(ctx context.Context, serviceSpec swarm.ServiceSpec, opts *containersvc.CreateServiceOptions) error {
 	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("CreateService newClient error", err, "options", opts)
 		return err
 	}
 
+	serviceOpts := types.ServiceCreateOptions{}
+
+	resp, err := cli.ServiceCreate(ctx, serviceSpec, serviceOpts)
+	if err != nil {
+		glog.Errorln("CreateService error", err, "service spec", serviceSpec, "options", opts)
+		return err
+	}
+
+	glog.Infoln("CreateService complete, resp", resp, "options", opts)
+	return nil
+}
+
+// CreateServiceSpec creates the swarm ServiceSpec.
+func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) swarm.ServiceSpec {
 	var mounts []mounttypes.Mount
 	if len(opts.ContainerPath) != 0 {
 		mount := mounttypes.Mount{
@@ -154,16 +174,7 @@ func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateS
 		serviceSpec.EndpointSpec = epSpec
 	}
 
-	serviceOpts := types.ServiceCreateOptions{}
-
-	resp, err := cli.ServiceCreate(ctx, serviceSpec, serviceOpts)
-	if err != nil {
-		glog.Errorln("CreateService error", err, "service spec", serviceSpec, "options", opts)
-		return err
-	}
-
-	glog.Infoln("CreateService complete, resp", resp, "options", opts)
-	return nil
+	return serviceSpec
 }
 
 func (s *SwarmSvc) cpuUnits2NanoCPUs(cpuUnits int64) int64 {
@@ -711,4 +722,94 @@ func (s *SwarmSvc) genTaskContainerName(cluster string, service string, taskType
 
 func (s *SwarmSvc) memoryMB2Bytes(size int64) int64 {
 	return size * 1024 * 1024
+}
+
+// IsSwarmInitialized checks if the swarm cluster is initialized.
+func (s *SwarmSvc) IsSwarmInitialized(ctx context.Context) (bool, error) {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("IsSwarmInitialized newClient error", err)
+		return false, err
+	}
+
+	swarm, err := cli.SwarmInspect(ctx)
+	if err != nil {
+		// if swarm is not initialized, SwarmInspect will return error.
+		// didn't find the corresponding error code, simply take error as not initialized.
+		glog.Errorln("SwarmInspect error", err)
+		return false, nil
+	}
+
+	glog.Infoln("SwarmInspect", swarm)
+	return true, nil
+}
+
+// SwarmInit initializes the swarm cluster.
+func (s *SwarmSvc) SwarmInit(ctx context.Context, addr string) error {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("SwarmInit newClient error", err)
+		return err
+	}
+
+	req := swarm.InitRequest{
+		ListenAddr:    addr,
+		AdvertiseAddr: addr,
+		Availability:  swarm.NodeAvailabilityActive,
+	}
+
+	nodeID, err := cli.SwarmInit(ctx, req)
+	if err != nil {
+		// if swarm is not initialized, SwarmInspect will return error.
+		// didn't find the corresponding error code, simply take error as not initialized.
+		glog.Errorln("SwarmInit error", err, "addr", addr)
+		return err
+	}
+
+	glog.Infoln("SwarmInit done, ndoeID", nodeID, addr)
+	return nil
+}
+
+// GetJoinToken gets the swarm manager and worker node join token.
+func (s *SwarmSvc) GetJoinToken(ctx context.Context) (managerToken string, workerToken string, err error) {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("GetJoinToken newClient error", err)
+		return "", "", err
+	}
+
+	swarm, err := cli.SwarmInspect(ctx)
+	if err != nil {
+		glog.Errorln("SwarmInspect error", err)
+		return "", "", err
+	}
+
+	glog.Infoln("SwarmInspect", swarm.ClusterInfo, swarm.JoinTokens)
+	return swarm.JoinTokens.Manager, swarm.JoinTokens.Worker, nil
+}
+
+// SwarmJoin joins the current node to the remote manager.
+func (s *SwarmSvc) SwarmJoin(ctx context.Context, addr string, joinAddr string, token string) error {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("SwarmJoin newClient error", err)
+		return err
+	}
+
+	req := swarm.JoinRequest{
+		ListenAddr:    addr,
+		AdvertiseAddr: addr,
+		RemoteAddrs:   []string{joinAddr},
+		JoinToken:     token,
+		Availability:  swarm.NodeAvailabilityActive,
+	}
+
+	err = cli.SwarmJoin(ctx, req)
+	if err != nil {
+		glog.Errorln("SwarmJoin error", err, addr, "join addr", joinAddr)
+		return err
+	}
+
+	glog.Infoln("SwarmJoin", addr, "join addr", joinAddr)
+	return nil
 }

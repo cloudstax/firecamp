@@ -53,6 +53,11 @@
       "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
+    "NumberOfManagers":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
+    },
     "DesiredCapacity":{
       "Type":"Number",
       "Default":"3",
@@ -291,10 +296,13 @@
               }
             ]
           },
-          "DesiredCapacity": {
+          "NumberOfManagers": {
+            "Ref": "NumberOfManagers"
+          },
+          "DesiredWorkerCapacity": {
             "Ref": "DesiredCapacity"
           },
-          "MaxSize":{
+          "MaxWorkerSize":{
             "Ref": "MaxSize"
           },
           "ServiceSecurityGroupID": {

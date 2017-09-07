@@ -49,7 +49,34 @@ func main() {
 	flag.Parse()
 
 	ctx := context.Background()
+	swarmInitTest(ctx)
+	//swarmServiceTest(ctx)
+}
 
+func swarmInitTest(ctx context.Context) {
+	svc, err := swarmsvc.NewSwarmSvc()
+	if err != nil {
+		fmt.Println("NewSwarmSvc error", err)
+		os.Exit(-1)
+	}
+
+	init, err := svc.IsSwarmInitialized(ctx)
+	if err != nil {
+		fmt.Println("IsSwarmInitialized error", err, init)
+		os.Exit(-1)
+	}
+
+	if !init {
+		addr := "192.168.1.59"
+		err = svc.InitSwarm(ctx, addr)
+		fmt.Println("InitSwarm addr", addr, "error", err)
+	}
+
+	mtoken, wtoken, err := svc.GetJoinToken(ctx)
+	fmt.Println("GetJoinToken manager", mtoken, "worker", wtoken, "error", err)
+}
+
+func swarmServiceTest(ctx context.Context) {
 	testTalkToLocalManager(ctx)
 	testLocalClient(ctx)
 

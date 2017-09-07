@@ -131,7 +131,7 @@
               {
                 "Ref": "ClusterName"
               },
-              "manageserver"
+              "manageserver-firecamp"
             ]
           ]
         },
@@ -259,11 +259,20 @@
           ]
         },
         "Parameters": {
+          "ContainerPlatform": "ecs",
           "ClusterName": {
             "Ref": "ClusterName"
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
           },
           "SubnetIDs": {
             "Fn::Join": [

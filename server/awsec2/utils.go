@@ -14,6 +14,7 @@ import (
 const ec2InstanceIDURL = "http://169.254.169.254/latest/meta-data/instance-id"
 const ec2AZURL = "http://169.254.169.254/latest/meta-data/placement/availability-zone"
 const ec2HostnameURL = "http://169.254.169.254/latest/meta-data/hostname"
+const ec2LocalIPURL = "http://169.254.169.254/latest/meta-data/local-ipv4"
 const ec2MacURL = "http://169.254.169.254/latest/meta-data/mac"
 const ec2VpcURLPrefix = "http://169.254.169.254/latest/meta-data/network/interfaces/macs/"
 
@@ -49,6 +50,11 @@ func GetLocalEc2Region() (string, error) {
 // GetLocalEc2Hostname gets the current ec2 node's hostname
 func GetLocalEc2Hostname() (string, error) {
 	return getEc2Metadata(ec2HostnameURL)
+}
+
+// GetLocalEc2IP gets the current ec2 node's local IP
+func GetLocalEc2IP() (string, error) {
+	return getEc2Metadata(ec2LocalIPURL)
 }
 
 // GetLocalEc2VpcID gets the current ec2 node's vpc id
