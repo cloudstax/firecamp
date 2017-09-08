@@ -1,0 +1,277 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates the Swarm cluster with the FireCamp manager service.",
+  "Parameters":{
+    "ClusterName":{
+      "Type":"String",
+      "Description":"Name of the cluster.",
+      "Default":"default",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
+    },
+    "DBType": {
+      "AllowedValues": [
+        "clouddb",
+        "controldb"
+      ],
+      "Default": "clouddb",
+      "Type": "String"
+    },
+    "AvailabilityZones": {
+      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "NumberOfManagers":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of the Swarm manager instances to launch."
+    },
+    "DesiredWorkerCapacity":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of the Swarm worker instances to launch."
+    },
+    "MaxWorkerSize":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Maximum number of the Swarm worker instances that can be launched."
+    },
+    "ServiceSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The SecurityGroup to access the services in the cluster."
+    },
+    "InternalAccessSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+    },
+    "NodeInstanceProfileID": {
+      "Type": "String",
+      "Default": "",
+      "Description": "ID of the instance IAM Profile"
+    },
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+        "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+        "Default": "firecamp/releases/latest/cf-templates",
+        "Type": "String",
+        "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+        "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
+    },
+    "NodeInstanceType":{
+      "Description":"EC2 instance type",
+      "Type":"String",
+      "Default":"t2.micro",
+      "AllowedValues":[
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge"
+      ],
+      "ConstraintDescription":"Please choose a valid instance type."
+    }
+  },
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    }
+  },
+  "Resources":{
+    "ManageServerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join":[
+            "-",
+            [
+              {
+                "Ref": "ClusterName"
+              },
+              "manageserver-firecamp"
+            ]
+          ]
+        },
+        "RetentionInDays": "30"
+      }
+    },
+    "ManagerAutoScalingGroup": {
+      "Type": "AWS::CloudFormation::Stack",
+      "DependsOn": "ManageServerLogGroup",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ContainerPlatform": "swarm",
+          "ContainerPlatformRole": "manager",
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "DesiredCapacity": {
+            "Ref": "NumberOfManagers"
+          },
+          "MaxSize":{
+            "Ref": "NumberOfManagers"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroupID"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroupID"
+          },
+          "NodeInstanceProfileID": {
+            "Ref": "NodeInstanceProfileID"
+          },
+          "NodeInstanceType":{
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    },
+    "WorkerAutoScalingGroup": {
+      "DependsOn": [
+        "ManagerAutoScalingGroup"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-autoscalegroup.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ContainerPlatform": "swarm",
+          "ContainerPlatformRole": "worker",
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "DesiredCapacity": {
+            "Ref": "DesiredWorkerCapacity"
+          },
+          "MaxSize":{
+            "Ref": "MaxWorkerSize"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroupID"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroupID"
+          },
+          "NodeInstanceProfileID": {
+            "Ref": "NodeInstanceProfileID"
+          },
+          "NodeInstanceType":{
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    }
+  }
+}

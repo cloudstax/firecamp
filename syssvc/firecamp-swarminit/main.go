@@ -210,6 +210,12 @@ func getJoinToken(ctx context.Context, dbIns *awsdynamodb.DynamoDB, cluster stri
 	return ""
 }
 
+// example manage service creation:
+// docker service create --name mgt --constraint node.role==manager --replicas 1 \
+// --publish mode=host,target=27040,published=27040 \
+// --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+// -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 \
+// cloudstax/firecamp-manageserver
 func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIns *awscloudwatch.Log, cluster string) {
 	serviceUUID := common.SystemName
 
