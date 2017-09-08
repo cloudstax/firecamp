@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -ex
 
 version=$1
 clusterName=$2
@@ -41,14 +41,18 @@ sysctl -w vm.overcommit_memory=1
 
 
 # 2. install docker.
-# TODO install a specific version. sudo yum list docker --showduplicates. sudo yum install docker-17.03.1ce
 # [ec2-user@ip-172-31-69-166 ~]$ sudo yum list docker --showduplicates
 # Loaded plugins: priorities, update-motd, upgrade-helper
 # Available Packages
 # docker.x86_64                 1.12.6-2.19.amzn1                      amzn-main
 # docker.x86_64                 17.03.1ce-1.50.amzn1                   amzn-updates
 # docker.x86_64                 17.03.2ce-1.59.amzn1                   amzn-updates
-yum install -y docker
+if [ "$containerPlatform" = "ecs" ]; then
+  # ecs-init-1.14.4-1 supports up to docker 17.03.2ce
+  yum install -y docker-17.03.2ce-1.59.amzn1
+else
+  yum install -y docker
+fi
 
 # Kafka uses a very large number of files, increase the file descriptor count.
 # AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".
@@ -78,14 +82,12 @@ if [ "$containerPlatform" = "ecs" ]; then
 fi
 
 if [ "$containerPlatform" = "swarm" ]; then
-  wget -O /tmp/firecamp-swarminit https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit
-  chmod +x /tmp/firecamp-swarminit
+  wget -O firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
+  tar -zxf firecamp-swarminit.tgz
+  chmod +x firecamp-swarminit
+
   # initialize the swarm node
-  /tmp/firecamp-swarminit -cluster="$clusterName" -role="$containerPlatformRole" -availability-zones="$azs"
-  if [ "$?" != "0" ]; then
-    echo "ERROR: firecamp-swarminit failed"
-    exit 2
-  fi
+  /firecamp-swarminit -cluster="$clusterName" -role="$containerPlatformRole" -availability-zones="$azs"
 
   echo "firecamp-swarminit done"
 

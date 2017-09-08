@@ -5,12 +5,16 @@ protoc -I db/controldb/protocols/ db/controldb/protocols/controldb.proto --go_ou
 
 cd syssvc/firecamp-controldb; go install; cd -
 
-# TODO remove the dockervolume install when switch from rpm to plugin
 cd syssvc/firecamp-dockervolume; go install; cd -
 
 cd syssvc/firecamp-manageserver; go install; cd -
 
 cd syssvc/firecamp-service-cli; go install; cd -
+
+cd syssvc/firecamp-swarminit; go install; cd -
+
+cd $GOPATH/bin; tar -zcf firecamp-service-cli.tgz firecamp-service-cli; cd -
+cd $GOPATH/bin; tar -zcf firecamp-swarminit.tgz firecamp-swarminit; cd -
 
 # these 3 commands are example commands
 cd syssvc/examples/firecamp-init; go install; cd -

@@ -171,9 +171,10 @@ func main() {
 		case catalog.CatalogService_Redis:
 			createRedisService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
-				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper)
+				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
+				catalog.CatalogService_Kafka, catalog.CatalogService_Redis)
 			os.Exit(-1)
 		}
 

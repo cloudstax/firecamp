@@ -40,12 +40,16 @@
       "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
+    "Release": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.7.1" ],
+      "Description": "The FireCamp release version"
+    },
     "CFS3KeyPrefix": {
-        "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-        "Default": "firecamp/releases/latest/cf-templates",
         "Type": "String",
-        "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-        "Description": "S3 key prefix for the CloudFormation assets. The CloudFormation S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with a hyphen (-)."
+        "Default": "firecamp/releases/latest/cf-templates",
+        "Description": "The S3 key prefix"
     },
     "RemoteAccessCIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
@@ -252,6 +256,9 @@
           },
           "CFS3BucketName": {
             "Ref": "CFS3BucketName"
+          },
+          "Release": {
+            "Ref": "Release"
           },
           "CFS3KeyPrefix": {
             "Ref": "CFS3KeyPrefix"

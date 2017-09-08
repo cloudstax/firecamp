@@ -27,6 +27,11 @@
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster instances."
     },
+    "Release": {
+      "Type": "String",
+      "Default": "latest",
+      "Description": "The FireCamp release version"
+    },
     "AvailabilityZones": {
       "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
@@ -215,7 +220,12 @@
                 "#!/bin/bash -x\n",
                 "yum install -y aws-cfn-bootstrap\n",
 
-                "version=\"latest\"\n",
+                "version=",
+                {
+                  "Ref": "Release"
+                },
+                "\n",
+
                 "# get and run the node init script\n",
                 "wget -O /tmp/init.sh https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/cf-templates/init.sh\n",
                 "chmod +x /tmp/init.sh\n",
