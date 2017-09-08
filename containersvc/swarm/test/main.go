@@ -50,11 +50,12 @@ func main() {
 
 	ctx := context.Background()
 	swarmInitTest(ctx)
-	//swarmServiceTest(ctx)
+	swarmServiceTest(ctx)
 }
 
 func swarmInitTest(ctx context.Context) {
-	svc, err := swarmsvc.NewSwarmSvc()
+	azs := []string{"local"}
+	svc, err := swarmsvc.NewSwarmSvc(azs)
 	if err != nil {
 		fmt.Println("NewSwarmSvc error", err)
 		os.Exit(-1)
@@ -68,7 +69,7 @@ func swarmInitTest(ctx context.Context) {
 
 	if !init {
 		addr := "192.168.1.59"
-		err = svc.InitSwarm(ctx, addr)
+		err = svc.SwarmInit(ctx, addr)
 		fmt.Println("InitSwarm addr", addr, "error", err)
 	}
 
@@ -88,7 +89,8 @@ func swarmServiceTest(ctx context.Context) {
 	}
 
 	fmt.Println(info.GetContainerClusterID(), info.GetLocalContainerInstanceID())
-	e, err := swarmsvc.NewSwarmSvc()
+	azs := []string{"local"}
+	e, err := swarmsvc.NewSwarmSvc(azs)
 	if err != nil {
 		fmt.Println("NewSwarmSvc error", err)
 		os.Exit(-1)

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,7 +26,7 @@ import (
 var (
 	cluster = flag.String("cluster", "", "The cluster name")
 	role    = flag.String("role", "", "The swarm node role, worker or manager")
-	azs     = flag.String("availability-zones", "", "The availability zones")
+	azs     = flag.String("availability-zones", "", "The availability zones, example: us-east-1a,us-east-1b,us-east-1c")
 )
 
 const (
@@ -75,7 +76,9 @@ func main() {
 	}
 
 	// init or join swarm
-	swarmSvc, err := swarmsvc.NewSwarmSvc()
+	azSep := ","
+	zones := strings.Split(*azs, azSep)
+	swarmSvc, err := swarmsvc.NewSwarmSvc(zones)
 	if err != nil {
 		glog.Fatalln("NewSwarmSvc error", err)
 	}

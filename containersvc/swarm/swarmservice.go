@@ -48,7 +48,11 @@ const (
 // the task would usually run some simple job, such as setup the MongoDB ReplicaSet.
 type SwarmSvc struct {
 	cli *SwarmClient
+	// the availability zones the cluster have
+	azs []string
 
+	// TODO better separate 2 ContainerSvc interfaces.
+	// One for the manage server. One for the volume plugin.
 	// the docker volume plugin could not directly talk with the swarm manager,
 	// as the swarm manager is protected with the internal tls by default.
 	// the plugin will talk with the manageserver.
@@ -59,7 +63,7 @@ type SwarmSvc struct {
 }
 
 // NewSwarmSvc creates a new SwarmSvc instance
-func NewSwarmSvc() (*SwarmSvc, error) {
+func NewSwarmSvc(azs []string) (*SwarmSvc, error) {
 	cli, err := NewSwarmClient()
 	if err != nil {
 		return nil, err
@@ -67,6 +71,7 @@ func NewSwarmSvc() (*SwarmSvc, error) {
 
 	s := &SwarmSvc{
 		cli:       cli,
+		azs:       azs,
 		volplugin: false,
 	}
 
@@ -119,9 +124,18 @@ func (s *SwarmSvc) CreateSwarmService(ctx context.Context, serviceSpec swarm.Ser
 func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) swarm.ServiceSpec {
 	var mounts []mounttypes.Mount
 	if len(opts.ContainerPath) != 0 {
+		// The Task.Slot in the volume name does not work on the multiple zones cluster,
+		// as task slot is not aware of zone.
+		source := opts.Common.ServiceUUID
+		if len(s.azs) == 1 {
+			// enable Task.Slot for the single zone cluster.
+			// TODO revisit it when support adding a new zone.
+			source = containersvc.GenVolumeSourceForSwarm(opts.Common.ServiceUUID)
+		}
+
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
-			Source:   containersvc.GenVolumeSourceForSwarm(opts.Common.ServiceUUID),
+			Source:   source,
 			Target:   opts.ContainerPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{

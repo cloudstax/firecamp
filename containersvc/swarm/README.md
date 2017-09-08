@@ -6,7 +6,7 @@ One solution is to start docker daemon with our own CA certificate. So the FireC
 
 It looks better to run the FireCamp manageserver container on the Swarm manager nodes, and talk with Swarm manager via the unix socket. The customer could easily add FireCamp to the existing or new swarm cluster. The FireCamp manageserver container is very light. It is ok to run on the swarm manager node.
 
-Docker swarm service could [pass the task slot in the volume source name](https://docs.docker.com/docker-for-aws/persistent-data-volumes/#use-a-unique-volume-per-task-using-ebs) to the volume plugin. So the volume plugin could directly know which member the container is for.
+Docker swarm service could [pass the task slot in the volume source name](https://docs.docker.com/docker-for-aws/persistent-data-volumes/#use-a-unique-volume-per-task-using-ebs) to the volume plugin. So the volume plugin could directly know which member the container is for. This works for the single availability zone cluster. One EBS volume is binded to one availability zone. In the multi-zones cluster, Docker Swarm task slot is not aware of the availability zone.
 
 
 # Install FireCamp on the existing Swarm cluster
@@ -24,7 +24,7 @@ The cluster name has to be unique for the swarm clusters in the same VPC. If 2 s
 3. Create the FireCamp manageserver service on the swarm manager node.
 
 The example command:
-`docker service create --name mgt --constraint node.role==manager --publish mode=host,target=27040,published=27040  --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 cloudstax/firecamp-manageserver:tag`
+`docker service create --name firecamp-manageserver --constraint node.role==manager --publish mode=host,target=27040,published=27040  --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 cloudstax/firecamp-manageserver:tag`
 
 You could change the service name, AVAILABILITY_ZONES, CLUSTER and the manageserver docker image tag. Please do NOT change others.
 

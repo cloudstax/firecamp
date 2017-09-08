@@ -124,7 +124,7 @@ func main() {
 		}
 
 		cluster = info.GetContainerClusterID()
-		containersvcIns, err = swarmsvc.NewSwarmSvc()
+		containersvcIns, err = swarmsvc.NewSwarmSvc(azs)
 		if err != nil {
 			glog.Fatalln("NewSwarmSvc error", err)
 		}
