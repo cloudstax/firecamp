@@ -113,7 +113,7 @@ func main() {
 
 		info = sinfo
 
-		containersvcIns, err = swarmsvc.NewSwarmSvc()
+		containersvcIns, err = swarmsvc.NewSwarmSvcForVolumePlugin(region, cluster)
 		if err != nil {
 			glog.Fatalln("NewSwarmSvc error", err)
 		}

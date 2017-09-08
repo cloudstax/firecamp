@@ -485,3 +485,59 @@ func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.Ca
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.Initialized, res.StatusMessage, err
 }
+
+// InternalGetServiceTask gets the service task ID.
+func (c *ManageClient) InternalGetServiceTask(ctx context.Context, r *manage.InternalGetServiceTaskRequest) (taskID string, err error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+
+	urlStr := c.serverURL + manage.InternalGetServiceTaskOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.InternalGetServiceTaskResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ServiceTaskID, err
+}
+
+// InternalListActiveServiceTasks lists the service active tasks.
+func (c *ManageClient) InternalListActiveServiceTasks(ctx context.Context, r *manage.InternalListActiveServiceTasksRequest) (taskIDs map[string]bool, err error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.InternalListActiveServiceTasksOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.InternalListActiveServiceTasksResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ServiceTaskIDs, err
+}

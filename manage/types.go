@@ -27,6 +27,10 @@ const (
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
 
+	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
+	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
+	InternalListActiveServiceTasksOp = InternalOpPrefix + "ListActiveServiceTasks"
+
 	// response headers
 	RequestID       = "x-RequestId"
 	Server          = "Server"
@@ -291,4 +295,31 @@ type CatalogSetRedisInitRequest struct {
 	ServiceName string
 	// The Redis node ids, format: "MemberName RedisNodeID Role(master/slave)"
 	NodeIds []string
+}
+
+// The internal requests from the plugin to the manage server.
+
+// InternalGetServiceTaskRequest gets the service task from the container framework.
+type InternalGetServiceTaskRequest struct {
+	Region              string
+	Cluster             string
+	ServiceName         string
+	ContainerInstanceID string
+}
+
+// InternalGetServiceTaskResponse returns the service task ID.
+type InternalGetServiceTaskResponse struct {
+	ServiceTaskID string
+}
+
+// InternalListActiveServiceTasksRequest gets the service active tasks from the container framework.
+type InternalListActiveServiceTasksRequest struct {
+	Region      string
+	Cluster     string
+	ServiceName string
+}
+
+// InternalListActiveServiceTasksResponse returns the active task IDs of the service.
+type InternalListActiveServiceTasksResponse struct {
+	ServiceTaskIDs map[string]bool
 }

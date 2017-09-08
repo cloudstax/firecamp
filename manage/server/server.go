@@ -277,6 +277,11 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 		return s.getCatalogServiceOp(ctx, w, r, requuid)
 	}
 
+	// check if the request is the internal service request.
+	if strings.HasPrefix(trimURL, manage.InternalOpPrefix) {
+		return s.internalGetOp(ctx, w, r, trimURL, requuid)
+	}
+
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
 		case manage.ListServiceOp:

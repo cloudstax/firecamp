@@ -17,6 +17,9 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
+	managecli "github.com/cloudstax/firecamp/manage/client"
 )
 
 const (
@@ -45,6 +48,14 @@ const (
 // the task would usually run some simple job, such as setup the MongoDB ReplicaSet.
 type SwarmSvc struct {
 	cli *SwarmClient
+
+	// the docker volume plugin could not directly talk with the swarm manager,
+	// as the swarm manager is protected with the internal tls by default.
+	// the plugin will talk with the manageserver.
+	volplugin bool
+	region    string
+	cluster   string
+	mgtCli    *managecli.ManageClient
 }
 
 // NewSwarmSvc creates a new SwarmSvc instance
@@ -55,7 +66,24 @@ func NewSwarmSvc() (*SwarmSvc, error) {
 	}
 
 	s := &SwarmSvc{
-		cli: cli,
+		cli:       cli,
+		volplugin: false,
+	}
+
+	return s, nil
+}
+
+// NewSwarmSvcForVolumePlugin creates a new SwarmSvc instance for the volume plugin.
+func NewSwarmSvcForVolumePlugin(region string, cluster string) (*SwarmSvc, error) {
+	serverURL := dns.GetDefaultManageServiceURL(cluster, false)
+	mgtCli := managecli.NewManageClient(serverURL, nil)
+
+	s := &SwarmSvc{
+		cli:       nil,
+		volplugin: true,
+		region:    region,
+		cluster:   cluster,
+		mgtCli:    mgtCli,
 	}
 
 	return s, nil
@@ -183,6 +211,23 @@ func (s *SwarmSvc) cpuUnits2NanoCPUs(cpuUnits int64) int64 {
 
 // ListActiveServiceTasks lists the active (running and pending) tasks of the service
 func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, service string) (serviceTaskIDs map[string]bool, err error) {
+	if s.volplugin {
+		// ListActiveServiceTasks from the manage server running on the swarm manager node
+		r := &manage.InternalListActiveServiceTasksRequest{
+			Region:      s.region,
+			Cluster:     s.cluster,
+			ServiceName: service,
+		}
+
+		serviceTaskIDs, err = s.mgtCli.InternalListActiveServiceTasks(ctx, r)
+		if err != nil {
+			glog.Errorln("InternalListActiveServiceTasks error", err, "cluster", cluster, "service", service)
+		} else {
+			glog.Errorln("InternalListActiveServiceTasks ", len(serviceTaskIDs), "cluster", cluster, "service", service)
+		}
+		return serviceTaskIDs, err
+	}
+
 	filterArgs := filters.NewArgs()
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
@@ -211,6 +256,26 @@ func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, s
 
 // GetServiceTask gets the task running on the containerInstanceID
 func (s *SwarmSvc) GetServiceTask(ctx context.Context, cluster string, service string, containerInstanceID string) (serviceTaskID string, err error) {
+	if s.volplugin {
+		// GetServiceTask from the manage server running on the swarm manager node
+		r := &manage.InternalGetServiceTaskRequest{
+			Region:              s.region,
+			Cluster:             s.cluster,
+			ServiceName:         service,
+			ContainerInstanceID: containerInstanceID,
+		}
+
+		serviceTaskID, err = s.mgtCli.InternalGetServiceTask(ctx, r)
+		if err != nil {
+			glog.Errorln("InternalGetServiceTask error", err, "cluster", cluster,
+				"service", service, "container instance", containerInstanceID)
+		} else {
+			glog.Errorln("InternalGetServiceTask taskID", serviceTaskID, "cluster", cluster,
+				"service", service, "container instance", containerInstanceID)
+		}
+		return serviceTaskID, err
+	}
+
 	filterArgs := filters.NewArgs()
 	filterArgs.Add(filterName, service)
 	filterArgs.Add(filterDesiredState, taskStateRunning)
