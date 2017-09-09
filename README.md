@@ -16,7 +16,7 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 
 ## Key Features
 
-**Cross Container Orchestration Frameworks**: The FireCamp platform is built on top of the popular container orchestration frameworks. Currently FireCamp supports [Amazon EC2 Container Service](https://aws.amazon.com/ecs/). The [Docker Swarm](https://docs.docker.com/engine/swarm/) on Amazon Web Services is coming soon. Other container orchestration frameworks ([Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io)) will be supported in the future.
+**Cross Container Orchestration Frameworks**: The FireCamp platform is built on top of the popular container orchestration frameworks. Currently FireCamp supports [Amazon EC2 Container Service](https://aws.amazon.com/ecs/) and [Docker Swarm](https://docs.docker.com/engine/swarm/) on Amazon Web Services. Other container orchestration frameworks ([Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io)) will be supported in the future.
 
 **Cross Clouds**: Currently support Amazon Web Services. Will support Google Cloud, Microsoft Azure Cloud, Private and Hybrid Cloud in the future.
 
@@ -44,7 +44,7 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/firecamp/wiki/Architecture) and [Work Flow](https://github.com/cloudstax/firecamp/wiki/Work-Flows) wiki.
 
 ## Installation
-The FireCamp cluster could be easily installed using AWS CloudFormation. For the details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
+The FireCamp cluster could be easily installed using AWS CloudFormation for AWS ECS and Docker Swarm. For the details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
 
 ## Catalog Services
 * [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb)
