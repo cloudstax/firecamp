@@ -59,7 +59,7 @@ fi
 # The container inherits the docker daemon ulimit.
 # The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.
 # Ubuntu is /etc/init/docker.conf
-sed -i 's/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000\"/g' /etc/sysconfig/docker
+sed -i 's/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g' /etc/sysconfig/docker
 
 service docker start
 
