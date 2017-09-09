@@ -42,13 +42,13 @@
     },
     "Release": {
       "Type": "String",
-      "Default": "0.7.1",
+      "Default": "latest",
       "AllowedValues": [ "latest", "0.7.1" ],
       "Description": "The FireCamp release version"
     },
     "CFS3KeyPrefix": {
         "Type": "String",
-        "Default": "firecamp/releases/0.7.1/cf-templates",
+        "Default": "firecamp/releases/latest/cf-templates",
         "Description": "The S3 key prefix"
     },
     "RemoteAccessCIDR": {
