@@ -5,14 +5,14 @@ To build a new release, 3 steps are required. This will be enhanced in the futur
 Currently need to update multiple files.
 1) The version in Makefile
 2) Version in common/types.go
-3) Update the version information in cloudformation templates
-- cloudstax/firecamp-manageserver image version in packaging/aws-cloudformation/firecamp-ecs.template
-- Update the firecamp plugin version and ecs init rpm version in firecamp-autoscalegroup.template
-- Update the cf-templates place to the release folder, CFS3KeyPrefix, in firecamp-master.template and firecamp-test.template
+3) Update the "Release" and "CFS3KeyPrefix" in firecamp-master.template and firecamp-test.template
 
 2. Docker Images
 make docker to build the docker images for this release.
 
 3. Create packages in cloudstax S3 bucket
-- Create the release "cf-templates" folder in the cloudstax S3 bucket, and upload all template files in packaging/aws-cloudformation.
-- Create the release "packages" folder in the cloudstax S3 bucket, upload $GOPATH/bin/firecamp-service-cli, and upload the ECS Init rpm built dfrom cloudstax/amazon-ecs-init.
+1) Create the release "cf-templates" folder in the cloudstax S3 bucket, and upload all files in packaging/aws-cloudformation.
+2) Create the release "packages" folder in the cloudstax S3 bucket,
+- upload $GOPATH/bin/firecamp-service-cli.tgz
+- upload $GOPATH/bin/firecamp-swarminit.tgz
+- if the ECS init branch is updated, create an EC2 Amazon Linux on AWS, build the ECS init rpm at cloudstax/amazon-ecs-init and upload the rpm. If the branch has no change, simply upload the same rpm in the previous release.
