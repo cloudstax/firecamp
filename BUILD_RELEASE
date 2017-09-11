@@ -16,3 +16,8 @@ make docker to build the docker images for this release.
 - upload $GOPATH/bin/firecamp-service-cli.tgz
 - upload $GOPATH/bin/firecamp-swarminit.tgz
 - if the ECS init branch is updated, create an EC2 Amazon Linux on AWS, build the ECS init rpm at cloudstax/amazon-ecs-init and upload the rpm. If the branch has no change, simply upload the same rpm in the previous release.
+
+4. The plugin log file rotates
+If vendor is updated, check to make sure the glog log file size is adjusted.
+
+glog rotates the log file at MaxSize, glog_file.go, which is 1024*1024*1800 by default. Change to 64MB. So we could keep 20 log files for troubleshooting.

@@ -1,7 +1,7 @@
 {
   "description": "firecamp volume plugin for docker",
   "documentation": "-",
-  "entrypoint": ["/firecamp-dockervolume"],
+  "entrypoint": ["/docker-entrypoint.sh"],
   "interface": {
     "types": ["docker.volumedriver/1.0"],
     "socket": "firecampvol.sock"
