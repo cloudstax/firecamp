@@ -428,7 +428,8 @@ func (r *serviceMemberReadWriter) updateServiceMember(ctx context.Context, req *
 		req.NewMember.VolumeID != req.OldMember.VolumeID ||
 		req.NewMember.DeviceName != req.OldMember.DeviceName ||
 		req.NewMember.AvailableZone != req.OldMember.AvailableZone ||
-		req.NewMember.MemberName != req.OldMember.MemberName {
+		req.NewMember.MemberName != req.OldMember.MemberName ||
+		req.NewMember.StaticIP != req.OldMember.StaticIP {
 		glog.Errorln("updateServiceMember, the immutable serviceMember attributes are updated", req.OldMember, req.NewMember, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}

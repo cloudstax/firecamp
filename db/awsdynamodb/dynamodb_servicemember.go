@@ -56,6 +56,9 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 			DeviceName: {
 				S: aws.String(member.DeviceName),
 			},
+			StaticIP: {
+				S: aws.String(member.StaticIP),
+			},
 			MemberConfigs: {
 				B: configBytes,
 			},
@@ -83,7 +86,8 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 		oldMember.VolumeID != newMember.VolumeID ||
 		oldMember.DeviceName != newMember.DeviceName ||
 		oldMember.AvailableZone != newMember.AvailableZone ||
-		oldMember.MemberName != newMember.MemberName {
+		oldMember.MemberName != newMember.MemberName ||
+		oldMember.StaticIP != newMember.StaticIP {
 		glog.Errorln("immutable attributes are updated, oldMember", oldMember, "newMember", newMember, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
@@ -350,6 +354,7 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		mtime,
 		*(item[VolumeID].S),
 		*(item[DeviceName].S),
+		*(item[StaticIP].S),
 		configs)
 
 	return member, nil

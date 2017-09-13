@@ -265,6 +265,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 	registerDNS := true
 	domainPrefix := "domain"
 	hostedZone := "zone1"
+	requireStaticIP := false
 
 	// create 21 service attrs
 	maxCounts := 21
@@ -274,7 +275,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 		str := strconv.Itoa(i)
 		uuid := serviceUUIDPrefix + str
 		attr := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 		err := dbcli.CreateServiceAttr(ctx, attr)
 		if err != nil {
 			glog.Errorln("create service, expect success, got", err, attr)
@@ -290,7 +291,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// negative case: create the service attr again with different field
 		attr1 := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str+"xxx", devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str+"xxx", devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 		err = dbcli.CreateServiceAttr(ctx, attr1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing service attr with different field, expect db.ErrDBConditionalCheckFailed, got", err, attr1)
@@ -317,7 +318,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// update service attr
 		attr1 = db.CreateServiceAttr(uuid, "ACTIVE", time.Now().UnixNano(), int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone)
+			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 
 		// negative case: old attr mismatch
 		err = dbcli.UpdateServiceAttr(ctx, attr1, attr1)
@@ -385,6 +386,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 	cfgIDPrefix := "cfgfileid-"
 	cfgNamePrefix := "cfgname-"
 	cfgMD5Prefix := "cfgmd5-"
+	staticIPPrefix := "ip-"
 
 	// create 21 serviceMembers
 	maxCounts := 21
@@ -404,6 +406,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			mtime,
 			volIDPrefix+str,
 			devNamePrefix+str,
+			staticIPPrefix+str,
 			cfgs)
 		err := dbcli.CreateServiceMember(ctx, member)
 		if err != nil {
@@ -428,6 +431,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			mtime,
 			volIDPrefix+str,
 			devNamePrefix+str,
+			staticIPPrefix+str,
 			cfgs)
 		err = dbcli.CreateServiceMember(ctx, member1)
 		if err != db.ErrDBConditionalCheckFailed {
@@ -463,6 +467,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			time.Now().UnixNano(),
 			volIDPrefix+str,
 			devNamePrefix+str,
+			staticIPPrefix+str,
 			cfgs)
 
 		// negative case: old member mismatch

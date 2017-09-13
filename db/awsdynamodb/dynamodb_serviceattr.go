@@ -61,6 +61,9 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			HostedZoneID: {
 				S: aws.String(attr.HostedZoneID),
 			},
+			RequireStaticIP: {
+				BOOL: aws.Bool(attr.RequireStaticIP),
+			},
 		},
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
@@ -180,7 +183,8 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[DeviceName].S),
 		*(resp.Item[RegisterDNS].BOOL),
 		*(resp.Item[DomainName].S),
-		*(resp.Item[HostedZoneID].S))
+		*(resp.Item[HostedZoneID].S),
+		*(resp.Item[RequireStaticIP].BOOL))
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil

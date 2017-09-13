@@ -104,6 +104,7 @@ message ServiceAttr {
   bool registerDNS = 9;
   string domainName = 10;
   string hostedZoneID = 11;
+  bool requireStaticIP = 12;
 }
 
 message CreateServiceAttrResponse {
@@ -129,15 +130,16 @@ message ServiceMember {
   string serviceUUID = 1;
   string memberName = 2;
 
-  int64 lastModified = 3;
-  string deviceName = 4;
-  string availableZone = 5;
-  string taskID = 6;
-  string containerInstanceID = 7;
-  string serverInstanceID = 8;
+  string availableZone = 3;
+  string taskID = 4;
+  string containerInstanceID = 5;
+  string serverInstanceID = 6;
+  int64 lastModified = 7;
 
-  string volumeID = 9;
-  repeated MemberConfig configs = 10;
+  string volumeID = 8;
+  string deviceName = 9;
+  string staticIP = 10;
+  repeated MemberConfig configs = 11;
 }
 
 message CreateServiceMemberResponse {

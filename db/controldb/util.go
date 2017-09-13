@@ -67,17 +67,18 @@ func EqualService(a1 *pb.Service, a2 *pb.Service) bool {
 
 func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 	pbAttr := &pb.ServiceAttr{
-		ServiceUUID:   attr.ServiceUUID,
-		ServiceStatus: attr.ServiceStatus,
-		LastModified:  attr.LastModified,
-		Replicas:      attr.Replicas,
-		VolumeSizeGB:  attr.VolumeSizeGB,
-		ClusterName:   attr.ClusterName,
-		ServiceName:   attr.ServiceName,
-		DeviceName:    attr.DeviceName,
-		RegisterDNS:   attr.RegisterDNS,
-		DomainName:    attr.DomainName,
-		HostedZoneID:  attr.HostedZoneID,
+		ServiceUUID:     attr.ServiceUUID,
+		ServiceStatus:   attr.ServiceStatus,
+		LastModified:    attr.LastModified,
+		Replicas:        attr.Replicas,
+		VolumeSizeGB:    attr.VolumeSizeGB,
+		ClusterName:     attr.ClusterName,
+		ServiceName:     attr.ServiceName,
+		DeviceName:      attr.DeviceName,
+		RegisterDNS:     attr.RegisterDNS,
+		DomainName:      attr.DomainName,
+		HostedZoneID:    attr.HostedZoneID,
+		RequireStaticIP: attr.RequireStaticIP,
 	}
 	return pbAttr
 }
@@ -93,7 +94,8 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 		attr.DeviceName,
 		attr.RegisterDNS,
 		attr.DomainName,
-		attr.HostedZoneID)
+		attr.HostedZoneID,
+		attr.RequireStaticIP)
 	return dbAttr
 }
 
@@ -108,7 +110,8 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.DeviceName == a2.DeviceName &&
 		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
-		a1.HostedZoneID == a2.HostedZoneID {
+		a1.HostedZoneID == a2.HostedZoneID &&
+		a1.RequireStaticIP == a2.RequireStaticIP {
 		return true
 	}
 	return false
@@ -133,14 +136,15 @@ func GenPbMemberConfig(cfgs []*common.MemberConfig) []*pb.MemberConfig {
 func GenPbServiceMember(member *common.ServiceMember) *pb.ServiceMember {
 	pbmember := &pb.ServiceMember{
 		ServiceUUID:         member.ServiceUUID,
-		VolumeID:            member.VolumeID,
-		LastModified:        member.LastModified,
-		DeviceName:          member.DeviceName,
+		MemberName:          member.MemberName,
 		AvailableZone:       member.AvailableZone,
 		TaskID:              member.TaskID,
 		ContainerInstanceID: member.ContainerInstanceID,
 		ServerInstanceID:    member.ServerInstanceID,
-		MemberName:          member.MemberName,
+		LastModified:        member.LastModified,
+		VolumeID:            member.VolumeID,
+		DeviceName:          member.DeviceName,
+		StaticIP:            member.StaticIP,
 		Configs:             GenPbMemberConfig(member.Configs),
 	}
 	return pbmember
@@ -172,6 +176,7 @@ func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
 		member.LastModified,
 		member.VolumeID,
 		member.DeviceName,
+		member.StaticIP,
 		GenDbMemberConfig(member.Configs))
 	return dbmember
 }
@@ -192,14 +197,15 @@ func EqualMemberConfig(c1 []*pb.MemberConfig, c2 []*pb.MemberConfig) bool {
 
 func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bool) bool {
 	if a1.ServiceUUID == a2.ServiceUUID &&
-		a1.VolumeID == a2.VolumeID &&
-		(skipMtime || a1.LastModified == a2.LastModified) &&
-		a1.DeviceName == a2.DeviceName &&
+		a1.MemberName == a2.MemberName &&
 		a1.AvailableZone == a2.AvailableZone &&
 		a1.TaskID == a2.TaskID &&
 		a1.ContainerInstanceID == a2.ContainerInstanceID &&
 		a1.ServerInstanceID == a2.ServerInstanceID &&
-		a1.MemberName == a2.MemberName &&
+		(skipMtime || a1.LastModified == a2.LastModified) &&
+		a1.VolumeID == a2.VolumeID &&
+		a1.DeviceName == a2.DeviceName &&
+		a1.StaticIP == a2.StaticIP &&
 		EqualMemberConfig(a1.Configs, a2.Configs) {
 		return true
 	}
@@ -262,14 +268,15 @@ func CopyMemberConfig(a1 []*pb.MemberConfig) []*pb.MemberConfig {
 func CopyServiceMember(a1 *pb.ServiceMember) *pb.ServiceMember {
 	return &pb.ServiceMember{
 		ServiceUUID:         a1.ServiceUUID,
-		VolumeID:            a1.VolumeID,
-		LastModified:        a1.LastModified,
-		DeviceName:          a1.DeviceName,
+		MemberName:          a1.MemberName,
 		AvailableZone:       a1.AvailableZone,
 		TaskID:              a1.TaskID,
 		ContainerInstanceID: a1.ContainerInstanceID,
 		ServerInstanceID:    a1.ServerInstanceID,
-		MemberName:          a1.MemberName,
+		LastModified:        a1.LastModified,
+		VolumeID:            a1.VolumeID,
+		DeviceName:          a1.DeviceName,
+		StaticIP:            a1.StaticIP,
 		Configs:             CopyMemberConfig(a1.Configs),
 	}
 }

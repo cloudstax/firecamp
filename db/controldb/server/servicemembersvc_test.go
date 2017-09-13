@@ -37,6 +37,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 	cfgIDPrefix := "cfgfileid-"
 	cfgNamePrefix := "cfgname-"
 	cfgMD5Prefix := "cfgmd5-"
+	staticIPPrefix := "ip-"
 
 	maxNum := 17
 	for i := 0; i < maxNum; i++ {
@@ -47,18 +48,20 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		contInsID := contInsIDPrefix + str
 		serverInsID := serverInsIDPrefix + str
 		volID := volIDPrefix + str
+		staticIP := staticIPPrefix + str
 		cfg := &pb.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 		cfgs := []*pb.MemberConfig{cfg}
 
 		member := &pb.ServiceMember{
 			ServiceUUID:         serviceUUID,
 			MemberName:          memberName,
-			DeviceName:          devName,
 			AvailableZone:       az,
 			TaskID:              taskID,
 			ContainerInstanceID: contInsID,
 			ServerInstanceID:    serverInsID,
 			VolumeID:            volID,
+			DeviceName:          devName,
+			StaticIP:            staticIP,
 			Configs:             cfgs,
 		}
 		err = s.createServiceMember(ctx, member)
@@ -217,6 +220,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	cfgIDPrefix := "cfgfileid-"
 	cfgNamePrefix := "cfgname-"
 	cfgMD5Prefix := "cfgmd5-"
+	staticIPPrefix := "ip-"
 
 	ctx := context.Background()
 	str := strconv.Itoa(i)
@@ -226,18 +230,20 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	contInsID := contInsIDPrefix + str
 	serverInsID := serverInsIDPrefix + str
 	memberName := memberNamePrefix + str
+	staticIP := staticIPPrefix + str
 	cfg := &pb.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 	cfgs := []*pb.MemberConfig{cfg}
 
 	member := &pb.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
-		DeviceName:          devName,
 		AvailableZone:       az,
-		VolumeID:            volID,
 		TaskID:              taskID,
 		ContainerInstanceID: contInsID,
 		ServerInstanceID:    serverInsID,
+		VolumeID:            volID,
+		DeviceName:          devName,
+		StaticIP:            staticIP,
 		Configs:             cfgs,
 	}
 

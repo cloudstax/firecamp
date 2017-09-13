@@ -54,37 +54,39 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int64,
 	cluster string, service string, devName string,
-	registerDNS bool, domain string, hostedZoneID string) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: common.ServiceStatusCreating,
-		LastModified:  time.Now().UnixNano(),
-		Replicas:      replicas,
-		VolumeSizeGB:  volSizeGB,
-		ClusterName:   cluster,
-		ServiceName:   service,
-		DeviceName:    devName,
-		RegisterDNS:   registerDNS,
-		DomainName:    domain,
-		HostedZoneID:  hostedZoneID,
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   common.ServiceStatusCreating,
+		LastModified:    time.Now().UnixNano(),
+		Replicas:        replicas,
+		VolumeSizeGB:    volSizeGB,
+		ClusterName:     cluster,
+		ServiceName:     service,
+		DeviceName:      devName,
+		RegisterDNS:     registerDNS,
+		DomainName:      domain,
+		HostedZoneID:    hostedZoneID,
+		RequireStaticIP: requireStaticIP,
 	}
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64, volSizeGB int64,
 	cluster string, service string, devName string,
-	registerDNS bool, domain string, hostedZoneID string) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: status,
-		LastModified:  mtime,
-		Replicas:      replicas,
-		VolumeSizeGB:  volSizeGB,
-		ClusterName:   cluster,
-		ServiceName:   service,
-		DeviceName:    devName,
-		RegisterDNS:   registerDNS,
-		DomainName:    domain,
-		HostedZoneID:  hostedZoneID,
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   status,
+		LastModified:    mtime,
+		Replicas:        replicas,
+		VolumeSizeGB:    volSizeGB,
+		ClusterName:     cluster,
+		ServiceName:     service,
+		DeviceName:      devName,
+		RegisterDNS:     registerDNS,
+		DomainName:      domain,
+		HostedZoneID:    hostedZoneID,
+		RequireStaticIP: requireStaticIP,
 	}
 }
 
@@ -99,7 +101,8 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.DeviceName == t2.DeviceName &&
 		t1.RegisterDNS == t2.RegisterDNS &&
 		t1.DomainName == t2.DomainName &&
-		t1.HostedZoneID == t2.HostedZoneID {
+		t1.HostedZoneID == t2.HostedZoneID &&
+		t1.RequireStaticIP == t2.RequireStaticIP {
 		return true
 	}
 	return false
@@ -107,22 +110,23 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 
 func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
-		ServiceUUID:   t1.ServiceUUID,
-		ServiceStatus: status,
-		LastModified:  time.Now().UnixNano(),
-		Replicas:      t1.Replicas,
-		VolumeSizeGB:  t1.VolumeSizeGB,
-		ClusterName:   t1.ClusterName,
-		ServiceName:   t1.ServiceName,
-		DeviceName:    t1.DeviceName,
-		RegisterDNS:   t1.RegisterDNS,
-		DomainName:    t1.DomainName,
-		HostedZoneID:  t1.HostedZoneID,
+		ServiceUUID:     t1.ServiceUUID,
+		ServiceStatus:   status,
+		LastModified:    time.Now().UnixNano(),
+		Replicas:        t1.Replicas,
+		VolumeSizeGB:    t1.VolumeSizeGB,
+		ClusterName:     t1.ClusterName,
+		ServiceName:     t1.ServiceName,
+		DeviceName:      t1.DeviceName,
+		RegisterDNS:     t1.RegisterDNS,
+		DomainName:      t1.DomainName,
+		HostedZoneID:    t1.HostedZoneID,
+		RequireStaticIP: t1.RequireStaticIP,
 	}
 }
 
-func CreateInitialServiceMember(serviceUUID string, memberName string,
-	az string, volID string, devName string, configs []*common.MemberConfig) *common.ServiceMember {
+func CreateInitialServiceMember(serviceUUID string, memberName string, az string,
+	volID string, devName string, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
@@ -133,13 +137,14 @@ func CreateInitialServiceMember(serviceUUID string, memberName string,
 		LastModified:        time.Now().UnixNano(),
 		VolumeID:            volID,
 		DeviceName:          devName,
+		StaticIP:            staticIP,
 		Configs:             configs,
 	}
 }
 
 func CreateServiceMember(serviceUUID string, memberName string,
 	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
-	volID string, devName string, configs []*common.MemberConfig) *common.ServiceMember {
+	volID string, devName string, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
@@ -150,6 +155,7 @@ func CreateServiceMember(serviceUUID string, memberName string,
 		LastModified:        mtime,
 		VolumeID:            volID,
 		DeviceName:          devName,
+		StaticIP:            staticIP,
 		Configs:             configs,
 	}
 }
@@ -164,6 +170,7 @@ func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skip
 		(skipMtime || t1.LastModified == t2.LastModified) &&
 		t1.VolumeID == t2.VolumeID &&
 		t1.DeviceName == t2.DeviceName &&
+		t1.StaticIP == t2.StaticIP &&
 		equalConfigs(t1.Configs, t2.Configs) {
 		return true
 	}
@@ -207,6 +214,7 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConf
 		LastModified:        time.Now().UnixNano(),
 		VolumeID:            t1.VolumeID,
 		DeviceName:          t1.DeviceName,
+		StaticIP:            t1.StaticIP,
 		Configs:             c,
 	}
 }
@@ -222,6 +230,7 @@ func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, container
 		LastModified:        time.Now().UnixNano(),
 		VolumeID:            t1.VolumeID,
 		DeviceName:          t1.DeviceName,
+		StaticIP:            t1.StaticIP,
 		Configs:             t1.Configs,
 	}
 }
@@ -290,4 +299,36 @@ func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime boo
 func PrintConfigFile(cfg *common.ConfigFile) string {
 	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
 		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
+}
+
+func CreateServiceStaticIP(staticIP string, serviceUUID string,
+	az string, serverInstanceID string, netInterfaceID string) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP:           staticIP,
+		ServiceUUID:        serviceUUID,
+		AvailableZone:      az,
+		ServerInstanceID:   serverInstanceID,
+		NetworkInterfaceID: netInterfaceID,
+	}
+}
+
+func EqualServiceStaticIP(t1 *common.ServiceStaticIP, t2 *common.ServiceStaticIP) bool {
+	if t1.StaticIP == t2.StaticIP &&
+		t1.ServiceUUID == t2.ServiceUUID &&
+		t1.AvailableZone == t2.AvailableZone &&
+		t1.ServerInstanceID == t2.ServerInstanceID &&
+		t1.NetworkInterfaceID == t2.NetworkInterfaceID {
+		return true
+	}
+	return false
+}
+
+func UpdateServiceStaticIP(t1 *common.ServiceStaticIP, serverInstanceID string, netInterfaceID string) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP:           t1.StaticIP,
+		ServiceUUID:        t1.ServiceUUID,
+		AvailableZone:      t1.AvailableZone,
+		ServerInstanceID:   serverInstanceID,
+		NetworkInterfaceID: netInterfaceID,
+	}
 }

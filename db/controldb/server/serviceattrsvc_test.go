@@ -48,18 +48,20 @@ func TestAttrReadWriter(t *testing.T) {
 	registerDNS := true
 	domain := "domain"
 	hostedZone := "zone1"
+	requireStaticIP := false
 
 	attr := &pb.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: serviceStatus,
-		Replicas:      int64(taskCounts),
-		VolumeSizeGB:  int64(volSize),
-		ClusterName:   cluster,
-		ServiceName:   serviceName,
-		DeviceName:    devName,
-		RegisterDNS:   registerDNS,
-		DomainName:    domain,
-		HostedZoneID:  hostedZone,
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   serviceStatus,
+		Replicas:        int64(taskCounts),
+		VolumeSizeGB:    int64(volSize),
+		ClusterName:     cluster,
+		ServiceName:     serviceName,
+		DeviceName:      devName,
+		RegisterDNS:     registerDNS,
+		DomainName:      domain,
+		HostedZoneID:    hostedZone,
+		RequireStaticIP: requireStaticIP,
 	}
 	err = s.createAttr(ctx, attr)
 	if err != nil {
@@ -159,18 +161,20 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 	registerDNS := true
 	domainPrefix := "domain"
 	hostedZone := "zone1"
+	requireStaticIP := false
 
 	attr := &pb.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: serviceStatus,
-		Replicas:      int64(i),
-		VolumeSizeGB:  int64(i),
-		ClusterName:   cluster,
-		ServiceName:   serviceNamePrefix + strconv.Itoa(i),
-		DeviceName:    devNamePrefix + strconv.Itoa(i),
-		RegisterDNS:   registerDNS,
-		DomainName:    domainPrefix + strconv.Itoa(i),
-		HostedZoneID:  hostedZone,
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   serviceStatus,
+		Replicas:        int64(i),
+		VolumeSizeGB:    int64(i),
+		ClusterName:     cluster,
+		ServiceName:     serviceNamePrefix + strconv.Itoa(i),
+		DeviceName:      devNamePrefix + strconv.Itoa(i),
+		RegisterDNS:     registerDNS,
+		DomainName:      domainPrefix + strconv.Itoa(i),
+		HostedZoneID:    hostedZone,
+		RequireStaticIP: requireStaticIP,
 	}
 	err := s.CreateServiceAttr(ctx, attr)
 	if err != nil {
@@ -362,17 +366,18 @@ func TestServiceSvcAttr(t *testing.T) {
 
 func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
 	a2 := &pb.ServiceAttr{
-		ServiceUUID:   a1.ServiceUUID,
-		ServiceStatus: a1.ServiceStatus,
-		LastModified:  a1.LastModified,
-		Replicas:      a1.Replicas,
-		VolumeSizeGB:  a1.VolumeSizeGB,
-		ClusterName:   a1.ClusterName,
-		ServiceName:   a1.ServiceName,
-		DeviceName:    a1.DeviceName,
-		RegisterDNS:   a1.RegisterDNS,
-		DomainName:    a1.DomainName,
-		HostedZoneID:  a1.HostedZoneID,
+		ServiceUUID:     a1.ServiceUUID,
+		ServiceStatus:   a1.ServiceStatus,
+		LastModified:    a1.LastModified,
+		Replicas:        a1.Replicas,
+		VolumeSizeGB:    a1.VolumeSizeGB,
+		ClusterName:     a1.ClusterName,
+		ServiceName:     a1.ServiceName,
+		DeviceName:      a1.DeviceName,
+		RegisterDNS:     a1.RegisterDNS,
+		DomainName:      a1.DomainName,
+		HostedZoneID:    a1.HostedZoneID,
+		RequireStaticIP: a1.RequireStaticIP,
 	}
 	return a2
 }

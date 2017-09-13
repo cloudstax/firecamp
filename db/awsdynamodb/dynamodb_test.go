@@ -221,6 +221,7 @@ func TestServiceAttrs(t *testing.T) {
 	registerDNS := true
 	domain := "domain"
 	hostedZoneID := "hostedZoneID"
+	requireStaticIP := false
 
 	ctx := context.Background()
 
@@ -229,7 +230,7 @@ func TestServiceAttrs(t *testing.T) {
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i), int64(volSize+i),
-			clusterName, servicePrefix+c, devPrefix+c, registerDNS, domain, hostedZoneID)
+			clusterName, servicePrefix+c, devPrefix+c, registerDNS, domain, hostedZoneID, requireStaticIP)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create service attr %s, err %s", s[i], err)
@@ -296,6 +297,7 @@ func TestServiceMembers(t *testing.T) {
 	fileIDPrefix := "cfgfile-id"
 	fileNamePrefix := "cfgfile-name"
 	fileMD5Prefix := "cfgfile-md5"
+	staticIPPrefix := "ip-"
 	mtime := time.Now().UnixNano()
 
 	ctx := context.Background()
@@ -308,7 +310,7 @@ func TestServiceMembers(t *testing.T) {
 		cfgs := []*common.MemberConfig{cfg}
 		s1[i] = db.CreateServiceMember(service1, service1+c,
 			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			volPrefix+c, dev1, cfgs)
+			volPrefix+c, dev1, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -324,7 +326,7 @@ func TestServiceMembers(t *testing.T) {
 		cfgs := []*common.MemberConfig{cfg}
 		s2[i] = db.CreateServiceMember(service2, service2+c,
 			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			volPrefix+c, dev2, cfgs)
+			volPrefix+c, dev2, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {

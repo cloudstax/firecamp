@@ -166,6 +166,7 @@ func TestServiceAttr(t *testing.T) {
 	registerDNS := true
 	domain := "domain"
 	hostedZoneID := "hostedZoneID"
+	requireStaticIP := false
 
 	ctx := context.Background()
 
@@ -174,7 +175,7 @@ func TestServiceAttr(t *testing.T) {
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
 		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i), int64(volSize+i),
-			clusterName, servicePrefix+c, devPrefix+c, registerDNS, domain, hostedZoneID)
+			clusterName, servicePrefix+c, devPrefix+c, registerDNS, domain, hostedZoneID, requireStaticIP)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
@@ -230,6 +231,7 @@ func TestServiceMembers(t *testing.T) {
 	cfgNamePrefix := "cfgNamePrefix-"
 	cfgIDPrefix := "cfgIDPrefix-"
 	cfgContentPrefix := "cfgContentPrefix-"
+	staticIPPrefix := "ip-"
 
 	ctx := context.Background()
 
@@ -245,7 +247,7 @@ func TestServiceMembers(t *testing.T) {
 		s1[i] = CreateServiceMember(service1,
 			utils.GenServiceMemberName(service1, int64(i)),
 			az, taskPrefix+c, contPrefix+c, hostPrefix+c,
-			mtime, volPrefix+c, dev1, cfgs)
+			mtime, volPrefix+c, dev1, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -264,7 +266,7 @@ func TestServiceMembers(t *testing.T) {
 		s2[i] = CreateServiceMember(service2,
 			utils.GenServiceMemberName(service2, int64(i)),
 			az, taskPrefix+c, contPrefix+c, hostPrefix+c,
-			mtime, volPrefix+c, dev2, cfgs)
+			mtime, volPrefix+c, dev2, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {

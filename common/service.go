@@ -96,6 +96,9 @@ type ServiceAttr struct {
 	// The AWS Route53 HostedZone for the current firecamp cluster.
 	HostedZoneID string
 
+	// Whether the service member needs the static ip. This is only required by Redis.
+	RequireStaticIP bool
+
 	// The service admin and password. The password will be deleted once the service is initialized.
 	//Admin       string
 	//AdminPasswd string
@@ -115,6 +118,10 @@ type ServiceMember struct {
 	//      as one service may have multiple volumes.
 	VolumeID   string
 	DeviceName string
+
+	// The static IP assigned to this member
+	StaticIP string
+
 	// One member could have multiple config files.
 	// For example, cassandra.yaml and rackdc properties files.
 	Configs []*MemberConfig
@@ -146,4 +153,21 @@ type ConfigFile struct {
 	FileMode     uint32
 	LastModified int64
 	Content      string // The content of the config file.
+}
+
+// ServiceStaticIP represents the owner service of one static IP.
+type ServiceStaticIP struct {
+	StaticIP string // partition key
+
+	// The owner service of this static IP.
+	ServiceUUID string
+	// TODO adding MemberName would be a good optimization.
+	//      so volume plugin could directly get the local static IP and get the member.
+	// MemberName  string
+	// The AvailableZone this static IP belongs to.
+	AvailableZone string
+	// The server instance this IP is assigned to.
+	ServerInstanceID string
+	// The network interface this IP is assigned to.
+	NetworkInterfaceID string
 }
