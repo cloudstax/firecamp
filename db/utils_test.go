@@ -89,4 +89,17 @@ func TestDBUtils(t *testing.T) {
 	if !EqualConfigFile(cfg1, cfg3, false, false) {
 		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg3)
 	}
+
+	// test service static ip
+	netInterfaceID := "test-netinterface"
+	serviceip := CreateServiceStaticIP(staticIP, serviceUUID, az, ec2InstanceID, netInterfaceID)
+
+	ec2InstanceID1 := "new-ec2"
+	netInterfaceID1 := "new-netinterface"
+	serviceip1 := UpdateServiceStaticIP(serviceip, ec2InstanceID1, netInterfaceID1)
+	serviceip.ServerInstanceID = ec2InstanceID1
+	serviceip.NetworkInterfaceID = netInterfaceID1
+	if !EqualServiceStaticIP(serviceip, serviceip1) {
+		t.Fatalf("service static ip is not the same, %s %s", serviceip, serviceip1)
+	}
 }

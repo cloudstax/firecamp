@@ -472,6 +472,65 @@ func TestConfigFile(t *testing.T) {
 	}
 }
 
+func TestServiceStaticIPs(t *testing.T) {
+	ipPrefix := "ip-"
+	uuidPrefix := "uuid-"
+	az := "test-az"
+	instanceIDPrefix := "server-"
+	netInterfacePrefix := "net-"
+
+	ctx := context.Background()
+
+	// create
+	var s [5]*common.ServiceStaticIP
+	x := [5]string{"a", "b", "c", "d", "e"}
+	for i, c := range x {
+		s[i] = db.CreateServiceStaticIP(ipPrefix+c, uuidPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+		err := dbIns.CreateServiceStaticIP(ctx, s[i])
+		if err != nil {
+			t.Fatalf("failed to create %s, err %s", s[i], err)
+		}
+	}
+
+	// get to verify
+	item, err := dbIns.GetServiceStaticIP(ctx, s[1].StaticIP)
+	if err != nil || !db.EqualServiceStaticIP(item, s[1]) {
+		t.Fatalf("get failed, error %s, expected %s get %s", err, s[1], item)
+	}
+
+	// update
+	item.ServerInstanceID = "new-server"
+	item.NetworkInterfaceID = "new-netinterface"
+	err = dbIns.UpdateServiceStaticIP(ctx, s[1], item)
+	if err != nil {
+		t.Fatalf("update service %s error %s", item, err)
+	}
+
+	// get again to verify the update
+	item1, err := dbIns.GetServiceStaticIP(ctx, s[1].StaticIP)
+	if err != nil || !db.EqualServiceStaticIP(item1, item) {
+		t.Fatalf("get after update failed, error %s, expected %s get %s", err, item, item1)
+	}
+
+	// delete
+	err = dbIns.DeleteServiceStaticIP(ctx, s[2].StaticIP)
+	if err != nil {
+		t.Fatalf("delete %s error %s", s[2], err)
+	}
+
+	// delete one unexist item
+	err = dbIns.DeleteServiceStaticIP(ctx, s[2].ServiceUUID)
+	if err == nil || err != db.ErrDBRecordNotFound {
+		t.Fatalf("delete unexist item %s, expect db.ErrDBRecordNotFound, got error %s", s[2], err)
+	}
+
+	// get one unexist item
+	gitem, err := dbIns.GetServiceStaticIP(ctx, "ipxxx")
+	if err == nil || err != db.ErrDBRecordNotFound {
+		t.Fatalf("get unexist item, expect db.ErrDBRecordNotFound, got error %s item %s", err, gitem)
+	}
+}
+
 func TestSwarm(t *testing.T) {
 	cluster := "c1"
 	addr := "host1:2377"

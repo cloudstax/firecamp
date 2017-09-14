@@ -55,4 +55,9 @@ type DB interface {
 	CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error
 	GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error)
 	DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error
+
+	CreateServiceStaticIP(ctx context.Context, serviceip *common.ServiceStaticIP) error
+	UpdateServiceStaticIP(ctx context.Context, oldip *common.ServiceStaticIP, newip *common.ServiceStaticIP) error
+	GetServiceStaticIP(ctx context.Context, ip string) (serviceip *common.ServiceStaticIP, err error)
+	DeleteServiceStaticIP(ctx context.Context, ip string) error
 }

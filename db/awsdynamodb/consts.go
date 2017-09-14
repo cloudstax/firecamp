@@ -23,6 +23,7 @@ const (
 	serviceAttrPartitionKeyPrefix   = "ServiceAttrKey-"
 	serviceMemberPartitionKeyPrefix = "ServiceMemberKey-"
 	configPartitionKeyPrefix        = "ConfigKey-"
+	staticIPPartitionKeyPrefix      = "StaticIPKey-"
 
 	defaultReadCapacity  = 20
 	defaultWriteCapacity = 20

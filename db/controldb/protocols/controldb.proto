@@ -30,6 +30,11 @@ service ControlDBService {
   rpc CreateConfigFile (ConfigFile) returns (CreateConfigFileResponse) {}
   rpc GetConfigFile (ConfigFileKey) returns (ConfigFile) {}
   rpc DeleteConfigFile (ConfigFileKey) returns (DeleteConfigFileResponse) {}
+
+  rpc CreateServiceStaticIP (ServiceStaticIP) returns (CreateServiceStaticIPResponse) {}
+  rpc GetServiceStaticIP (ServiceStaticIPKey) returns (ServiceStaticIP) {}
+  rpc DeleteServiceStaticIP (ServiceStaticIPKey) returns (DeleteServiceStaticIPResponse) {}
+  rpc UpdateServiceStaticIP (UpdateServiceStaticIPRequest) returns (UpdateServiceStaticIPResponse) {}
 }
 
 message DeviceKey {
@@ -185,5 +190,31 @@ message CreateConfigFileResponse {
 }
 
 message DeleteConfigFileResponse {
+}
+
+message ServiceStaticIPKey {
+  string staticIP = 1;
+}
+
+message ServiceStaticIP {
+  string staticIP = 1;
+  string serviceUUID = 2;
+  string availableZone = 3;
+  string serverInstanceID = 4;
+  string networkInterfaceID = 5;
+}
+
+message CreateServiceStaticIPResponse {
+}
+
+message DeleteServiceStaticIPResponse {
+}
+
+message UpdateServiceStaticIPRequest {
+  ServiceStaticIP oldIP = 1;
+  ServiceStaticIP newIP = 2;
+}
+
+message UpdateServiceStaticIPResponse {
 }
 

@@ -43,6 +43,9 @@ import (
 //      												  service0-uuid/configdir/configfile1000
 //      												  ...
 //						 				  			    service1000-uuid/
+//            cluster0/serviceipdir/ipfile0
+//            cluster0/serviceipdir/...
+//            cluster0/serviceipdir/ipfile1000
 //
 // For device, one device has very small data. Could simply write all devices' assignments
 // into a single file. Keep like the last 10 versions would be enough.
@@ -58,6 +61,7 @@ type ControlDBServer struct {
 	serviceAttrSvcIns   *serviceAttrSvc
 	serviceMemberSvcIns *serviceMemberSvc
 	cfgSvcIns           *configFileSvc
+	serviceIPSvcIns     *serviceStaticIPSvc
 }
 
 func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, error) {
@@ -85,6 +89,15 @@ func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, 
 	membersvc := newServiceMemberSvc(serviceDir)
 	cfgsvc := newConfigFileSvc(serviceDir)
 
+	// put all services' static ip under a single dir. could expand if really required.
+	serviceIPDir := path.Join(rootPath, clusterName, serviceIPDirName)
+	err = utils.CreateDirIfNotExist(serviceIPDir)
+	if err != nil {
+		glog.Errorln("create service dir error", err, serviceDir)
+		return nil, db.ErrDBInternal
+	}
+	serviceipsvc := newServiceStaticIPSvc(serviceIPDir)
+
 	s := &ControlDBServer{
 		rootPath:            rootPath,
 		clusterName:         clusterName,
@@ -94,6 +107,7 @@ func NewControlDBServer(rootPath string, clusterName string) (*ControlDBServer, 
 		serviceAttrSvcIns:   attrsvc,
 		serviceMemberSvcIns: membersvc,
 		cfgSvcIns:           cfgsvc,
+		serviceIPSvcIns:     serviceipsvc,
 	}
 	return s, nil
 }
@@ -103,6 +117,7 @@ func (s *ControlDBServer) Stop() {
 	s.serviceAttrSvcIns.Stop()
 	s.serviceMemberSvcIns.Stop()
 	s.cfgSvcIns.Stop()
+	s.serviceIPSvcIns.Stop()
 }
 
 func (s *ControlDBServer) CreateDevice(ctx context.Context, dev *pb.Device) (*pb.CreateDeviceResponse, error) {
@@ -183,4 +198,20 @@ func (s *ControlDBServer) GetConfigFile(ctx context.Context, key *pb.ConfigFileK
 
 func (s *ControlDBServer) DeleteConfigFile(ctx context.Context, key *pb.ConfigFileKey) (*pb.DeleteConfigFileResponse, error) {
 	return &pb.DeleteConfigFileResponse{}, s.cfgSvcIns.DeleteConfigFile(ctx, key)
+}
+
+func (s *ControlDBServer) CreateServiceStaticIP(ctx context.Context, serviceip *pb.ServiceStaticIP) (*pb.CreateServiceStaticIPResponse, error) {
+	return &pb.CreateServiceStaticIPResponse{}, s.serviceIPSvcIns.CreateServiceStaticIP(ctx, serviceip)
+}
+
+func (s *ControlDBServer) UpdateServiceStaticIP(ctx context.Context, req *pb.UpdateServiceStaticIPRequest) (*pb.UpdateServiceStaticIPResponse, error) {
+	return &pb.UpdateServiceStaticIPResponse{}, s.serviceIPSvcIns.UpdateServiceStaticIP(ctx, req)
+}
+
+func (s *ControlDBServer) GetServiceStaticIP(ctx context.Context, key *pb.ServiceStaticIPKey) (*pb.ServiceStaticIP, error) {
+	return s.serviceIPSvcIns.GetServiceStaticIP(ctx, key)
+}
+
+func (s *ControlDBServer) DeleteServiceStaticIP(ctx context.Context, key *pb.ServiceStaticIPKey) (*pb.DeleteServiceStaticIPResponse, error) {
+	return &pb.DeleteServiceStaticIPResponse{}, s.serviceIPSvcIns.DeleteServiceStaticIP(ctx, key)
 }

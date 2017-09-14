@@ -297,3 +297,44 @@ func PrintConfigFile(cfg *pb.ConfigFile) string {
 	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
 		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
 }
+
+func GenPbServiceStaticIP(serviceip *common.ServiceStaticIP) *pb.ServiceStaticIP {
+	return &pb.ServiceStaticIP{
+		StaticIP:           serviceip.StaticIP,
+		ServiceUUID:        serviceip.ServiceUUID,
+		AvailableZone:      serviceip.AvailableZone,
+		ServerInstanceID:   serviceip.ServerInstanceID,
+		NetworkInterfaceID: serviceip.NetworkInterfaceID,
+	}
+}
+
+func GenDbServiceStaticIP(serviceip *pb.ServiceStaticIP) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP:           serviceip.StaticIP,
+		ServiceUUID:        serviceip.ServiceUUID,
+		AvailableZone:      serviceip.AvailableZone,
+		ServerInstanceID:   serviceip.ServerInstanceID,
+		NetworkInterfaceID: serviceip.NetworkInterfaceID,
+	}
+}
+
+func EqualServiceStaticIP(a1 *pb.ServiceStaticIP, a2 *pb.ServiceStaticIP) bool {
+	if a1.StaticIP == a2.StaticIP &&
+		a1.ServiceUUID == a2.ServiceUUID &&
+		a1.AvailableZone == a2.AvailableZone &&
+		a1.ServerInstanceID == a2.ServerInstanceID &&
+		a1.NetworkInterfaceID == a2.NetworkInterfaceID {
+		return true
+	}
+	return false
+}
+
+func CopyServiceStaticIP(serviceip *pb.ServiceStaticIP) *pb.ServiceStaticIP {
+	return &pb.ServiceStaticIP{
+		StaticIP:           serviceip.StaticIP,
+		ServiceUUID:        serviceip.ServiceUUID,
+		AvailableZone:      serviceip.AvailableZone,
+		ServerInstanceID:   serviceip.ServerInstanceID,
+		NetworkInterfaceID: serviceip.NetworkInterfaceID,
+	}
+}

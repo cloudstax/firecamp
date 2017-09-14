@@ -751,3 +751,105 @@ func (c *ControlDBCli) DeleteConfigFile(ctx context.Context, serviceUUID string,
 	}
 	return err
 }
+
+func (c *ControlDBCli) CreateServiceStaticIP(ctx context.Context, serviceip *common.ServiceStaticIP) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	var err error
+	pbserviceip := controldb.GenPbServiceStaticIP(serviceip)
+	for i := 0; i < maxRetryCount; i++ {
+		cli := c.getCli()
+		_, err = cli.dbcli.CreateServiceStaticIP(ctx, pbserviceip)
+		if err == nil {
+			glog.Infoln("created serviceStaticIP", pbserviceip, "requuid", requuid)
+			return nil
+		}
+
+		glog.Errorln("CreateServiceStaticIP error", err, "serviceStaticIP", pbserviceip, "requuid", requuid)
+		if grpc.Code(err) == codes.Unknown {
+			// not grpc layer error code, directly return
+			return c.checkAndConvertError(err)
+		}
+		// grpc error, retry it
+		c.markClientFailedAndSleep(cli)
+	}
+	return err
+}
+
+func (c *ControlDBCli) UpdateServiceStaticIP(ctx context.Context, oldIP *common.ServiceStaticIP, newIP *common.ServiceStaticIP) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	var err error
+	req := &pb.UpdateServiceStaticIPRequest{
+		OldIP: controldb.GenPbServiceStaticIP(oldIP),
+		NewIP: controldb.GenPbServiceStaticIP(newIP),
+	}
+	for i := 0; i < maxRetryCount; i++ {
+		cli := c.getCli()
+		_, err = cli.dbcli.UpdateServiceStaticIP(ctx, req)
+		if err == nil {
+			glog.Infoln("UpdateServiceStaticIP from", oldIP, "to", newIP, "requuid", requuid)
+			return nil
+		}
+
+		glog.Errorln("UpdateServiceStaticIP error", err, "old serviceStaticIP", oldIP, "requuid", requuid)
+		if grpc.Code(err) == codes.Unknown {
+			// not grpc layer error code, directly return
+			return c.checkAndConvertError(err)
+		}
+		// grpc error, retry it
+		c.markClientFailedAndSleep(cli)
+	}
+	return err
+}
+
+func (c *ControlDBCli) GetServiceStaticIP(ctx context.Context, staticIP string) (serviceip *common.ServiceStaticIP, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	key := &pb.ServiceStaticIPKey{
+		StaticIP: staticIP,
+	}
+	for i := 0; i < maxRetryCount; i++ {
+		cli := c.getCli()
+		pbserviceip, err := cli.dbcli.GetServiceStaticIP(ctx, key)
+		if err == nil {
+			glog.Infoln("get serviceStaticIP", pbserviceip, "requuid", requuid)
+			return controldb.GenDbServiceStaticIP(pbserviceip), nil
+		}
+
+		glog.Errorln("GetServiceStaticIP error", err, "key", key, "requuid", requuid)
+		if grpc.Code(err) == codes.Unknown {
+			// not grpc layer error code, directly return
+			return nil, c.checkAndConvertError(err)
+		}
+		// grpc error, retry it
+		c.markClientFailedAndSleep(cli)
+	}
+	return nil, err
+}
+
+func (c *ControlDBCli) DeleteServiceStaticIP(ctx context.Context, staticIP string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	var err error
+	key := &pb.ServiceStaticIPKey{
+		StaticIP: staticIP,
+	}
+	for i := 0; i < maxRetryCount; i++ {
+		cli := c.getCli()
+		pbserviceip, err := cli.dbcli.DeleteServiceStaticIP(ctx, key)
+		if err == nil {
+			glog.Infoln("delete serviceStaticIP", pbserviceip, "requuid", requuid)
+			return nil
+		}
+
+		glog.Errorln("DeleteServiceStaticIP error", err, "key", key, "requuid", requuid)
+		if grpc.Code(err) == codes.Unknown {
+			// not grpc layer error code, directly return
+			return c.checkAndConvertError(err)
+		}
+		// grpc error, retry it
+		c.markClientFailedAndSleep(cli)
+	}
+	return err
+}

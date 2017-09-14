@@ -400,3 +400,58 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("delete unexist config file %s, expect ErrDBRecordNotFound, got error %s", s[2], err)
 	}
 }
+
+func TestServiceStaticIP(t *testing.T) {
+	ipPrefix := "ip-"
+	serviceUUIDPrefix := "serviceuuid-"
+	az := "az1"
+	instanceIDPrefix := "server-"
+	netInterfacePrefix := "net-"
+
+	ctx := context.Background()
+
+	// create
+	var s [5]*common.ServiceStaticIP
+	x := [5]string{"a", "b", "c", "d", "e"}
+	for i, c := range x {
+		s[i] = CreateServiceStaticIP(ipPrefix+c, serviceUUIDPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+
+		err := dbIns.CreateServiceStaticIP(ctx, s[i])
+		if err != nil {
+			t.Fatalf("failed to create %s, err %s", c, err)
+		}
+	}
+
+	// get to verify
+	ip, err := dbIns.GetServiceStaticIP(ctx, s[1].StaticIP)
+	if err != nil || !EqualServiceStaticIP(ip, s[1]) {
+		t.Fatalf("get failed, error %s, expected %s get %s", err, s[1], ip)
+	}
+
+	// update
+	newInstanceID := "newserver"
+	newNetInterfaceID := "newinterface"
+	newip := UpdateServiceStaticIP(ip, newInstanceID, newNetInterfaceID)
+	err = dbIns.UpdateServiceStaticIP(ctx, ip, newip)
+	if err != nil {
+		t.Fatalf("update failed, error %s", err)
+	}
+
+	// get to verify
+	ip1, err := dbIns.GetServiceStaticIP(ctx, s[1].StaticIP)
+	if err != nil || !EqualServiceStaticIP(ip1, newip) {
+		t.Fatalf("get failed, error %s, expected %s get %s", err, newip, ip1)
+	}
+
+	// delete
+	err = dbIns.DeleteServiceStaticIP(ctx, s[2].StaticIP)
+	if err != nil {
+		t.Fatalf("failed to delete %s error %s", s[2], err)
+	}
+
+	// negative case: delete one unexist service
+	err = dbIns.DeleteServiceStaticIP(ctx, s[2].StaticIP)
+	if err == nil || err != ErrDBRecordNotFound {
+		t.Fatalf("delete unexist item %s, expect ErrDBRecordNotFound, got error %s", s[2], err)
+	}
+}

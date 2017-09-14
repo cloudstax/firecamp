@@ -15,6 +15,7 @@ type MemDB struct {
 	svcAttrMap map[string]common.ServiceAttr
 	memberMap  map[string]common.ServiceMember
 	cfgMap     map[string]common.ConfigFile
+	ipMap      map[string]common.ServiceStaticIP
 	mlock      *sync.Mutex
 }
 
@@ -25,6 +26,7 @@ func NewMemDB() *MemDB {
 		svcAttrMap: map[string]common.ServiceAttr{},
 		memberMap:  map[string]common.ServiceMember{},
 		cfgMap:     map[string]common.ConfigFile{},
+		ipMap:      map[string]common.ServiceStaticIP{},
 		mlock:      &sync.Mutex{},
 	}
 	return d
@@ -353,6 +355,73 @@ func (d *MemDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fileID
 	return nil
 }
 
+func (d *MemDB) CreateServiceStaticIP(ctx context.Context, serviceip *common.ServiceStaticIP) error {
+	key := serviceip.StaticIP
+
+	d.mlock.Lock()
+	defer d.mlock.Unlock()
+
+	_, ok := d.ipMap[key]
+	if ok {
+		glog.Errorln("service static ip exists", key)
+		return ErrDBConditionalCheckFailed
+	}
+
+	d.ipMap[key] = *serviceip
+	return nil
+}
+
+func (d *MemDB) UpdateServiceStaticIP(ctx context.Context, oldip *common.ServiceStaticIP, newip *common.ServiceStaticIP) error {
+	key := oldip.StaticIP
+
+	d.mlock.Lock()
+	defer d.mlock.Unlock()
+
+	ip, ok := d.ipMap[key]
+	if !ok {
+		glog.Errorln("service static ip not exists", key)
+		return ErrDBRecordNotFound
+	}
+	if !EqualServiceStaticIP(oldip, &ip) {
+		glog.Errorln("oldip does not match with current ip, current ip", ip, "oldip", oldip)
+		return ErrDBConditionalCheckFailed
+	}
+
+	d.ipMap[key] = *newip
+	return nil
+}
+
+func (d *MemDB) GetServiceStaticIP(ctx context.Context, ip string) (serviceip *common.ServiceStaticIP, err error) {
+	key := ip
+
+	d.mlock.Lock()
+	defer d.mlock.Unlock()
+
+	currip, ok := d.ipMap[key]
+	if !ok {
+		glog.Errorln("service static ip not exists", key)
+		return nil, ErrDBRecordNotFound
+	}
+
+	return copyServiceStaticIP(&currip), nil
+}
+
+func (d *MemDB) DeleteServiceStaticIP(ctx context.Context, ip string) error {
+	key := ip
+
+	d.mlock.Lock()
+	defer d.mlock.Unlock()
+
+	_, ok := d.ipMap[key]
+	if !ok {
+		glog.Errorln("service static ip not exists", key)
+		return ErrDBRecordNotFound
+	}
+
+	delete(d.ipMap, key)
+	return nil
+}
+
 func copyDevice(t *common.Device) *common.Device {
 	return &common.Device{
 		ClusterName: t.ClusterName,
@@ -411,5 +480,15 @@ func copyConfigFile(t *common.ConfigFile) *common.ConfigFile {
 		ServiceUUID:  t.ServiceUUID,
 		LastModified: t.LastModified,
 		Content:      t.Content,
+	}
+}
+
+func copyServiceStaticIP(t *common.ServiceStaticIP) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP:           t.StaticIP,
+		ServiceUUID:        t.ServiceUUID,
+		AvailableZone:      t.AvailableZone,
+		ServerInstanceID:   t.ServerInstanceID,
+		NetworkInterfaceID: t.NetworkInterfaceID,
 	}
 }

@@ -43,6 +43,11 @@ func TestControlDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("test serviceMember error")
 	}
+
+	err = testServiceStaticIP(ctx, dbcli, cluster)
+	if err != nil {
+		t.Fatalf("test serviceStaticIP error")
+	}
 }
 
 func testDevice(ctx context.Context, dbcli *ControlDBCli, cluster string) error {
@@ -627,6 +632,119 @@ func testConfigFile(ctx context.Context, dbcli *ControlDBCli, cluster string) er
 	_, err = dbcli.GetConfigFile(ctx, serviceUUID, fileID)
 	if err != db.ErrDBRecordNotFound {
 		glog.Errorln("get deleted config file, expect db.ErrDBRecordNotFound, got", err)
+		return err
+	}
+
+	return nil
+}
+
+func testServiceStaticIP(ctx context.Context, dbcli *ControlDBCli, cluster string) error {
+	ipPrefix := "ip-"
+	serviceUUIDPrefix := "serviceuuid-"
+	az := "az-1"
+	serverInsIDPrefix := "server-"
+	netInterfaceIDPrefix := "netinterface-"
+
+	// create 9 service serviceips
+	maxCounts := 9
+	for i := 0; i < maxCounts; i++ {
+		// create serviceip
+		str := strconv.Itoa(i)
+		serviceip := db.CreateServiceStaticIP(ipPrefix+str, serviceUUIDPrefix+str, az,
+			serverInsIDPrefix+str, netInterfaceIDPrefix+str)
+		err := dbcli.CreateServiceStaticIP(ctx, serviceip)
+		if err != nil {
+			glog.Errorln("create serviceip, expect success, got", err, serviceip)
+			return err
+		}
+
+		// negative case: create the serviceip again
+		err = dbcli.CreateServiceStaticIP(ctx, serviceip)
+		if err != nil {
+			glog.Errorln("create service serviceip again, expect success, got", err, "attr", serviceip)
+			return err
+		}
+
+		// negative case: create the serviceip again with different field
+		serviceip1 := db.CreateServiceStaticIP(ipPrefix+str, serviceUUIDPrefix+str, az,
+			serverInsIDPrefix+str+"xxx", netInterfaceIDPrefix+str)
+		err = dbcli.CreateServiceStaticIP(ctx, serviceip1)
+		if err != db.ErrDBConditionalCheckFailed {
+			glog.Errorln("create existing service serviceip with different field, expect db.ErrDBConditionalCheckFailed, got", err, serviceip1)
+			return err
+		}
+
+		// get serviceip
+		serviceip2, err := dbcli.GetServiceStaticIP(ctx, ipPrefix+str)
+		if err != nil {
+			glog.Errorln("get serviceip, expect success, got", err, "cluster", cluster, "ip", ipPrefix+str)
+			return err
+		}
+		if !db.EqualServiceStaticIP(serviceip, serviceip2) {
+			glog.Errorln("get service serviceip, expect", serviceip, "got", serviceip2)
+			return db.ErrDBInternal
+		}
+
+		// negative case: get non-exist serviceip
+		_, err = dbcli.GetServiceStaticIP(ctx, ipPrefix+str+"xxx")
+		if err != db.ErrDBRecordNotFound {
+			glog.Errorln("get non-exist serviceip, expect db.ErrDBRecordNotFound, got error", err)
+			return db.ErrDBInternal
+		}
+
+		// update serviceip
+		serviceip1 = db.CreateServiceStaticIP(ipPrefix+str, serviceUUIDPrefix+str, az,
+			serverInsIDPrefix+str+"xxx", netInterfaceIDPrefix+str+"xxx")
+
+		// negative case: old serviceip mismatch
+		err = dbcli.UpdateServiceStaticIP(ctx, serviceip1, serviceip1)
+		if err != db.ErrDBConditionalCheckFailed {
+			glog.Errorln("UpdateServiceStaticIP expect db.ErrDBConditionalCheckFailed, got error", err, serviceip1)
+			return db.ErrDBInternal
+		}
+
+		// update serviceip
+		err = dbcli.UpdateServiceStaticIP(ctx, serviceip, serviceip1)
+		if err != nil {
+			glog.Errorln("UpdateServiceStaticIP expect success, got error", err, serviceip1)
+			return db.ErrDBInternal
+		}
+	}
+
+	// delete 3 service serviceips
+	ip := ipPrefix + strconv.Itoa(1)
+	err := dbcli.DeleteServiceStaticIP(ctx, ip)
+	if err != nil {
+		glog.Errorln("DeleteServiceStaticIP error", err, ip)
+		return err
+	}
+	_, err = dbcli.GetServiceStaticIP(ctx, ip)
+	if err != db.ErrDBRecordNotFound {
+		glog.Errorln("get deleted service serviceip, expect db.ErrDBRecordNotFound, got", err)
+		return err
+	}
+
+	ip = ipPrefix + strconv.Itoa(3)
+	err = dbcli.DeleteServiceStaticIP(ctx, ip)
+	if err != nil {
+		glog.Errorln("DeleteServiceStaticIP error", err, ip)
+		return err
+	}
+	_, err = dbcli.GetServiceStaticIP(ctx, ip)
+	if err != db.ErrDBRecordNotFound {
+		glog.Errorln("get deleted service serviceip, expect db.ErrDBRecordNotFound, got", err)
+		return err
+	}
+
+	ip = ipPrefix + strconv.Itoa(5)
+	err = dbcli.DeleteServiceStaticIP(ctx, ip)
+	if err != nil {
+		glog.Errorln("DeleteServiceStaticIP error", err, ip)
+		return err
+	}
+	_, err = dbcli.GetServiceStaticIP(ctx, ip)
+	if err != db.ErrDBRecordNotFound {
+		glog.Errorln("get deleted service serviceip, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
 
