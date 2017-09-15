@@ -11,18 +11,34 @@ import (
 )
 
 const devPrefix = "/dev/memd"
+const defaultCidrBlock = "172.31.64.0/20"
+
+type memNetworkInterface struct {
+	InterfaceID      string
+	ServerInstanceID string
+	PrimaryPrivateIP string
+	PrivateIPs       map[string]bool
+}
 
 type MemServer struct {
 	// key: volID, value: devName
-	volumes map[string]string
-	vlock   *sync.Mutex
+	volumes      map[string]string
+	netInterface *memNetworkInterface
+	vlock        *sync.Mutex
 	// count the number of volume creation, used to generate volID
 	creationCount int
 }
 
 func NewMemServer() *MemServer {
+	info := NewMockServerInfo()
 	s := &MemServer{
-		volumes:       map[string]string{},
+		volumes: map[string]string{},
+		netInterface: &memNetworkInterface{
+			InterfaceID:      "local-interfaceid",
+			ServerInstanceID: info.GetLocalInstanceID(),
+			PrimaryPrivateIP: "172.31.64.1",
+			PrivateIPs:       map[string]bool{},
+		},
 		vlock:         &sync.Mutex{},
 		creationCount: 0,
 	}
@@ -79,7 +95,7 @@ func (s *MemServer) DeleteVolume(ctx context.Context, volID string) error {
 	devName, ok := s.volumes[volID]
 	if !ok {
 		glog.Errorln("no such volume", volID)
-		return common.ErrInternal
+		return common.ErrNotFound
 	}
 
 	delete(s.volumes, volID)
@@ -100,4 +116,65 @@ func (s *MemServer) GetNextDeviceName(lastDev string) (devName string, err error
 	devName = devPrefix + strconv.Itoa(s.creationCount+1)
 	glog.Infoln("lastDev", lastDev, "assign next device", devName)
 	return devName, nil
+}
+
+func (s *MemServer) GetNetworkInterfaces(ctx context.Context, vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	netInterfaces = append(netInterfaces, s.copyNetworkInterface())
+	return netInterfaces, defaultCidrBlock, nil
+}
+
+func (s *MemServer) GetInstanceNetworkInterface(ctx context.Context, instanceID string) (netInterface *NetworkInterface, err error) {
+	if instanceID != s.netInterface.ServerInstanceID {
+		glog.Errorln("instance not exist", instanceID, "local instance", s.netInterface.ServerInstanceID)
+		return nil, common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	return s.copyNetworkInterface(), nil
+}
+
+func (s *MemServer) copyNetworkInterface() *NetworkInterface {
+	ips := []string{}
+	for ip := range s.netInterface.PrivateIPs {
+		ips = append(ips, ip)
+	}
+
+	netInterface := &NetworkInterface{
+		InterfaceID:      s.netInterface.InterfaceID,
+		ServerInstanceID: s.netInterface.ServerInstanceID,
+		PrimaryPrivateIP: s.netInterface.PrimaryPrivateIP,
+		PrivateIPs:       ips,
+	}
+	return netInterface
+}
+
+func (s *MemServer) UnassignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	if networkInterfaceID != s.netInterface.InterfaceID {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
+		return common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	delete(s.netInterface.PrivateIPs, staticIP)
+	return nil
+}
+
+func (s *MemServer) AssignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	if networkInterfaceID != s.netInterface.InterfaceID {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
+		return common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	s.netInterface.PrivateIPs[staticIP] = true
+	return nil
 }

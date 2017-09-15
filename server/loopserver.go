@@ -18,15 +18,23 @@ const LoopDevPrefix = "/dev/loop"
 
 type LoopServer struct {
 	// key: volID, value: devName
-	volumes map[string]string
-	vlock   *sync.Mutex
+	volumes      map[string]string
+	netInterface *memNetworkInterface
+	vlock        *sync.Mutex
 	// count the number of volume creation, used to generate volID
 	creationCount int
 }
 
 func NewLoopServer() *LoopServer {
+	info := NewMockServerInfo()
 	s := &LoopServer{
-		volumes:       map[string]string{},
+		volumes: map[string]string{},
+		netInterface: &memNetworkInterface{
+			InterfaceID:      "local-interfaceid",
+			ServerInstanceID: info.GetLocalInstanceID(),
+			PrimaryPrivateIP: "172.31.64.1",
+			PrivateIPs:       map[string]bool{},
+		},
 		vlock:         &sync.Mutex{},
 		creationCount: 0,
 	}
@@ -239,6 +247,67 @@ func (s *LoopServer) GetNextDeviceName(lastDev string) (devName string, err erro
 	}
 	glog.Infoln("lastDev", lastDev, "assign next device", devName)
 	return devName, nil
+}
+
+func (s *LoopServer) GetNetworkInterfaces(ctx context.Context, vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	netInterfaces = append(netInterfaces, s.copyNetworkInterface())
+	return netInterfaces, defaultCidrBlock, nil
+}
+
+func (s *LoopServer) GetInstanceNetworkInterface(ctx context.Context, instanceID string) (netInterface *NetworkInterface, err error) {
+	if instanceID != s.netInterface.ServerInstanceID {
+		glog.Errorln("instance not exist", instanceID, "local instance", s.netInterface.ServerInstanceID)
+		return nil, common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	return s.copyNetworkInterface(), nil
+}
+
+func (s *LoopServer) copyNetworkInterface() *NetworkInterface {
+	ips := []string{}
+	for ip := range s.netInterface.PrivateIPs {
+		ips = append(ips, ip)
+	}
+
+	netInterface := &NetworkInterface{
+		InterfaceID:      s.netInterface.InterfaceID,
+		ServerInstanceID: s.netInterface.ServerInstanceID,
+		PrimaryPrivateIP: s.netInterface.PrimaryPrivateIP,
+		PrivateIPs:       ips,
+	}
+	return netInterface
+}
+
+func (s *LoopServer) UnassignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	if networkInterfaceID != s.netInterface.InterfaceID {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
+		return common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	delete(s.netInterface.PrivateIPs, staticIP)
+	return nil
+}
+
+func (s *LoopServer) AssignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	if networkInterfaceID != s.netInterface.InterfaceID {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
+		return common.ErrNotFound
+	}
+
+	s.vlock.Lock()
+	defer s.vlock.Unlock()
+
+	s.netInterface.PrivateIPs[staticIP] = true
+	return nil
 }
 
 func (s *LoopServer) loopfilePath(volID string) string {

@@ -43,6 +43,13 @@ type VolumeInfo struct {
 	Size   int64
 }
 
+type NetworkInterface struct {
+	InterfaceID      string
+	ServerInstanceID string
+	PrimaryPrivateIP string
+	PrivateIPs       []string
+}
+
 // Server defines the volume and device related operations for one host such as EC2
 type Server interface {
 	AttachVolume(ctx context.Context, volID string, instanceID string, devName string) error
@@ -59,6 +66,18 @@ type Server interface {
 	GetFirstDeviceName() string
 	GetNextDeviceName(lastDev string) (devName string, err error)
 	// TODO some services may be deleted, should reuse the device name
+
+	// GetNetworkInterfaces returns the network interfaces in the firecamp cluster, vpc and zone,
+	// and the secondary IPs of the network interfaces.
+	// Every instance in the firecamp cluster will have the specific cluster tag, as we don't want
+	// to get the application servers run on the same vpc and zone.
+	GetNetworkInterfaces(ctx context.Context, cluster string, vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error)
+	// The firecamp cluster instance has only one network interface.
+	GetInstanceNetworkInterface(ctx context.Context, instanceID string) (netInterface *NetworkInterface, err error)
+	AssignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error
+	// UnassignStaticIP unassigns the staticIP from the networkInterface. If the networkInterface does not
+	// own the ip, should return success.
+	UnassignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error
 }
 
 // Info defines the operations for the local server related info
