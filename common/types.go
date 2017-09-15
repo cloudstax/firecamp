@@ -6,6 +6,9 @@ const (
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
 
+	ContainerPlatformRoleManager = "manager"
+	ContainerPlatformRoleWorker  = "worker"
+
 	OrgName             = "cloudstax"
 	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"

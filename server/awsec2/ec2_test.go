@@ -2,6 +2,7 @@ package awsec2
 
 import (
 	"flag"
+	"net"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,13 +12,15 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/server"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 var e *AWSEc2
-var az1bIns1 string
-var az1bIns2 string
+var cluster string
+var az1aIns1 string
+var az1aIns2 string
 var az1cIns1 string
-var az1bVol1 string
+var az1aVol1 string
 
 func createInstancesAndVolume(ctx context.Context) error {
 	cfg := aws.NewConfig().WithRegion("us-west-1")
@@ -32,44 +35,48 @@ func createInstancesAndVolume(ctx context.Context) error {
 		return common.ErrInternal
 	}
 
+	cluster = utils.GenUUID()
+
+	imageID := "ami-327f5352"
+
 	// launch 3 instances at 2 az and create one volume
-	az1bIns1, err = e.LaunchOneInstance(ctx, "us-west-1b")
+	az1aIns1, err = e.LaunchOneInstance(ctx, imageID, "us-west-1a", cluster)
 	if err != nil {
-		glog.Errorln("failed to launch instance at us-west-1b, error", err)
+		glog.Errorln("failed to launch instance at us-west-1a, error", err)
 		return err
 	}
 
-	az1bIns2, err = e.LaunchOneInstance(ctx, "us-west-1b")
+	az1aIns2, err = e.LaunchOneInstance(ctx, imageID, "us-west-1a", cluster)
 	if err != nil {
-		glog.Errorln("failed to launch instance at us-west-1b, error", err)
+		glog.Errorln("failed to launch instance at us-west-1a, error", err)
 		return err
 	}
 
-	az1cIns1, err = e.LaunchOneInstance(ctx, "us-west-1c")
+	az1cIns1, err = e.LaunchOneInstance(ctx, imageID, "us-west-1c", cluster)
 	if err != nil {
 		glog.Errorln("failed to launch instance at us-west-1c, error", err)
 		return err
 	}
 
 	// create one volume
-	az1bVol1, err = e.CreateVolume(ctx, "us-west-1b", 1)
+	az1aVol1, err = e.CreateVolume(ctx, "us-west-1a", 1)
 	if err != nil {
-		glog.Errorln("failed to create volume at us-west-1b, error", err)
+		glog.Errorln("failed to create volume at us-west-1a, error", err)
 		return err
 	}
 
-	err = e.WaitVolumeCreated(ctx, az1bVol1)
+	err = e.WaitVolumeCreated(ctx, az1aVol1)
 	if err != nil {
 		glog.Errorln("WaitVolumeCreated error", err)
 		return err
 	}
 
-	err = e.WaitInstanceRunning(ctx, az1bIns1)
+	err = e.WaitInstanceRunning(ctx, az1aIns1)
 	if err != nil {
 		glog.Errorln("WaitInstanceRunning error", err)
 		return err
 	}
-	err = e.WaitInstanceRunning(ctx, az1bIns2)
+	err = e.WaitInstanceRunning(ctx, az1aIns2)
 	if err != nil {
 		glog.Errorln("WaitInstanceRunning error", err)
 		return err
@@ -85,17 +92,17 @@ func createInstancesAndVolume(ctx context.Context) error {
 
 func cleanup(ctx context.Context) {
 	// terminate the created instances and volume
-	if len(az1bIns1) != 0 {
-		e.TerminateInstance(ctx, az1bIns1)
+	if len(az1aIns1) != 0 {
+		e.TerminateInstance(ctx, az1aIns1)
 	}
-	if len(az1bIns2) != 0 {
-		e.TerminateInstance(ctx, az1bIns2)
+	if len(az1aIns2) != 0 {
+		e.TerminateInstance(ctx, az1aIns2)
 	}
 	if len(az1cIns1) != 0 {
 		e.TerminateInstance(ctx, az1cIns1)
 	}
-	if len(az1bVol1) != 0 {
-		e.DeleteVolume(ctx, az1bVol1)
+	if len(az1aVol1) != 0 {
+		e.DeleteVolume(ctx, az1aVol1)
 	}
 }
 
@@ -115,59 +122,59 @@ func TestMain(m *testing.M) {
 	cleanup(ctx)
 }
 
-func TestVolume(t *testing.T) {
+func TestEBSVolume(t *testing.T) {
 	var err error
 	devName := "/dev/xvdf"
 
 	ctx := context.Background()
 
 	// negative case - detach available volume
-	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, devName)
+	err = e.DetachVolume(ctx, az1aVol1, az1aIns1, devName)
 	if err == nil && err != server.ErrVolumeIncorrectState {
-		t.Fatalf("detach available volume, expected ErrVolumeIncorrectState but got %s, vol %s instance %s", err, az1bVol1, az1bIns1)
+		t.Fatalf("detach available volume, expected ErrVolumeIncorrectState but got %s, vol %s instance %s", err, az1aVol1, az1aIns1)
 	}
 
 	// negative case - attach volume to instance at differnt az
-	err = e.AttachVolume(ctx, az1bVol1, az1cIns1, devName)
+	err = e.AttachVolume(ctx, az1aVol1, az1cIns1, devName)
 	if err == nil {
-		t.Fatalf("attach volume to instance at different az, expected fail but success, vol %s instance %s", az1bVol1, az1cIns1)
+		t.Fatalf("attach volume to instance at different az, expected fail but success, vol %s instance %s", az1aVol1, az1cIns1)
 	}
 
 	// attach volume
-	err = e.AttachVolume(ctx, az1bVol1, az1bIns1, devName)
+	err = e.AttachVolume(ctx, az1aVol1, az1aIns1, devName)
 	if err != nil {
-		t.Fatalf("attach volume, expected success but fail, vol %s instance %s", az1bVol1, az1bIns1)
+		t.Fatalf("attach volume, expected success but fail, vol %s instance %s", az1aVol1, az1aIns1)
 	}
-	err = e.WaitVolumeAttached(ctx, az1bVol1)
+	err = e.WaitVolumeAttached(ctx, az1aVol1)
 	if err != nil {
 		t.Fatalf("wait volume in-use, error %s", err)
 	}
 
 	// negative case - detach volume from wrong instanceID
-	err = e.DetachVolume(ctx, az1bVol1, az1bIns2, devName)
+	err = e.DetachVolume(ctx, az1aVol1, az1aIns2, devName)
 	if err == nil {
-		t.Fatalf("detach volume from wrong instance, expected fail but success, vol %s instance %s", az1bVol1, az1bIns2)
+		t.Fatalf("detach volume from wrong instance, expected fail but success, vol %s instance %s", az1aVol1, az1aIns2)
 	}
 
 	// negative case - detach volume with wrong devName
-	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, "/dev/xvdx")
+	err = e.DetachVolume(ctx, az1aVol1, az1aIns1, "/dev/xvdx")
 	if err == nil {
-		t.Fatalf("detach volume with wrong devName, expected fail but success, vol %s instance %s devName %s", az1bVol1, az1bIns1, devName)
+		t.Fatalf("detach volume with wrong devName, expected fail but success, vol %s instance %s devName %s", az1aVol1, az1aIns1, devName)
 	}
 
 	// detach volume
-	err = e.DetachVolume(ctx, az1bVol1, az1bIns1, devName)
+	err = e.DetachVolume(ctx, az1aVol1, az1aIns1, devName)
 	if err != nil {
-		t.Fatalf("detach volume, expected success but failed, vol %s instance %s", az1bVol1, az1bIns1)
+		t.Fatalf("detach volume, expected success but failed, vol %s instance %s", az1aVol1, az1aIns1)
 	}
 
-	err = e.WaitVolumeDetached(ctx, az1bVol1)
+	err = e.WaitVolumeDetached(ctx, az1aVol1)
 	if err != nil && err != common.ErrTimeout {
 		glog.Errorln("wait volume available, error %s", err)
 	}
 }
 
-func TestDeviceName(t *testing.T) {
+func TestEBSDeviceName(t *testing.T) {
 	dev, err := e.GetNextDeviceName("/dev/xvdf")
 	if err != nil || dev != "/dev/xvdg" {
 		t.Fatalf("/dev/xvdf expect /dev/xvdg, get %s, error %s", dev, err)
@@ -213,4 +220,96 @@ func TestDeviceName(t *testing.T) {
 	if err == nil {
 		t.Fatalf("/dev/xvd expect error, but success", dev)
 	}
+}
+
+func TestEC2NetworkInterface(t *testing.T) {
+	ctx := context.Background()
+
+	instanceID := az1cIns1
+	instance, err := e.DescribeInstance(ctx, instanceID)
+	if err != nil {
+		t.Fatalf("DescribeInstance %s error %s", instanceID, err)
+	}
+
+	vpcid := *(instance.VpcId)
+	az := "us-west-1c"
+	subnetID := *(instance.SubnetId)
+
+	subnet, err := e.DescribeSubnet(ctx, subnetID)
+	if err != nil {
+		t.Fatalf("DescribeSubnet %s error %s", subnetID, err)
+	}
+
+	// test network interfaces
+	netInterfaces, cidrBlock, err := e.GetNetworkInterfaces(ctx, cluster, vpcid, az)
+	if err != nil {
+		t.Fatalf("GetNetworkInterfaces error %s, cluster %s vpcid %s az %s", err, cluster, vpcid, az)
+	}
+	if len(netInterfaces) != 1 {
+		t.Fatalf("expect 1 network interfaces, get %s", netInterfaces)
+	}
+	if len(netInterfaces[0].PrivateIPs) != 0 {
+		t.Fatalf("expect 0 secondary ip, get %s", netInterfaces[0])
+	}
+	if cidrBlock != *(subnet.CidrBlock) {
+		t.Fatalf("cidrBlock not match %s %s", cidrBlock, subnet.CidrBlock)
+	}
+
+	netInterface, err := e.GetInstanceNetworkInterface(ctx, instanceID)
+	if err != nil {
+		t.Fatalf("GetInstanceNetworkInterface error %s, instance %s", err, instanceID)
+	}
+	if netInterface.ServerInstanceID != instanceID {
+		t.Fatalf("expect server instance id %s, get %s", instanceID, netInterface.ServerInstanceID)
+	}
+	if netInterface.InterfaceID != netInterfaces[0].InterfaceID ||
+		netInterface.ServerInstanceID != netInterfaces[0].ServerInstanceID ||
+		netInterface.PrimaryPrivateIP != netInterfaces[0].PrimaryPrivateIP ||
+		len(netInterface.PrivateIPs) != len(netInterfaces[0].PrivateIPs) {
+		t.Fatalf("interface not match, %s %s", netInterface, netInterfaces[0])
+	}
+
+	// test ip assign/unassign
+	usedIPs := make(map[string]bool)
+	usedIPs[netInterface.PrimaryPrivateIP] = true
+
+	ip, ipnet, err := net.ParseCIDR(cidrBlock)
+	if err != nil {
+		t.Fatalf("ParseCIDR %s error %s", cidrBlock, err)
+	}
+
+	for i := 0; i < 3; i++ {
+		ip, err = utils.GetNextIP(usedIPs, ipnet, ip)
+		if err != nil {
+			t.Fatalf("GetNextIP error %s, %s", err, ip)
+		}
+
+		ipstr := ip.String()
+		usedIPs[ipstr] = true
+
+		err = e.AssignStaticIP(ctx, netInterface.InterfaceID, ipstr)
+		if err != nil {
+			t.Fatalf("AssignStaticIP %s error %s, network interface %s", ip, err, netInterface)
+		}
+
+		netInterface, err = e.GetInstanceNetworkInterface(ctx, instanceID)
+		if err != nil {
+			t.Fatalf("GetInstanceNetworkInterface error %s, instance %s", err, instanceID)
+		}
+		if netInterface.ServerInstanceID != instanceID {
+			t.Fatalf("expect server instance id %s, get %s", instanceID, netInterface.ServerInstanceID)
+		}
+		if len(netInterface.PrivateIPs) != 1 {
+			t.Fatalf("expect 1 static ip, get %s", netInterface.PrivateIPs)
+		}
+		if netInterface.PrivateIPs[0] != ipstr {
+			t.Fatalf("expect static ip %s, get %s", ipstr, netInterface.PrivateIPs)
+		}
+
+		err = e.UnassignStaticIP(ctx, netInterface.InterfaceID, ipstr)
+		if err != nil {
+			t.Fatalf("UnassignStaticIP %s error %s, %s", ipstr, err, netInterface)
+		}
+	}
+
 }

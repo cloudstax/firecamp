@@ -30,7 +30,7 @@ const (
 	// detach volume (in-use to available) may take more than 6 seconds.
 	maxRetryCount               = 10
 	defaultSleepTime            = 2 * time.Second
-	defaultSleepTimeForInstance = 3 * time.Second
+	defaultSleepTimeForInstance = 4 * time.Second
 
 	// aws volume state
 	volumeStateCreating  = "creating"
@@ -57,11 +57,16 @@ const (
 
 	// misc default value
 	defaultInstanceType = "t2.micro"
-	defaultImageID      = "ami-07713767"
 	devicePrefix        = "/dev/xvd"
 	controldbDevice     = "/dev/xvdf"
 	firstDevice         = "/dev/xvdg"
 	lastDeviceSeq       = "z"
+
+	filterAz               = "availability-zone"
+	filterVpc              = "vpc-id"
+	filterTagWorkerKey     = common.SystemName + "-" + common.ContainerPlatformRoleWorker
+	filterTagWorker        = "tag:" + filterTagWorkerKey
+	filterAttachInstanceID = "attachment.instance-id"
 )
 
 // NewAWSEc2 creates a AWSEc2 instance
@@ -426,19 +431,252 @@ func (s *AWSEc2) GetNextDeviceName(lastDev string) (devName string, err error) {
 	return devName, nil
 }
 
+// GetNetworkInterfaces gets all network interfaces in the cluster, vpc and zone.
+func (s *AWSEc2) GetNetworkInterfaces(ctx context.Context, cluster string,
+	vpcID string, zone string) (netInterfaces []*server.NetworkInterface, cidrBlock string, err error) {
+
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	filters := []*ec2.Filter{
+		{
+			Name: aws.String(filterVpc),
+			Values: []*string{
+				aws.String(vpcID),
+			},
+		},
+		{
+			Name: aws.String(filterAz),
+			Values: []*string{
+				aws.String(zone),
+			},
+		},
+		{
+			Name: aws.String(filterTagWorker),
+			Values: []*string{
+				aws.String(cluster),
+			},
+		},
+	}
+
+	svc := ec2.New(s.sess)
+
+	var instanceIDs []string
+	nextToken := ""
+	subnetID := ""
+	for true {
+		instanceIDs, subnetID, nextToken, err = s.describeInstances(ctx, filters, nextToken, svc, requuid)
+		if err != nil {
+			glog.Errorln("DescribeInstances error", err, "filter", filters, "token", nextToken, "requuid", requuid)
+			return nil, "", err
+		}
+
+		glog.Infoln("list", len(instanceIDs), "instances, nextToken", nextToken, "filter", filters, "requuid", requuid)
+
+		for _, instanceID := range instanceIDs {
+			netInterface, err := s.getInstanceNetworkInterface(ctx, instanceID, svc, requuid)
+			if err != nil {
+				glog.Errorln("GetInstanceNetworkInterface error", err, "instance", instanceID, "filter", filters, "requuid", requuid)
+				return nil, "", err
+			}
+
+			netInterfaces = append(netInterfaces, netInterface)
+		}
+
+		if len(nextToken) == 0 {
+			// no more instances
+			break
+		}
+	}
+
+	// get subnet cidrBlock
+	subnet, err := s.describeSubnet(ctx, subnetID, svc, requuid)
+	if err != nil {
+		glog.Errorln("describeSubnet error", err, subnetID, "requuid", requuid)
+		return nil, "", err
+	}
+
+	glog.Infoln("get", len(netInterfaces), "network interfaces, subnet", subnet, "filter", filters, "requuid", requuid)
+	return netInterfaces, *(subnet.CidrBlock), nil
+}
+
+// GetInstanceNetworkInterface gets the network interface of the instance.
+// Assume one instance only has one network interface.
+func (s *AWSEc2) GetInstanceNetworkInterface(ctx context.Context, instanceID string) (netInterface *server.NetworkInterface, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+	svc := ec2.New(s.sess)
+
+	return s.getInstanceNetworkInterface(ctx, instanceID, svc, requuid)
+}
+
+func (s *AWSEc2) getInstanceNetworkInterface(ctx context.Context, instanceID string, svc *ec2.EC2, requuid string) (netInterface *server.NetworkInterface, err error) {
+	filters := []*ec2.Filter{
+		{
+			Name: aws.String(filterAttachInstanceID),
+			Values: []*string{
+				aws.String(instanceID),
+			},
+		},
+	}
+
+	input := &ec2.DescribeNetworkInterfacesInput{
+		Filters: filters,
+	}
+
+	res, err := svc.DescribeNetworkInterfaces(input)
+	if err != nil {
+		glog.Errorln("DescribeNetworkInterfaces error", err, "instance", instanceID, "requuid", requuid)
+		return nil, err
+	}
+	if len(res.NetworkInterfaces) != 1 {
+		glog.Errorln("expect 1 network interface, get", len(res.NetworkInterfaces),
+			res.NetworkInterfaces, "instance", instanceID, "requuid", requuid)
+		return nil, common.ErrInternal
+	}
+
+	netInterface = &server.NetworkInterface{
+		InterfaceID:      *(res.NetworkInterfaces[0].NetworkInterfaceId),
+		ServerInstanceID: instanceID,
+	}
+
+	// get the private ips
+	ips := []string{}
+	for _, ip := range res.NetworkInterfaces[0].PrivateIpAddresses {
+		if *(ip.Primary) {
+			netInterface.PrimaryPrivateIP = *(ip.PrivateIpAddress)
+			continue
+		}
+		ips = append(ips, *(ip.PrivateIpAddress))
+	}
+
+	netInterface.PrivateIPs = ips
+
+	glog.Infoln("get network interface", netInterface, "for instance", instanceID, "requuid", requuid)
+	return netInterface, err
+}
+
+// AssignStaticIP assigns the static ip to the network interface.
+func (s *AWSEc2) AssignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	svc := ec2.New(s.sess)
+
+	input := &ec2.AssignPrivateIpAddressesInput{
+		NetworkInterfaceId: aws.String(networkInterfaceID),
+		PrivateIpAddresses: []*string{aws.String(staticIP)},
+	}
+
+	_, err := svc.AssignPrivateIpAddresses(input)
+	if err != nil {
+		glog.Errorln("AssignPrivateIpAddresses error", err, "network interface id", networkInterfaceID, "ip", staticIP, "requuid", requuid)
+		return err
+	}
+
+	glog.Infoln("assigned private ip", staticIP, "to network interface", networkInterfaceID, "requuid", requuid)
+	return nil
+}
+
+// UnassignStaticIP unassigns the staticIP from the networkInterface. If the networkInterface does not
+// own the ip, should return success.
+func (s *AWSEc2) UnassignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	svc := ec2.New(s.sess)
+
+	input := &ec2.UnassignPrivateIpAddressesInput{
+		NetworkInterfaceId: aws.String(networkInterfaceID),
+		PrivateIpAddresses: []*string{aws.String(staticIP)},
+	}
+
+	_, err := svc.UnassignPrivateIpAddresses(input)
+	if err != nil {
+		glog.Errorln("UnassignPrivateIpAddresses error", err, "network interface id", networkInterfaceID, "ip", staticIP, "requuid", requuid)
+		return err
+	}
+
+	glog.Infoln("unassigned private ip", staticIP, "from network interface", networkInterfaceID, "requuid", requuid)
+	return nil
+}
+
+// DescribeSubnet returns the ec2 subnet
+func (s *AWSEc2) DescribeSubnet(ctx context.Context, subnetID string) (*ec2.Subnet, error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+	svc := ec2.New(s.sess)
+	return s.describeSubnet(ctx, subnetID, svc, requuid)
+}
+
+func (s *AWSEc2) describeSubnet(ctx context.Context, subnetID string, svc *ec2.EC2, requuid string) (*ec2.Subnet, error) {
+	input := &ec2.DescribeSubnetsInput{
+		SubnetIds: []*string{aws.String(subnetID)},
+	}
+
+	res, err := svc.DescribeSubnets(input)
+	if err != nil {
+		glog.Errorln("DescribeSubnets error", err, "subnetID", subnetID, "requuid", requuid)
+		return nil, err
+	}
+	if len(res.Subnets) != 1 {
+		glog.Errorln("get", len(res.Subnets), "subnets for subnetID", subnetID, "requuid", requuid)
+		return nil, common.ErrInternal
+	}
+
+	glog.Infoln("get subnet", res.Subnets[0], "requuid", requuid)
+	return res.Subnets[0], nil
+}
+
+func (s *AWSEc2) describeInstances(ctx context.Context, filters []*ec2.Filter, token string, svc *ec2.EC2, requuid string) (instanceIDs []string, subnetID string, nextToken string, err error) {
+	input := &ec2.DescribeInstancesInput{
+		Filters: filters,
+	}
+	if len(token) != 0 {
+		input.NextToken = aws.String(token)
+	}
+
+	res, err := svc.DescribeInstances(input)
+	if err != nil {
+		glog.Errorln("DescribeInstances error", err, "token", token, "filters", filters, "requuid", requuid)
+		return nil, "", "", err
+	}
+
+	for _, reservation := range res.Reservations {
+		for _, instance := range reservation.Instances {
+			glog.V(1).Infoln("DescribeInstances get instance", *(instance.InstanceId), "token", token, "requuid", requuid)
+			instanceIDs = append(instanceIDs, *(instance.InstanceId))
+			subnetID = *(instance.SubnetId)
+		}
+	}
+
+	if res.NextToken != nil {
+		nextToken = *(res.NextToken)
+	}
+
+	glog.Infoln("get", len(instanceIDs), "instances, subnet", subnetID, "next token", nextToken, "requuid", requuid)
+	return instanceIDs, subnetID, nextToken, nil
+}
+
 // Below functions are for unit test only
 
 // LaunchOneInstance launches a new instance at specified az
-func (s *AWSEc2) LaunchOneInstance(ctx context.Context, az string) (instanceID string, err error) {
+func (s *AWSEc2) LaunchOneInstance(ctx context.Context, imageID string, az string, cluster string) (instanceID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	params := &ec2.RunInstancesInput{
-		ImageId:      aws.String(defaultImageID),
+		ImageId:      aws.String(imageID),
 		MaxCount:     aws.Int64(1),
 		MinCount:     aws.Int64(1),
 		InstanceType: aws.String(defaultInstanceType),
 		Placement: &ec2.Placement{
 			AvailabilityZone: aws.String(az),
+		},
+		TagSpecifications: []*ec2.TagSpecification{
+			&ec2.TagSpecification{
+				ResourceType: aws.String("instance"),
+				Tags: []*ec2.Tag{
+					&ec2.Tag{
+						Key:   aws.String(filterTagWorkerKey),
+						Value: aws.String(cluster),
+					},
+				},
+			},
 		},
 	}
 
@@ -456,7 +694,7 @@ func (s *AWSEc2) LaunchOneInstance(ctx context.Context, az string) (instanceID s
 
 	instanceID = *(resp.Instances[0].InstanceId)
 
-	glog.Infoln("launch instance", instanceID, "az", az, "requuid", requuid)
+	glog.Infoln("launch instance", instanceID, "az", az, "cluster", cluster, "requuid", requuid)
 
 	return instanceID, nil
 }
@@ -510,6 +748,35 @@ func (s *AWSEc2) GetInstanceState(ctx context.Context, instanceID string) (state
 
 	glog.Infoln("instance", instanceID, "state", state, "requuid", requuid)
 	return state, nil
+}
+
+// DescribeInstance gets the ec2 instance.
+func (s *AWSEc2) DescribeInstance(ctx context.Context, instanceID string) (*ec2.Instance, error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	input := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			aws.String(instanceID),
+		},
+	}
+
+	svc := ec2.New(s.sess)
+	res, err := svc.DescribeInstances(input)
+	if err != nil {
+		glog.Errorln("DescribeInstances error", err, "instanceID", instanceID, "requuid", requuid)
+		return nil, err
+	}
+	if len(res.Reservations) != 1 {
+		glog.Errorln("expect 1 reservation, get", len(res.Reservations), "requuid", requuid)
+		return nil, common.ErrInternal
+	}
+	if len(res.Reservations[0].Instances) != 1 {
+		glog.Errorln("expect 1 instance, get", len(res.Reservations[0].Instances), "requuid", requuid)
+		return nil, common.ErrInternal
+	}
+
+	glog.Infoln("get instance", res.Reservations[0].Instances[0], "requuid", requuid)
+	return res.Reservations[0].Instances[0], nil
 }
 
 // TerminateInstance terminates one instance

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"hash/fnv"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +100,40 @@ func IsControlDBService(serviceUUID string) bool {
 // GetControlDBVolumeID extracts the volume id from the controldb serviceUUID
 func GetControlDBVolumeID(controldbServiceUUID string) string {
 	return strings.TrimPrefix(controldbServiceUUID, common.ControlDBUUIDPrefix)
+}
+
+// GetNextIP gets the next unused ip.
+// aws reserves like 10.0.0.0, 10.0.0.1, 10.0.0.2, 10.0.0.3 and 10.0.0.255,
+// http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html
+func GetNextIP(usedIPs map[string]bool, ipnet *net.IPNet, lastIP net.IP) (nextIP net.IP, err error) {
+	ip := lastIP.Mask(ipnet.Mask)
+	for ipnet.Contains(ip) {
+		// increase ip
+		for j := len(ip) - 1; j >= 0; j-- {
+			// skip the reserved ips. this may skip some usable ip, but it is ok.
+			if ip[j] < 3 {
+				ip[j] = 3
+			}
+			if ip[j] == 254 {
+				continue
+			}
+
+			ip[j]++
+			if ip[j] > 0 {
+				break
+			}
+		}
+
+		ipstr := ip.String()
+		_, ok := usedIPs[ipstr]
+		if !ok {
+			glog.Infoln("find unused ip", ipstr)
+			return ip, nil
+		}
+	}
+
+	glog.Errorln("not find unused ip, used ips", len(usedIPs), "ipnet", ipnet, "lastIP", lastIP)
+	return nil, common.ErrInternal
 }
 
 // The key type is unexported to prevent collisions with context keys defined in
