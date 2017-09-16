@@ -1,13 +1,11 @@
 package awsec2
 
 import (
-	"flag"
 	"net"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
@@ -22,75 +20,69 @@ var az1aIns2 string
 var az1cIns1 string
 var az1aVol1 string
 
-func createInstancesAndVolume(ctx context.Context) error {
+func TestAWSEC2(t *testing.T) {
 	cfg := aws.NewConfig().WithRegion("us-west-1")
 	sess, err := session.NewSession(cfg)
 	if err != nil {
-		glog.Errorln("failed to create session, error", err)
-		return err
+		t.Fatal("failed to create session, error", err)
 	}
 
 	e = NewAWSEc2(sess)
-	if e == nil {
-		return common.ErrInternal
-	}
+	ctx := context.Background()
 
 	cluster = utils.GenUUID()
 
 	imageID := "ami-327f5352"
 
+	defer cleanup()
+
 	// launch 3 instances at 2 az and create one volume
 	az1aIns1, err = e.LaunchOneInstance(ctx, imageID, "us-west-1a", cluster)
 	if err != nil {
-		glog.Errorln("failed to launch instance at us-west-1a, error", err)
-		return err
+		t.Fatal("failed to launch instance at us-west-1a, error", err)
 	}
 
 	az1aIns2, err = e.LaunchOneInstance(ctx, imageID, "us-west-1a", cluster)
 	if err != nil {
-		glog.Errorln("failed to launch instance at us-west-1a, error", err)
-		return err
+		t.Fatal("failed to launch instance at us-west-1a, error", err)
 	}
 
 	az1cIns1, err = e.LaunchOneInstance(ctx, imageID, "us-west-1c", cluster)
 	if err != nil {
-		glog.Errorln("failed to launch instance at us-west-1c, error", err)
-		return err
+		t.Fatal("failed to launch instance at us-west-1c, error", err)
 	}
 
 	// create one volume
 	az1aVol1, err = e.CreateVolume(ctx, "us-west-1a", 1)
 	if err != nil {
-		glog.Errorln("failed to create volume at us-west-1a, error", err)
-		return err
+		t.Fatal("failed to create volume at us-west-1a, error", err)
 	}
 
 	err = e.WaitVolumeCreated(ctx, az1aVol1)
 	if err != nil {
-		glog.Errorln("WaitVolumeCreated error", err)
-		return err
+		t.Fatal("WaitVolumeCreated error", err)
 	}
 
 	err = e.WaitInstanceRunning(ctx, az1aIns1)
 	if err != nil {
-		glog.Errorln("WaitInstanceRunning error", err)
-		return err
+		t.Fatal("WaitInstanceRunning error", err)
 	}
 	err = e.WaitInstanceRunning(ctx, az1aIns2)
 	if err != nil {
-		glog.Errorln("WaitInstanceRunning error", err)
-		return err
+		t.Fatal("WaitInstanceRunning error", err)
 	}
 	err = e.WaitInstanceRunning(ctx, az1cIns1)
 	if err != nil {
-		glog.Errorln("WaitInstanceRunning error", err)
-		return err
+		t.Fatal("WaitInstanceRunning error", err)
 	}
 
-	return nil
+	testEBSVolume(t)
+	testEC2NetworkInterface(t)
 }
 
-func cleanup(ctx context.Context) {
+func cleanup() {
+	ctx := context.Background()
+
 	// terminate the created instances and volume
 	if len(az1aIns1) != 0 {
 		e.TerminateInstance(ctx, az1aIns1)
@@ -106,23 +98,7 @@ func cleanup(ctx context.Context) {
 	}
 }
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	ctx := context.Background()
-
-	err := createInstancesAndVolume(ctx)
-	if err != nil {
-		cleanup(ctx)
-		return
-	}
-
-	m.Run()
-
-	cleanup(ctx)
-}
-
-func TestEBSVolume(t *testing.T) {
+func testEBSVolume(t *testing.T) {
 	var err error
 	devName := "/dev/xvdf"
 
@@ -170,7 +146,7 @@ func TestEBSVolume(t *testing.T) {
 
 	err = e.WaitVolumeDetached(ctx, az1aVol1)
 	if err != nil && err != common.ErrTimeout {
-		glog.Errorln("wait volume available, error %s", err)
+		t.Fatal("wait volume available, error %s", err)
 	}
 }
 
@@ -222,7 +198,7 @@ func TestEBSDeviceName(t *testing.T) {
 	}
 }
 
-func TestEC2NetworkInterface(t *testing.T) {
+func testEC2NetworkInterface(t *testing.T) {
 	ctx := context.Background()
 
 	instanceID := az1cIns1
