@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"testing"
@@ -18,32 +19,42 @@ func TestCommonUtils(t *testing.T) {
 	usedIPs := make(map[string]bool)
 
 	lastIP := ip
-	for i := 4; i < 9; i++ {
+	i := 0
+	for i = 4; i < 9; i++ {
 		nextIP, err := GetNextIP(usedIPs, ipnet, lastIP)
 		if err != nil {
-			t.Fatalf("GetNextIP error %s, ip %s", err, ip)
+			t.Fatalf("GetNextIP error %s, last ip %s", err, lastIP)
 		}
 		expect := ipPrefix + strconv.Itoa(i)
 		if nextIP.String() != expect {
 			t.Fatalf("expect %s, get %s", expect, nextIP)
 		}
 
-		usedIPs[nextIP.String()] = true
 		lastIP = nextIP
 	}
 
-	lastIP = ip
-	for i := 9; i < 21; i++ {
+	for i = 9; i < 21; i++ {
 		nextIP, err := GetNextIP(usedIPs, ipnet, lastIP)
 		if err != nil {
-			t.Fatalf("GetNextIP error %s, ip %s", err, ip)
+			t.Fatalf("GetNextIP error %s, last ip %s", err, lastIP)
 		}
 		expect := ipPrefix + strconv.Itoa(i)
 		if nextIP.String() != expect {
 			t.Fatalf("expect %s, get %s", expect, nextIP)
 		}
 
-		usedIPs[nextIP.String()] = true
 		lastIP = nextIP
 	}
+
+	usedIPs[ipPrefix+strconv.Itoa(i)] = true
+	nextIP, err := GetNextIP(usedIPs, ipnet, lastIP)
+	if err != nil {
+		t.Fatalf("GetNextIP error %s, last ip %s", err, lastIP)
+	}
+	expect := ipPrefix + strconv.Itoa(i+1)
+	if nextIP.String() != expect {
+		t.Fatalf("expect %s, get %s", expect, nextIP)
+	}
+
+	fmt.Println("lastIP", lastIP, "skipped", ipPrefix+strconv.Itoa(i), "nextIP", nextIP)
 }

@@ -106,7 +106,8 @@ func GetControlDBVolumeID(controldbServiceUUID string) string {
 // aws reserves like 10.0.0.0, 10.0.0.1, 10.0.0.2, 10.0.0.3 and 10.0.0.255,
 // http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html
 func GetNextIP(usedIPs map[string]bool, ipnet *net.IPNet, lastIP net.IP) (nextIP net.IP, err error) {
-	ip := lastIP.Mask(ipnet.Mask)
+	lastipstr := lastIP.String()
+	ip := net.ParseIP(lastipstr)
 	for ipnet.Contains(ip) {
 		// increase ip
 		for j := len(ip) - 1; j >= 0; j-- {
@@ -127,7 +128,7 @@ func GetNextIP(usedIPs map[string]bool, ipnet *net.IPNet, lastIP net.IP) (nextIP
 		ipstr := ip.String()
 		_, ok := usedIPs[ipstr]
 		if !ok {
-			glog.Infoln("find unused ip", ipstr)
+			glog.Infoln("find unused ip", ipstr, "last ip", lastipstr)
 			return ip, nil
 		}
 	}
