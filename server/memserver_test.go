@@ -39,7 +39,7 @@ func TestMemServer(t *testing.T) {
 		t.Fatalf("DeleteVolume %s error %s", volID2, err)
 	}
 
-	netInterfaces, cidrBlock, err := s.GetNetworkInterfaces(ctx, "vpc", info.GetLocalAvailabilityZone())
+	netInterfaces, cidrBlock, err := s.GetNetworkInterfaces(ctx, "cluster", "vpc", info.GetLocalAvailabilityZone())
 	if err != nil {
 		t.Fatalf("GetNetworkInterfaces error %s", err)
 	}

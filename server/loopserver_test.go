@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestLoopServer(t *testing.T) {
+func TestLoopServerVolume(t *testing.T) {
 	flag.Parse()
 	//flag.Set("stderrthreshold", "INFO")
 
@@ -83,18 +83,26 @@ func TestLoopServer(t *testing.T) {
 	if err == nil {
 		t.Fatalf("detach vol-x should fail")
 	}
+}
+
+func TestLoopServerNetwork(t *testing.T) {
+	ctx := context.Background()
+
+	s := NewLoopServer()
+
+	s.AddNetworkInterface()
 
 	// test network interfaces
 	info := NewMockServerInfo()
-	netInterfaces, cidrBlock, err := s.GetNetworkInterfaces(ctx, "vpc", info.GetLocalAvailabilityZone())
+	netInterfaces, cidrBlock, err := s.GetNetworkInterfaces(ctx, "cluster", "vpc", info.GetLocalAvailabilityZone())
 	if err != nil {
 		t.Fatalf("GetNetworkInterfaces error %s", err)
 	}
 	if len(netInterfaces) != 1 {
 		t.Fatalf("expect 1 network interface, get %d", len(netInterfaces))
 	}
-	if cidrBlock != defaultCidrBlock {
-		t.Fatalf("expect cidrBlock %s, get %s", defaultCidrBlock, cidrBlock)
+	if cidrBlock != loopCidrBlock {
+		t.Fatalf("expect cidrBlock %s, get %s", loopCidrBlock, cidrBlock)
 	}
 	if len(netInterfaces[0].PrivateIPs) != 0 {
 		t.Fatalf("expect 0 private ips, get %s", netInterfaces[0].PrivateIPs)

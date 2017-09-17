@@ -11,7 +11,8 @@ import (
 )
 
 const devPrefix = "/dev/memd"
-const defaultCidrBlock = "172.31.64.0/20"
+const defaultIPPrefix = "172.31.64."
+const defaultCidrBlock = defaultIPPrefix + ".0/20"
 
 type memNetworkInterface struct {
 	InterfaceID      string
@@ -118,7 +119,8 @@ func (s *MemServer) GetNextDeviceName(lastDev string) (devName string, err error
 	return devName, nil
 }
 
-func (s *MemServer) GetNetworkInterfaces(ctx context.Context, vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
+func (s *MemServer) GetNetworkInterfaces(ctx context.Context, cluster string,
+	vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 

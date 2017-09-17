@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,30 +14,34 @@ import (
 	"github.com/cloudstax/firecamp/common"
 )
 
-const LoopFileDir = "/tmp/"
-const LoopDevPrefix = "/dev/loop"
+const (
+	LoopFileDir   = "/tmp/"
+	LoopDevPrefix = "/dev/loop"
+
+	loopNetInterfaceIDPrefix   = "loopnet"
+	loopServerInstanceIDPrefix = "loopserver"
+	loopCidrPrefix             = "172.31.64."
+	loopCidrIP                 = "172.31.64.0"
+	loopCidrBlock              = loopCidrIP + "/20"
+	loopCidrIPNet              = "172.31.64.0/20"
+)
 
 type LoopServer struct {
+	vlock *sync.Mutex
 	// key: volID, value: devName
-	volumes      map[string]string
-	netInterface *memNetworkInterface
-	vlock        *sync.Mutex
+	volumes map[string]string
 	// count the number of volume creation, used to generate volID
 	creationCount int
+	// key: network interface id
+	netInterfaces map[string]*memNetworkInterface
 }
 
 func NewLoopServer() *LoopServer {
-	info := NewMockServerInfo()
 	s := &LoopServer{
-		volumes: map[string]string{},
-		netInterface: &memNetworkInterface{
-			InterfaceID:      "local-interfaceid",
-			ServerInstanceID: info.GetLocalInstanceID(),
-			PrimaryPrivateIP: "172.31.64.1",
-			PrivateIPs:       map[string]bool{},
-		},
 		vlock:         &sync.Mutex{},
+		volumes:       map[string]string{},
 		creationCount: 0,
+		netInterfaces: map[string]*memNetworkInterface{},
 	}
 	return s
 }
@@ -249,64 +254,93 @@ func (s *LoopServer) GetNextDeviceName(lastDev string) (devName string, err erro
 	return devName, nil
 }
 
-func (s *LoopServer) GetNetworkInterfaces(ctx context.Context, vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
+func (s *LoopServer) AddNetworkInterface() {
+	idx := len(s.netInterfaces)
+
+	netint := &memNetworkInterface{
+		InterfaceID:      loopNetInterfaceIDPrefix + strconv.Itoa(idx),
+		ServerInstanceID: loopServerInstanceIDPrefix + strconv.Itoa(idx),
+		PrimaryPrivateIP: loopCidrPrefix + strconv.Itoa(idx),
+		PrivateIPs:       map[string]bool{},
+	}
+
+	s.netInterfaces[netint.InterfaceID] = netint
+}
+
+func (s *LoopServer) GetCidrBlock() (cidrPrefix string, cidrIP string, cidrBlock string, cidrIPNet string) {
+	return loopCidrPrefix, loopCidrIP, loopCidrBlock, loopCidrIPNet
+}
+
+func (s *LoopServer) GetNetworkInterfaces(ctx context.Context, cluster string,
+	vpcID string, zone string) (netInterfaces []*NetworkInterface, cidrBlock string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
-	netInterfaces = append(netInterfaces, s.copyNetworkInterface())
-	return netInterfaces, defaultCidrBlock, nil
+	for _, memnetint := range s.netInterfaces {
+		netInterfaces = append(netInterfaces, s.copyNetworkInterface(memnetint))
+	}
+
+	sort.Slice(netInterfaces, func(i, j int) bool {
+		return netInterfaces[i].InterfaceID < netInterfaces[j].InterfaceID
+	})
+
+	return netInterfaces, loopCidrBlock, nil
 }
 
 func (s *LoopServer) GetInstanceNetworkInterface(ctx context.Context, instanceID string) (netInterface *NetworkInterface, err error) {
-	if instanceID != s.netInterface.ServerInstanceID {
-		glog.Errorln("instance not exist", instanceID, "local instance", s.netInterface.ServerInstanceID)
-		return nil, common.ErrNotFound
-	}
-
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
-	return s.copyNetworkInterface(), nil
+	for _, memnetint := range s.netInterfaces {
+		if memnetint.ServerInstanceID == instanceID {
+			return s.copyNetworkInterface(memnetint), nil
+		}
+	}
+
+	glog.Errorln("instance not exist", instanceID, s.netInterfaces)
+	return nil, common.ErrNotFound
 }
 
-func (s *LoopServer) copyNetworkInterface() *NetworkInterface {
+func (s *LoopServer) copyNetworkInterface(memnetint *memNetworkInterface) *NetworkInterface {
 	ips := []string{}
-	for ip := range s.netInterface.PrivateIPs {
+	for ip := range memnetint.PrivateIPs {
 		ips = append(ips, ip)
 	}
 
 	netInterface := &NetworkInterface{
-		InterfaceID:      s.netInterface.InterfaceID,
-		ServerInstanceID: s.netInterface.ServerInstanceID,
-		PrimaryPrivateIP: s.netInterface.PrimaryPrivateIP,
+		InterfaceID:      memnetint.InterfaceID,
+		ServerInstanceID: memnetint.ServerInstanceID,
+		PrimaryPrivateIP: memnetint.PrimaryPrivateIP,
 		PrivateIPs:       ips,
 	}
 	return netInterface
 }
 
 func (s *LoopServer) UnassignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
-	if networkInterfaceID != s.netInterface.InterfaceID {
-		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
-		return common.ErrNotFound
-	}
-
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
-	delete(s.netInterface.PrivateIPs, staticIP)
+	memnetint, ok := s.netInterfaces[networkInterfaceID]
+	if !ok {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, s.netInterfaces)
+		return common.ErrNotFound
+	}
+
+	delete(memnetint.PrivateIPs, staticIP)
 	return nil
 }
 
 func (s *LoopServer) AssignStaticIP(ctx context.Context, networkInterfaceID string, staticIP string) error {
-	if networkInterfaceID != s.netInterface.InterfaceID {
-		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, "local id", s.netInterface.InterfaceID)
-		return common.ErrNotFound
-	}
-
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
-	s.netInterface.PrivateIPs[staticIP] = true
+	memnetint, ok := s.netInterfaces[networkInterfaceID]
+	if !ok {
+		glog.Errorln("networkInterfaceID not exist", networkInterfaceID, s.netInterfaces)
+		return common.ErrNotFound
+	}
+
+	memnetint.PrivateIPs[staticIP] = true
 	return nil
 }
 
