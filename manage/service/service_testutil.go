@@ -256,6 +256,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	domain := "example.com"
 	vpcID := "vpc-1"
 	region := "us-west-1"
+	requireStaticIP := false
 
 	ctx := context.Background()
 
@@ -337,7 +338,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, registerDNS, domain, hostedZoneID)
+		cluster, service, dev, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -367,7 +368,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, registerDNS, domain, hostedZoneID)
+		cluster, service, dev, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -379,7 +380,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}
 
-	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, cfgs)
+	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, "", cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}

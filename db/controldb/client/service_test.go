@@ -25,8 +25,9 @@ func TestServiceWithControlDB(t *testing.T) {
 
 	dbcli := NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+1))
 	serverIns := server.NewLoopServer()
+	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverIns, dnsIns)
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
 	manageservice.TestUtil_ServiceCreateion(t, s, dbcli)
 }
 
@@ -43,7 +44,8 @@ func TestServiceCreationRetryWithControlDB(t *testing.T) {
 
 	dbcli := NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+2))
 	serverIns := server.NewLoopServer()
+	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverIns, dnsIns)
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
 	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns)
 }

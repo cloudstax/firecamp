@@ -59,7 +59,7 @@ type ManageHTTPServer struct {
 func NewManageHTTPServer(platform string, cluster string, azs []string, managedns string,
 	dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog, serverIns server.Server,
 	serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
-	svc := manageservice.NewManageService(dbIns, serverIns, dnsIns)
+	svc := manageservice.NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 	s := &ManageHTTPServer{
 		platform:        platform,
 		region:          serverInfo.GetLocalRegion(),

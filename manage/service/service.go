@@ -3,7 +3,10 @@ package manageservice
 import (
 	"errors"
 	"fmt"
+	"net"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -47,17 +50,23 @@ var errServiceHasDevice = errors.New("device is already assigned to service")
 
 // ManageService implements the service operation details.
 type ManageService struct {
-	dbIns     db.DB
-	serverIns server.Server
-	dnsIns    dns.DNS
+	dbIns      db.DB
+	serverInfo server.Info
+	serverIns  server.Server
+	dnsIns     dns.DNS
+
+	// the lock to protect the possible concurrent static ip creation
+	iplock *sync.Mutex
 }
 
 // NewManageService allocates a ManageService instance
-func NewManageService(dbIns db.DB, serverIns server.Server, dnsIns dns.DNS) *ManageService {
+func NewManageService(dbIns db.DB, serverInfo server.Info, serverIns server.Server, dnsIns dns.DNS) *ManageService {
 	return &ManageService{
-		dbIns:     dbIns,
-		serverIns: serverIns,
-		dnsIns:    dnsIns,
+		dbIns:      dbIns,
+		serverInfo: serverInfo,
+		serverIns:  serverIns,
+		dnsIns:     dnsIns,
+		iplock:     &sync.Mutex{},
 	}
 }
 
@@ -599,7 +608,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.VolumeSizeGB,
-		req.Service.Cluster, req.Service.ServiceName, deviceName, req.RegisterDNS, domainName, hostedZoneID)
+		req.Service.Cluster, req.Service.ServiceName, deviceName, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -669,6 +678,15 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		return err
 	}
 
+	var staticIPs map[string][]*common.ServiceStaticIP
+	if req.RequireStaticIP {
+		staticIPs, err = s.createStaticIPs(ctx, sattr, req, members)
+		if err != nil {
+			glog.Errorln("createStaticIPs error", err, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+			return err
+		}
+	}
+
 	// TODO check the config in the existing serviceMembers.
 	// if config file does not match, return error. The customer should not do like:
 	// 1) create the service, but failed as the node crashes
@@ -686,8 +704,38 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
 		dnsname := dns.GenDNSName(memberName, sattr.DomainName)
-		// faked host ip
+
+		staticIP := ""
+		if sattr.RequireStaticIP {
+			// get one static ip
+			ips, ok := staticIPs[req.ReplicaConfigs[i].Zone]
+			if !ok {
+				glog.Errorln("internal error, not find static ip for zone", req.ReplicaConfigs[i].Zone,
+					"serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+				return common.ErrInternal
+			}
+			if len(ips) == 0 {
+				glog.Errorln("internal error, not more static ip for zone", req.ReplicaConfigs[i].Zone,
+					"serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+				return common.ErrInternal
+			}
+
+			staticIP = ips[0].StaticIP
+
+			glog.Infoln("get static ip for member", memberName, "requuid", requuid, ips[0])
+
+			// remove the assigned static ip
+			ips = ips[1:]
+			staticIPs[req.ReplicaConfigs[i].Zone] = ips
+		}
+
+		// faked host ip for DNS update
+		// TODO could get all server instance IDs and ips, assign the member to one instance.
+		//      this may help to reduce the initial 1m dns lookup waiting.
 		hostIP := "127.0.0.1"
+		if len(staticIP) != 0 {
+			hostIP = staticIP
+		}
 		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.HostedZoneID)
 		if err != nil {
 			// ignore the error. When container is created, the actual dns record will be created.
@@ -705,7 +753,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		}
 
 		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, req.VolumeSizeGB,
-			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, cfgs)
+			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, staticIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
@@ -754,7 +802,7 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volSize int64, az string,
-	devName string, memberName string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+	devName string, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	volID, err := s.serverIns.CreateVolume(ctx, az, volSize)
@@ -763,7 +811,7 @@ func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID str
 		return nil, err
 	}
 
-	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, cfgs)
+	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, staticIP, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)
@@ -772,4 +820,224 @@ func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID str
 
 	glog.Infoln("created serviceMember", member, "requuid", requuid)
 	return member, nil
+}
+
+func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.ServiceAttr,
+	req *manage.CreateServiceRequest, members []*common.ServiceMember) (map[string][]*common.ServiceStaticIP, error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// the lock to protect the concurrent creations
+	s.iplock.Lock()
+	defer s.iplock.Unlock()
+
+	// get the number of replicas per zone
+	pendingReplicas := make(map[string]int)
+	for _, cfg := range req.ReplicaConfigs {
+		replicas, ok := pendingReplicas[cfg.Zone]
+		if ok {
+			replicas++
+		} else {
+			replicas = 0
+		}
+		pendingReplicas[cfg.Zone] = replicas
+	}
+
+	// get the assigned static ips
+	assignedIPs := make(map[string]string)
+	for _, m := range members {
+		assignedIPs[m.StaticIP] = m.MemberName
+
+		replicas, ok := pendingReplicas[m.AvailableZone]
+		if !ok {
+			glog.Errorln("internal error, member zone is invalid", m, "requuid", requuid)
+			return nil, common.ErrInternal
+		}
+		replicas--
+		pendingReplicas[m.AvailableZone] = replicas
+	}
+
+	// create the static IPs
+	zoneStaticIPs := make(map[string][]*common.ServiceStaticIP)
+
+	for zone, pendingCounts := range pendingReplicas {
+		unassignedIPs, err := s.createStaticIPsForZone(ctx, sattr, assignedIPs, pendingCounts, zone)
+		if err != nil {
+			glog.Errorln("createStaticIPsForZone error", err, "zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+			return nil, err
+		}
+
+		glog.Infoln("created", len(unassignedIPs), "static ips at zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+
+		zoneStaticIPs[zone] = unassignedIPs
+	}
+
+	return zoneStaticIPs, nil
+}
+
+func (s *ManageService) createStaticIPsForZone(ctx context.Context, sattr *common.ServiceAttr,
+	assignedIPs map[string]string, counts int, zone string) ([]*common.ServiceStaticIP, error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// get all existing ips
+	netInterfaces, cidrBlock, err := s.serverIns.GetNetworkInterfaces(ctx, sattr.ClusterName, s.serverInfo.GetLocalVpcID(), zone)
+	if err != nil {
+		glog.Errorln("GetNetworkInterfaceAndIPs error", err, "vpc", s.serverInfo.GetLocalVpcID(),
+			"zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+		return nil, err
+	}
+
+	// get unassigned ips. the node could crash at any time, some ip may already be created.
+	unassignedIPs, err := s.getUnassignedIPs(ctx, sattr, netInterfaces, zone, assignedIPs, requuid)
+	if err != nil {
+		return nil, err
+	}
+
+	glog.Infoln("there are", len(unassignedIPs), "unassigned ips, need", counts,
+		"zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+
+	// check if need to create more ips
+	if len(unassignedIPs) >= counts {
+		return unassignedIPs, nil
+	}
+
+	// create more static ips.
+
+	// sort the network interfaces by the number of ips
+	sort.Slice(netInterfaces, func(i, j int) bool {
+		return len(netInterfaces[i].PrivateIPs) < len(netInterfaces[j].PrivateIPs)
+	})
+
+	// get all used ips
+	usedIPs := make(map[string]bool)
+	for _, netInterface := range netInterfaces {
+		usedIPs[netInterface.PrimaryPrivateIP] = true
+		for _, ip := range netInterface.PrivateIPs {
+			usedIPs[ip] = true
+		}
+	}
+
+	// ParseCIDR
+	nextIP, ipnet, err := net.ParseCIDR(cidrBlock)
+	if err != nil {
+		glog.Errorln("ParseCIDR error", err, cidrBlock, "vpc", s.serverInfo.GetLocalVpcID(),
+			"zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+		return nil, err
+	}
+
+	pendingCounts := counts - len(unassignedIPs)
+	for i := 0; i < pendingCounts; i++ {
+		netInterfaceIdx := i % len(netInterfaces)
+		netInterface := netInterfaces[netInterfaceIdx]
+
+		// create the next unused IP
+		nextIP, err = s.createNextIP(ctx, usedIPs, ipnet, nextIP, netInterface.InterfaceID)
+		if err != nil {
+			glog.Errorln("AssignStaticIP error", err, "network interface", netInterface.InterfaceID,
+				"zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+			return nil, err
+		}
+
+		ip := nextIP.String()
+		serviceip := db.CreateServiceStaticIP(ip, sattr.ServiceUUID, zone,
+			netInterface.ServerInstanceID, netInterface.InterfaceID)
+
+		glog.Infoln("assigned static ip", ip, "to network interface", serviceip, "requuid", requuid)
+
+		// put ip into db
+		err = s.dbIns.CreateServiceStaticIP(ctx, serviceip)
+		if err != nil {
+			glog.Errorln("CreateServiceStaticIP error", err, "requuid", requuid, serviceip)
+			return nil, err
+		}
+
+		glog.Infoln("created service static ip in db, requuid", requuid, serviceip)
+
+		unassignedIPs = append(unassignedIPs, serviceip)
+	}
+
+	return unassignedIPs, nil
+}
+
+func (s *ManageService) createNextIP(ctx context.Context, usedIPs map[string]bool,
+	ipnet *net.IPNet, lastIP net.IP, netInterfaceID string) (nextIP net.IP, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// AWS may happen to assign the ip to the newly created EC2 around the same time.
+	// allow to retry a few times.
+	for i := 0; i < maxRetryCount; i++ {
+		// get the next unused IP
+		nextIP, err = utils.GetNextIP(usedIPs, ipnet, lastIP)
+
+		// assign to one network interface
+		ipstr := nextIP.String()
+		err = s.serverIns.AssignStaticIP(ctx, netInterfaceID, ipstr)
+		if err == nil {
+			glog.Infoln("created next ip", ipstr, "lastIP", lastIP, "network interface", netInterfaceID, "requuid", requuid)
+			return nextIP, nil
+		}
+
+		glog.Errorln("AssignStaticIP error", err, "ip", ipstr, "network interface", netInterfaceID, "requuid", requuid)
+		lastIP = nextIP
+	}
+
+	glog.Errorln("not able to create next ip for network interface", netInterfaceID, "requuid", requuid)
+	return nil, err
+}
+
+func (s *ManageService) getUnassignedIPs(ctx context.Context, sattr *common.ServiceAttr,
+	netInterfaces []*server.NetworkInterface, zone string, assignedIPs map[string]string, requuid string) ([]*common.ServiceStaticIP, error) {
+
+	unassignedIPs := []*common.ServiceStaticIP{}
+
+	// check the existing ips.
+	for _, netInterface := range netInterfaces {
+		for _, ip := range netInterface.PrivateIPs {
+			// check if ip is already assigned to member
+			if memberName, ok := assignedIPs[ip]; ok {
+				glog.Infoln("ip", ip, "is already assigned to member", memberName, "network interface",
+					netInterface.InterfaceID, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+				continue
+			}
+
+			// ip is not assigned, check if ip belongs to the service.
+			serviceip, err := s.dbIns.GetServiceStaticIP(ctx, ip)
+			if err != nil {
+				if err != db.ErrDBRecordNotFound {
+					glog.Errorln("GetServiceStaticIP error", err, "ip", ip, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+					return nil, err
+				}
+
+				// ip does not belong to any service.
+				glog.Infoln("ip", ip, "is available, serviceUUID", sattr.ServiceUUID, "requuid", requuid)
+
+				// put ip into db
+				serviceip = db.CreateServiceStaticIP(ip, sattr.ServiceUUID, zone,
+					netInterface.ServerInstanceID, netInterface.InterfaceID)
+				err = s.dbIns.CreateServiceStaticIP(ctx, serviceip)
+				if err != nil {
+					glog.Errorln("CreateServiceStaticIP error", err, "requuid", requuid, serviceip)
+					return nil, err
+				}
+
+				glog.Infoln("created service static ip in db, requuid", requuid, serviceip)
+
+				unassignedIPs = append(unassignedIPs, serviceip)
+				continue
+			}
+
+			// get ServiceStaticIP from db
+			if serviceip.ServiceUUID == sattr.ServiceUUID {
+				// ip belongs to the service but not assigned to any member yet.
+				glog.Infoln("static ip belongs to the current service", sattr.ServiceUUID, "requuid", requuid, serviceip)
+
+				unassignedIPs = append(unassignedIPs, serviceip)
+				continue
+			}
+
+			glog.Infoln("static ip not belongs to the current service", sattr.ServiceUUID, "requuid", requuid, serviceip)
+		}
+	}
+
+	glog.Infoln("get", len(unassignedIPs), "unassigned ips, service", sattr.ServiceUUID, "requuid", requuid)
+	return unassignedIPs, nil
 }

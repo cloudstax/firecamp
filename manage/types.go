@@ -77,8 +77,9 @@ type CreateServiceRequest struct {
 	PortMappings   []common.PortMapping
 	Envkvs         []*common.EnvKeyValuePair
 
-	RegisterDNS    bool
-	ReplicaConfigs []*ReplicaConfig
+	RegisterDNS     bool
+	RequireStaticIP bool
+	ReplicaConfigs  []*ReplicaConfig
 }
 
 // GetServiceAttributesResponse returns the service's attributes.
