@@ -11,6 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/server/awsec2"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func main() {
@@ -29,7 +30,10 @@ func main() {
 
 	e := awsec2.NewAWSEc2(sess)
 
-	az1bIns1, err := e.LaunchOneInstance(ctx, "us-west-1b")
+	imageID := "ami-327f5352"
+	cluster := "test" + utils.GenUUID()
+
+	az1bIns1, err := e.LaunchOneInstance(ctx, imageID, "us-west-1b", cluster)
 	if err != nil {
 		glog.Errorln("LaunchOneInstance error", err)
 		return

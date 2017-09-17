@@ -35,7 +35,7 @@ func TestVolumeDriver(t *testing.T) {
 	ctx := context.Background()
 	ctx = utils.NewRequestContext(ctx, requuid)
 
-	mgsvc := manageservice.NewManageService(dbIns, serverIns, mockDNS)
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 
@@ -147,7 +147,7 @@ func TestVolumeInDifferentZone(t *testing.T) {
 	ctx := context.Background()
 	ctx = utils.NewRequestContext(ctx, requuid)
 
-	mgsvc := manageservice.NewManageService(dbIns, serverIns, mockDNS)
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 

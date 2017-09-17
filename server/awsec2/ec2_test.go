@@ -30,7 +30,7 @@ func TestAWSEC2(t *testing.T) {
 	e = NewAWSEc2(sess)
 	ctx := context.Background()
 
-	cluster = utils.GenUUID()
+	cluster = "test" + utils.GenUUID()
 
 	imageID := "ami-327f5352"
 

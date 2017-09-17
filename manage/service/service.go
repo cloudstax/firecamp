@@ -705,7 +705,10 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
 		dnsname := dns.GenDNSName(memberName, sattr.DomainName)
 
-		staticIP := ""
+		// faked host ip for DNS update
+		// TODO could get all server instance IDs and ips, assign the member to one instance.
+		//      this may help to reduce the initial 1m dns lookup waiting.
+		hostIP := common.DefaultHostIP
 		if sattr.RequireStaticIP {
 			// get one static ip
 			ips, ok := staticIPs[req.ReplicaConfigs[i].Zone]
@@ -720,7 +723,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 				return common.ErrInternal
 			}
 
-			staticIP = ips[0].StaticIP
+			hostIP = ips[0].StaticIP
 
 			glog.Infoln("get static ip for member", memberName, "requuid", requuid, ips[0])
 
@@ -729,13 +732,6 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 			staticIPs[req.ReplicaConfigs[i].Zone] = ips
 		}
 
-		// faked host ip for DNS update
-		// TODO could get all server instance IDs and ips, assign the member to one instance.
-		//      this may help to reduce the initial 1m dns lookup waiting.
-		hostIP := "127.0.0.1"
-		if len(staticIP) != 0 {
-			hostIP = staticIP
-		}
 		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.HostedZoneID)
 		if err != nil {
 			// ignore the error. When container is created, the actual dns record will be created.
@@ -753,7 +749,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		}
 
 		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, req.VolumeSizeGB,
-			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, staticIP, cfgs)
+			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)

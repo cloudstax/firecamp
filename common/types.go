@@ -49,6 +49,8 @@ const (
 	DomainNameSuffix = SystemName
 	DomainCom        = "com"
 
+	DefaultHostIP = "127.0.0.1"
+
 	ContainerNameSuffix = "container"
 
 	DefaultContainerMountPath = "/data"

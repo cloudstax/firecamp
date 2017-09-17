@@ -312,12 +312,13 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			ReserveMemMB:    2,
 		},
 
-		ContainerImage: "image",
-		Replicas:       int64(taskCount),
-		VolumeSizeGB:   int64(taskCount + 1),
-		ContainerPath:  "",
-		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
+		ContainerImage:  "image",
+		Replicas:        int64(taskCount),
+		VolumeSizeGB:    int64(taskCount + 1),
+		ContainerPath:   "",
+		RegisterDNS:     true,
+		RequireStaticIP: false,
+		ReplicaConfigs:  replicaCfgs,
 	}
 
 	b, err := json.Marshal(req)
