@@ -31,9 +31,10 @@ func main() {
 	e := awsec2.NewAWSEc2(sess)
 
 	imageID := "ami-327f5352"
+	az := "us-west-1a"
 	cluster := "test" + utils.GenUUID()
 
-	az1bIns1, err := e.LaunchOneInstance(ctx, imageID, "us-west-1b", cluster)
+	az1bIns1, err := e.LaunchOneInstance(ctx, imageID, az, cluster)
 	if err != nil {
 		glog.Errorln("LaunchOneInstance error", err)
 		return
@@ -56,7 +57,7 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 
-	az1bVol1, err := e.CreateVolume(ctx, "us-west-1b", 1)
+	az1bVol1, err := e.CreateVolume(ctx, az, 1)
 	if err != nil {
 		glog.Errorln("CreateVolume error", err)
 		return
@@ -80,4 +81,12 @@ func main() {
 
 	// detach available volume
 	e.DetachVolume(ctx, "vol-3dacf381", "i-134a54a6", devName)
+
+	netInterface, err := e.GetInstanceNetworkInterface(ctx, az1bIns1)
+	if err != nil {
+		glog.Errorln("GetInstanceNetworkInterface error", err, az1bIns1)
+		return
+	}
+	err = e.UnassignStaticIP(ctx, netInterface.InterfaceID, "10.0.0.1")
+	glog.Errorln("unassign unexist ip, error", err)
 }

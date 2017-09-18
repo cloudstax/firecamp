@@ -23,8 +23,9 @@ type AWSEc2 struct {
 
 const (
 	// aws specific error
-	errVolumeIncorrectState = "IncorrectState"
-	errVolumeInUse          = "VolumeInUse"
+	errVolumeIncorrectState  = "IncorrectState"
+	errVolumeInUse           = "VolumeInUse"
+	errInvalidParameterValue = "InvalidParameterValue"
 
 	// max retry count for volume state
 	// detach volume (in-use to available) may take more than 6 seconds.
@@ -589,6 +590,11 @@ func (s *AWSEc2) UnassignStaticIP(ctx context.Context, networkInterfaceID string
 
 	_, err := svc.UnassignPrivateIpAddresses(input)
 	if err != nil {
+		if err.(awserr.Error).Code() == errInvalidParameterValue {
+			glog.Errorln("network interface", networkInterfaceID, "does not own ip", staticIP, "requuid", requuid, "error", err)
+			return nil
+		}
+
 		glog.Errorln("UnassignPrivateIpAddresses error", err, "network interface id", networkInterfaceID, "ip", staticIP, "requuid", requuid)
 		return err
 	}

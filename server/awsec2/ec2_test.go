@@ -286,6 +286,12 @@ func testEC2NetworkInterface(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UnassignStaticIP %s error %s, %s", ipstr, err, netInterface)
 		}
+
+		// negative case: unassign ip that is not owned by network interface
+		err = e.UnassignStaticIP(ctx, netInterface.InterfaceID, "10.0.0.1")
+		if err != nil {
+			t.Fatalf("unassign unexist ip, expect success, get error %s", err)
+		}
 	}
 
 }
