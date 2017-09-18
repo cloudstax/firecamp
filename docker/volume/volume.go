@@ -245,14 +245,23 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 
 	// get the service attr and the service member for the current container
 	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, memberIndex, requuid)
-	if errmsg != "" {
+	if len(errmsg) != 0 {
 		return volume.Response{Err: errmsg}
 	}
 
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
-	if serviceAttr.RegisterDNS {
+	// if the service requires the static ip, no need to update DNS as DNS always points to the static ip.
+	if serviceAttr.RegisterDNS && !serviceAttr.RequireStaticIP {
 		errmsg := d.updateDNS(ctx, serviceAttr, member, requuid)
-		if errmsg != "" {
+		if len(errmsg) != 0 {
+			return volume.Response{Err: errmsg}
+		}
+	}
+
+	// updateStaticIP if the service requires the static ip.
+	if serviceAttr.RequireStaticIP {
+		errmsg = d.updateStaticIP(ctx, serviceAttr, member, requuid)
+		if len(errmsg) != 0 {
 			return volume.Response{Err: errmsg}
 		}
 	}
@@ -447,6 +456,130 @@ func (d *FireCampVolumeDriver) updateDNS(ctx context.Context, serviceAttr *commo
 		dnsName, privateIP, requuid, serviceAttr, member)
 	glog.Errorln(errmsg)
 	return errmsg
+}
+
+func (d *FireCampVolumeDriver) updateStaticIP(ctx context.Context, serviceAttr *common.ServiceAttr, member *common.ServiceMember, requuid string) (errmsg string) {
+	// get the static ip on the local server.
+	netInterface, err := d.serverIns.GetInstanceNetworkInterface(ctx, d.serverInfo.GetLocalInstanceID())
+	if err != nil {
+		errmsg = fmt.Sprintf("GetInstanceNetworkInterface error %s, ServerInstanceID %s service %s member %s, requuid %s",
+			err, d.serverInfo.GetLocalInstanceID(), serviceAttr, member, requuid)
+		glog.Errorln(errmsg)
+		return errmsg
+	}
+
+	// whether the member's static ip is owned locally.
+	localOwned := false
+	var memberStaticIP *common.ServiceStaticIP
+	for _, ip := range netInterface.PrivateIPs {
+		serviceip, err := d.dbIns.GetServiceStaticIP(ctx, ip)
+		if err != nil {
+			if err != db.ErrDBRecordNotFound {
+				errmsg = fmt.Sprintf("GetServiceStaticIP error %s, ip %s service %s member %s, requuid %s",
+					err, ip, serviceAttr, member, requuid)
+				glog.Errorln(errmsg)
+				return errmsg
+			}
+
+			// this is possible as ip is created at the network interface first, then put to db.
+			glog.Infoln("ip", ip, "not found in db, network interface", netInterface.InterfaceID)
+			continue
+		}
+
+		glog.Infoln("get service ip, requuid", requuid, serviceip, "member", member)
+
+		// if ip does not belong to the service, skip it
+		if serviceip.ServiceUUID != member.ServiceUUID {
+			continue
+		}
+
+		// ip belongs to the service, check if ip is for the current member.
+		if ip == member.StaticIP {
+			// ip is for the current member
+			glog.Infoln("current node has the member's static ip, requuid", requuid, serviceip, member)
+			localOwned = true
+			memberStaticIP = serviceip
+		} else {
+			// ip belongs to the service but not for the current member.
+			// unassign it to make sure other members do NOT take us as the previous member.
+			err = d.serverIns.UnassignStaticIP(ctx, netInterface.InterfaceID, ip)
+			if err != nil {
+				errmsg = fmt.Sprintf("UnassignStaticIP error %s, ip %s network interface %s member %s, requuid %s",
+					err, serviceip, netInterface.InterfaceID, member, requuid)
+				glog.Errorln(errmsg)
+				return errmsg
+			}
+			// should not update db here, as another node may be in the process of taking over the static ip.
+			glog.Infoln("UnassignStaticIP", ip, "from local network", netInterface.InterfaceID, netInterface.ServerInstanceID)
+		}
+	}
+
+	if memberStaticIP == nil {
+		// member's static ip is not owned by the local node, load from db.
+		memberStaticIP, err = d.dbIns.GetServiceStaticIP(ctx, member.StaticIP)
+		if err != nil {
+			errmsg = fmt.Sprintf("GetServiceStaticIP error %s, service %s member %s, requuid %s",
+				err, serviceAttr, member, requuid)
+			glog.Errorln(errmsg)
+			return errmsg
+		}
+	}
+
+	glog.Infoln("member's static ip", memberStaticIP, "requuid", requuid, "member", member)
+
+	if localOwned {
+		// the member's ip is owned by the local node, check whether need to update db.
+		// The ServiceStaticIP in db may not be updated. For example, after ip is assigned to
+		// the local node, node/plugin restarts before db is updated.
+		if memberStaticIP.ServerInstanceID != d.serverInfo.GetLocalInstanceID() ||
+			memberStaticIP.NetworkInterfaceID != netInterface.InterfaceID {
+			newip := db.UpdateServiceStaticIP(memberStaticIP, d.serverInfo.GetLocalInstanceID(), netInterface.InterfaceID)
+			err = d.dbIns.UpdateServiceStaticIP(ctx, memberStaticIP, newip)
+			if err != nil {
+				errmsg = fmt.Sprintf("UpdateServiceStaticIP error %s, ip %s service %s member %s, requuid %s",
+					err, memberStaticIP, serviceAttr, member, requuid)
+				glog.Errorln(errmsg)
+				return errmsg
+			}
+
+			glog.Infoln("UpdateServiceStaticIP to local node", newip, "requuid", requuid)
+		}
+	} else {
+		// the member's ip is not owned by the local node, unassign it from the old owner,
+		// assign to the local node and update db.
+		err = d.serverIns.UnassignStaticIP(ctx, memberStaticIP.NetworkInterfaceID, memberStaticIP.StaticIP)
+		if err != nil {
+			errmsg = fmt.Sprintf("UnassignStaticIP error %s, ip %s member %s, requuid %s",
+				err, memberStaticIP, member, requuid)
+			glog.Errorln(errmsg)
+			return errmsg
+		}
+
+		glog.Infoln("UnassignStaticIP from the old owner", memberStaticIP, "requuid", requuid)
+
+		err = d.serverIns.AssignStaticIP(ctx, netInterface.InterfaceID, memberStaticIP.StaticIP)
+		if err != nil {
+			errmsg = fmt.Sprintf("AssignStaticIP error %s, ip %s local network interface %s member %s, requuid %s",
+				err, memberStaticIP, netInterface.InterfaceID, member, requuid)
+			glog.Errorln(errmsg)
+			return errmsg
+		}
+
+		glog.Infoln("assigned static ip", memberStaticIP.StaticIP, "to local network",
+			netInterface.InterfaceID, "member", member, "requuid", requuid)
+
+		newip := db.UpdateServiceStaticIP(memberStaticIP, d.serverInfo.GetLocalInstanceID(), netInterface.InterfaceID)
+		err = d.dbIns.UpdateServiceStaticIP(ctx, memberStaticIP, newip)
+		if err != nil {
+			errmsg = fmt.Sprintf("UpdateServiceStaticIP error %s, ip %s service %s member %s, requuid %s",
+				err, memberStaticIP, serviceAttr, member, requuid)
+			glog.Errorln(errmsg)
+			return errmsg
+		}
+
+		glog.Infoln("updated static ip to local node", newip, "member", member, "requuid", requuid)
+	}
+	return ""
 }
 
 func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serviceUUID string,
@@ -708,6 +841,7 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 		mtime,
 		utils.GetControlDBVolumeID(serviceUUID),
 		d.serverIns.GetControlDBDeviceName(),
+		"", // static ip
 		nil)
 
 	// construct the serviceAttr for the controldb service
@@ -715,9 +849,10 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 	taskCounts := int64(1)
 	volSizeGB := int64(0)
 	registerDNS := true
+	requireStaticIP := false
 	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
 		volSizeGB, d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		d.serverIns.GetControlDBDeviceName(), registerDNS, domainName, hostedZoneID)
+		d.serverIns.GetControlDBDeviceName(), registerDNS, domainName, hostedZoneID, requireStaticIP)
 
 	return member, attr
 }

@@ -20,8 +20,15 @@ import (
 )
 
 func TestVolumeDriver(t *testing.T) {
+	requireStaticIP := true
+	testVolumeDriver(t, requireStaticIP)
+
+	requireStaticIP = false
+	testVolumeDriver(t, requireStaticIP)
+}
+
+func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
 
 	// create FireCampVolumeDriver
 	dbIns := db.NewMemDB()
@@ -64,10 +71,11 @@ func TestVolumeDriver(t *testing.T) {
 			Cluster:     cluster,
 			ServiceName: service1,
 		},
-		Replicas:       int64(taskCounts),
-		VolumeSizeGB:   int64(taskCounts + 1),
-		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
+		Replicas:        int64(taskCounts),
+		VolumeSizeGB:    int64(taskCounts + 1),
+		RegisterDNS:     true,
+		RequireStaticIP: requireStaticIP,
+		ReplicaConfigs:  replicaCfgs,
 	}
 
 	uuid1, err := mgsvc.CreateService(ctx, req, domain, vpcID)
@@ -132,8 +140,15 @@ func TestVolumeDriver(t *testing.T) {
 }
 
 func TestVolumeInDifferentZone(t *testing.T) {
+	requireStaticIP := true
+	testVolumeInDifferentZone(t, requireStaticIP)
+
+	requireStaticIP = false
+	testVolumeInDifferentZone(t, requireStaticIP)
+}
+
+func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
 
 	// create FireCampVolumeDriver
 	dbIns := db.NewMemDB()
@@ -176,10 +191,11 @@ func TestVolumeInDifferentZone(t *testing.T) {
 			Cluster:     cluster,
 			ServiceName: service1,
 		},
-		Replicas:       int64(taskCounts),
-		VolumeSizeGB:   int64(taskCounts + 1),
-		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
+		Replicas:        int64(taskCounts),
+		VolumeSizeGB:    int64(taskCounts + 1),
+		RegisterDNS:     true,
+		RequireStaticIP: requireStaticIP,
+		ReplicaConfigs:  replicaCfgs,
 	}
 
 	uuid1, err := mgsvc.CreateService(ctx, req, domain, vpcID)

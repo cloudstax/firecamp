@@ -20,7 +20,7 @@ func (m *MockServerInfo) GetLocalRegion() string {
 }
 
 func (m *MockServerInfo) GetLocalInstanceID() string {
-	return "local-instance"
+	return "local-instance0"
 }
 
 func (m *MockServerInfo) GetLocalVpcID() string {

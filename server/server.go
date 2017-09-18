@@ -65,7 +65,6 @@ type Server interface {
 	GetControlDBDeviceName() string
 	GetFirstDeviceName() string
 	GetNextDeviceName(lastDev string) (devName string, err error)
-	// TODO some services may be deleted, should reuse the device name
 
 	// GetNetworkInterfaces returns the network interfaces in the firecamp cluster, vpc and zone,
 	// and the secondary IPs of the network interfaces.

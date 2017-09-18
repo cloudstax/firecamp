@@ -19,7 +19,7 @@ const (
 	LoopDevPrefix = "/dev/loop"
 
 	loopNetInterfaceIDPrefix   = "loopnet"
-	loopServerInstanceIDPrefix = "loopserver"
+	loopServerInstanceIDPrefix = "local-instance"
 	loopCidrPrefix             = "172.31.64."
 	loopCidrIP                 = "172.31.64.0"
 	loopCidrBlock              = loopCidrIP + "/20"
