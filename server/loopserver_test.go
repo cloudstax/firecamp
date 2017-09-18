@@ -90,8 +90,6 @@ func TestLoopServerNetwork(t *testing.T) {
 
 	s := NewLoopServer()
 
-	s.AddNetworkInterface()
-
 	// test network interfaces
 	info := NewMockServerInfo()
 	netInterfaces, cidrBlock, err := s.GetNetworkInterfaces(ctx, "cluster", "vpc", info.GetLocalAvailabilityZone())

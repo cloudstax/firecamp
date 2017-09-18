@@ -82,34 +82,56 @@ func TestDeviceName(t *testing.T) {
 	}
 }
 
-func TestServiceCreation(t *testing.T) {
-	glog.Infoln("===== TestServiceCreation start ====")
-
+func TestServiceCreationWithStaticIP(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
-	TestUtil_ServiceCreateion(t, s, dbIns)
+
+	requireStaticIP := true
+	TestUtil_ServiceCreation(t, s, dbIns, serverIns, requireStaticIP)
 }
 
-func TestServiceCreationRetry(t *testing.T) {
-	// special tests to simulate the failure and retry
-	glog.Infoln("===== TestCreationRetry start ====")
-
+func TestServiceCreationWithoutStaticIP(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
-	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns)
+
+	requireStaticIP := false
+	TestUtil_ServiceCreation(t, s, dbIns, serverIns, requireStaticIP)
+}
+
+func TestServiceCreationRetryWithStaticIP(t *testing.T) {
+	// special tests to simulate the failure and retry
+	dbIns := db.NewMemDB()
+	serverInfo := server.NewMockServerInfo()
+	serverIns := server.NewLoopServer()
+	dnsIns := dns.NewMockDNS()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+
+	requireStaticIP := true
+	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP)
+}
+
+func TestServiceCreationRetryWithoutStaticIP(t *testing.T) {
+	// special tests to simulate the failure and retry
+	dbIns := db.NewMemDB()
+	serverInfo := server.NewMockServerInfo()
+	serverIns := server.NewLoopServer()
+	dnsIns := dns.NewMockDNS()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+
+	requireStaticIP := false
+	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP)
 }
 
 func TestUnassignedIPs(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
-	serverIns.AddNetworkInterface()
 	dnsIns := dns.NewMockDNS()
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 
@@ -259,7 +281,6 @@ func TestCreateNextIP(t *testing.T) {
 	dbIns := db.NewMemDB()
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
-	serverIns.AddNetworkInterface()
 	dnsIns := dns.NewMockDNS()
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 
@@ -308,7 +329,6 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 
 	serverIns := server.NewLoopServer()
-	serverIns.AddNetworkInterface()
 
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 
@@ -377,7 +397,7 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 
 	serverIns := server.NewLoopServer()
-	serverIns.AddNetworkInterface()
+	// add 2 more network interfaces
 	serverIns.AddNetworkInterface()
 	serverIns.AddNetworkInterface()
 

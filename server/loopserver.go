@@ -43,6 +43,7 @@ func NewLoopServer() *LoopServer {
 		creationCount: 0,
 		netInterfaces: map[string]*memNetworkInterface{},
 	}
+	s.AddNetworkInterface()
 	return s
 }
 

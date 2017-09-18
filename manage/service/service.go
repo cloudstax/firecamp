@@ -833,7 +833,7 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 		if ok {
 			replicas++
 		} else {
-			replicas = 0
+			replicas = 1
 		}
 		pendingReplicas[cfg.Zone] = replicas
 	}

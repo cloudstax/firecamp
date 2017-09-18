@@ -1,6 +1,7 @@
 package manageservice
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -8,13 +9,15 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )
 
-func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
+func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serverIns *server.LoopServer, requireStaticIP bool) {
 	cluster := "cluster1"
 	servicePrefix := "service-"
 	service := "service-0"
@@ -30,6 +33,8 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 
 	max := 10
 	idx := 0
+
+	firstIP := 4
 
 	ctx := context.Background()
 
@@ -55,10 +60,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 				Cluster:     cluster,
 				ServiceName: service,
 			},
-			Replicas:       int64(taskCount1),
-			VolumeSizeGB:   volSize,
-			RegisterDNS:    registerDNS,
-			ReplicaConfigs: replicaCfgs,
+			Replicas:        int64(taskCount1),
+			VolumeSizeGB:    volSize,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -74,6 +80,38 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount1 %d",
 				err, cluster, service, taskCount1)
 		}
+
+		// list service members to verify
+		memberItems, err := dbIns.ListServiceMembers(ctx, svcUUID)
+		if err != nil || len(memberItems) != taskCount1 {
+			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount1, service)
+		}
+		sort.Slice(memberItems, func(i, j int) bool {
+			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+			}
+			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+			}
+			return idx1 < idx2
+		})
+		for i, member := range memberItems {
+			name := utils.GenServiceMemberName(service, int64(i))
+			if member.MemberName != name {
+				t.Fatalf("expect member name %s, get %s", name, member)
+			}
+			if requireStaticIP {
+				ipPrefix, _, _, _ := serverIns.GetCidrBlock()
+				ip := ipPrefix + strconv.Itoa(firstIP+i)
+				if member.StaticIP != ip {
+					t.Fatalf("expect ip %s for member %s", ip, member)
+				}
+			}
+		}
+		// increase the firstIP for the next service
+		firstIP = firstIP + taskCount1
 
 		svcMap[service] = ""
 		idx++
@@ -112,7 +150,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		for i := 0; i < taskCount2; i++ {
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
@@ -122,10 +160,11 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 				Cluster:     cluster,
 				ServiceName: service,
 			},
-			Replicas:       int64(taskCount2),
-			VolumeSizeGB:   volSize,
-			RegisterDNS:    registerDNS,
-			ReplicaConfigs: replicaCfgs,
+			Replicas:        int64(taskCount2),
+			VolumeSizeGB:    volSize,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -141,6 +180,38 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount2 %d",
 				err, cluster, service, taskCount2)
 		}
+
+		// list service members to verify
+		memberItems, err := dbIns.ListServiceMembers(ctx, svcUUID)
+		if err != nil || len(memberItems) != taskCount2 {
+			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount2, service)
+		}
+		sort.Slice(memberItems, func(i, j int) bool {
+			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+			}
+			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+			}
+			return idx1 < idx2
+		})
+		for i, member := range memberItems {
+			name := utils.GenServiceMemberName(service, int64(i))
+			if member.MemberName != name {
+				t.Fatalf("expect member name %s, get %s", name, member)
+			}
+			if requireStaticIP {
+				ipPrefix, _, _, _ := serverIns.GetCidrBlock()
+				ip := ipPrefix + strconv.Itoa(firstIP+i)
+				if member.StaticIP != ip {
+					t.Fatalf("expect ip %s for member %s", ip, member)
+				}
+			}
+		}
+		// increase the firstIP for the next service
+		firstIP = firstIP + taskCount2
 
 		svcMap[service] = ""
 		idx++
@@ -197,7 +268,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 		for i := 0; i < taskCount3; i++ {
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
@@ -207,13 +278,14 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 				Cluster:     cluster,
 				ServiceName: service,
 			},
-			Replicas:       int64(taskCount3),
-			VolumeSizeGB:   volSize,
-			RegisterDNS:    registerDNS,
-			ReplicaConfigs: replicaCfgs,
+			Replicas:        int64(taskCount3),
+			VolumeSizeGB:    volSize,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
-		_, err := s.CreateService(ctx, req, domain, vpcID)
+		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
 		if err != nil {
 			t.Fatalf("CreateService error %s, cluster %s, service %s taskCount3 %d",
 				err, cluster, service, taskCount3)
@@ -224,6 +296,38 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount3 %d",
 				err, cluster, service, taskCount3)
 		}
+
+		// list service members to verify
+		memberItems, err := dbIns.ListServiceMembers(ctx, svcUUID)
+		if err != nil || len(memberItems) != taskCount3 {
+			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount3, service)
+		}
+		sort.Slice(memberItems, func(i, j int) bool {
+			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+			}
+			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+			if err != nil {
+				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+			}
+			return idx1 < idx2
+		})
+		for i, member := range memberItems {
+			name := utils.GenServiceMemberName(service, int64(i))
+			if member.MemberName != name {
+				t.Fatalf("expect member name %s, get %s", name, member)
+			}
+			if requireStaticIP {
+				ipPrefix, _, _, _ := serverIns.GetCidrBlock()
+				ip := ipPrefix + strconv.Itoa(firstIP+i)
+				if member.StaticIP != ip {
+					t.Fatalf("expect ip %s for member %s", ip, member)
+				}
+			}
+		}
+		// increase the firstIP for the next service
+		firstIP = firstIP + taskCount3
 
 		idx++
 	}
@@ -242,7 +346,7 @@ func TestUtil_ServiceCreateion(t *testing.T, s *ManageService, dbIns db.DB) {
 	}
 }
 
-func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS) {
+func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS, serverIns *server.LoopServer, requireStaticIP bool) {
 	cluster := "cluster1"
 	az := "az-west"
 	servicePrefix := "service-"
@@ -251,12 +355,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	var volSize int64
 	volSize = 1
 	idx := 0
+	firstIP := 4
+	ipPrefix, _, _, _ := serverIns.GetCidrBlock()
 
 	registerDNS := true
 	domain := "example.com"
 	vpcID := "vpc-1"
 	region := "us-west-1"
-	requireStaticIP := false
 
 	ctx := context.Background()
 
@@ -267,7 +372,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	for i := 0; i < taskCount; i++ {
 		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 
@@ -277,10 +382,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			Cluster:     cluster,
 			ServiceName: service,
 		},
-		Replicas:       int64(taskCount),
-		VolumeSizeGB:   volSize,
-		RegisterDNS:    registerDNS,
-		ReplicaConfigs: replicaCfgs,
+		Replicas:        int64(taskCount),
+		VolumeSizeGB:    volSize,
+		RegisterDNS:     registerDNS,
+		RequireStaticIP: requireStaticIP,
+		ReplicaConfigs:  replicaCfgs,
 	}
 
 	// TODO test more cases. for example, service at different status, config file exists.
@@ -294,6 +400,36 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d",
 			err, cluster, service, taskCount)
 	}
+	// list service members to verify
+	memberItems, err := dbIns.ListServiceMembers(ctx, svcUUID)
+	if err != nil || len(memberItems) != taskCount {
+		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
+	}
+	sort.Slice(memberItems, func(i, j int) bool {
+		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+		}
+		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+		}
+		return idx1 < idx2
+	})
+	for i, member := range memberItems {
+		name := utils.GenServiceMemberName(service, int64(i))
+		if member.MemberName != name {
+			t.Fatalf("expect member name %s, get %s", name, member)
+		}
+		if requireStaticIP {
+			ip := ipPrefix + strconv.Itoa(firstIP+i)
+			if member.StaticIP != ip {
+				t.Fatalf("expect ip %s for member %s", ip, member)
+			}
+		}
+	}
+	// increase the firstIP for the next service
+	firstIP = firstIP + taskCount
 
 	// 2. device and service item exist
 	idx++
@@ -317,6 +453,36 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
 	}
+	// list service members to verify
+	memberItems, err = dbIns.ListServiceMembers(ctx, svcUUID)
+	if err != nil || len(memberItems) != taskCount {
+		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
+	}
+	sort.Slice(memberItems, func(i, j int) bool {
+		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+		}
+		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+		}
+		return idx1 < idx2
+	})
+	for i, member := range memberItems {
+		name := utils.GenServiceMemberName(service, int64(i))
+		if member.MemberName != name {
+			t.Fatalf("expect member name %s, get %s", name, member)
+		}
+		if requireStaticIP {
+			ip := ipPrefix + strconv.Itoa(firstIP+i)
+			if member.StaticIP != ip {
+				t.Fatalf("expect ip %s for member %s", ip, member)
+			}
+		}
+	}
+	// increase the firstIP for the next service
+	firstIP = firstIP + taskCount
 
 	// 3. device and service item exist, the 3rd device, service attr is at creating
 	idx++
@@ -352,6 +518,36 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
 	}
+	// list service members to verify
+	memberItems, err = dbIns.ListServiceMembers(ctx, svcUUID)
+	if err != nil || len(memberItems) != taskCount {
+		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
+	}
+	sort.Slice(memberItems, func(i, j int) bool {
+		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+		}
+		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+		}
+		return idx1 < idx2
+	})
+	for i, member := range memberItems {
+		name := utils.GenServiceMemberName(service, int64(i))
+		if member.MemberName != name {
+			t.Fatalf("expect member name %s, get %s", name, member)
+		}
+		if requireStaticIP {
+			ip := ipPrefix + strconv.Itoa(firstIP+i)
+			if member.StaticIP != ip {
+				t.Fatalf("expect ip %s for member %s", ip, member)
+			}
+		}
+	}
+	// increase the firstIP for the next service
+	firstIP = firstIP + taskCount
 
 	// 4. device and service item exist, the 4th device, service attr is at creating, and one serviceMember created
 	idx++
@@ -380,9 +576,43 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}
 
-	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, "", cfgs)
+	ip := common.DefaultHostIP
+	if requireStaticIP {
+		// create the next ip and assign to member
+		assignedIPs := make(map[string]string)
+		serviceip, err := s.createStaticIPsForZone(ctx, serviceAttr, assignedIPs, 1, az)
+		if err != nil {
+			t.Fatalf("createStaticIPsForZone error %s", err)
+		}
+		if len(serviceip) != 1 {
+			t.Fatalf("expect 1 serviceip, get %d", len(serviceip))
+		}
+		ip = ipPrefix + strconv.Itoa(firstIP)
+		if serviceip[0].StaticIP != ip {
+			t.Fatalf("expect ip %s, get %s", ip, serviceip[0])
+		}
+	}
+
+	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
+	}
+
+	if requireStaticIP {
+		// create the next ip and not assign to member
+		assignedIPs := make(map[string]string)
+		assignedIPs[ip] = memberName
+		serviceip, err := s.createStaticIPsForZone(ctx, serviceAttr, assignedIPs, 1, az)
+		if err != nil {
+			t.Fatalf("createStaticIPsForZone error %s", err)
+		}
+		if len(serviceip) != 1 {
+			t.Fatalf("expect 1 serviceip, get %d", len(serviceip))
+		}
+		ip = ipPrefix + strconv.Itoa(firstIP+1)
+		if serviceip[0].StaticIP != ip {
+			t.Fatalf("expect ip %s, get %s", ip, serviceip[0])
+		}
 	}
 
 	// update the ServiceName in CreateServiceRequest
@@ -393,5 +623,35 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
 	}
+	// list service members to verify
+	memberItems, err = dbIns.ListServiceMembers(ctx, svcUUID)
+	if err != nil || len(memberItems) != taskCount {
+		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
+	}
+	sort.Slice(memberItems, func(i, j int) bool {
+		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
+		}
+		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
+		if err != nil {
+			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
+		}
+		return idx1 < idx2
+	})
+	for i, member := range memberItems {
+		name := utils.GenServiceMemberName(service, int64(i))
+		if member.MemberName != name {
+			t.Fatalf("expect member name %s, get %s", name, member)
+		}
+		if requireStaticIP {
+			ip := ipPrefix + strconv.Itoa(firstIP+i)
+			if member.StaticIP != ip {
+				t.Fatalf("expect ip %s for member %s", ip, member)
+			}
+		}
+	}
+	// increase the firstIP for the next service
+	firstIP = firstIP + taskCount
 
 }

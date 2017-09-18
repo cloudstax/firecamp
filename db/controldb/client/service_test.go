@@ -12,7 +12,7 @@ import (
 	"github.com/cloudstax/firecamp/server"
 )
 
-func TestServiceWithControlDB(t *testing.T) {
+func TestServiceWithControlDBWithStaticIP(t *testing.T) {
 	flag.Parse()
 	flag.Set("stderrthreshold", "INFO")
 
@@ -28,10 +28,33 @@ func TestServiceWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
 	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
-	manageservice.TestUtil_ServiceCreateion(t, s, dbcli)
+
+	requireStaticIP := true
+	manageservice.TestUtil_ServiceCreation(t, s, dbcli, serverIns, requireStaticIP)
 }
 
-func TestServiceCreationRetryWithControlDB(t *testing.T) {
+func TestServiceWithControlDBWithoutStaticIP(t *testing.T) {
+	flag.Parse()
+	flag.Set("stderrthreshold", "INFO")
+
+	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
+	cluster := "cluster1"
+
+	dbs := &TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 1}
+	go dbs.RunControldbTestServer(cluster)
+	defer dbs.StopControldbTestServer()
+
+	dbcli := NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+1))
+	serverIns := server.NewLoopServer()
+	serverInfo := server.NewMockServerInfo()
+	dnsIns := dns.NewMockDNS()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+
+	requireStaticIP := false
+	manageservice.TestUtil_ServiceCreation(t, s, dbcli, serverIns, requireStaticIP)
+}
+
+func TestServiceCreationRetryWithControlDBWithStaticIP(t *testing.T) {
 	flag.Parse()
 	flag.Set("stderrthreshold", "INFO")
 
@@ -47,5 +70,28 @@ func TestServiceCreationRetryWithControlDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
 	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
-	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns)
+
+	requireStaticIP := true
+	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP)
+}
+
+func TestServiceCreationRetryWithControlDBWithoutStaticIP(t *testing.T) {
+	flag.Parse()
+	flag.Set("stderrthreshold", "INFO")
+
+	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
+	cluster := "cluster1"
+
+	dbs := &TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 2}
+	go dbs.RunControldbTestServer(cluster)
+	defer dbs.StopControldbTestServer()
+
+	dbcli := NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+2))
+	serverIns := server.NewLoopServer()
+	serverInfo := server.NewMockServerInfo()
+	dnsIns := dns.NewMockDNS()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+
+	requireStaticIP := false
+	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP)
 }
