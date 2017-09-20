@@ -27,10 +27,11 @@ import (
 )
 
 const (
-	defaultRoot   = "/mnt/" + common.SystemName
-	defaultFSType = "xfs"
-	defaultMkfs   = "mkfs.xfs"
-	tmpfileSuffix = ".tmp"
+	defaultNetworkInterface = "eth0"
+	defaultRoot             = "/mnt/" + common.SystemName
+	defaultFSType           = "xfs"
+	defaultMkfs             = "mkfs.xfs"
+	tmpfileSuffix           = ".tmp"
 )
 
 var defaultMountOptions = []string{"discard", "defaults"}
@@ -63,6 +64,8 @@ type FireCampVolumeDriver struct {
 	// server instance (ec2 on AWS) to attach/detach volume
 	serverIns  server.Server
 	serverInfo server.Info
+	// the net interface to add/del ip
+	ifname string
 
 	// container service
 	containersvcIns containersvc.ContainerSvc
@@ -80,6 +83,7 @@ func NewVolumeDriver(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, serve
 		dnsIns:          dnsIns,
 		serverIns:       serverIns,
 		serverInfo:      serverInfo,
+		ifname:          defaultNetworkInterface,
 		containersvcIns: containersvcIns,
 		containerInfo:   containerInfo,
 	}
@@ -294,11 +298,28 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 		}
 	}
 
+	// add the ip to network
+	if serviceAttr.RequireStaticIP {
+		err = addIP(member.StaticIP, d.ifname)
+		if err != nil {
+			errmsg := fmt.Sprintf("add ip error %s, member %s, requuid %s", err, member, requuid)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+	}
+
 	// mount
 	err = d.mountFS(member.DeviceName, mountPath)
 	if err != nil {
 		errmsg := fmt.Sprintf("Mount failed, mount fs error %s member %s, requuid %s", err, member, requuid)
 		glog.Errorln(errmsg)
+
+		// try to del the ip from network
+		if serviceAttr.RequireStaticIP {
+			err = delIP(member.StaticIP, d.ifname)
+			glog.Errorln("delIP error", err, "member", member, "requuid", requuid)
+		}
+
 		return volume.Response{Err: errmsg}
 	}
 
@@ -313,9 +334,17 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 		if err == nil {
 			// successfully umount, return error for the Mount()
 			d.removeMountPath(mountPath)
+
 			// detach volume, ignore the possible error.
 			err = d.serverIns.DetachVolume(ctx, member.VolumeID, d.serverInfo.GetLocalInstanceID(), member.DeviceName)
 			glog.Errorln("detached volume", member, "error", err, "requuid", requuid)
+
+			// try to del the ip from network
+			if serviceAttr.RequireStaticIP {
+				err = delIP(member.StaticIP, d.ifname)
+				glog.Errorln("delIP error", err, "member", member, "requuid", requuid)
+			}
+
 			return volume.Response{Err: errmsg}
 		}
 
@@ -380,6 +409,34 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 		glog.Infoln("Unmount done, some container still uses the volume",
 			vol.member, "connections", vol.connections, "requuid", requuid)
 		return volume.Response{}
+	}
+
+	if vol.member.StaticIP != common.DefaultHostIP {
+		// delete the ip from network to make sure no one could access this node by member's ip.
+		// no need to unassign from network interface. The new node that takes over the member
+		// will do it.
+		err = delIP(vol.member.StaticIP, d.ifname)
+		if err != nil {
+			errmsg := fmt.Sprintf("delete ip error %s, member %s, requuid %s", err, vol.member, requuid)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+
+		glog.Infoln("deleted member ip, requuid", requuid, vol.member)
+
+		// TODO UnassignStaticIP at Unmount. Currently creating new ip relies on collecting all
+		// existing ips from all network interfaces.
+		//netInterface, err := d.serverIns.GetInstanceNetworkInterface(ctx, d.serverInfo.GetLocalInstanceID())
+		//if err != nil {
+		//	glog.Errorln("GetInstanceNetworkInterface error", err, "requuid", requuid, vol.member)
+		//} else {
+		//	err = d.serverIns.UnassignStaticIP(ctx, netInterface.InterfaceID, vol.member.StaticIP)
+		//	if err != nil {
+		//		glog.Errorln("UnassignStaticIP error", err, "network interface", netInterface.InterfaceID, "requuid", requuid, vol.member)
+		//	}
+		//}
+
+		//glog.Infoln("unassign member ip, network interface", netInterface.InterfaceID, "requuid", requuid, vol.member)
 	}
 
 	// last container for the volume, umount fs
@@ -502,6 +559,12 @@ func (d *FireCampVolumeDriver) updateStaticIP(ctx context.Context, serviceAttr *
 		} else {
 			// ip belongs to the service but not for the current member.
 			// unassign it to make sure other members do NOT take us as the previous member.
+
+			// this should actually not happen, as the static ip will be unassigned when umount the member's volume.
+			// here is just a protection to clean up the possible dangling ip. Q: how could the dangling ip happen?
+			glog.Errorln("unassign dangling ip from local network", netInterface.InterfaceID,
+				"server", netInterface.ServerInstanceID, serviceip, "requuid", requuid)
+
 			err = d.serverIns.UnassignStaticIP(ctx, netInterface.InterfaceID, ip)
 			if err != nil {
 				errmsg = fmt.Sprintf("UnassignStaticIP error %s, ip %s network interface %s member %s, requuid %s",
@@ -510,7 +573,14 @@ func (d *FireCampVolumeDriver) updateStaticIP(ctx context.Context, serviceAttr *
 				return errmsg
 			}
 			// should not update db here, as another node may be in the process of taking over the static ip.
-			glog.Infoln("UnassignStaticIP", ip, "from local network", netInterface.InterfaceID, netInterface.ServerInstanceID)
+
+			// delete the possible ip from network
+			err = delIP(ip, d.ifname)
+			if err != nil {
+				errmsg = fmt.Sprintf("delete ip error %s, ip %s, member %s, requuid %s", err, ip, member, requuid)
+				glog.Errorln(errmsg)
+				return errmsg
+			}
 		}
 	}
 
