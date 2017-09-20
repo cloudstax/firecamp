@@ -36,6 +36,8 @@ const (
 	taskStatusRunning = "RUNNING"
 	taskStatusStopped = "STOPPED"
 
+	ecsFailureReasonMissing = "MISSING"
+
 	serviceNotFoundException  = "ServiceNotFoundException"
 	serviceNotActiveException = "ServiceNotActiveException"
 )
@@ -739,10 +741,21 @@ func (s *AWSEcs) describeService(ctx context.Context, ecscli *ecs.ECS, cluster s
 	resp, err := ecscli.DescribeServices(params)
 	if err != nil {
 		glog.Errorln("DescribeServices error", err, "service", service, "cluster", cluster)
-		return nil, err
+
+		if err.(awserr.Error).Code() == serviceNotFoundException {
+			return nil, common.ErrNotFound
+		}
+
+		return nil, common.ErrInternal
 	}
+	// if service does not exist in ecs, describeService may not return error,
 	if len(resp.Services) != 1 {
 		glog.Errorln("expect 1 service", resp)
+
+		if len(resp.Failures) == 1 && *(resp.Failures[0].Reason) == ecsFailureReasonMissing {
+			return nil, common.ErrNotFound
+		}
+
 		return nil, common.ErrInternal
 	}
 
@@ -857,7 +870,7 @@ func (s *AWSEcs) DeleteService(ctx context.Context, cluster string, service stri
 	} else {
 		glog.Errorln("describeService error", err, "cluster", cluster, "service", service)
 
-		if !s.isServiceNotFoundError(err) {
+		if err != common.ErrNotFound {
 			return err
 		}
 

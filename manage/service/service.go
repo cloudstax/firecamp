@@ -327,7 +327,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		return err
 	}
 
-	// delete the member's dns record and config files
+	// delete the member's dns record, static ip and config files
 	glog.Infoln("deleting the config files from DB, service attr, requuid", requuid, sattr)
 	for _, m := range members {
 		// delete the member's dns record
@@ -348,6 +348,16 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			// skip the unknown dns error, as it would only leave a garbage in the dns system.
 			glog.Errorln("GetDNSRecord error", err, "dnsname", dnsname,
 				"HostedZone", sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
+		}
+
+		// delete the member's static ip
+		if sattr.RequireStaticIP {
+			err = s.dbIns.DeleteServiceStaticIP(ctx, m.StaticIP)
+			if err != nil && err != db.ErrDBRecordNotFound {
+				glog.Errorln("DeleteServiceStaticIP error", err, "requuid", requuid, "member", m)
+				return err
+			}
+			glog.Infoln("deleted member's static ip, requuid", requuid, m)
 		}
 
 		// delete the member's config files
