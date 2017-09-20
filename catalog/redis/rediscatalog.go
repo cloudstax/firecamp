@@ -58,7 +58,7 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
 	if opts.ReplicasPerShard < 1 || opts.Shards == invalidShards ||
 		maxMemMB == common.DefaultMaxMemoryMB ||
-		(opts.Shards != 1 && maxMemMB < defaultSlaveClientOutputBufferMB) {
+		(opts.Shards != 1 && maxMemMB <= defaultSlaveClientOutputBufferMB) {
 		return common.ErrInvalidArgs
 	}
 	switch opts.MaxMemPolicy {
@@ -114,8 +114,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
-		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
+		RegisterDNS: true,
+		// require to assign a static ip for each member
+		RequireStaticIP: true,
+		ReplicaConfigs:  replicaCfgs,
 	}
 }
 
