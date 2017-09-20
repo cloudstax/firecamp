@@ -170,7 +170,33 @@
         },
         "DesiredCapacity":{
           "Ref":"DesiredCapacity"
-        }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "ClusterName"
+            },
+            "PropagateAtLaunch": "true"
+          },
+          {
+            "Key": {
+              "Fn::Join":[
+                "-",
+                [
+                  "firecamp",
+                  {
+                    "Ref": "ContainerPlatformRole"
+                  }
+                ]
+              ]
+            },
+            "Value": {
+              "Ref": "ClusterName"
+            },
+            "PropagateAtLaunch": "true"
+          }
+        ]
       },
       "CreationPolicy":{
         "ResourceSignal":{
