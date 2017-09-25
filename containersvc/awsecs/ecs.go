@@ -2,6 +2,7 @@ package awsecs
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,9 @@ const (
 
 	serviceNotFoundException  = "ServiceNotFoundException"
 	serviceNotActiveException = "ServiceNotActiveException"
+
+	zoneAttr           = "attribute:ecs.availability-zone"
+	placeConstraintFmt = zoneAttr + " in [%s]"
 )
 
 // AWSEcs serves the ECS related functions
@@ -442,13 +446,42 @@ func (s *AWSEcs) CreateService(ctx context.Context, opts *containersvc.CreateSer
 			MaximumPercent:        aws.Int64(maxHealthyPercent),
 			MinimumHealthyPercent: aws.Int64(minHealthyPercent),
 		},
+	}
+
+	if opts.Place == nil {
 		// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement-strategies.html
-		PlacementStrategy: []*ecs.PlacementStrategy{
+		params.PlacementStrategy = []*ecs.PlacementStrategy{
 			{
-				Field: aws.String("attribute:ecs.availability-zone"),
-				Type:  aws.String("spread"),
+				Field: aws.String(zoneAttr),
+				Type:  aws.String(ecs.PlacementStrategyTypeSpread),
 			},
-		},
+		}
+	} else {
+		// the service aims to run on the specified availability zones.
+		// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement-constraints.html
+		// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/cluster-query-language.html
+
+		sort.Slice(opts.Place.Zones, func(i, j int) bool {
+			return opts.Place.Zones[i] < opts.Place.Zones[j]
+		})
+
+		zones := ""
+		for i, zone := range opts.Place.Zones {
+			if i == 0 {
+				zones = zone
+			} else {
+				zones += ", " + zone
+			}
+		}
+		placeConstraint := fmt.Sprintf(placeConstraintFmt, zones)
+
+		constraint := &ecs.PlacementConstraint{
+			Expression: aws.String(placeConstraint),
+			Type:       aws.String(ecs.PlacementConstraintTypeMemberOf),
+		}
+		params.PlacementConstraints = []*ecs.PlacementConstraint{constraint}
+
+		glog.Infoln("placement constraint", placeConstraint, "for service", opts.Common)
 	}
 
 	svc := ecs.New(s.sess)

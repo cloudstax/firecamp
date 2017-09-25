@@ -30,12 +30,18 @@ type CommonOptions struct {
 	LogConfig      *cloudlog.LogConfig
 }
 
+type Placement struct {
+	Zones []string
+}
+
 type CreateServiceOptions struct {
 	Common        *CommonOptions
 	ContainerPath string // The mount path inside container
 	PortMappings  []common.PortMapping
 	Replicas      int64
-	Envkvs        []*common.EnvKeyValuePair
+	// the placement constraints. If not specified, spread to all zones.
+	Place  *Placement
+	Envkvs []*common.EnvKeyValuePair
 }
 
 type RunTaskOptions struct {

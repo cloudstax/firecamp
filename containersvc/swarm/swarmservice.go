@@ -1,7 +1,9 @@
 package swarmsvc
 
 import (
+	"fmt"
 	"io"
+	"sort"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -34,6 +36,9 @@ const (
 	defaultCPUPeriod       = 10000
 	defaultCPUUnitsPerCore = 1024
 	envKVSep               = "="
+
+	zoneLabelSep       = "."
+	placeConstraintFmt = "engine.labels.%s == true"
 )
 
 // SwarmSvc implements swarm service and task related functions.
@@ -168,6 +173,39 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 			Options: opts.Common.LogConfig.Options,
 		},
 	}
+
+	if opts.Place != nil {
+		// the service aims to run on the specified availability zones.
+		// docker node label could only be added on the manager node. This is not easy to automate.
+		// The worker node needs to ask the manager service to add the node label.
+		// So we use the engine label. During the cluster creation, the availability zone labels
+		// will be created for the docker engine.
+		// https://docs.docker.com/engine/swarm/services/#control-service-scale-and-placement
+		// https://docs.docker.com/engine/reference/commandline/service_create/#specify-service-constraints-constraint
+		// https://docs.docker.com/engine/swarm/manage-nodes/#add-or-remove-label-metadata
+
+		sort.Slice(opts.Place.Zones, func(i, j int) bool {
+			return opts.Place.Zones[i] < opts.Place.Zones[j]
+		})
+
+		zoneLabel := ""
+		for i, zone := range opts.Place.Zones {
+			if i == 0 {
+				zoneLabel = zone
+			} else {
+				zoneLabel += zoneLabelSep + zone
+			}
+		}
+
+		placeConstraint := fmt.Sprintf(placeConstraintFmt, zoneLabel)
+
+		taskTemplate.Placement = &swarm.Placement{
+			Constraints: []string{placeConstraint},
+		}
+
+		glog.Infoln("placement constraints", placeConstraint, "for service", opts.Common)
+	}
+
 	if opts.Common.Resource != nil {
 		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
 			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {

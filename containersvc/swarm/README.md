@@ -8,6 +8,9 @@ It looks better to run the FireCamp manageserver container on the Swarm manager 
 
 Docker swarm service could [pass the task slot in the volume source name](https://docs.docker.com/docker-for-aws/persistent-data-volumes/#use-a-unique-volume-per-task-using-ebs) to the volume plugin. So the volume plugin could directly know which member the container is for. This works for the single availability zone cluster. One EBS volume is binded to one availability zone. In the multi-zones cluster, Docker Swarm task slot is not aware of the availability zone.
 
+# Create a Swarm clusster for FireCamp
+
+Follow the [installation wiki](https://github.com/cloudstax/firecamp/wiki/Installation) to install the Swarm cluster using cloudformation.
 
 # Install FireCamp on the existing Swarm cluster
 
@@ -21,19 +24,27 @@ FireCamp assigns a unique DNS name for every service member. For example, the cl
 
 The cluster name has to be unique for the swarm clusters in the same VPC. If 2 swarm clusters have the same name and creates the service with the same name as well, the members of these 2 services will have the same DNS name. This will mess up the service membership. Different VPCs will have different DNS servers, different HostedZone in AWS Route53. So the swarm clusters in different VPCs could have the same name.
 
-3. Create the FireCamp manageserver service on the swarm manager node.
+3. Add the availability zone labels to docker engine at every node.
+
+The availability zone labels are required to run the service on part of the availability zones in one cluster.
+
+For example, on the 3 availability zones cluster, Redis may be deployed to 1 or 2 availability zones. Deploying to 1 availability zone might be fine for some applications that use Redis only for cache. Redis cluster mode supports 1 slave for 1 master. The customer may deploy all masters on 1 availability zone, and deploy all slaves on the second availability zone to tolerate the availability zone failure.
+
+If the cluster includes only 1 or 2 availability zones and Redis is deployed to all (1 or 2) availability zones, could also skip this step.
+
+4. Create the FireCamp manageserver service on the swarm manager node.
 
 The example command:
 `docker service create --name firecamp-manageserver --constraint node.role==manager --publish mode=host,target=27040,published=27040  --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 cloudstax/firecamp-manageserver:tag`
 
 You could change the service name, AVAILABILITY_ZONES, CLUSTER and the manageserver docker image tag. Please do NOT change others.
 
-4. Install FireCamp plugin on every swarm worker node.
+5. Install FireCamp plugin on every swarm worker node.
 
 Create the FireCamp log directory: `sudo mkdir -p /var/log/firecamp`.
 
 Instal plugin: `docker plugin install --grant-all-permissions cloudstax/firecamp-volume:tag PLATFORM=swarm CLUSTER=c1`
 
-5. Create the stateful service.
+6. Create the stateful service.
 
 For example, to create a 2 replicas PostgreSQL, copy the firecamp-service-cli to the manager node and simply run: `firecamp-service-cli -cluster=c1 -op=create-service -service-name=pg1 -service-type=postgresql -replicas=2 -volume-size=1`

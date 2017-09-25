@@ -112,14 +112,21 @@ func TestService(t *testing.T) {
 	// create services
 	service := "test-service1"
 	containerPath := ""
-	serviceTest(ctx, t, e, cluster, service, containerPath)
+	serviceTest(ctx, t, e, cluster, service, containerPath, nil)
 
 	service = "test-service2"
 	containerPath = "/data"
-	serviceTest(ctx, t, e, cluster, service, containerPath)
+	serviceTest(ctx, t, e, cluster, service, containerPath, nil)
+
+	service = "test-service3"
+	containerPath = "/data"
+	place := &containersvc.Placement{
+		Zones: []string{"us-east-1a", "us-east-1b"},
+	}
+	serviceTest(ctx, t, e, cluster, service, containerPath, place)
 }
 
-func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, service string, containerPath string) {
+func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, service string, containerPath string, place *containersvc.Placement) {
 	exist, err := e.IsServiceExist(ctx, cluster, service)
 	if err != nil {
 		t.Fatalf("IsServiceExist error %s, cluster %s service %s", err, cluster, service)
@@ -152,6 +159,7 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 		ContainerPath: containerPath,
 		PortMappings:  []common.PortMapping{p},
 		Replicas:      int64(0),
+		Place:         place,
 	}
 
 	err = e.CreateService(ctx, opts)
