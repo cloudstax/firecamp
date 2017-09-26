@@ -10,6 +10,13 @@ Currently the slaves are read-only. If the master goes down, Redis will become r
 
 **Cluster Mode**: the minimal Redis cluster should have [at least 3 shards](https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster). Each shard could be single instance mode or master-slave mode. For example, in a 3 availability zones environment, create a 3 shards Redis cluster and each shard has 3 replicas, then each shard will have 1 master and 2 slaves. All masters will be put in one availability zone for low latency, and the slaves will be distributed to the other two availability zones for HA.
 
+Redis cluster could handle the node failure when "[there are at least the majority of masters and a slave for every unreachable master](https://redis.io/topics/cluster-spec)". If the majority of masters are down, the slaves will not become master automatically. Need to manually run [cluster failover takeover](https://redis.io/commands/cluster-failover) to promote the slave to become the new master.
+
+By default, FireCamp distributes the masters to all availability zones. So when one availability zone goes down, Redis cluster will still have the majority of masters to promote the slave to master automatically.
+
+The network inside one availability zone is faster than cross availability zones. Running all masters on a single availability zone would be useful for some cases. For example, Redis is used for cache. The application also runs in a single availability zone. Only when the availability zone fails, the application and Redis will run in another availability zone. We will support it in the future. When the master availability zone goes down, FireCamp will automatically run `cluster failover takeover` to promote the slave to master.
+
+
 ### Redis Static IP address
 Both Redis Sentinel and Cluster require to use a static IP address to represent a Redis member, the hostname is not allowed. See Redis issues [2706](https://github.com/antirez/redis/issues/2410), [2410](https://github.com/antirez/redis/issues/2410), [2565](https://github.com/antirez/redis/issues/2565), [2323](https://github.com/antirez/redis/pull/2323).
 

@@ -1,6 +1,7 @@
 package rediscatalog
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -56,11 +57,19 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 }
 
 func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
-	if opts.ReplicasPerShard < 1 || opts.Shards == invalidShards ||
-		maxMemMB == common.DefaultMaxMemoryMB ||
-		(opts.Shards != 1 && maxMemMB <= defaultSlaveClientOutputBufferMB) {
+	if opts.ReplicasPerShard < 1 {
 		return common.ErrInvalidArgs
 	}
+	if opts.Shards == invalidShards {
+		return errors.New("Redis cluster mode requires at least 3 shards")
+	}
+	if maxMemMB == common.DefaultMaxMemoryMB {
+		return errors.New("Please specify the max memory")
+	}
+	if opts.Shards != 1 && maxMemMB <= defaultSlaveClientOutputBufferMB {
+		return fmt.Errorf("For Redis cluster mode, please specify at least %d MB memory", defaultSlaveClientOutputBufferMB)
+	}
+
 	switch opts.MaxMemPolicy {
 	case "":
 		return nil
@@ -81,7 +90,7 @@ func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
 	case maxMemPolicyNoEviction:
 		return nil
 	default:
-		return common.ErrInvalidArgs
+		return errors.New("Invalid Redis max memory policy")
 	}
 }
 
@@ -184,8 +193,9 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg}
 
-			// distribute the replicas of one shard to different availability zones
-			azIndex := int(i) % len(azs)
+			// distribute the masters to different availability zones and
+			// distribute the slaves of one master to different availability zones
+			azIndex := int(shard+i) % len(azs)
 			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], Configs: configs}
 
 			replicaCfgs[opts.ReplicasPerShard*shard+i] = replicaCfg
@@ -212,11 +222,11 @@ func IsClusterMode(shards int64) bool {
 
 // GenDefaultInitTaskRequest returns the default service init task request.
 func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, shards int64, replicasPerShard int64,
-	logConfig *cloudlog.LogConfig, serviceUUID string, manageurl string) *containersvc.RunTaskOptions {
+	logConfig *cloudlog.LogConfig, serviceUUID string, manageurl string) (*containersvc.RunTaskOptions, error) {
 
 	// sanity check
 	if !IsClusterMode(shards) {
-		return nil
+		return nil, fmt.Errorf("redis service is not cluster mode, shards %d", shards)
 	}
 
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard)
@@ -235,11 +245,13 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, shards int64, r
 		LogConfig: logConfig,
 	}
 
-	return &containersvc.RunTaskOptions{
+	taskOpts := &containersvc.RunTaskOptions{
 		Common:   commonOpts,
 		TaskType: common.TaskTypeInit,
 		Envkvs:   envkvs,
 	}
+
+	return taskOpts, nil
 }
 
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.

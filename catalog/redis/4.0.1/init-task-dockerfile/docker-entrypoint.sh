@@ -160,6 +160,8 @@ do
   /waitdns.sh $m
 done
 
+# sleep some time for the ip routing update
+sleep 20
 
 # check if the redis cluster is already created
 nodes=$(/redis-cli -h ${masters[0]} cluster nodes | wc -l)

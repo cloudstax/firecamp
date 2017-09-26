@@ -129,7 +129,11 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				initialized = true
 
 			case catalog.CatalogService_Redis:
-				s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, req.Shards, req.ReplicasPerShard, requuid)
+				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, req.Shards, req.ReplicasPerShard, requuid)
+				if err != nil {
+					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
+					return manage.ConvertToHTTPError(err)
+				}
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -352,7 +356,11 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 		glog.Infoln("The cluster mode Redis is created, add the init task, requuid", requuid, req.Service, req.Options)
 
 		// for Redis cluster mode, run the init task in the background
-		s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
+		err = s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
+		if err != nil {
+			glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
+			return manage.ConvertToHTTPError(err)
+		}
 
 		return "", http.StatusOK
 	}
@@ -364,9 +372,12 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 }
 
 func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, shards int64, replicasPerShard int64, requuid string) {
+	serviceUUID string, shards int64, replicasPerShard int64, requuid string) error {
 	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := rediscatalog.GenDefaultInitTaskRequest(req, shards, replicasPerShard, logCfg, serviceUUID, s.manageurl)
+	taskOpts, err := rediscatalog.GenDefaultInitTaskRequest(req, shards, replicasPerShard, logCfg, serviceUUID, s.manageurl)
+	if err != nil {
+		return err
+	}
 
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
@@ -378,6 +389,7 @@ func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Ser
 	s.catalogSvcInit.addInitTask(ctx, task)
 
 	glog.Infoln("add init task for Redis service", serviceUUID, "requuid", requuid, req)
+	return nil
 }
 
 func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
