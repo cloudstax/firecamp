@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -264,6 +265,26 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		ContainerPath: req.ContainerPath,
 		PortMappings:  req.PortMappings,
 		Replicas:      req.Replicas,
+	}
+
+	zones := make(map[string]bool)
+	for _, replCfg := range req.ReplicaConfigs {
+		zones[replCfg.Zone] = true
+	}
+	if len(zones) != len(s.azs) {
+		placeZones := []string{}
+		for k := range zones {
+			placeZones = append(placeZones, k)
+		}
+
+		sort.Slice(placeZones, func(i, j int) bool {
+			return placeZones[i] < placeZones[j]
+		})
+		createOpts.Place = &containersvc.Placement{
+			Zones: placeZones,
+		}
+
+		glog.Infoln("deploy to zones", placeZones, "for service", req.Service, "all zones", s.azs)
 	}
 
 	return createOpts

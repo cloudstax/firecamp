@@ -403,6 +403,9 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	}
 	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
 
+	// TODO the static ip record is created before the service member record.
+	// some static ip record may be left in DB. scan to delete them.
+
 	// delete the device
 	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceName)
 	if err != nil && err != db.ErrDBRecordNotFound {
@@ -861,6 +864,8 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 		replicas--
 		pendingReplicas[m.AvailableZone] = replicas
 	}
+
+	glog.Infoln("create static ip for the pending replicas", pendingReplicas, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 
 	// create the static IPs
 	zoneStaticIPs := make(map[string][]*common.ServiceStaticIP)
