@@ -2,8 +2,11 @@ package firecampdockervolume
 
 import (
 	"flag"
+	"fmt"
 	"os/exec"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/golang/glog"
@@ -139,6 +142,103 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 		t.Fatalf("device is still mounted to %s", mountpath)
 		runlsblk()
 		rundf()
+	}
+}
+
+func TestFindIdleVolume(t *testing.T) {
+	// create FireCampVolumeDriver
+	dbIns := db.NewMemDB()
+	mockDNS := dns.NewMockDNS()
+	serverIns := server.NewLoopServer()
+	mockServerInfo := server.NewMockServerInfo()
+	contSvcIns := containersvc.NewMemContainerSvc()
+	mockContInfo := containersvc.NewMockContainerSvcInfo()
+
+	requuid := utils.GenRequestUUID()
+	ctx := context.Background()
+	ctx = utils.NewRequestContext(ctx, requuid)
+
+	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+	driver.ifname = "lo"
+
+	cluster := "cluster1"
+	service := "service1"
+	serviceUUID := "service1-uuid"
+	domain := "test.com"
+	mtime := time.Now().UnixNano()
+	replicas := int64(5)
+	taskPrefix := "task-"
+	contInsPrefix := "contins-"
+	serverInsPrefix := "serverins-"
+	volIDPrefix := "vol-"
+
+	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, int64(1), cluster, service, "/dev/xvdf", true, domain, "hostedzone", false)
+
+	// add 2 service tasks
+	for i := 0; i < 2; i++ {
+		str := strconv.Itoa(i)
+		err := contSvcIns.AddServiceTask(ctx, cluster, service, taskPrefix+str, contInsPrefix+str)
+		if err != nil {
+			t.Fatalf("AddServiceTask error %s, index %d", err, i)
+		}
+	}
+
+	// add 5 service members
+	memNumber := 5
+	for i := 0; i < memNumber; i++ {
+		str := strconv.Itoa(i)
+		m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
+			mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
+			serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+		err := dbIns.CreateServiceMember(ctx, m)
+		if err != nil {
+			t.Fatalf("CreateServiceMember error %s, index %d", err, i)
+		}
+	}
+
+	// test selecting the idle member owned by local node
+	str := strconv.Itoa(memNumber + 1)
+	m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(memNumber+1)),
+		mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(),
+		serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+	err := dbIns.CreateServiceMember(ctx, m)
+	if err != nil {
+		t.Fatalf("CreateServiceMember error %s, index %d", err, memNumber+1)
+	}
+	m1, err := driver.findIdleMember(ctx, sattr, "requuid-1")
+	if err != nil {
+		t.Fatalf("findIdleMember error %s", err)
+	}
+	if !db.EqualServiceMember(m, m1, false) {
+		t.Fatal("expect member %s, get %s", m, m1)
+	}
+
+	err = dbIns.DeleteServiceMember(ctx, serviceUUID, utils.GenServiceMemberName(service, int64(memNumber+1)))
+	if err != nil {
+		t.Fatalf("DeleteServiceMember error %s", err)
+	}
+
+	// select an idle member
+	for j := 0; j < 3; j++ {
+		m1, err = driver.findIdleMember(ctx, sattr, "requuid-1")
+		if err != nil {
+			t.Fatalf("findIdleMember error %s", err)
+		}
+
+		selected := false
+		for i := 2; i < memNumber; i++ {
+			str := strconv.Itoa(i)
+			m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
+				mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
+				serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+			if db.EqualServiceMember(m, m1, false) {
+				fmt.Println("select member", i)
+				selected = true
+			}
+		}
+		if !selected {
+			t.Fatalf("not find member")
+		}
 	}
 }
 

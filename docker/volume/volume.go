@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -695,7 +696,7 @@ func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serv
 		glog.Errorln(errmsg)
 		return nil, nil, errmsg
 	}
-	glog.Infoln("get application service attr", serviceAttr, "requuid", requuid)
+	glog.Infoln("get service attr", serviceAttr, "requuid", requuid)
 
 	// get one member for this mount
 	member, err = d.getMemberForTask(ctx, serviceAttr, memberIndex, requuid)
@@ -945,6 +946,22 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 		return nil, err
 	}
 
+	var localIPs map[string]bool
+	if serviceAttr.RequireStaticIP {
+		netif, err := d.serverIns.GetInstanceNetworkInterface(ctx, d.serverInfo.GetLocalInstanceID())
+		if err != nil {
+			glog.Errorln("GetInstanceNetworkInterface error", err, "requuid", requuid, serviceAttr)
+			return nil, err
+		}
+
+		glog.Infoln("local instance has static ips", netif.PrivateIPs, "requuid", requuid, serviceAttr)
+
+		localIPs = make(map[string]bool)
+		for _, ip := range netif.PrivateIPs {
+			localIPs[ip] = true
+		}
+	}
+
 	// list all members from DB, e.dbIns.ListServiceMembers(service.ServiceUUID)
 	members, err := d.dbIns.ListServiceMembers(ctx, serviceAttr.ServiceUUID)
 	if err != nil {
@@ -953,7 +970,11 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 	}
 
 	// find one idle volume, the volume's taskID not in the task list
-	for _, member := range members {
+	var idleMember *common.ServiceMember
+	randIdx := rand.Intn(len(members))
+	minIdx := len(members)
+
+	for i, member := range members {
 		// TODO filter out non local zone member at ListServiceMembers
 		zone := d.serverInfo.GetLocalAvailabilityZone()
 		if member.AvailableZone != zone {
@@ -961,14 +982,41 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 			continue
 		}
 
-		// TODO selects the idle member on the same node, the container platform may reschedule the task on the same node.
-
-		// TODO better to get all idle members and randomly select one, as the concurrent
-		//			tasks may find the same idle member around the same time.
+		// check if the member is idle
 		_, ok := taskIDs[member.TaskID]
 		if !ok {
 			glog.Infoln("find idle member", member, "service", serviceAttr, "requuid", requuid)
-			return member, nil
+
+			// select the idle member that is previously owned by the local node
+			if member.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
+				glog.Infoln("idle member is previously owned by the local instance", member, "requuid", requuid)
+				return member, nil
+			}
+
+			// select the member if the member's static ip is assigned to the local node
+			if serviceAttr.RequireStaticIP {
+				_, local := localIPs[member.StaticIP]
+				if local {
+					glog.Infoln("member's static ip is assigned to the local node, requuid", requuid, member)
+					return member, nil
+				}
+			}
+
+			min := 0
+			if i < randIdx {
+				min = randIdx - i
+			} else {
+				min = i - randIdx
+			}
+
+			if idleMember == nil || min < minIdx {
+				// randomly select an idle member
+				idleMember = member
+				minIdx = min
+			}
+
+			// check next member
+			continue
 		}
 
 		// member's task is still running
@@ -980,6 +1028,11 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 		}
 
 		glog.V(0).Infoln("member", member, "in use, service", serviceAttr, "requuid", requuid)
+	}
+
+	if idleMember != nil {
+		glog.Infoln("select idle member, requuid", requuid, member)
+		return idleMember, nil
 	}
 
 	glog.Errorln("service has no idle member", serviceAttr, "requuid", requuid)
