@@ -54,18 +54,17 @@ else
   yum install -y docker
 fi
 
-# Kafka uses a very large number of files, increase the file descriptor count.
-# AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".
-# The container inherits the docker daemon ulimit.
-# The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.
-# Ubuntu is /etc/init/docker.conf
-sed -i 's/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g' /etc/sysconfig/docker
-
-service docker start
-
-
 # 3. Container platform specific initialization.
 if [ "$containerPlatform" = "ecs" ]; then
+  # Kafka uses a very large number of files, increase the file descriptor count.
+  # AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".
+  # The container inherits the docker daemon ulimit.
+  # The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.
+  # Ubuntu is /etc/init/docker.conf
+  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g" /etc/sysconfig/docker
+
+  service docker start
+
   # install cloudstax ecs init
   wget -O /tmp/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm
   rpm -ivh /tmp/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm
@@ -82,6 +81,40 @@ if [ "$containerPlatform" = "ecs" ]; then
 fi
 
 if [ "$containerPlatform" = "swarm" ]; then
+  # Set the availability zone label to engine for deploying a service to the expected zone.
+  # Another option is to use swarm node label. While, the node label could only be added on the manager node.
+  # Would have to talk with the manager service to add label. Sounds complex. Simply use engine label.
+
+  # get node's local az
+  localAZ=$(curl http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
+  # parse azs to array
+  OIFS=$IFS
+  IFS=','
+  read -a zones <<< "${azs}"
+  IFS=$OIFS
+
+  # add label for 1 and 2 availability zones
+  # TODO support max 3 zones now.
+  labels="--label $localAZ=true"
+  for zone in "${zones[@]}"
+  do
+    if [ "$zone" = "$localAZ" ]; then
+      continue
+    fi
+    if [ "$zone" \< "$localAZ" ]; then
+      labels+=" --label $zone.$localAZ=true"
+    else
+      labels+=" --label $localAZ.$zone=true"
+    fi
+  done
+
+  # set ulimit and labels
+  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000 $labels\"/g" /etc/sysconfig/docker
+
+  service docker start
+
+  # get swarminit command to init swarm
   wget -O firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
   tar -zxf firecamp-swarminit.tgz
   chmod +x firecamp-swarminit
