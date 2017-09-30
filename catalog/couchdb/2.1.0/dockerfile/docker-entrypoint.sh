@@ -39,18 +39,6 @@ if [ ! -f "$syscfgfile" ]; then
   exit 1
 fi
 
-if [ "$(id -u)" = '0' ]; then
-  # load the sys config file
-  . $syscfgfile
-
-  if [ "$PLATFORM" = "swarm" ]; then
-    # some platform, such as docker swarm, does not allow not using host network for service.
-    # append the SERVICE_MEMBER to the last line of /etc/hosts, so the service could bind the
-    # member name and serve correctly.
-    echo "$(cat /etc/hosts) $SERVICE_MEMBER" > /etc/hosts
-  fi
-fi
-
 # allow the container to be started with `--user`
 if [ "$1" = '/opt/couchdb/bin/couchdb' -a "$(id -u)" = '0' ]; then
   rootdiruser=$(stat -c "%U" $rootdir)

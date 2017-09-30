@@ -1,5 +1,4 @@
 #!/bin/bash
-set -ex
 
 # This script does below things:
 # 1) Setup CouchDB.
@@ -59,7 +58,18 @@ else
   # setup each node, run the following command on each node
   for m in "${members[@]}"
   do
-    curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@$m:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"enable_cluster\", \"bind_address\":\"$m\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"node_count\":\"$count}\"}"
+    echo "cluster_setup -d {\"action\": \"enable_cluster\", \"bind_address\":\"$m\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"node_count\":\"$count}\"}"
+    res=$(curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@$m:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"enable_cluster\", \"bind_address\":\"$m\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"node_count\":\"$count}\"}")
+    echo "$res"
+
+    # if node is already setup, couchdb returns {"error":"bad_request","reason":"Cluster is already enabled"}
+    succ=$(echo "$res" | grep "\"ok\":true")
+    alreadyEnabled=$(echo "$res" | grep "already enabled")
+    if [ -z "$succ" -a -z "$alreadyEnabled" ]; then
+      echo "setup cluster node failed"
+      echo "$res"
+      exit 2
+    fi
   done
 
   # choose the first node as the coordination node to add other nodes
@@ -71,13 +81,30 @@ else
       continue
     fi
 
-    curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"enable_cluster\", \"bind_address\":\"${members[0]}\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"port\": $SERVICE_PORT, \"node_count\": \"$count\", \"remote_node\": \"$m\", \"remote_current_user\": \"$ADMIN\", \"remote_current_password\": \"$ADMIN_PASSWORD\" }"
+    echo "cluster_setup to ${members[0]} -d {\"action\": \"enable_cluster\", \"bind_address\":\"${members[0]}\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"port\": $SERVICE_PORT, \"node_count\": \"$count\", \"remote_node\": \"$m\", \"remote_current_user\": \"$ADMIN\", \"remote_current_password\": \"$ADMIN_PASSWORD\" }"
+    res=$(curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"enable_cluster\", \"bind_address\":\"${members[0]}\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\", \"port\": $SERVICE_PORT, \"node_count\": \"$count\", \"remote_node\": \"$m\", \"remote_current_user\": \"$ADMIN\", \"remote_current_password\": \"$ADMIN_PASSWORD\" }")
+    echo "$res"
 
-    curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"add_node\", \"host\":\"$m\", \"port\": \"$SERVICE_PORT\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\"}"
+    succ=$(echo "$res" | grep "\"ok\":true")
+    if [ -z "$succ" ]; then
+      echo "enable cluster node failed"
+      echo "$res"
+      exit 2
+    fi
+
+    echo "cluster_setup to ${members[0]} -d {\"action\": \"add_node\", \"host\":\"$m\", \"port\": \"$SERVICE_PORT\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\"}"
+    res=$(curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d "{\"action\": \"add_node\", \"host\":\"$m\", \"port\": \"$SERVICE_PORT\", \"username\": \"$ADMIN\", \"password\":\"$ADMIN_PASSWORD\"}")
+    echo "$res"
+
+    # if node is already added, couchdb returns {"error":"conflict","reason":"Document update conflict."}
+    succ=$(echo "$res" | grep "\"ok\":true")
+    conflict=$(echo "$res" | grep "update conflict")
+    if [ -z "$succ" -a -z "$conflict" ]; then
+      echo "add cluster node failed"
+      echo "$res"
+      exit 2
+    fi
   done
-
-  # complete the setup
-  curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d '{"action": "finish_cluster"}'
 
   # http://docs.couchdb.org/en/2.1.0/cluster/databases.html
   # set zone in the /nodes database for every node.
@@ -85,12 +112,46 @@ else
   i=0
   for m in "${members[@]}"
   do
+		# follows the same way in couchdbcatalog.go to assign the az to each node.
+		# If the az selection algo is changed there, please also update here.
     idx=$(($i % $azCount))
     i=$(($i + 1))
+
     # example node doc: {"_id":"couchdb@172.31.17.161","_rev":"1-967a00dff5e02add41819138abb3284d"}
     rev=$(curl $ADMIN:$ADMIN_PASSWORD@$m:5986/_nodes/couchdb@$m | awk -F "," '{ print $2 }' | awk -F ":" '{ print $2 }' | awk -F "\"" '{ print $2 }')
-    curl -X PUT $ADMIN:$ADMIN_PASSWORD@$m:5986/_nodes/couchdb@$m -d "{ \"_rev\":\"$rev\", \"zone\":\"${azs[$idx]}\" }"
+    if [ -z "$rev" ]; then
+      echo "get node current revision error"
+      exit 2
+    fi
+
+    # set zone in the nodes db
+    echo "set zone ${azs[$idx]} to node $m"
+    res=$(curl -X PUT $ADMIN:$ADMIN_PASSWORD@$m:5986/_nodes/couchdb@$m -d "{ \"_rev\":\"$rev\", \"zone\":\"${azs[$idx]}\" }")
+    echo "$res"
+
+    succ=$(echo "$res" | grep "\"ok\":true")
+    if [ -z "$succ" ]; then
+      echo "set zone to node failed"
+      echo "$res"
+      exit 2
+    fi
+
   done
+
+  # complete the setup
+  echo "cluster_setup to ${members[0]} -d {action: finish_cluster}"
+  res=$(curl -X POST -H "Content-Type: application/json" http://$ADMIN:$ADMIN_PASSWORD@${members[0]}:$SERVICE_PORT/_cluster_setup -d '{"action": "finish_cluster"}')
+  echo "$res"
+
+  # if cluster is already finished, couchdb returns {"error":"bad_request","reason":"Cluster is already finished"}
+  succ=$(echo "$res" | grep "\"ok\":true")
+  alreadyFinished=$(echo "$res" | grep "already finished")
+  if [ -z "$succ" -a -z "$alreadyFinished" ]; then
+    echo "finish cluster failed"
+    echo "$res"
+    exit 2
+  fi
+
 fi
 
 # 2) Tell the firecamp manage server to set CouchDB service initialized.
