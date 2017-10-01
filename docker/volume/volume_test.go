@@ -27,7 +27,7 @@ func TestVolumeDriver(t *testing.T) {
 	testVolumeDriver(t, requireStaticIP)
 
 	requireStaticIP = false
-	//testVolumeDriver(t, requireStaticIP)
+	testVolumeDriver(t, requireStaticIP)
 }
 
 func testVolumeDriver(t *testing.T, requireStaticIP bool) {
@@ -49,6 +49,8 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.ifname = "lo"
+
+	defer cleanupStaticIP(requireStaticIP, driver.ifname, serverIns)
 
 	cluster := "cluster1"
 	taskCounts := 1
@@ -500,4 +502,11 @@ func runlsblk() {
 
 	output, err := command.CombinedOutput()
 	glog.Errorln(args, "output", string(output[:]), "error", err)
+}
+
+func cleanupStaticIP(requireStaticIP bool, ifname string, serverIns *server.LoopServer) {
+	if requireStaticIP {
+		cidrPrefix, _, _, _ := serverIns.GetCidrBlock()
+		delIP(cidrPrefix, ifname)
+	}
 }

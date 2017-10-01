@@ -425,19 +425,8 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 
 		glog.Infoln("deleted member ip, requuid", requuid, vol.member)
 
-		// TODO UnassignStaticIP at Unmount. Currently creating new ip relies on collecting all
-		// existing ips from all network interfaces.
-		//netInterface, err := d.serverIns.GetInstanceNetworkInterface(ctx, d.serverInfo.GetLocalInstanceID())
-		//if err != nil {
-		//	glog.Errorln("GetInstanceNetworkInterface error", err, "requuid", requuid, vol.member)
-		//} else {
-		//	err = d.serverIns.UnassignStaticIP(ctx, netInterface.InterfaceID, vol.member.StaticIP)
-		//	if err != nil {
-		//		glog.Errorln("UnassignStaticIP error", err, "network interface", netInterface.InterfaceID, "requuid", requuid, vol.member)
-		//	}
-		//}
-
-		//glog.Infoln("unassign member ip, network interface", netInterface.InterfaceID, "requuid", requuid, vol.member)
+		// static ip could not be unassigned from the network interface. If unassigned, AWS will
+		// think the ip is available and may assign to the new instance.
 	}
 
 	// last container for the volume, umount fs

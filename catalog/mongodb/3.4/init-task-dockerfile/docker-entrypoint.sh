@@ -30,7 +30,7 @@ then
 fi
 # TODO should fetch ADMIN_PASSWORD from the manage server.
 # On Set-Service-Initialized, the manage server will delete the ADMIN_PASSWORD.
-if [ -z "$ADMIN_USER" ] || [ -z "$ADMIN_PASSWORD" ]
+if [ -z "$ADMIN" ] || [ -z "$ADMIN_PASSWORD" ]
 then
   echo "error: please pass the admin user and password" >&2
   exit 1
@@ -113,13 +113,13 @@ echo "currentMaster: $currentMaster"
 #use admin;
 #db.createUser(
 #  {
-#    user: "${ADMIN_USER}",
+#    user: "${ADMIN}",
 #    pwd: "${ADMIN_PASSWORD}",
 #    roles: [ { role: "root", db: "admin" } ]
 #  }
 #);
 #EOF
-createUser="{ createUser: \"${ADMIN_USER}\", pwd: \"${ADMIN_PASSWORD}\", roles: [ { role: \"root\", db: \"admin\" } ] }"
+createUser="{ createUser: \"${ADMIN}\", pwd: \"${ADMIN_PASSWORD}\", roles: [ { role: \"root\", db: \"admin\" } ] }"
 output=$(mongo --host $currentMaster --eval "JSON.stringify(db.adminCommand($createUser))")
 echo "$output"
 
@@ -141,7 +141,7 @@ then
   exit 2
 fi
 
-echo "admin user $ADMIN_USER created"
+echo "admin user $ADMIN created"
 
 
 # 3) Tell the firecamp manage server to set MongoDB service initialized.

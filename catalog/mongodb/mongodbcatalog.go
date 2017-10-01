@@ -23,8 +23,6 @@ const (
 	InitContainerImage = common.ContainerNamePrefix + "mongodb-init:" + common.Version
 
 	envReplicaSetName = "REPLICA_SET_NAME"
-	envAdminUser      = "ADMIN_USER"
-	envAdminPassword  = "ADMIN_PASSWORD"
 	defaultPort       = int64(27017)
 
 	keyfileName      = "keyfile"
@@ -198,9 +196,9 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string,
 	masterDNS := dns.GenDNSName(utils.GenServiceMemberName(service, 0), domain)
 	kvmaster := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_MASTER, Value: masterDNS}
 
-	kvadminuser := &common.EnvKeyValuePair{Name: envAdminUser, Value: admin}
+	kvadminuser := &common.EnvKeyValuePair{Name: common.ENV_ADMIN, Value: admin}
 	// TODO simply pass the password as env variable. The init task should fetch from the manage server.
-	kvadminpass := &common.EnvKeyValuePair{Name: envAdminPassword, Value: adminPass}
+	kvadminpass := &common.EnvKeyValuePair{Name: common.ENV_ADMIN_PASSWORD, Value: adminPass}
 
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvservice,
 		kvreplSet, kvsvctype, kvmgtserver, kvop, kvmaster, kvadminuser, kvadminpass}
