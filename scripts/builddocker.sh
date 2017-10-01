@@ -188,6 +188,25 @@ BuildCatalogImages() {
   docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
   docker push $image
+
+
+  # build couchdb docker image
+  echo
+  target=$system"-couchdb"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/couchdb/2.1.0/dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
+
+  echo
+  target=$system"-couchdb-init"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/couchdb/2.1.0/init-task-dockerfile/"
+  cp ${TOPWD}/catalog/waitdns.sh ${path}
+  docker build -q -t $image $path
+  rm -f ${path}/waitdns.sh
+  docker push $image
+
 }
 
 if [ "$buildtarget" = "all" ]; then

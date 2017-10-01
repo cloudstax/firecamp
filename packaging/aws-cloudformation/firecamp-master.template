@@ -107,16 +107,16 @@
       "Description": "Enter the number of bastion hosts to create",
       "Type": "String"
     },
-
     "AvailabilityZones": {
-      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved and only 3 AZs are allowed for this deployment.",
+      "Description": "List of Availability Zones to use for the subnets in the VPC. This MUST match the NumberOfAZs. Please use 3 AvailabilityZones for the production system.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
     "NumberOfAZs": {
       "AllowedValues": [
+        "2",
         "3"
       ],
-      "Description": "Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.",
+      "Description": "Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
       "Default": "3",
       "Type": "String"
     },
@@ -226,6 +226,14 @@
     }
   },
   "Conditions": {
+    "2AZCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "NumberOfAZs"
+        },
+        2
+      ]
+    },
     "GovCloudCondition": {
       "Fn::Equals": [
         {
@@ -455,6 +463,14 @@
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
             }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5984",
+            "ToPort": "5984",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
           }
         ]
       }
@@ -526,20 +542,36 @@
             "Ref": "KeyPairName"
           },
           "SubnetIDs": {
-            "Fn::Join": [
-              ",",
-              [
-                "Fn::GetAtt": [
-                  "VPCStack",
-                  "Outputs.PrivateSubnet1AID"
-                ],
-                "Fn::GetAtt": [
-                  "VPCStack",
-                  "Outputs.PrivateSubnet2AID"
-                ],
-                "Fn::GetAtt": [
-                  "VPCStack",
-                  "Outputs.PrivateSubnet3AID"
+            "Fn::If": [
+              "2AZCondition",
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ]
+                ]
+              ],
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet3AID"
+                  ]
                 ]
               ]
             ]

@@ -27,7 +27,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -40,7 +40,7 @@ var (
 	reserveMemMB    = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
-	admin       = flag.String("admin", "dbadmin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
+	admin       = flag.String("admin", "admin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
 	adminPasswd = flag.String("passwd", "changeme", "The DB admin password")
 	tlsEnabled  = flag.Bool("tls-enabled", false, "whether tls is enabled")
 	caFile      = flag.String("ca-file", "", "the ca file")
@@ -92,7 +92,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -170,11 +170,14 @@ func main() {
 			createKafkaService(ctx, cli)
 		case catalog.CatalogService_Redis:
 			createRedisService(ctx, cli)
+		case catalog.CatalogService_CouchDB:
+			createCouchDBService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
 				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
-				catalog.CatalogService_Kafka, catalog.CatalogService_Redis)
+				catalog.CatalogService_Kafka, catalog.CatalogService_Redis,
+				catalog.CatalogService_CouchDB)
 			os.Exit(-1)
 		}
 
@@ -455,6 +458,55 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The service is created, wait for all containers running")
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *volSizeGB == 0 {
+		fmt.Println("please specify the valid volume size")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateCouchDBRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogCouchDBOptions{
+			Replicas:     *replicas,
+			VolumeSizeGB: *volSizeGB,
+			Admin:        *admin,
+			AdminPasswd:  *adminPasswd,
+		},
+	}
+
+	err := cli.CatalogCreateCouchDBService(ctx, req)
+	if err != nil {
+		fmt.Println("create couchdb service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The service is created, wait till it gets initialized")
+
+	initReq := &manage.CatalogCheckServiceInitRequest{
+		ServiceType: catalog.CatalogService_CouchDB,
+		Service:     req.Service,
+		Admin:       *admin,
+		AdminPasswd: *adminPasswd,
+	}
+
+	waitServiceInit(ctx, cli, initReq)
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
