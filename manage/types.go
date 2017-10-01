@@ -23,6 +23,7 @@ const (
 	CatalogCreateZooKeeperOp  = CatalogOpPrefix + "Create-ZooKeeper"
 	CatalogCreateKafkaOp      = CatalogOpPrefix + "Create-Kafka"
 	CatalogCreateRedisOp      = CatalogOpPrefix + "Create-Redis"
+	CatalogCreateCouchDBOp    = CatalogOpPrefix + "Create-CouchDB"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
@@ -256,6 +257,23 @@ type CatalogCreateRedisRequest struct {
 	Resource *common.Resources
 
 	Options *CatalogRedisOptions
+}
+
+// CatalogCouchDBOptions includes the config options for CouchDB.
+type CatalogCouchDBOptions struct {
+	Replicas     int64
+	VolumeSizeGB int64
+
+	// CouchDB admin username and password
+	Admin       string
+	AdminPasswd string
+}
+
+// CatalogCreateCouchDBRequest creates a CouchDB service.
+type CatalogCreateCouchDBRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogCouchDBOptions
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
@@ -35,6 +36,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createKafkaService(ctx, r, requuid)
 	case manage.CatalogCreateRedisOp:
 		return s.createRedisService(ctx, r, requuid)
+	case manage.CatalogCreateCouchDBOp:
+		return s.createCouchDBService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -134,6 +137,9 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 					return manage.ConvertToHTTPError(err)
 				}
+
+			case catalog.CatalogService_CouchDB:
+				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -392,6 +398,61 @@ func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Ser
 	return nil
 }
 
+func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateCouchDBRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateCouchDBRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateCouchDBRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = couchdbcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("CatalogCreateCouchDBRequest parameters are not valid, requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// add the init task
+	s.addCouchDBInitTask(ctx, crReq.Service, serviceUUID, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
+
+	glog.Infoln("created CouchDB service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
+	serviceUUID string, replicas int64, admin string, adminPass string, requuid string) {
+	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	taskOpts := couchdbcatalog.GenDefaultInitTaskRequest(req, logCfg, s.azs, serviceUUID, replicas, s.manageurl, admin, adminPass)
+
+	task := &serviceTask{
+		serviceUUID: serviceUUID,
+		serviceName: req.ServiceName,
+		serviceType: catalog.CatalogService_CouchDB,
+		opts:        taskOpts,
+	}
+
+	s.catalogSvcInit.addInitTask(ctx, task)
+
+	glog.Infoln("add init task for CouchDB service", serviceUUID, "requuid", requuid, req)
+}
+
 func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateCassandraRequest{}
@@ -463,6 +524,11 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 	case catalog.CatalogService_Cassandra:
 		// simply set service initialized
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+
+	case catalog.CatalogService_CouchDB:
+		// simply set service initialized
+		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
 	// other services do not require the init task.

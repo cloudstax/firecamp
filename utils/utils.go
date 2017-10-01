@@ -47,12 +47,14 @@ func GenMD5(content string) string {
 	return hex.EncodeToString(data[:])
 }
 
+// GenUUID returns a 32 bytes uuid string
 func GenUUID() string {
 	u, err := uuid.NewV4()
 	if err != nil {
 		// uuid gen error, switch to use timestamp
 		glog.Errorln("uuid.NewV4 error", err)
-		return "time-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+		tmstr := strconv.FormatInt(time.Now().UnixNano(), 10)
+		return GenMD5(tmstr)
 	}
 	return hex.EncodeToString(u[:])
 }
