@@ -20,7 +20,7 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 
 **Cross Clouds**: Currently support Amazon Web Services. Will support Google Cloud, Microsoft Azure Cloud, Private and Hybrid Cloud in the future.
 
-**Easy Deploy**: FireCamp's Catalog service integrates the stateful services. The customer could simply call a single command to deploy a stateful service, such as a MongoDB ReplicaSet.
+**One Click Deploy**: FireCamp's Catalog service integrates the stateful services. The customer could simply call a single command to deploy a stateful service, such as a MongoDB ReplicaSet.
 
 **Fast and Auto Failover**: FireCamp binds the data volume and membership with the container. When a node crashes, the container orchestration frameworks will reschedule the container to another node. FireCamp will automatically move the data volume and the membership. There is no data copy involved during the failover.
 
@@ -53,6 +53,7 @@ The FireCamp cluster could be easily installed using AWS CloudFormation for AWS 
 * [ZooKeeper](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper)
 * [Kafka](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka)
 * [Redis](https://github.com/cloudstax/firecamp/tree/master/catalog/redis)
+* [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
 * MySQL: coming soon.
 * ElasticSearch: coming soon.
 
