@@ -40,8 +40,6 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createCouchDBService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
-	case manage.CatalogSetRedisInitOp:
-		return s.catalogSetRedisInit(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -522,12 +520,14 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 		return s.setMongoDBInit(ctx, req, requuid)
 
 	case catalog.CatalogService_Cassandra:
-		// simply set service initialized
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
+	case catalog.CatalogService_Redis:
+		glog.Infoln("set redis service initialized, requuid", requuid, req)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+
 	case catalog.CatalogService_CouchDB:
-		// simply set service initialized
 		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
@@ -668,131 +668,5 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
 	}
 
-	return nil
-}
-
-func (s *ManageHTTPServer) catalogSetRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
-	// parse the request
-	req := &manage.CatalogSetRedisInitRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	if req.Cluster != s.cluster || req.Region != s.region {
-		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Cluster, req.Region)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	glog.Infoln("setRedisInit", req.ServiceName, "first node id mapping",
-		req.NodeIds[0], "total", len(req.NodeIds), "requuid", requuid)
-
-	// get service uuid
-	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService", req.ServiceName, "error", err, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	// get service attr
-	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
-	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	// list all serviceMembers
-	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
-
-	// update the init task status message
-	statusMsg := "create the member to Redis nodeID mapping for the Redis cluster"
-	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
-
-	// gengerate cluster info config file
-	cfg := rediscatalog.CreateClusterInfoFile(req.NodeIds)
-
-	// create the cluster.info file for every member
-	for _, member := range members {
-		err = s.createRedisClusterFile(ctx, member, cfg, requuid)
-		if err != nil {
-			glog.Errorln("createRedisClusterFile error", err, "requuid", requuid, member)
-			return manage.ConvertToHTTPError(err)
-		}
-	}
-
-	// the cluster config file is created for all members, restart all containers
-	glog.Infoln("the cluster file created for all members, restart all containers, requuid", requuid, req.ServiceName)
-
-	// update the init task status message
-	statusMsg = "restarting all containers"
-	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
-
-	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
-	if err != nil {
-		glog.Errorln("RestartService error", err, "requuid", requuid, req.ServiceName)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	// set service initialized
-	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req.ServiceName)
-
-	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
-}
-
-func (s *ManageHTTPServer) createRedisClusterFile(ctx context.Context,
-	member *common.ServiceMember, cfg *manage.ReplicaConfigFile, requuid string) error {
-
-	// check if member has the cluster info file, as failure could happen at any time and init task will be retried.
-	for _, c := range member.Configs {
-		if rediscatalog.IsClusterInfoFile(c.FileName) {
-			chksum := utils.GenMD5(cfg.Content)
-			if c.FileMD5 != chksum {
-				// this is an unknown internal error. the cluster info content should be the same between retries.
-				glog.Errorln("Redis cluster file exist but content not match, new content", cfg.Content, chksum,
-					"existing config", c, "requuid", requuid, member)
-				return common.ErrConfigMismatch
-			}
-
-			glog.Infoln("Redis cluster file is already created for member", member.MemberName,
-				"service", member.ServiceUUID, "requuid", requuid)
-			return nil
-		}
-	}
-
-	// the cluster info file not exist, create it
-	version := int64(0)
-	fileID := utils.GenMemberConfigFileID(member.MemberName, cfg.FileName, version)
-	initcfgfile := db.CreateInitialConfigFile(member.ServiceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
-	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
-	if err != nil {
-		glog.Errorln("createConfigFile error", err, "fileID", fileID,
-			"service", member.ServiceUUID, "member", member.MemberName, "requuid", requuid)
-		return err
-	}
-
-	glog.Infoln("created the Redis cluster config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-
-	// add the new config file to ServiceMember
-	config := &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
-
-	newConfigs := db.CopyMemberConfigs(member.Configs)
-	newConfigs = append(newConfigs, config)
-
-	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
-	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-	if err != nil {
-		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return err
-	}
-
-	glog.Infoln("added the cluster config to service member", member.MemberName, member.ServiceUUID, "requuid", requuid)
 	return nil
 }

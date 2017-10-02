@@ -29,8 +29,7 @@ const (
 	defaultSlaveClientOutputBufferMB = 512
 	shardName                        = "shard"
 
-	redisConfFileName        = "redis.conf"
-	redisClusterInfoFileName = "cluster.info"
+	redisConfFileName = "redis.conf"
 
 	maxMemPolicyVolatileLRU    = "volatile-lru"
 	maxMemPolicyAllKeysLRU     = "allkeys-lru"
@@ -210,11 +209,6 @@ func genServiceShardMemberName(serviceName string, shard int64, replicasInShard 
 	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
 }
 
-// IsClusterInfoFile checks if the file is the cluster info file
-func IsClusterInfoFile(filename string) bool {
-	return filename == redisClusterInfoFileName
-}
-
 // IsClusterMode checks if the service is created with the cluster mode.
 func IsClusterMode(shards int64) bool {
 	return shards >= minClusterShards
@@ -263,8 +257,9 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_Redis}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetRedisInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
 
 	domain := dns.GenDefaultDomainName(cluster)
 
@@ -299,22 +294,9 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvmasters := &common.EnvKeyValuePair{Name: envMasters, Value: masters}
 	kvslaves := &common.EnvKeyValuePair{Name: envSlaves, Value: slaves}
 
-	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice,
+	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
 		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
 	return envkvs
-}
-
-// CreateClusterInfoFile returns the ReplicaConfigFile for the cluster.info file.
-func CreateClusterInfoFile(nodeIDs []string) *manage.ReplicaConfigFile {
-	content := ""
-	for _, node := range nodeIDs {
-		content += fmt.Sprintf("%s\n", node)
-	}
-	return &manage.ReplicaConfigFile{
-		FileName: redisClusterInfoFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
 }
 
 const (

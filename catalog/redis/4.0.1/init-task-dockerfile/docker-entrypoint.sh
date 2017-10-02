@@ -19,8 +19,9 @@
 #export CLUSTER="c1"
 #export MANAGE_SERVER_URL="firecamp-manageserver.c1-firecamp.com:27040"
 #export SERVICE_NAME="myredis"
+#export SERVICE_TYPE="redis"
 #export SERVICE_PORT="6379"
-#export OP="Catalog-Set-Redis-Init"
+#export OP="Catalog-Set-Service-Init"
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
@@ -30,7 +31,7 @@
 # The service slaves should be myredis-shard0-1.c1-penmanage.com,myredis-shard1-1.c1-firecamp.com,myredis-shard2-1.c1-firecamp.com
 
 # check the environment parameters
-if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$MANAGE_SERVER_URL" -o -z "$SERVICE_NAME" -o -z "$SERVICE_PORT" -o -z "$OP" ]
+if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$MANAGE_SERVER_URL" -o -z "$SERVICE_NAME" -o -z "$SERVICE_TYPE" -o -z "$SERVICE_PORT" -o -z "$OP" ]
 then
   echo "error: please pass all required environment variables"
   exit 1
@@ -98,29 +99,6 @@ AddSlaveNodes() {
 }
 
 SetServiceInit() {
-  # get the node to redis id mapping
-  nodeids=""
-  for m in "${masters[@]}"
-  do
-    id=$(/redis-cli -h $m cluster nodes | grep "myself" | awk '{ print $1 }')
-    if [ "$nodeids" = "" ]; then
-      nodeids="\"$m $id master\""
-    else
-      nodeids="$nodeids, \"$m $id master\""
-    fi
-  done
-
-  for m in "${slaves[@]}"
-  do
-    myrole=$(/redis-cli -h $m cluster nodes | grep "myself")
-    id=$(echo "$myrole" | awk '{ print $1 }')
-    master=$(echo "$myrole" | awk '{ print $4 }')
-    nodeids="$nodeids, \"$m $id slave $master\""
-  done
-
-  echo "$nodeids"
-
-  # 4) Tell the firecamp manage server to set service initialized.
   # set service initialized
   echo "set service initialized"
 
@@ -131,12 +109,9 @@ SetServiceInit() {
   "Region": "$REGION",
   "Cluster": "$CLUSTER",
   "ServiceName": "$SERVICE_NAME",
-  "NodeIds": [$nodeids]
+  "ServiceType": "$SERVICE_TYPE",
 }
 EOF
-
-  # sleep some time for the server to restart all containers
-  sleep 20
 }
 
 # wait till all nodes' DNS are ready

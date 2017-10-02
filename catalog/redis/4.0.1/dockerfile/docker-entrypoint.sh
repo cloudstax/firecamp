@@ -6,7 +6,6 @@ datadir=/data/redis
 confdir=/data/conf
 cfgfile=$confdir/redis.conf
 syscfgfile=$confdir/sys.conf
-clustercfgfile=$confdir/cluster.info
 redisnodefile=$rootdir/redis-node.conf
 
 REDIS_USER=redis
