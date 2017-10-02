@@ -21,7 +21,7 @@ import (
 const (
 	// ContainerImage is the main running container.
 	ContainerImage = common.ContainerNamePrefix + "couchdb:" + common.Version
-	// InitContainerImage initializes the Redis cluster.
+	// InitContainerImage initializes the couchdb cluster.
 	InitContainerImage = common.ContainerNamePrefix + "couchdb-init:" + common.Version
 
 	// the application access port
@@ -42,14 +42,30 @@ const (
 	passwdSha1OutputLen = 20
 	passwdIter          = 10
 
-	vmArgsConfFileName   = "vm.args"
-	localIniConfFileName = "local.ini"
+	vmArgsConfFileName     = "vm.args"
+	localIniConfFileName   = "local.ini"
+	privateKeyConfFileName = "privkey.pem"
+	certConfFileName       = "couchdb.pem"
+	caCertConfFileName     = "ca-certificates.crt"
 )
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
 	if r.Options.Replicas == 2 {
-		return errors.New("Invalid replicas, please create 1, 3 or more replicas")
+		return errors.New("invalid replicas, please create 1, 3 or more replicas")
+	}
+	if r.Options.EnableCors {
+		if r.Options.Credentials && r.Options.Origins == "*" {
+			return errors.New("can't set origins: * and credentials = true at the same time")
+		}
+		if len(r.Options.Origins) == 0 || len(r.Options.Headers) == 0 || len(r.Options.Methods) == 0 {
+			return errors.New("cors is enabled, please set the origins, headers and methods")
+		}
+	}
+	if r.Options.EnableSSL {
+		if len(r.Options.CertFileContent) == 0 || len(r.Options.KeyFileContent) == 0 {
+			return errors.New("ssl is enabled, please set the valid cert and key files")
+		}
 	}
 	return nil
 }
@@ -62,6 +78,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: httpPort, HostPort: httpPort},
+		{ContainerPort: sslPort, HostPort: sslPort},
 	}
 	if opts.Replicas != int64(1) {
 		m := common.PortMapping{ContainerPort: localPort, HostPort: localPort}
@@ -134,7 +151,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		az := azs[azIndex]
 
 		// create the local.ini file
-		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member, opts.Admin, encryptPasswd(opts.AdminPasswd))
+		enableCors := "false"
+		if opts.EnableCors {
+			enableCors = "true"
+		}
+		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member, enableCors, opts.Admin, encryptPasswd(opts.AdminPasswd))
+
+		// set cluster configs
 		if opts.Replicas >= int64(3) {
 			placement := ""
 			if len(azs) == 1 {
@@ -151,6 +174,26 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			couchContent += clusterContent
 		}
 
+		// set cors configs
+		if opts.EnableCors {
+			cred := "false"
+			if opts.Credentials {
+				cred = "true"
+			}
+			corsContent := fmt.Sprintf(corsConfigs, cred, opts.Origins, opts.Headers, opts.Methods)
+			couchContent += corsContent
+		}
+
+		// set ssl configs
+		if opts.EnableSSL {
+			cafileContent := ""
+			if len(opts.CACertFileContent) != 0 {
+				cafileContent = cacertConfig
+			}
+			sslContent := fmt.Sprintf(sslConfigs, cafileContent)
+			couchContent += sslContent
+		}
+
 		couchCfg := &manage.ReplicaConfigFile{
 			FileName: localIniConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -158,6 +201,31 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, vmArgsCfg, couchCfg}
+
+		// add ssl config files
+		if opts.EnableSSL {
+			certCfg := &manage.ReplicaConfigFile{
+				FileName: certConfFileName,
+				FileMode: common.DefaultConfigFileMode,
+				Content:  opts.CertFileContent,
+			}
+			keyCfg := &manage.ReplicaConfigFile{
+				FileName: privateKeyConfFileName,
+				FileMode: common.DefaultConfigFileMode,
+				Content:  opts.KeyFileContent,
+			}
+			configs = append(configs, certCfg, keyCfg)
+
+			if len(opts.CACertFileContent) != 0 {
+				caCfg := &manage.ReplicaConfigFile{
+					FileName: caCertConfFileName,
+					FileMode: common.DefaultConfigFileMode,
+					Content:  opts.CACertFileContent,
+				}
+				configs = append(configs, caCfg)
+			}
+		}
+
 		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -292,6 +360,7 @@ require_valid_user = true
 [httpd]
 port = 5986
 bind_address = 0.0.0.0
+enable_cors = %s
 
 WWW-Authenticate = Basic realm="administrator"
 
@@ -312,5 +381,30 @@ w=%d
 n=3
 placement = %s
 ; placement = metro-dc-a:2,metro-dc-b:1
+`
+
+	corsConfigs = `
+[cors]
+credentials = %s
+; List of origins separated by a comma, * means accept all
+; Origins must include the scheme: http://example.com
+; You can't set origins: * and credentials = true at the same time.
+origins = %s
+; List of accepted headers separated by a comma
+headers = %s
+; List of accepted methods
+methods = %s
+`
+
+	cacertConfig = "cacert_file = /data/conf/ca-certificates.crt"
+
+	sslConfigs = `
+[daemons]
+httpsd = {couch_httpd, start_link, [https]}
+
+[ssl]
+cert_file = /data/conf/couchdb.pem
+key_file = /data/conf/privkey.pem
+%s
 `
 )

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -64,6 +65,17 @@ var (
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
 	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", "noeviction", "The Redis eviction policy when the memory limit is reached")
 	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
+
+	// The couchdb service creation specific parameters.
+	couchdbEnableCors = flag.Bool("couchdb-enable-cors", false, "Whether enable CouchDB Cors")
+	couchdbEnableCred = flag.Bool("couchdb-enable-cred", false, "Whether enable credential support for CouchDB Cors")
+	couchdbOrigins    = flag.String("couchdb-origins", "*", "CouchDB Cors origins")
+	couchdbHeaders    = flag.String("couchdb-headers", "", "CouchDB Cors accpeted headers")
+	couchdbMethods    = flag.String("couchdb-methods", "GET", "CouchDB Cors accepted methods")
+	couchdbEnableSSL  = flag.Bool("couchdb-enable-ssl", false, "Whether enable CouchDB SSL")
+	couchdbCertFile   = flag.String("couchdb-cert-file", "", "The CouchDB cert file")
+	couchdbKeyFile    = flag.String("couchdb-key-file", "", "The CouchDB key file")
+	couchdbCACertFile = flag.String("couchdb-cacert-file", "", "The CouchDB cacert file")
 
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
@@ -489,6 +501,42 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 			Admin:        *admin,
 			AdminPasswd:  *adminPasswd,
 		},
+	}
+
+	if *couchdbEnableCors {
+		req.Options.EnableCors = *couchdbEnableCors
+		req.Options.Credentials = *couchdbEnableCred
+		req.Options.Origins = *couchdbOrigins
+		req.Options.Headers = *couchdbHeaders
+		req.Options.Methods = *couchdbMethods
+	}
+
+	if *couchdbEnableSSL {
+		req.Options.EnableSSL = true
+
+		// load the content of the ssl files
+		certBytes, err := ioutil.ReadFile(*couchdbCertFile)
+		if err != nil {
+			fmt.Println("read cert file error", err, *couchdbCertFile)
+			os.Exit(-1)
+		}
+		req.Options.CertFileContent = string(certBytes)
+
+		keyBytes, err := ioutil.ReadFile(*couchdbKeyFile)
+		if err != nil {
+			fmt.Println("read key file error", err, *couchdbKeyFile)
+			os.Exit(-1)
+		}
+		req.Options.KeyFileContent = string(keyBytes)
+
+		if len(*couchdbCACertFile) != 0 {
+			caBytes, err := ioutil.ReadFile(*couchdbCACertFile)
+			if err != nil {
+				fmt.Println("read ca cert file error", err, *couchdbCACertFile)
+				os.Exit(-1)
+			}
+			req.Options.CACertFileContent = string(caBytes)
+		}
 	}
 
 	err := cli.CatalogCreateCouchDBService(ctx, req)

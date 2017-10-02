@@ -266,6 +266,19 @@ type CatalogCouchDBOptions struct {
 	// CouchDB admin username and password
 	Admin       string
 	AdminPasswd string
+
+	// CouchDB Cors configs
+	EnableCors  bool
+	Credentials bool
+	Origins     string
+	Headers     string
+	Methods     string
+
+	// CouchDB SSL configs
+	EnableSSL         bool
+	CertFileContent   string
+	KeyFileContent    string
+	CACertFileContent string
 }
 
 // CatalogCreateCouchDBRequest creates a CouchDB service.
