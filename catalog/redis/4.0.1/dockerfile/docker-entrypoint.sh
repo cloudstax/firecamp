@@ -69,7 +69,7 @@ echo $SERVICE_MEMBER
 # check service member dns name again. if lookup fails, the script will exit.
 host $SERVICE_MEMBER
 
-if [ -f "$clustercfgfile" ]; then
+if [ -f "$clustercfgfile" -a "$PLATFORM" = "swarm" ]; then
   # cluster is already initialized, check and update the master's address
   /redis-node.sh $clustercfgfile $redisnodefile
   if [ "$?" != "0" ]; then
