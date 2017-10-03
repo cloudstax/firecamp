@@ -42,7 +42,7 @@ var (
 
 	// security parameters
 	admin       = flag.String("admin", "admin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
-	adminPasswd = flag.String("passwd", "changeme", "The DB admin password")
+	adminPasswd = flag.String("password", "changeme", "The DB admin password")
 	tlsEnabled  = flag.Bool("tls-enabled", false, "whether tls is enabled")
 	caFile      = flag.String("ca-file", "", "the ca file")
 	certFile    = flag.String("cert-file", "", "the cert file")
@@ -460,8 +460,10 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
-			ServiceType:      catalog.CatalogService_Redis,
-			Service:          req.Service,
+			ServiceType: catalog.CatalogService_Redis,
+			Service:     req.Service,
+			// TODO simply reuse AdminPasswd to pass authPass.
+			AdminPasswd:      *redisAuthPass,
 			Shards:           *redisShards,
 			ReplicasPerShard: *redisReplicasPerShard,
 		}

@@ -37,7 +37,7 @@ If you are using Redis as cache, you could disable AOF when creating the Redis s
 
 ## Security
 
-By default, AUTH is enabled. The clients MUST issue AUTH <PASSWORD> before processing any other commands. If you are sure you don't want the AUTH, could disable it when creating the service.
+Redis AUTH is supported. To enable AUTH, please set "redis-auth-pass" with the password when creating the service. If AUTH is enabled, the clients MUST issue AUTH <PASSWORD> before processing any other commands. If you don't want to enable AUTH, simply don't set "redis-auth-pass" when creating the service.
 
 The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (remove all keys from all databases), FLUSHDB (similar, but from the current database), and SHUTDOWN, are disabled. The CONFIG (reconfiguring server at runtime) command could be renamed when creating the service. It might be useful at some conditions. For example, if you hit latency issue, could enable latency monitor, "CONFIG SET latency-monitor-threshold <milliseconds>", to collect data. Setting the new name to the empty string will disable the CONFIG command.
 
@@ -46,6 +46,8 @@ The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (r
 [**Memory size**](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/CacheNodes.SelectSize.html#CacheNodes.SelectSize.Redis): if you estimate that the total size of all your items to be 12 GB in a 3 shards Redis cluster, each shard will serve 4GB data. The Redis replication buffer is set as 512MB, plus 1GB reserved for OS. The Redis node should have at least 5.5GB memory. When Redis persists the memory data to disk, it may take upto 4GB memory to serve the coming writes during the data persistence. If your application is write heavy, you should double the per node Redis memory to at least 8GB, so the node memory is at least 9.5GB.
 
 The max memory size should always be set when creating the Redis service. If not set, Redis will allocate memory as long as OS allows. This may cause memory got swapped and slow down Redis unexpectedly.
+
+When you set the max memory size via the firecamp-service-cli, the memory size is the max memory size for the Redis container. The 512MB Redis replication buffer is included, and 128MB is reserved for the possible container usage. 128MB is just a random number to reserve enough memory. So if you set the max memory size as 4096MB for the Redis service, one Redis container will have 4096-512-128=3456MB memory as the actual Redis cache.
 
 **Storage size**: If AOF is disabled, the storage size could be twice of the memory size. With AOF enabled, much more storage is required. For the [standard usage scenarios](https://redislabs.com/redis-enterprise-documentation/installing-and-upgrading/hardware-software-requirements), Redis enterprise version (Redis Pack) recommends the storage size to be 6x of node's RAM size. And even more storage is required for the [heavy write scenarios](https://redislabs.com/redis-enterprise-documentation/cluster-administration/best-practices/disk-sizing-heavy-write-scenarios/).
 
@@ -71,3 +73,5 @@ Refs:
 [1]. [Redis Enterprise Doc](https://redislabs.com/resources/documentation/redis-pack-documentation/)
 
 [2]. [AWS ElastiCache Best Practices](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/BestPractices.html)
+
+[3]. [Redis Security](https://redis.io/topics/security)

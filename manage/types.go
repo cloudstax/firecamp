@@ -26,6 +26,7 @@ const (
 	CatalogCreateCouchDBOp    = CatalogOpPrefix + "Create-CouchDB"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
+	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -317,6 +318,17 @@ type CatalogSetServiceInitRequest struct {
 	Cluster     string
 	ServiceName string
 	ServiceType string
+}
+
+// CatalogSetRedisInitRequest sets the redis service initialized.
+// This is an internal request sent from the service's init task.
+// It should not be called directly by the application.
+type CatalogSetRedisInitRequest struct {
+	Region      string
+	Cluster     string
+	ServiceName string
+	// whether redis auth pass is enabled
+	EnableAuth bool
 }
 
 // The internal requests from the plugin to the manage server.

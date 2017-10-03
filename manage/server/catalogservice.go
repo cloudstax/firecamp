@@ -40,6 +40,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createCouchDBService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
+	case manage.CatalogSetRedisInitOp:
+		return s.setRedisInit(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -130,7 +132,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				initialized = true
 
 			case catalog.CatalogService_Redis:
-				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, req.Shards, req.ReplicasPerShard, requuid)
+				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, req.Shards, req.ReplicasPerShard, req.AdminPasswd, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 					return manage.ConvertToHTTPError(err)
@@ -360,7 +362,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 		glog.Infoln("The cluster mode Redis is created, add the init task, requuid", requuid, req.Service, req.Options)
 
 		// for Redis cluster mode, run the init task in the background
-		err = s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
+		err = s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, req.Options.AuthPass, requuid)
 		if err != nil {
 			glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 			return manage.ConvertToHTTPError(err)
@@ -376,9 +378,15 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 }
 
 func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, shards int64, replicasPerShard int64, requuid string) error {
+	serviceUUID string, shards int64, replicasPerShard int64, authPass string, requuid string) error {
+	enableAuth := false
+	if len(authPass) != 0 {
+		enableAuth = true
+	}
+
 	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts, err := rediscatalog.GenDefaultInitTaskRequest(req, shards, replicasPerShard, logCfg, serviceUUID, s.manageurl)
+
+	taskOpts, err := rediscatalog.GenDefaultInitTaskRequest(req, logCfg, shards, replicasPerShard, enableAuth, serviceUUID, s.manageurl)
 	if err != nil {
 		return err
 	}
@@ -523,10 +531,6 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
-	case catalog.CatalogService_Redis:
-		glog.Infoln("set redis service initialized, requuid", requuid, req)
-		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
-
 	case catalog.CatalogService_CouchDB:
 		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
@@ -623,6 +627,161 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 
 	// auth is not enabled, enable it
 	newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
+
+	// create a new config file
+	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
+		return err
+	}
+
+	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
+	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
+
+	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		return err
+	}
+
+	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
+
+	// update serviceMember to point to the new config file
+	newConfigs := db.CopyMemberConfigs(member.Configs)
+	newConfigs[cfgIndex].FileID = newcfgfile.FileID
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
+
+	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+	if err != nil {
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+		return err
+	}
+
+	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//			for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
+	} else {
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
+	}
+
+	return nil
+}
+
+func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogSetRedisInitRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Cluster != s.cluster || req.Region != s.region {
+		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if !req.EnableAuth {
+		glog.Infoln("redis auth is not enabled, directly set service initialized, requuid", requuid, req)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+	}
+
+	glog.Infoln("redis auth is enabled, update the redis config file, requuid", requuid, req)
+
+	// get service uuid
+	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService", req, "error", err, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// get service attr
+	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// list all serviceMembers
+	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
+
+	// update the init task status message
+	statusMsg := "enabling auth"
+	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
+
+	// update the replica (serviceMember) redis.conf file
+	for _, member := range members {
+		for i, cfg := range member.Configs {
+			if !rediscatalog.IsRedisConfFile(cfg.FileName) {
+				glog.V(5).Infoln("not redis.conf file, skip the config, requuid", requuid, cfg)
+				continue
+			}
+
+			glog.Infoln("enable auth on redis.conf, requuid", requuid, cfg)
+
+			err = s.enableRedisAuth(ctx, cfg, i, member, requuid)
+			if err != nil {
+				glog.Errorln("enableRedisAuth error", err, "requuid", requuid, cfg, member)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			glog.Infoln("enabled auth for replia, requuid", requuid, member)
+			break
+		}
+	}
+
+	// the config files of all replicas are updated, restart all containers
+	glog.Infoln("all replicas are updated, restart all containers, requuid", requuid, req)
+
+	// update the init task status message
+	statusMsg = "restarting all containers"
+	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
+
+	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	if err != nil {
+		glog.Errorln("RestartService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// set service initialized
+	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
+
+	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+}
+
+// TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.
+func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context,
+	cfg *common.MemberConfig, cfgIndex int, member *common.ServiceMember, requuid string) error {
+	// fetch the config file
+	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+		return err
+	}
+
+	// if auth is enabled, return
+	if rediscatalog.IsAuthEnabled(cfgfile.Content) {
+		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+		return nil
+	}
+
+	// auth is not enabled, enable it
+	newContent := rediscatalog.EnableRedisAuth(cfgfile.Content)
 
 	// create a new config file
 	version, err := utils.GetConfigFileVersion(cfgfile.FileID)

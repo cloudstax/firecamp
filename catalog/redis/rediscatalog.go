@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -27,6 +28,7 @@ const (
 	invalidShards                    = 2
 	minReplTimeoutSecs               = 60
 	defaultSlaveClientOutputBufferMB = 512
+	reservedMemoryMB                 = 128
 	shardName                        = "shard"
 
 	redisConfFileName = "redis.conf"
@@ -44,6 +46,7 @@ const (
 	envReplicasPerShard = "REPLICAS_PERSHARD"
 	envMasters          = "REDIS_MASTERS"
 	envSlaves           = "REDIS_SLAVES"
+	envAuth             = "REDIS_AUTH"
 )
 
 // The default Redis catalog service. By default,
@@ -65,8 +68,8 @@ func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
 	if maxMemMB == common.DefaultMaxMemoryMB {
 		return errors.New("Please specify the max memory")
 	}
-	if opts.Shards != 1 && maxMemMB <= defaultSlaveClientOutputBufferMB {
-		return fmt.Errorf("For Redis cluster mode, please specify at least %d MB memory", defaultSlaveClientOutputBufferMB)
+	if opts.Shards != 1 && maxMemMB <= (defaultSlaveClientOutputBufferMB+reservedMemoryMB) {
+		return fmt.Errorf("For Redis cluster mode, please specify at least %d MB memory", (defaultSlaveClientOutputBufferMB + reservedMemoryMB))
 	}
 
 	switch opts.MaxMemPolicy {
@@ -141,7 +144,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	if len(maxMemPolicy) == 0 {
 		maxMemPolicy = maxMemPolicyNoEviction
 	}
-	redisMaxMemBytes := maxMemMB * 1024 * 1024
+	redisMaxMemBytes := (maxMemMB - reservedMemoryMB) * 1024 * 1024
 	if opts.ReplicasPerShard != 1 {
 		// replication mode needs to reserve some memory for the output buffer to slave
 		redisMaxMemBytes -= defaultSlaveClientOutputBufferMB * 1024 * 1024
@@ -214,16 +217,39 @@ func IsClusterMode(shards int64) bool {
 	return shards >= minClusterShards
 }
 
+// IsRedisConfFile checks if the file is redis.conf
+func IsRedisConfFile(filename string) bool {
+	return filename == redisConfFileName
+}
+
+// IsAuthEnabled checks if auth is already enabled.
+func IsAuthEnabled(content string) bool {
+	authIdx := strings.Index(content, "requirepass")
+	authDisabledIdx := strings.Index(content, "#requirepass")
+	if authIdx != -1 && authDisabledIdx != -1 {
+		// if requirepass is configured but not enabled, return false
+		return false
+	}
+	// if requirepass is not configured or enabled, return true
+	return true
+}
+
+// EnableRedisAuth enables the Redis access authentication, after cluster is initialized.
+func EnableRedisAuth(content string) string {
+	content = strings.Replace(content, "#requirepass", "requirepass", 1)
+	return strings.Replace(content, "#masterauth", "masterauth", 1)
+}
+
 // GenDefaultInitTaskRequest returns the default service init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, shards int64, replicasPerShard int64,
-	logConfig *cloudlog.LogConfig, serviceUUID string, manageurl string) (*containersvc.RunTaskOptions, error) {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
+	shards int64, replicasPerShard int64, enableAuth bool, serviceUUID string, manageurl string) (*containersvc.RunTaskOptions, error) {
 
 	// sanity check
 	if !IsClusterMode(shards) {
 		return nil, fmt.Errorf("redis service is not cluster mode, shards %d", shards)
 	}
 
-	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard)
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard, enableAuth)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,
@@ -251,7 +277,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, shards int64, r
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.
 // The init task is only required for the Redis cluster mode.
 func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
-	service string, shards int64, replicasPerShard int64) []*common.EnvKeyValuePair {
+	service string, shards int64, replicasPerShard int64, enableAuth bool) []*common.EnvKeyValuePair {
 
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
@@ -259,7 +285,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_Redis}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetRedisInitOp}
 
 	domain := dns.GenDefaultDomainName(cluster)
 
@@ -294,8 +320,14 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvmasters := &common.EnvKeyValuePair{Name: envMasters, Value: masters}
 	kvslaves := &common.EnvKeyValuePair{Name: envSlaves, Value: slaves}
 
+	auth := "false"
+	if enableAuth {
+		auth = "true"
+	}
+	kvauth := &common.EnvKeyValuePair{Name: envAuth, Value: auth}
+
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
-		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
+		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves, kvauth}
 	return envkvs
 }
 
@@ -335,8 +367,8 @@ rename-command CONFIG "%s"
 `
 
 	authConfig = `
-requirepass %s
-masterauth %s
+#requirepass %s
+#masterauth %s
 `
 
 	aofConfigs = `
