@@ -54,6 +54,7 @@ RUN set -x \
   && rm -rf /var/lib/apt/lists/*
 
 COPY waitdns.sh /
+COPY redis-node.sh /
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
 

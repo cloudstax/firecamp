@@ -31,7 +31,8 @@ const (
 	reservedMemoryMB                 = 128
 	shardName                        = "shard"
 
-	redisConfFileName = "redis.conf"
+	redisConfFileName        = "redis.conf"
+	redisClusterInfoFileName = "cluster.info"
 
 	maxMemPolicyVolatileLRU    = "volatile-lru"
 	maxMemPolicyAllKeysLRU     = "allkeys-lru"
@@ -212,6 +213,11 @@ func genServiceShardMemberName(serviceName string, shard int64, replicasInShard 
 	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
 }
 
+// IsClusterInfoFile checks if the file is the cluster info file
+func IsClusterInfoFile(filename string) bool {
+	return filename == redisClusterInfoFileName
+}
+
 // IsClusterMode checks if the service is created with the cluster mode.
 func IsClusterMode(shards int64) bool {
 	return shards >= minClusterShards
@@ -329,6 +335,19 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
 		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves, kvauth}
 	return envkvs
+}
+
+// CreateClusterInfoFile returns the ReplicaConfigFile for the cluster.info file.
+func CreateClusterInfoFile(nodeIDs []string) *manage.ReplicaConfigFile {
+	content := ""
+	for _, node := range nodeIDs {
+		content += fmt.Sprintf("%s\n", node)
+	}
+	return &manage.ReplicaConfigFile{
+		FileName: redisClusterInfoFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
 }
 
 const (

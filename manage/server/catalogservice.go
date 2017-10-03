@@ -690,12 +690,7 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if !req.EnableAuth {
-		glog.Infoln("redis auth is not enabled, directly set service initialized, requuid", requuid, req)
-		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
-	}
-
-	glog.Infoln("redis auth is enabled, update the redis config file, requuid", requuid, req)
+	glog.Infoln("setRedisInit", req.ServiceName, "first node id mapping", req.NodeIds[0], "total", len(req.NodeIds), "requuid", requuid)
 
 	// get service uuid
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
@@ -721,26 +716,40 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
 
 	// update the init task status message
-	statusMsg := "enabling auth"
+	statusMsg := "create the member to Redis nodeID mapping for the Redis cluster"
 	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
 
-	// update the replica (serviceMember) redis.conf file
+	// gengerate cluster info config file
+	clusterInfoCfg := rediscatalog.CreateClusterInfoFile(req.NodeIds)
+
+	// create the cluster.info file for every member
 	for _, member := range members {
-		for i, cfg := range member.Configs {
+		newMember, err := s.createRedisClusterFile(ctx, member, clusterInfoCfg, requuid)
+		if err != nil {
+			glog.Errorln("updateRedisConfigs error", err, "requuid", requuid, member)
+			return manage.ConvertToHTTPError(err)
+		}
+
+		if !req.EnableAuth {
+			continue
+		}
+
+		// enable auth in redis.conf file
+		for i, cfg := range newMember.Configs {
 			if !rediscatalog.IsRedisConfFile(cfg.FileName) {
 				glog.V(5).Infoln("not redis.conf file, skip the config, requuid", requuid, cfg)
 				continue
 			}
 
-			glog.Infoln("enable auth on redis.conf, requuid", requuid, cfg)
+			glog.Infoln("enable auth on redis.conf, requuid", requuid, cfg, newMember)
 
-			err = s.enableRedisAuth(ctx, cfg, i, member, requuid)
+			err = s.enableRedisAuth(ctx, cfg, i, newMember, requuid)
 			if err != nil {
-				glog.Errorln("enableRedisAuth error", err, "requuid", requuid, cfg, member)
+				glog.Errorln("enableRedisAuth error", err, "requuid", requuid, cfg, newMember)
 				return manage.ConvertToHTTPError(err)
 			}
 
-			glog.Infoln("enabled auth for replia, requuid", requuid, member)
+			glog.Infoln("enabled auth for replia, requuid", requuid, newMember)
 			break
 		}
 	}
@@ -762,6 +771,56 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
 
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createRedisClusterFile(ctx context.Context, member *common.ServiceMember,
+	cfg *manage.ReplicaConfigFile, requuid string) (newMember *common.ServiceMember, err error) {
+
+	// check if member has the cluster info file, as failure could happen at any time and init task will be retried.
+	for _, c := range member.Configs {
+		if rediscatalog.IsClusterInfoFile(c.FileName) {
+			chksum := utils.GenMD5(cfg.Content)
+			if c.FileMD5 != chksum {
+				// this is an unknown internal error. the cluster info content should be the same between retries.
+				glog.Errorln("Redis cluster file exist but content not match, new content", cfg.Content, chksum,
+					"existing config", c, "requuid", requuid, member)
+				return nil, common.ErrConfigMismatch
+			}
+
+			glog.Infoln("Redis cluster file is already created for member", member.MemberName,
+				"service", member.ServiceUUID, "requuid", requuid)
+			return member, nil
+		}
+	}
+
+	// the cluster info file not exist, create it
+	version := int64(0)
+	fileID := utils.GenMemberConfigFileID(member.MemberName, cfg.FileName, version)
+	initcfgfile := db.CreateInitialConfigFile(member.ServiceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
+	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("createConfigFile error", err, "fileID", fileID,
+			"service", member.ServiceUUID, "member", member.MemberName, "requuid", requuid)
+		return nil, err
+	}
+
+	glog.Infoln("created the Redis cluster config file, requuid", requuid, db.PrintConfigFile(cfgfile))
+
+	// add the new config file to ServiceMember
+	config := &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
+
+	newConfigs := db.CopyMemberConfigs(member.Configs)
+	newConfigs = append(newConfigs, config)
+
+	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+	if err != nil {
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+		return nil, err
+	}
+
+	glog.Infoln("added the cluster config to service member", member.MemberName, member.ServiceUUID, "requuid", requuid)
+	return newMember, nil
 }
 
 // TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.

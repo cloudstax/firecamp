@@ -100,17 +100,54 @@ AddSlaveNodes() {
 }
 
 SetServiceInit() {
+  # get the node to redis id mapping
+  nodeids=""
+  for m in "${masters[@]}"
+  do
+    id=$(/redis-cli -h $m cluster nodes | grep "myself" | awk '{ print $1 }')
+    if [ "$nodeids" = "" ]; then
+      nodeids="\"$m $id master\""
+    else
+      nodeids="$nodeids, \"$m $id master\""
+    fi
+  done
+
+  for m in "${slaves[@]}"
+  do
+    myrole=$(/redis-cli -h $m cluster nodes | grep "myself")
+    id=$(echo "$myrole" | awk '{ print $1 }')
+    master=$(echo "$myrole" | awk '{ print $4 }')
+    nodeids="$nodeids, \"$m $id slave $master\""
+  done
+
+  echo "$nodeids"
+
   # set service initialized
   auth=false
   if [ "$REDIS_AUTH" = "true" ]; then
     auth=true
   fi
 
-  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"EnableAuth\":$auth}"
+  echo "redis auth $auth"
 
-  echo "set service initialized, auth $REDIS_AUTH, $data"
+#  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"NodeIds\": [$nodeids],\"EnableAuth\":$auth}"
+#  echo "set service initialized, auth $REDIS_AUTH, $data"
+#  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
 
-  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
+curl -X PUT "$MANAGE_SERVER_URL/$OP" \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF
+{
+  "Region": "$REGION",
+  "Cluster": "$CLUSTER",
+  "ServiceName": "$SERVICE_NAME",
+  "NodeIds": [$nodeids],
+  "EnableAuth": $auth
+}
+EOF
+
+  # sleep some time for the server to restart all containers
+  sleep 20
 }
 
 # wait till all nodes' DNS are ready

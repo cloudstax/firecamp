@@ -6,6 +6,7 @@ datadir=/data/redis
 confdir=/data/conf
 cfgfile=$confdir/redis.conf
 syscfgfile=$confdir/sys.conf
+clustercfgfile=$confdir/cluster.info
 redisnodefile=$rootdir/redis-node.conf
 
 REDIS_USER=redis
@@ -67,6 +68,15 @@ echo $SERVICE_MEMBER
 /waitdns.sh $SERVICE_MEMBER
 # check service member dns name again. if lookup fails, the script will exit.
 host $SERVICE_MEMBER
+
+if [ -f "$clustercfgfile" ]; then
+  # cluster is already initialized, check and update the master's address
+  /redis-node.sh $clustercfgfile $redisnodefile
+  if [ "$?" != "0" ]; then
+    echo "update redis routing ip failed"
+    exit 2
+  fi
+fi
 
 echo "$@"
 exec "$@"

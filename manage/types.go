@@ -327,6 +327,8 @@ type CatalogSetRedisInitRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
+	// The Redis node ids, format: "MemberName RedisNodeID Role(master/slave)"
+	NodeIds []string
 	// whether redis auth pass is enabled
 	EnableAuth bool
 }
