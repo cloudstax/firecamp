@@ -14,6 +14,8 @@ Redis cluster could handle the node failure when "[there are at least the majori
 
 By default, FireCamp distributes the masters to all availability zones. So when one availability zone goes down, Redis cluster will still have the majority of masters to promote the slave to master automatically.
 
+Currently Redis will not fail back automatically. See [Re-adding a failed over node](https://github.com/antirez/redis/issues/2462). For example, a Redis cluster has 3 shards, each shard has 1 master and 2 slaves on 3 availability zones. When master on zone1 goes down for a while, say the slave on zone2 becomes the new master. When the down node joins back, it will serve as slave. Then zone2 owns 2 masters. At this time, if zone2 goes down, 2 masters (majority) go down at the same time. Redis cluster will be down. This will be further enhanced in the future with the manual cluster takeover.
+
 The network inside one availability zone is faster than cross availability zones. Running all masters on a single availability zone would be useful for some cases. For example, Redis is used for cache. The application also runs in a single availability zone. Only when the availability zone fails, the application and Redis will run in another availability zone. We will support it in the future. When the master availability zone goes down, FireCamp will automatically run `cluster failover takeover` to promote the slave to master.
 
 
@@ -38,6 +40,7 @@ If you are using Redis as cache, you could disable AOF when creating the Redis s
 ## Security
 
 Redis AUTH is supported. To enable AUTH, please set "redis-auth-pass" with the password when creating the service. If AUTH is enabled, the clients MUST issue AUTH <PASSWORD> before processing any other commands. If you don't want to enable AUTH, simply don't set "redis-auth-pass" when creating the service.
+Redis cluster setup tool, redis-trib.rb, does not support auth pass yet. See Redis issue [2866](https://github.com/antirez/redis/issues/2866) and [4288](https://github.com/antirez/redis/pull/4288). FireCamp firstly sets up the cluster with auth disabled. Once the cluster is initialized, the redis.conf is updated to enable auth for all members.
 
 The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (remove all keys from all databases), FLUSHDB (similar, but from the current database), and SHUTDOWN, are disabled. The CONFIG (reconfiguring server at runtime) command could be renamed when creating the service. It might be useful at some conditions. For example, if you hit latency issue, could enable latency monitor, "CONFIG SET latency-monitor-threshold <milliseconds>", to collect data. Setting the new name to the empty string will disable the CONFIG command.
 
