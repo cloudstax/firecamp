@@ -329,8 +329,6 @@ type CatalogSetRedisInitRequest struct {
 	ServiceName string
 	// The Redis node ids, format: "MemberName RedisNodeID Role(master/slave)"
 	NodeIds []string
-	// whether redis auth pass is enabled
-	EnableAuth bool
 }
 
 // The internal requests from the plugin to the manage server.

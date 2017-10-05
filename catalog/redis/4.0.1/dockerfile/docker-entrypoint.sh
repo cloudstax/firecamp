@@ -33,18 +33,6 @@ if [ ! -f "$syscfgfile" ]; then
   exit 1
 fi
 
-if [ "$(id -u)" = '0' ]; then
-  # load the sys config file
-  . $syscfgfile
-
-  if [ "$PLATFORM" = "swarm" ]; then
-    # some platform, such as docker swarm, does not allow not using host network for service.
-    # append the SERVICE_MEMBER to the last line of /etc/hosts, so the service could bind the
-    # member name and serve correctly.
-    echo "$(cat /etc/hosts) $SERVICE_MEMBER" > /etc/hosts
-  fi
-fi
-
 # allow the container to be started with `--user`
 if [ "$1" = 'redis-server' -a "$(id -u)" = '0' ]; then
   rootdiruser=$(stat -c "%U" $rootdir)
@@ -69,11 +57,11 @@ echo $SERVICE_MEMBER
 # check service member dns name again. if lookup fails, the script will exit.
 host $SERVICE_MEMBER
 
-if [ -f "$clustercfgfile" -a "$PLATFORM" = "swarm" ]; then
-  # cluster is already initialized, check and update the master's address
+if [ -f "$clustercfgfile" ]; then
+  # cluster is already initialized, check and update the cluster address if necessary
   /redis-node.sh $clustercfgfile $redisnodefile
   if [ "$?" != "0" ]; then
-    echo "update redis routing ip failed"
+    echo "update redis cluster ip failed"
     exit 2
   fi
 fi

@@ -57,13 +57,15 @@ do
     if [ "$r" = "$id" ]; then
       ip=$(echo "$noderole" | awk '{ print $2 }' | awk -F ':' '{ print $1 }')
 
-      echo "update $noderole to new ip $newip for $line"
-
       if [ "$ip" = "" ]; then
+        echo "member has no ip set, set $noderole to new ip $newip for $line"
         newrole="${noderole/:0@0/$newip:6379@16379}"
         sed -i "s/${noderole}/${newrole}/g" $redisnodefile
-      else
+      elif [ "$ip" != "$newip" ]; then
+        echo "update $noderole to new ip $newip for $line"
         sed -i "s/${ip}/${newip}/g" $redisnodefile
+      else
+        echo "ip not changed, current $noderole, new ip $newip for $line"
       fi
 
       break

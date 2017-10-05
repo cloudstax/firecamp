@@ -167,8 +167,11 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
 			// create the redis.conf file
-			redisContent := fmt.Sprintf(redisConfigs, memberHost, listenPort,
-				redisMaxMemBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
+			bind := memberHost
+			if platform == common.ContainerPlatformSwarm {
+				bind = "0.0.0.0"
+			}
+			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, redisMaxMemBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
 				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
 			}
@@ -228,16 +231,16 @@ func IsRedisConfFile(filename string) bool {
 	return filename == redisConfFileName
 }
 
-// IsAuthEnabled checks if auth is already enabled.
-func IsAuthEnabled(content string) bool {
-	authIdx := strings.Index(content, "requirepass")
-	authDisabledIdx := strings.Index(content, "#requirepass")
-	if authIdx != -1 && authDisabledIdx != -1 {
-		// if requirepass is configured but not enabled, return false
-		return false
+// NeedToEnableAuth checks whether needs to enable auth in redis.conf
+func NeedToEnableAuth(content string) bool {
+	// Currently if auth pass is not required, redis.conf will not have #requirepass
+	// TODO avoid this implicit usage
+	disabledIdx := strings.Index(content, "#requirepass")
+	if disabledIdx != -1 {
+		return true
 	}
-	// if requirepass is not configured or enabled, return true
-	return true
+	// auth is either not required or already enabled
+	return false
 }
 
 // EnableRedisAuth enables the Redis access authentication, after cluster is initialized.
@@ -246,16 +249,33 @@ func EnableRedisAuth(content string) string {
 	return strings.Replace(content, "#masterauth", "masterauth", 1)
 }
 
+// NeedToSetClusterAnnounceIP checks whether needs to set the cluster-announce-ip in redis.conf
+func NeedToSetClusterAnnounceIP(content string) bool {
+	// Currently if not cluster mode, redis.conf will not have #cluster-announce-ip
+	// TODO avoid this implicit usage
+	disabledIdx := strings.Index(content, "#cluster-announce-ip")
+	if disabledIdx != -1 {
+		return true
+	}
+	// cluster-announce-ip is either not required or already set
+	return false
+}
+
+// SetClusterAnnounceIP sets the Redis cluster-announce-ip, after cluster is initialized and member gets its static ip.
+func SetClusterAnnounceIP(content string, ip string) string {
+	return strings.Replace(content, "#cluster-announce-ip", "cluster-announce-ip "+ip, 1)
+}
+
 // GenDefaultInitTaskRequest returns the default service init task request.
 func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	shards int64, replicasPerShard int64, enableAuth bool, serviceUUID string, manageurl string) (*containersvc.RunTaskOptions, error) {
+	shards int64, replicasPerShard int64, serviceUUID string, manageurl string) (*containersvc.RunTaskOptions, error) {
 
 	// sanity check
 	if !IsClusterMode(shards) {
 		return nil, fmt.Errorf("redis service is not cluster mode, shards %d", shards)
 	}
 
-	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard, enableAuth)
+	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, shards, replicasPerShard)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Cluster,
@@ -283,7 +303,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.
 // The init task is only required for the Redis cluster mode.
 func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
-	service string, shards int64, replicasPerShard int64, enableAuth bool) []*common.EnvKeyValuePair {
+	service string, shards int64, replicasPerShard int64) []*common.EnvKeyValuePair {
 
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
@@ -326,14 +346,8 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvmasters := &common.EnvKeyValuePair{Name: envMasters, Value: masters}
 	kvslaves := &common.EnvKeyValuePair{Name: envSlaves, Value: slaves}
 
-	auth := "false"
-	if enableAuth {
-		auth = "true"
-	}
-	kvauth := &common.EnvKeyValuePair{Name: envAuth, Value: auth}
-
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
-		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves, kvauth}
+		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
 	return envkvs
 }
 
@@ -404,6 +418,9 @@ slaveof %s %d
 	clusterConfigs = `
 cluster-enabled yes
 cluster-config-file /data/redis-node.conf
+
+#cluster-announce-ip
+
 cluster-node-timeout 15000
 cluster-slave-validity-factor 10
 cluster-migration-barrier 1

@@ -25,7 +25,6 @@
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
-#export REDIS_AUTH="true"
 #export REDIS_MASTERS="myredis-0.c1-firecamp.com,myredis-1.c1-firecamp.com,myredis-2.c1-firecamp.com"
 #export REDIS_SLAVES="myredis-3.c1-firecamp.com,myredis-4.c1-firecamp.com,myredis-5.c1-firecamp.com"
 # The service masters should be myredis-shard0-0.c1-firecamp.com,myredis-shard1-0.c1-firecamp.com,myredis-shard2-0.c1-firecamp.com
@@ -38,7 +37,7 @@ then
   exit 1
 fi
 # REDIS_SLAVES is allowed to be empty
-if [ -z "$SHARDS" -o -z "$REPLICAS_PERSHARD" -o -z "$REDIS_MASTERS" -o -z "$REDIS_AUTH" ]
+if [ -z "$SHARDS" -o -z "$REPLICAS_PERSHARD" -o -z "$REDIS_MASTERS" ]
 then
   echo "error: please pass all required redis variables"
   exit 1
@@ -123,16 +122,6 @@ SetServiceInit() {
   echo "$nodeids"
 
   # set service initialized
-  auth=false
-  if [ "$REDIS_AUTH" = "true" ]; then
-    auth=true
-  fi
-
-  echo "redis auth $auth"
-
-#  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"NodeIds\": [$nodeids],\"EnableAuth\":$auth}"
-#  echo "set service initialized, auth $REDIS_AUTH, $data"
-#  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
 
 curl -X PUT "$MANAGE_SERVER_URL/$OP" \
   -H "Content-Type: application/json" \
@@ -141,8 +130,7 @@ curl -X PUT "$MANAGE_SERVER_URL/$OP" \
   "Region": "$REGION",
   "Cluster": "$CLUSTER",
   "ServiceName": "$SERVICE_NAME",
-  "NodeIds": [$nodeids],
-  "EnableAuth": $auth
+  "NodeIds": [$nodeids]
 }
 EOF
 
