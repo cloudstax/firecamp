@@ -479,23 +479,32 @@ func (c *ManageClient) CatalogCreateCouchDBService(ctx context.Context, r *manag
 }
 
 // CatalogCreateConsulService creates a new catalog Consul service.
-func (c *ManageClient) CatalogCreateConsulService(ctx context.Context, r *manage.CatalogCreateConsulRequest) error {
+// return the consul server ips.
+func (c *ManageClient) CatalogCreateConsulService(ctx context.Context, r *manage.CatalogCreateConsulRequest) (serverIPs []string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateConsulOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp.StatusCode)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCreateConsulResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ConsulServerIPs, err
 }
 
 // CatalogCheckServiceInit checks if a catalog service is initialized.

@@ -78,6 +78,7 @@ var (
 	couchdbCACertFile = flag.String("couchdb-cacert-file", "", "The CouchDB cacert file")
 
 	// The consul service creation specific parameters.
+	consulDc         = flag.String("consul-datacenter", "", "Consul datacenter")
 	consulDomain     = flag.String("consul-domain", "", "Consul domain")
 	consulEncrypt    = flag.String("consul-encrypt", "", "Consul encrypt")
 	consulEnableTLS  = flag.Bool("consul-enable-tls", false, "Whether enable Consul TLS")
@@ -594,6 +595,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		Options: &manage.CatalogConsulOptions{
 			Replicas:     *replicas,
 			VolumeSizeGB: *volSizeGB,
+			Datacenter:   *consulDc,
 			Domain:       *consulDomain,
 			Encrypt:      *consulEncrypt,
 		},
@@ -627,13 +629,14 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		req.Options.HTTPSPort = *consulHTTPSPort
 	}
 
-	err := cli.CatalogCreateConsulService(ctx, req)
+	serverips, err := cli.CatalogCreateConsulService(ctx, req)
 	if err != nil {
 		fmt.Println("create consul service error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println("The service is created, wait for all containers running")
+	fmt.Println("The consul service created, Consul server ips", serverips)
+	fmt.Println("Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

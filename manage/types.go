@@ -295,6 +295,10 @@ type CatalogConsulOptions struct {
 	Replicas     int64
 	VolumeSizeGB int64
 
+	// https://www.consul.io/docs/agent/options.html#_datacenter
+	// if not specified, use the current Region.
+	Datacenter string
+
 	// https://www.consul.io/docs/agent/options.html#_domain
 	Domain string
 
@@ -315,6 +319,11 @@ type CatalogCreateConsulRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogConsulOptions
+}
+
+// CatalogCreateConsulResponse returns the consul server ips.
+type CatalogCreateConsulResponse struct {
+	ConsulServerIPs []string
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

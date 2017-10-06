@@ -118,8 +118,13 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			bind = "0.0.0.0"
 		}
 
+		dc := region
+		if len(opts.Datacenter) != 0 {
+			dc = opts.Datacenter
+		}
+
 		content := configHeader
-		content += fmt.Sprintf(basicConfigs, region, member, opts.Replicas, memberHost, bind, consulDomain, retryJoinNodes)
+		content += fmt.Sprintf(basicConfigs, dc, member, opts.Replicas, memberHost, bind, consulDomain, retryJoinNodes)
 		if len(opts.Encrypt) != 0 {
 			content += fmt.Sprintf(encryptConfigs, opts.Encrypt)
 		}

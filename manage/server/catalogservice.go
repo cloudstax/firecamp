@@ -41,7 +41,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	case manage.CatalogCreateCouchDBOp:
 		return s.createCouchDBService(ctx, r, requuid)
 	case manage.CatalogCreateConsulOp:
-		return s.createConsulService(ctx, r, requuid)
+		return s.createConsulService(ctx, w, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -458,7 +458,7 @@ func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.S
 	glog.Infoln("add init task for CouchDB service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *ManageHTTPServer) createConsulService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateConsulRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -495,7 +495,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, r *http.Requ
 
 	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
-	err = s.updateConsulConfigs(ctx, serviceUUID, domain, requuid)
+	serverips, err := s.updateConsulConfigs(ctx, serviceUUID, domain, requuid)
 	if err != nil {
 		glog.Errorln("updateConsulConfigs error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -507,10 +507,26 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, r *http.Requ
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("created Consul service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created Consul service", serviceUUID, "server ips", serverips, "requuid", requuid, req.Service, req.Options)
 
 	// consul does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	if len(errmsg) != 0 {
+		glog.Errorln("setServiceInitialized error", errcode, errmsg, "requuid", requuid, req.Service, req.Options)
+		return errmsg, errcode
+	}
+
+	resp := &manage.CatalogCreateConsulResponse{ConsulServerIPs: serverips}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal CatalogCreateConsulResponse error", err, "requuid", requuid, req.Service, req.Options)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -682,51 +698,7 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 	// auth is not enabled, enable it
 	newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
 
-	// create a new config file
-	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
-		return err
-	}
-
-	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
-	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
-
-	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
-	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
-		return err
-	}
-
-	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
-
-	// update serviceMember to point to the new config file
-	newConfigs := db.CopyMemberConfigs(member.Configs)
-	newConfigs[cfgIndex].FileID = newcfgfile.FileID
-	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
-
-	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
-	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-	if err != nil {
-		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return err
-	}
-
-	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
-
-	// delete the old config file.
-	// TODO add the background gc mechanism to delete the garbage.
-	//      the old config file may not be deleted at some conditions.
-	//			for example, node crashes right before deleting the config file.
-	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
-	if err != nil {
-		// simply log an error as this only leaves a garbage
-		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
-	} else {
-		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-	}
-
-	return nil
+	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 }
 
 func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -902,76 +874,34 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context,
 		newContent = rediscatalog.SetClusterAnnounceIP(newContent, member.StaticIP)
 	}
 
-	// create a new config file
-	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
-		return err
-	}
-
-	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
-	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
-
-	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
-	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
-		return err
-	}
-
-	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
-
-	// update serviceMember to point to the new config file
-	newConfigs := db.CopyMemberConfigs(member.Configs)
-	newConfigs[cfgIndex].FileID = newcfgfile.FileID
-	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
-
-	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
-	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-	if err != nil {
-		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return err
-	}
-
-	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
-
-	// delete the old config file.
-	// TODO add the background gc mechanism to delete the garbage.
-	//      the old config file may not be deleted at some conditions.
-	//			for example, node crashes right before deleting the config file.
-	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
-	if err != nil {
-		// simply log an error as this only leaves a garbage
-		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
-	} else {
-		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-	}
-
-	return nil
+	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 }
 
-func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, domain string, requuid string) error {
+func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, domain string, requuid string) (serverips []string, err error) {
 	// update the consul member address to the assigned static ip in the basic_config.json file
 	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
 		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
-		return err
+		return nil, err
 	}
 
+	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
-	for _, m := range members {
+	for i, m := range members {
 		memberdns := dns.GenDNSName(m.MemberName, domain)
 		memberips[memberdns] = m.StaticIP
+		serverips[i] = m.StaticIP
 	}
 
 	for _, m := range members {
 		err = s.updateConsulMemberConfig(ctx, m, memberips, requuid)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
-	return nil
+	return serverips, nil
 }
 
 // TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.
@@ -996,6 +926,11 @@ func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member 
 	// replace the original member dns name by member ip
 	newContent := consulcatalog.ReplaceMemberName(cfgfile.Content, memberips)
 
+	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+}
+
+func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
+	cfgfile *common.ConfigFile, cfgIndex int, newContent string, requuid string) error {
 	// create a new config file
 	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
 	if err != nil {
