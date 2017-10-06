@@ -1,4 +1,4 @@
-The FireCamp Cassandra container is based on Debian. The data volume will be mounted to the /data directory inside container. All Cassandra data, including data file, commit log, hints, and the key cache, will be stored under /data directory.
+The FireCamp Cassandra container is based on the [official Cassandra image](https://hub.docker.com/_/cassandra/). The data volume will be mounted to the /data directory inside container. All Cassandra data, including data file, commit log, hints, and the key cache, will be stored under /data directory.
 
 **Topology**
 

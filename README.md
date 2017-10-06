@@ -54,6 +54,7 @@ The FireCamp cluster could be easily installed using AWS CloudFormation for AWS 
 * [Kafka](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka)
 * [Redis](https://github.com/cloudstax/firecamp/tree/master/catalog/redis)
 * [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
+* [Consul](https://github.com/cloudstax/firecamp/tree/master/catalog/consul)
 * MySQL: coming soon.
 * ElasticSearch: coming soon.
 

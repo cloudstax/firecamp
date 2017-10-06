@@ -1,4 +1,4 @@
-The FireCamp CouchDB container is based on Debian. The data volume will be mounted to the /data directory inside container. The CouchDB data will be stored at the /data/couchdb directory, and the config files are at the /data/conf directory.
+The FireCamp CouchDB container is based on the [klaemo couchdb image](https://hub.docker.com/r/klaemo/couchdb/). The data volume will be mounted to the /data directory inside container. The CouchDB data will be stored at the /data/couchdb directory, and the config files are at the /data/conf directory.
 
 **Topology**
 

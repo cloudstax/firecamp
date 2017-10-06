@@ -1,4 +1,4 @@
-The FireCamp Redis container is based on Debian Jessie. The data volume will be mounted to the /data directory inside container. The redis data will be stored under /data/redis.
+The FireCamp Redis container is based on the [official Redis image](https://hub.docker.com/_/redis/). The data volume will be mounted to the /data directory inside container. The redis data will be stored under /data/redis.
 
 ## Redis Mode
 

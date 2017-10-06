@@ -1,4 +1,4 @@
-The FireCamp MongoDB container is based on Debian. The data volume will be mounted to the /data directory inside container. The MongoDB data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
+The FireCamp MongoDB container is based on the [official MongoDB image](https://hub.docker.com/_/mongo/). The data volume will be mounted to the /data directory inside container. The MongoDB data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
 
 **Security**
 
