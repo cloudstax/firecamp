@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
@@ -17,6 +18,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -38,6 +40,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createRedisService(ctx, r, requuid)
 	case manage.CatalogCreateCouchDBOp:
 		return s.createCouchDBService(ctx, r, requuid)
+	case manage.CatalogCreateConsulOp:
+		return s.createConsulService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -454,6 +458,61 @@ func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.S
 	glog.Infoln("add init task for CouchDB service", serviceUUID, "requuid", requuid, req)
 }
 
+func (s *ManageHTTPServer) createConsulService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateConsulRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateConsulRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateConsulRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = consulcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("CatalogCreateConsulRequest parameters are not valid, requuid", requuid, req)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options)
+
+	// create the service in the control plane
+	domain := dns.GenDefaultDomainName(s.cluster)
+	vpcID := s.serverInfo.GetLocalVpcID()
+
+	serviceUUID, err := s.svc.CreateService(ctx, crReq, domain, vpcID)
+	if err != nil {
+		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
+
+	err = s.updateConsulConfigs(ctx, serviceUUID, domain, requuid)
+	if err != nil {
+		glog.Errorln("updateConsulConfigs error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
+	if err != nil {
+		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created Consul service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+
+	// consul does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
 func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateCassandraRequest{}
@@ -842,6 +901,100 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context,
 		// cluster-announce-ip not set, set it
 		newContent = rediscatalog.SetClusterAnnounceIP(newContent, member.StaticIP)
 	}
+
+	// create a new config file
+	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
+		return err
+	}
+
+	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
+	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
+
+	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		return err
+	}
+
+	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
+
+	// update serviceMember to point to the new config file
+	newConfigs := db.CopyMemberConfigs(member.Configs)
+	newConfigs[cfgIndex].FileID = newcfgfile.FileID
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
+
+	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+	if err != nil {
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+		return err
+	}
+
+	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//			for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
+	} else {
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
+	}
+
+	return nil
+}
+
+func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, domain string, requuid string) error {
+	// update the consul member address to the assigned static ip in the basic_config.json file
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
+
+	memberips := make(map[string]string)
+	for _, m := range members {
+		memberdns := dns.GenDNSName(m.MemberName, domain)
+		memberips[memberdns] = m.StaticIP
+	}
+
+	for _, m := range members {
+		err = s.updateConsulMemberConfig(ctx, m, memberips, requuid)
+		if err != nil {
+			return err
+		}
+	}
+
+	glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+// TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.
+func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member *common.ServiceMember, memberips map[string]string, requuid string) error {
+	var cfg *common.MemberConfig
+	cfgIndex := -1
+	for i, c := range member.Configs {
+		if consulcatalog.IsBasicConfigFile(c.FileName) {
+			cfg = c
+			cfgIndex = i
+			break
+		}
+	}
+
+	// fetch the config file
+	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+		return err
+	}
+
+	// replace the original member dns name by member ip
+	newContent := consulcatalog.ReplaceMemberName(cfgfile.Content, memberips)
 
 	// create a new config file
 	version, err := utils.GetConfigFileVersion(cfgfile.FileID)

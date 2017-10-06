@@ -478,6 +478,26 @@ func (c *ManageClient) CatalogCreateCouchDBService(ctx context.Context, r *manag
 	return manage.ConvertHTTPError(resp.StatusCode)
 }
 
+// CatalogCreateConsulService creates a new catalog Consul service.
+func (c *ManageClient) CatalogCreateConsulService(ctx context.Context, r *manage.CatalogCreateConsulRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateConsulOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp.StatusCode)
+}
+
 // CatalogCheckServiceInit checks if a catalog service is initialized.
 func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (initialized bool, statusMsg string, err error) {
 	b, err := json.Marshal(r)

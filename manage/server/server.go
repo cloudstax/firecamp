@@ -222,18 +222,23 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 		return "", err
 	}
 
+	return serviceUUID, s.createContainerService(ctx, req, serviceUUID, requuid)
+}
+
+func (s *ManageHTTPServer) createContainerService(ctx context.Context,
+	req *manage.CreateServiceRequest, serviceUUID string, requuid string) error {
 	// initialize the cloud log
-	err = s.logIns.InitializeServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
+	err := s.logIns.InitializeServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
 	if err != nil {
 		glog.Errorln("InitializeServiceLogConfig error", err, "requuid", requuid, req.Service)
-		return "", err
+		return err
 	}
 
 	// create the service in the container platform
 	exist, err := s.containersvcIns.IsServiceExist(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("check container service exist error", err, "requuid", requuid, req.Service)
-		return serviceUUID, err
+		return err
 	}
 	if !exist {
 		logConfig := s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
@@ -241,12 +246,12 @@ func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 		err = s.containersvcIns.CreateService(ctx, opts)
 		if err != nil {
 			glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-			return serviceUUID, err
+			return err
 		}
 	}
 
 	glog.Infoln("create service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
-	return serviceUUID, nil
+	return nil
 }
 
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest,

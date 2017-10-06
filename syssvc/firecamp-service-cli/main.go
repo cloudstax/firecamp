@@ -28,7 +28,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -77,6 +77,15 @@ var (
 	couchdbKeyFile    = flag.String("couchdb-key-file", "", "The CouchDB key file")
 	couchdbCACertFile = flag.String("couchdb-cacert-file", "", "The CouchDB cacert file")
 
+	// The consul service creation specific parameters.
+	consulDomain     = flag.String("consul-domain", "", "Consul domain")
+	consulEncrypt    = flag.String("consul-encrypt", "", "Consul encrypt")
+	consulEnableTLS  = flag.Bool("consul-enable-tls", false, "Whether enable Consul TLS")
+	consulCertFile   = flag.String("consul-cert-file", "", "The Consul cert file")
+	consulKeyFile    = flag.String("consul-key-file", "", "The Consul key file")
+	consulCACertFile = flag.String("consul-cacert-file", "", "The Consul cacert file")
+	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -104,7 +113,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -184,12 +193,14 @@ func main() {
 			createRedisService(ctx, cli)
 		case catalog.CatalogService_CouchDB:
 			createCouchDBService(ctx, cli)
+		case catalog.CatalogService_Consul:
+			createConsulService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
 				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
 				catalog.CatalogService_Kafka, catalog.CatalogService_Redis,
-				catalog.CatalogService_CouchDB)
+				catalog.CatalogService_CouchDB, catalog.CatalogService_Consul)
 			os.Exit(-1)
 		}
 
@@ -555,6 +566,75 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	waitServiceInit(ctx, cli, initReq)
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createConsulService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *volSizeGB == 0 {
+		fmt.Println("please specify the valid volume size")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateConsulRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogConsulOptions{
+			Replicas:     *replicas,
+			VolumeSizeGB: *volSizeGB,
+			Domain:       *consulDomain,
+			Encrypt:      *consulEncrypt,
+		},
+	}
+
+	if *consulEnableTLS {
+		req.Options.EnableTLS = true
+
+		// load the content of the tls files
+		certBytes, err := ioutil.ReadFile(*consulCertFile)
+		if err != nil {
+			fmt.Println("read cert file error", err, *consulCertFile)
+			os.Exit(-1)
+		}
+		req.Options.CertFileContent = string(certBytes)
+
+		keyBytes, err := ioutil.ReadFile(*consulKeyFile)
+		if err != nil {
+			fmt.Println("read key file error", err, *consulKeyFile)
+			os.Exit(-1)
+		}
+		req.Options.KeyFileContent = string(keyBytes)
+
+		caBytes, err := ioutil.ReadFile(*consulCACertFile)
+		if err != nil {
+			fmt.Println("read ca cert file error", err, *consulCACertFile)
+			os.Exit(-1)
+		}
+		req.Options.CACertFileContent = string(caBytes)
+
+		req.Options.HTTPSPort = *consulHTTPSPort
+	}
+
+	err := cli.CatalogCreateConsulService(ctx, req)
+	if err != nil {
+		fmt.Println("create consul service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The service is created, wait for all containers running")
+
 	waitServiceRunning(ctx, cli, req.Service)
 }
 

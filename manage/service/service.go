@@ -781,7 +781,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		err = s.serverIns.WaitVolumeCreated(ctx, member.VolumeID)
 		if err != nil {
 			glog.Errorln("WaitVolumeCreated error", err, "serviceMember", member, "requuid", requuid)
-			return err
+			return errors.New("wait volume created error: " + err.Error())
 		}
 		glog.Infoln("created volume", member.VolumeID, req.Service, "requuid", requuid)
 	}

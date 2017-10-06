@@ -207,6 +207,15 @@ BuildCatalogImages() {
   rm -f ${path}/waitdns.sh
   docker push $image
 
+
+  # build consul docker image
+  echo
+  target=$system"-consul"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/consul/0.9.3/dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
+
 }
 
 if [ "$buildtarget" = "all" ]; then
