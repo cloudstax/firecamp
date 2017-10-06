@@ -24,6 +24,7 @@ const (
 	CatalogCreateKafkaOp      = CatalogOpPrefix + "Create-Kafka"
 	CatalogCreateRedisOp      = CatalogOpPrefix + "Create-Redis"
 	CatalogCreateCouchDBOp    = CatalogOpPrefix + "Create-CouchDB"
+	CatalogCreateConsulOp     = CatalogOpPrefix + "Create-Consul"
 	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
@@ -287,6 +288,33 @@ type CatalogCreateCouchDBRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogCouchDBOptions
+}
+
+// CatalogConsulOptions includes the config options for Consul.
+type CatalogConsulOptions struct {
+	Replicas     int64
+	VolumeSizeGB int64
+
+	// https://www.consul.io/docs/agent/options.html#_domain
+	Domain string
+
+	// https://www.consul.io/docs/agent/options.html#_encrypt
+	// This key must be 16-bytes that are Base64-encoded.
+	Encrypt string
+
+	// TLS configs
+	EnableTLS         bool
+	CertFileContent   string
+	KeyFileContent    string
+	CACertFileContent string
+	HTTPSPort         int64
+}
+
+// CatalogCreateConsulRequest creates a Consul service.
+type CatalogCreateConsulRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogConsulOptions
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

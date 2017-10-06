@@ -9,6 +9,7 @@ const (
 	CatalogService_Kafka      = "kafka"
 	CatalogService_Redis      = "redis"
 	CatalogService_CouchDB    = "couchdb"
+	CatalogService_Consul     = "consul"
 
 	// The system variables in the sys.conf file
 	SYS_FILE_NAME = "sys.conf"
