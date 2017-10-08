@@ -209,6 +209,8 @@ func (s *AWSEc2) describeVolumes(ctx context.Context, volID string) (*ec2.Descri
 		},
 	}
 
+	glog.Infoln("start describe volume", volID, "requuid", requuid)
+
 	svc := ec2.New(s.sess)
 	resp, err := svc.DescribeVolumes(params)
 

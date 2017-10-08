@@ -56,6 +56,9 @@ RUN apt-get update \
 # https://issues.apache.org/jira/browse/CASSANDRA-11661
 RUN sed -ri 's/^(JVM_PATCH_VERSION)=.*/\1=25/' /etc/cassandra/cassandra-env.sh
 
+# set the JVM TTL.
+RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/security/java.security
+
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "cassandra", "-f"]
 

@@ -28,6 +28,9 @@ RUN set -x \
 
 ENV PATH=$PATH:/$DISTRO_NAME/bin
 
+# set the JVM TTL.
+RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_HOME/lib/security/java.security
+
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "zkServer.sh", "start-foreground"]
 

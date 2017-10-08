@@ -37,6 +37,9 @@ Note: the FireCamp Cassandra assumes the whole node is only used by Cassandra. W
 
 The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
+**Set JVM TTL for Java CQL driver**
+
+By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address.
 
 Refs:
 

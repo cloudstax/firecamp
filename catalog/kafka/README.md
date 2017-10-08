@@ -22,6 +22,9 @@ The auto topic creation is enabled by default. The default max number of partiti
 **[JVM Configs](http://docs.confluent.io/current/kafka/deployment.html#jvm)**
 Java 1.8 with G1 collector is used. The default Java heap size, both Xmx and Xms, are set to 6GB. If your Kafka wants other memory, you could specify the "max-memory" when creating the Kafka service by the firecamp-service-cli. The Java GC tuning also follow the recommendation.
 
+**Set JVM TTL for Kafka Java client**
+By default, JVM caches a successful DNS lookup forever. Kafka Java client should [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Kafka container moves to another node, JVM could lookup the new address.
+
 **Max Open Files**
 The node's file descriptor count is increased to very large, 100,000, as Kafka uses a very large number of files.
 
@@ -34,3 +37,7 @@ The Kafka logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
 The [Kafka Security](http://docs.confluent.io/current/kafka/security.html) will be enabled in the coming releases.
 
+
+Refs
+
+1. [Design and Deployment Considerations for Deploying Apache Kafka on AWS](https://www.confluent.io/blog/design-and-deployment-considerations-for-deploying-apache-kafka-on-aws/)

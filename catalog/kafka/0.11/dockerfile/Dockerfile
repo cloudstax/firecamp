@@ -24,6 +24,10 @@ RUN set -x \
 
 ENV PATH=$PATH:/kafka/bin
 
+# set the JVM TTL.
+# https://www.confluent.io/blog/design-and-deployment-considerations-for-deploying-apache-kafka-on-aws/
+RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_HOME/lib/security/java.security
+
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "kafka-server-start.sh", "/kafka/config/server.properties"]
 
