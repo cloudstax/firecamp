@@ -1048,6 +1048,8 @@ func (d *FireCampVolumeDriver) attachVolume(ctx context.Context, member common.S
 		// caller should handle it. For example, get volume state, detach it if still
 		// at attaching state, and try attach again.
 		glog.Errorln("member volume", member, "is still not attached, requuid", requuid)
+		// send request to detach the volume
+		d.serverIns.DetachVolume(ctx, member.VolumeID, member.ServerInstanceID, member.DeviceName)
 		return err
 	}
 

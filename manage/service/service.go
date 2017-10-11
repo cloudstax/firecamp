@@ -381,8 +381,8 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
 			return err
 		}
-		if volState == server.VolumeStateInUse {
-			glog.Errorln("the service volume is still in use, detach it, requuid", requuid, m)
+		if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
+			glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
 			err = s.serverIns.DetachVolume(ctx, m.VolumeID, m.ServerInstanceID, m.DeviceName)
 			if err != nil {
 				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
