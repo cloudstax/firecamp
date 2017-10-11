@@ -16,18 +16,19 @@ const (
 	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"
 	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
 
-	CatalogOpPrefix           = SpecialOpPrefix + "Catalog-"
-	CatalogCreateMongoDBOp    = CatalogOpPrefix + "Create-MongoDB"
-	CatalogCreatePostgreSQLOp = CatalogOpPrefix + "Create-PostgreSQL"
-	CatalogCreateCassandraOp  = CatalogOpPrefix + "Create-Cassandra"
-	CatalogCreateZooKeeperOp  = CatalogOpPrefix + "Create-ZooKeeper"
-	CatalogCreateKafkaOp      = CatalogOpPrefix + "Create-Kafka"
-	CatalogCreateRedisOp      = CatalogOpPrefix + "Create-Redis"
-	CatalogCreateCouchDBOp    = CatalogOpPrefix + "Create-CouchDB"
-	CatalogCreateConsulOp     = CatalogOpPrefix + "Create-Consul"
-	CatalogCheckServiceInitOp = CatalogOpPrefix + "Check-Service-Init"
-	CatalogSetServiceInitOp   = CatalogOpPrefix + "Set-Service-Init"
-	CatalogSetRedisInitOp     = CatalogOpPrefix + "Set-Redis-Init"
+	CatalogOpPrefix              = SpecialOpPrefix + "Catalog-"
+	CatalogCreateMongoDBOp       = CatalogOpPrefix + "Create-MongoDB"
+	CatalogCreatePostgreSQLOp    = CatalogOpPrefix + "Create-PostgreSQL"
+	CatalogCreateCassandraOp     = CatalogOpPrefix + "Create-Cassandra"
+	CatalogCreateZooKeeperOp     = CatalogOpPrefix + "Create-ZooKeeper"
+	CatalogCreateKafkaOp         = CatalogOpPrefix + "Create-Kafka"
+	CatalogCreateRedisOp         = CatalogOpPrefix + "Create-Redis"
+	CatalogCreateCouchDBOp       = CatalogOpPrefix + "Create-CouchDB"
+	CatalogCreateConsulOp        = CatalogOpPrefix + "Create-Consul"
+	CatalogCreateElasticSearchOp = CatalogOpPrefix + "Create-ElasticSearch"
+	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
+	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
+	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -324,6 +325,22 @@ type CatalogCreateConsulRequest struct {
 // CatalogCreateConsulResponse returns the consul server ips.
 type CatalogCreateConsulResponse struct {
 	ConsulServerIPs []string
+}
+
+// CatalogElasticSearchOptions includes the config options for ElasticSearch.
+type CatalogElasticSearchOptions struct {
+	Replicas     int64
+	VolumeSizeGB int64
+
+	DisableDedicatedMaster bool
+	DisableForceAwareness  bool
+}
+
+// CatalogCreateElasticSearchRequest creates an ElasticSearch service.
+type CatalogCreateElasticSearchRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogElasticSearchOptions
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
