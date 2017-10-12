@@ -15,7 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
+	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/redis"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
@@ -366,6 +368,12 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
 	}
+	if *reserveMemMB == common.DefaultReserveMemoryMB {
+		*reserveMemMB = zkcatalog.DefaultHeapMB
+	}
+	if *reserveMemMB <= zkcatalog.DefaultHeapMB {
+		fmt.Printf("The ZooKeeper heap size equals to or less than %d. Please increase it for production system\n", zkcatalog.DefaultHeapMB)
+	}
 
 	req := &manage.CatalogCreateZooKeeperRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -402,6 +410,12 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	if *replicas == 0 || *volSizeGB == 0 || *kafkaZkService == "" {
 		fmt.Println("please specify the valid replica number, volume size and zookeeper service name")
 		os.Exit(-1)
+	}
+	if *reserveMemMB == common.DefaultReserveMemoryMB {
+		*reserveMemMB = kafkacatalog.DefaultHeapMB
+	}
+	if *reserveMemMB <= kafkacatalog.DefaultHeapMB {
+		fmt.Printf("The Kafka heap size equals to or less than %d. Please increase it for production system\n", kafkacatalog.DefaultHeapMB)
 	}
 
 	req := &manage.CatalogCreateKafkaRequest{
@@ -659,10 +673,10 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = escatalog.DefaultESHeapMB
+		*reserveMemMB = escatalog.DefaultHeapMB
 	}
-	if *reserveMemMB <= escatalog.DefaultESHeapMB {
-		fmt.Printf("The ElasticSearch heap size equals or less than %d. Please increase it for production system\n", escatalog.DefaultESHeapMB)
+	if *reserveMemMB <= escatalog.DefaultHeapMB {
+		fmt.Printf("The ElasticSearch heap size equals to or less than %d. Please increase it for production system\n", escatalog.DefaultHeapMB)
 	}
 
 	req := &manage.CatalogCreateElasticSearchRequest{

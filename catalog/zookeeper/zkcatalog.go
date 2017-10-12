@@ -19,7 +19,8 @@ const (
 	peerConnectPort = 2888
 	leaderElectPort = 3888
 
-	defaultXmx = 4096
+	// DefaultHeapMB is the default zookeeper java heap size
+	DefaultHeapMB = 4096
 
 	zooConfFileName     = "zoo.cfg"
 	myidConfFileName    = "myid"
@@ -35,7 +36,7 @@ const (
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas, res.MaxMemMB)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas, res.ReserveMemMB)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ClientPort, HostPort: ClientPort},
@@ -64,7 +65,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64, maxMemMB int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64, reserveMemMB int64) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 	serverList := genServerList(service, domain, replicas)
 
@@ -92,9 +93,9 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		// create the java.env file
-		jvmMemMB := maxMemMB
-		if maxMemMB == common.DefaultMaxMemoryMB {
-			jvmMemMB = defaultXmx
+		jvmMemMB := reserveMemMB
+		if reserveMemMB == common.DefaultMaxMemoryMB {
+			jvmMemMB = DefaultHeapMB
 		}
 		content = fmt.Sprintf(javaEnvConfig, jvmMemMB)
 		javaEnvCfg := &manage.ReplicaConfigFile{

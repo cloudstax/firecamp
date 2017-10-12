@@ -15,8 +15,8 @@ const (
 	// ContainerImage is the main running container.
 	ContainerImage = common.ContainerNamePrefix + "elasticsearch:" + common.Version
 
-	// DefaultESHeapMB is the default elasticsearch java heap size
-	DefaultESHeapMB = 2048
+	// DefaultHeapMB is the default elasticsearch java heap size
+	DefaultHeapMB = 2048
 
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html
 	// suggests 9200-9300 for http.port and 9300-9400 for transport.tcp.port.

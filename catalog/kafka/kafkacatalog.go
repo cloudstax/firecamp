@@ -23,7 +23,9 @@ const (
 	defaultReplFactor     = 3
 	defaultInsyncReplicas = 2
 	defaultMaxPartitions  = 8
-	defaultXmxMB          = 6144
+
+	// DefaultHeapMB is the default kafka java heap size
+	DefaultHeapMB = 6144
 
 	serverPropConfFileName = "server.properties"
 	javaEnvConfFileName    = "java.env"
@@ -40,7 +42,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	allowTopicDel bool, retentionHours int64, zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
 	zkServers := genZkServerList(zkattr)
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, res.MaxMemMB, allowTopicDel, retentionHours, zkServers)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, res.ReserveMemMB, allowTopicDel, retentionHours, zkServers)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
@@ -68,7 +70,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
-	maxMemMB int64, allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
+	reserveMemMB int64, allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	// adjust the default configs by the number of members(replicas)
@@ -107,9 +109,9 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the java.env file
-		jvmMemMB := maxMemMB
-		if maxMemMB == common.DefaultMaxMemoryMB {
-			jvmMemMB = defaultXmxMB
+		jvmMemMB := reserveMemMB
+		if reserveMemMB == common.DefaultReserveMemoryMB {
+			jvmMemMB = DefaultHeapMB
 		}
 		content = fmt.Sprintf(javaEnvConfig, jvmMemMB, jvmMemMB)
 		javaEnvCfg := &manage.ReplicaConfigFile{
