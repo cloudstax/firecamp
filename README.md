@@ -55,8 +55,8 @@ The FireCamp cluster could be easily installed using AWS CloudFormation for AWS 
 * [Redis](https://github.com/cloudstax/firecamp/tree/master/catalog/redis)
 * [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
 * [Consul](https://github.com/cloudstax/firecamp/tree/master/catalog/consul)
+* [ElasticSearch](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch)
 * MySQL: coming soon.
-* ElasticSearch: coming soon.
 
 ## Questions and Issues
 If you have any questions or feedbacks, please feel free to check / ask on [Google Groups](https://groups.google.com/forum/#!forum/firecamp-users), or [Stackoverflow](https://stackoverflow.com/questions/tagged/firecamp)
