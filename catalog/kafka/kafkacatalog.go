@@ -100,7 +100,11 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		if allowTopicDel {
 			topicDel = "true"
 		}
-		content := fmt.Sprintf(serverPropConfig, i, azs[index], topicDel, numPartitions, memberHost,
+		bind := memberHost
+		if platform == common.ContainerPlatformSwarm {
+			bind = catalog.BindAllIP
+		}
+		content := fmt.Sprintf(serverPropConfig, i, azs[index], topicDel, numPartitions, bind, memberHost,
 			replFactor, replFactor, replFactor, minInsyncReplica, retentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,
@@ -162,6 +166,7 @@ auto.create.topics.enable=true
 num.partitions=%d
 
 listeners=PLAINTEXT://%s:9092
+advertised.listeners=PLAINTEXT://%s:9092
 
 log.dirs=/data/kafka
 

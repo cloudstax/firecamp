@@ -60,9 +60,5 @@ cp $jvmcfgfile $escfgdir
 . $syscfgfile
 echo $SERVICE_MEMBER
 
-/waitdns.sh $SERVICE_MEMBER
-# check service member dns name again. if lookup fails, the script will exit.
-host $SERVICE_MEMBER
-
 echo "$@"
 exec "$@"

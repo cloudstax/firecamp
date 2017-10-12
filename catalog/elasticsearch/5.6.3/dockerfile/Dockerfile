@@ -9,7 +9,6 @@ RUN set -ex; \
 	\
 	yum -y install epel-release; \
 	yum -y install wget dpkg; \
-	yum -y install bind-utils; \
 	\
 	dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
 	wget -O /usr/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
@@ -31,7 +30,6 @@ RUN set -ex; \
 # set the JVM TTL.
 RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_HOME/lib/security/java.security
 
-COPY waitdns.sh /
 COPY docker-entrypoint.sh /
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

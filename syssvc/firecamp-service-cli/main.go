@@ -371,8 +371,8 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 	if *reserveMemMB == common.DefaultReserveMemoryMB {
 		*reserveMemMB = zkcatalog.DefaultHeapMB
 	}
-	if *reserveMemMB <= zkcatalog.DefaultHeapMB {
-		fmt.Printf("The ZooKeeper heap size equals to or less than %d. Please increase it for production system\n", zkcatalog.DefaultHeapMB)
+	if *reserveMemMB < zkcatalog.DefaultHeapMB {
+		fmt.Printf("The ZooKeeper heap size is less than %d. Please increase it for production system\n", zkcatalog.DefaultHeapMB)
 	}
 
 	req := &manage.CatalogCreateZooKeeperRequest{
@@ -414,8 +414,8 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	if *reserveMemMB == common.DefaultReserveMemoryMB {
 		*reserveMemMB = kafkacatalog.DefaultHeapMB
 	}
-	if *reserveMemMB <= kafkacatalog.DefaultHeapMB {
-		fmt.Printf("The Kafka heap size equals to or less than %d. Please increase it for production system\n", kafkacatalog.DefaultHeapMB)
+	if *reserveMemMB < kafkacatalog.DefaultHeapMB {
+		fmt.Printf("The Kafka heap size is less than %d. Please increase it for production system\n", kafkacatalog.DefaultHeapMB)
 	}
 
 	req := &manage.CatalogCreateKafkaRequest{
