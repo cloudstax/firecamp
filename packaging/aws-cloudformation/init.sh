@@ -35,6 +35,17 @@ sysctl -w net.core.somaxconn=512
 echo "net.ipv4.tcp_max_syn_backlog=512" >> /etc/sysctl.conf
 sysctl -w net.ipv4.tcp_max_syn_backlog=512
 
+# increase max_map_count to 262144 for ElasticSearch
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+sysctl -w vm.max_map_count=262144
+
+# set vm.swappiness to 1 to avoid swapping for ElasticSearch. This could also benefit
+# other services, as usually one node should only run one stateful service in production.
+# https://en.wikipedia.org/wiki/Swappiness
+echo "vm.swappiness=1" >> /etc/sysctl.conf
+sysctl -w vm.swappiness=1
+
 # set overcommit to 1 as required by Redis. Would not cause issue to other services
 echo "vm.overcommit_memory=1" >> /etc/sysctl.conf
 sysctl -w vm.overcommit_memory=1

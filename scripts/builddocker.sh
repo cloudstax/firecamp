@@ -216,6 +216,17 @@ BuildCatalogImages() {
   docker build -q -t $image $path
   docker push $image
 
+
+  # build elasticsearch docker image
+  echo
+  target=$system"-elasticsearch"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/elasticsearch/5.6.3/dockerfile/"
+  cp ${TOPWD}/catalog/waitdns.sh ${path}
+  docker build -q -t $image $path
+  rm -f ${path}/waitdns.sh
+  docker push $image
+
 }
 
 if [ "$buildtarget" = "all" ]; then

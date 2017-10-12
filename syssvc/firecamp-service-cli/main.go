@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
@@ -28,7 +29,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -87,6 +88,10 @@ var (
 	consulCACertFile = flag.String("consul-cacert-file", "", "The Consul cacert file")
 	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
 
+	// The elasticsearch service creation specific parameters.
+	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
+	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -114,7 +119,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -196,12 +201,15 @@ func main() {
 			createCouchDBService(ctx, cli)
 		case catalog.CatalogService_Consul:
 			createConsulService(ctx, cli)
+		case catalog.CatalogService_ElasticSearch:
+			createESService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
 				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
 				catalog.CatalogService_Kafka, catalog.CatalogService_Redis,
-				catalog.CatalogService_CouchDB, catalog.CatalogService_Consul)
+				catalog.CatalogService_CouchDB, catalog.CatalogService_Consul,
+				catalog.CatalogService_ElasticSearch)
 			os.Exit(-1)
 		}
 
@@ -637,6 +645,53 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println("The consul service created, Consul server ips", serverips)
 	fmt.Println("Wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createESService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *replicas == 0 || *volSizeGB == 0 {
+		fmt.Println("please specify the valid replica number and volume size")
+		os.Exit(-1)
+	}
+	if *reserveMemMB == common.DefaultReserveMemoryMB {
+		*reserveMemMB = escatalog.DefaultESHeapMB
+	}
+	if *reserveMemMB <= escatalog.DefaultESHeapMB {
+		fmt.Printf("The ElasticSearch heap size equals or less than %d. Please increase it for production system\n", escatalog.DefaultESHeapMB)
+	}
+
+	req := &manage.CatalogCreateElasticSearchRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogElasticSearchOptions{
+			Replicas:               *replicas,
+			VolumeSizeGB:           *volSizeGB,
+			DisableDedicatedMaster: *esDisableDedicatedMaster,
+			DisableForceAwareness:  *esDisableForceAware,
+		},
+	}
+
+	err := cli.CatalogCreateElasticSearchService(ctx, req)
+	if err != nil {
+		fmt.Println("create service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

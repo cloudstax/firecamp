@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/couchdb"
+	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
@@ -42,6 +43,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createCouchDBService(ctx, r, requuid)
 	case manage.CatalogCreateConsulOp:
 		return s.createConsulService(ctx, w, r, requuid)
+	case manage.CatalogCreateElasticSearchOp:
+		return s.createElasticSearchService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -527,6 +530,36 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	w.Write(b)
 
 	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateElasticSearchRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateElasticSearchRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateElasticSearchRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created elasticsearch service", serviceUUID, "requuid", requuid, req.Service)
+
+	// elasticsearch does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
 func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
