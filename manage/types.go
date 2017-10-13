@@ -332,6 +332,7 @@ type CatalogElasticSearchOptions struct {
 	Replicas     int64
 	VolumeSizeGB int64
 
+	DedicatedMasters       int64
 	DisableDedicatedMaster bool
 	DisableForceAwareness  bool
 }

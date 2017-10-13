@@ -23,11 +23,12 @@ func TestESCatalog(t *testing.T) {
 	opts := &manage.CatalogElasticSearchOptions{
 		Replicas:               replicas,
 		VolumeSizeGB:           int64(1),
+		DedicatedMasters:       int64(0),
 		DisableDedicatedMaster: false,
 		DisableForceAwareness:  false,
 	}
 
-	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
 	expectHosts := service + "-0." + domain
 	expectMasterNodes := int64(1)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -41,7 +42,18 @@ func TestESCatalog(t *testing.T) {
 
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
+		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
+	}
+
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
+		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
+	}
+
+	opts.DedicatedMasters = 3
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 1, opts)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
 		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
 	}
@@ -54,10 +66,11 @@ func TestESCatalog(t *testing.T) {
 	// 3 replicas
 	replicas = int64(3)
 	opts.Replicas = replicas
+	opts.DedicatedMasters = 3
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 0, opts)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -72,7 +85,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -84,13 +97,30 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
 
+	opts.DedicatedMasters = 5
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	expectHosts = service + "-0." + domain
+	for i := 1; i < 5; i++ {
+		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
+	}
+	expectMasterNodes = int64(3)
+	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
+		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
+	}
+
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
+		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
+	}
+
 	// 8 replicas
 	replicas = int64(8)
 	opts.Replicas = replicas
+	opts.DedicatedMasters = 3
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 0, opts)
 	expectHosts = service + "-0." + domain
 	for i := 1; i < 5; i++ {
 		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
@@ -108,7 +138,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -120,13 +150,30 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
 
+	opts.DedicatedMasters = 5
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	expectHosts = service + "-0." + domain
+	for i := 1; i < 5; i++ {
+		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
+	}
+	expectMasterNodes = int64(3)
+	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
+		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
+	}
+
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
+		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
+	}
+
 	// 12 replicas
 	replicas = int64(12)
 	opts.Replicas = replicas
+	opts.DedicatedMasters = 3
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -141,13 +188,29 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
 		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
 	}
 
 	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
+		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
+	}
+
+	opts.DedicatedMasters = 5
+	expectMasterNodes = 3
+	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	expectHosts = service + "-0." + domain
+	for i := 1; i < 5; i++ {
+		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
+	}
+	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
+		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
+	}
+
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
 

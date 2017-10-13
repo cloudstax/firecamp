@@ -45,6 +45,14 @@ func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
 	if r.Options.Replicas == int64(2) && r.Options.DisableDedicatedMaster {
 		return errors.New("2 nodes without the dedicated masters are not allowed as it could hit split-brain issue")
 	}
+	if !r.Options.DisableDedicatedMaster && r.Options.DedicatedMasters != 0 {
+		if r.Options.DedicatedMasters < defaultMasterNumber {
+			return errors.New("the cluster should have at least 3 dedicated masters")
+		}
+		if (r.Options.DedicatedMasters % 2) == 0 {
+			return errors.New("should have the odd number dedicated masters")
+		}
+	}
 	return nil
 }
 
@@ -52,13 +60,17 @@ func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogElasticSearchOptions) *manage.CreateServiceRequest {
 	// adjust the parameters
-	replicas := opts.Replicas
+	masterNodeNumber := int64(0)
 	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
-		replicas += defaultMasterNumber
+		if opts.DedicatedMasters < defaultMasterNumber {
+			masterNodeNumber = defaultMasterNumber
+		} else {
+			masterNodeNumber = opts.DedicatedMasters
+		}
 	}
 
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, res, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, masterNodeNumber, res, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: httpPort, HostPort: httpPort},
@@ -75,7 +87,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicas,
+		Replicas:       opts.Replicas + masterNodeNumber,
 		VolumeSizeGB:   opts.VolumeSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
@@ -86,13 +98,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, masterNodeNumber int64,
 	res *common.Resources, opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
-	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, opts)
+	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, masterNodeNumber, opts)
 
-	// TODO have different names for the master nodes.
+	replicas := opts.Replicas + masterNodeNumber
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := int64(0); i < replicas; i++ {
 		// create the sys.conf file
@@ -110,9 +122,9 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 		content := fmt.Sprintf(esConfigs, service, member, az, bind, memberHost, unicastHosts, minMasterNodes)
 
-		if !opts.DisableDedicatedMaster && opts.Replicas > 1 {
-			if i < defaultMasterNumber {
-				// the first 3 nodes as the dedicated master nodes.
+		if masterNodeNumber > 0 {
+			if i < masterNodeNumber {
+				// the first nodes as the dedicated master nodes.
 				content += fmt.Sprintf(nodeConfigs, "true", "false", "false")
 			} else {
 				content += fmt.Sprintf(nodeConfigs, "false", "true", "true")
@@ -153,13 +165,8 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
-func getUnicastHostsAndMinMasterNodes(domain string, service string, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, minMasterNodes int64) {
-	if opts.Replicas == 1 {
-		member := utils.GenServiceMemberName(service, 0)
-		return dns.GenDNSName(member, domain), 1
-	}
-
-	if opts.DisableDedicatedMaster && opts.Replicas <= dataNodeThreshold {
+func getUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeNumber int64, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, minMasterNodes int64) {
+	if masterNodeNumber == 0 {
 		// simply add half nodes to unitcast hosts
 		for i := int64(0); i < (opts.Replicas/2)+1; i++ {
 			member := utils.GenServiceMemberName(service, i)
@@ -176,8 +183,7 @@ func getUnicastHostsAndMinMasterNodes(domain string, service string, opts *manag
 	}
 
 	// has dedicated master nodes, put master nodes into unicast
-	// TODO have different names for the master nodes.
-	for i := int64(0); i < defaultMasterNumber; i++ {
+	for i := int64(0); i < masterNodeNumber; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 		if i == int64(0) {
@@ -186,7 +192,7 @@ func getUnicastHostsAndMinMasterNodes(domain string, service string, opts *manag
 			unicastHosts += esSep + memberHost
 		}
 	}
-	return unicastHosts, (defaultMasterNumber / 2) + 1
+	return unicastHosts, (masterNodeNumber / 2) + 1
 }
 
 const (

@@ -91,6 +91,7 @@ var (
 	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
 
 	// The elasticsearch service creation specific parameters.
+	esDedicatedMasters       = flag.Int64("es-dedicated-masters", 3, "The number of dedicated masters for ElasticSearch")
 	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
 	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
 
@@ -694,6 +695,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		Options: &manage.CatalogElasticSearchOptions{
 			Replicas:               *replicas,
 			VolumeSizeGB:           *volSizeGB,
+			DedicatedMasters:       *esDedicatedMasters,
 			DisableDedicatedMaster: *esDisableDedicatedMaster,
 			DisableForceAwareness:  *esDisableForceAware,
 		},
