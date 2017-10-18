@@ -225,6 +225,16 @@ BuildCatalogImages() {
   docker build -q -t $image $path
   docker push $image
 
+
+  # build kibana docker image
+  echo
+  target=$system"-kibana"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/kibana/5.6.3/dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
+
+
 }
 
 if [ "$buildtarget" = "all" ]; then

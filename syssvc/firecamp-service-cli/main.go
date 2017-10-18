@@ -31,7 +31,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -95,6 +95,13 @@ var (
 	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
 	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
 
+	// The kibana service creation specific parameters.
+	kbESServiceName = flag.String("kb-es-service", "", "The ElasticSearch service the Kibana service talks to")
+	kbProxyBasePath = flag.String("kb-proxy-basepath", "", "The proxy base path for the Kibana service")
+	kbEnableSSL     = flag.Bool("kb-enable-ssl", false, "Whether enables SSL for the Kibana service")
+	kbKeyFile       = flag.String("kb-key-file", "", "The Kibana service key file")
+	kbCertFile      = flag.String("kb-cert-file", "", "The Kibana service certificate file")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -122,7 +129,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -206,13 +213,15 @@ func main() {
 			createConsulService(ctx, cli)
 		case catalog.CatalogService_ElasticSearch:
 			createESService(ctx, cli)
+		case catalog.CatalogService_Kibana:
+			createKibanaService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
 				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
 				catalog.CatalogService_Kafka, catalog.CatalogService_Redis,
 				catalog.CatalogService_CouchDB, catalog.CatalogService_Consul,
-				catalog.CatalogService_ElasticSearch)
+				catalog.CatalogService_ElasticSearch, catalog.CatalogService_Kibana)
 			os.Exit(-1)
 		}
 
@@ -708,6 +717,76 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createKibanaService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *volSizeGB == 0 {
+		fmt.Println("please specify the valid volume size")
+		os.Exit(-1)
+	}
+	if *kbESServiceName == "" {
+		fmt.Println("please specify the valid elasticsearch service name")
+		os.Exit(-1)
+	}
+	if *reserveMemMB == common.DefaultReserveMemoryMB {
+		*reserveMemMB = escatalog.DefaultHeapMB
+	}
+	if *reserveMemMB < escatalog.DefaultHeapMB {
+		fmt.Printf("The reserved memory for Kibana service is less than %d. Please increase it for production system\n", escatalog.DefaultHeapMB)
+	}
+
+	req := &manage.CatalogCreateKibanaRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogKibanaOptions{
+			Replicas:      *replicas,
+			VolumeSizeGB:  *volSizeGB,
+			ESServiceName: *kbESServiceName,
+			ProxyBasePath: *kbProxyBasePath,
+		},
+	}
+
+	if *kbEnableSSL {
+		req.Options.EnableSSL = true
+
+		// load the content of the ssl key and cert files
+		keyBytes, err := ioutil.ReadFile(*kbKeyFile)
+		if err != nil {
+			fmt.Println("read key file error", err, *kbKeyFile)
+			os.Exit(-1)
+		}
+		req.Options.SSLKey = string(keyBytes)
+
+		certBytes, err := ioutil.ReadFile(*kbCertFile)
+		if err != nil {
+			fmt.Println("read cert file error", err, *kbCertFile)
+			os.Exit(-1)
+		}
+		req.Options.SSLCert = string(certBytes)
+	}
+
+	err := cli.CatalogCreateKibanaService(ctx, req)
+	if err != nil {
+		fmt.Println("create kibana service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The kibana service created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

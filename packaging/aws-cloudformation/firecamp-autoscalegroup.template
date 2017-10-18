@@ -175,24 +175,18 @@
           {
             "Key": "Name",
             "Value": {
-              "Ref": "ClusterName"
-            },
-            "PropagateAtLaunch": "true"
-          },
-          {
-            "Key": {
               "Fn::Join":[
                 "-",
                 [
-                  "firecamp",
+                  {
+                    "Ref": "ClusterName"
+                  },
                   {
                     "Ref": "ContainerPlatformRole"
                   }
                 ]
               ]
-            },
-            "Value": {
-              "Ref": "ClusterName"
+
             },
             "PropagateAtLaunch": "true"
           }

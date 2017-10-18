@@ -13,6 +13,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
@@ -45,6 +46,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createConsulService(ctx, w, r, requuid)
 	case manage.CatalogCreateElasticSearchOp:
 		return s.createElasticSearchService(ctx, r, requuid)
+	case manage.CatalogCreateKibanaOp:
+		return s.createKibanaService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -547,6 +550,12 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	err = escatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid elasticsearch create request", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
 	// create the service in the control plane and the container platform
 	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
@@ -559,6 +568,64 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	glog.Infoln("created elasticsearch service", serviceUUID, "requuid", requuid, req.Service)
 
 	// elasticsearch does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateKibanaRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateKibanaRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateKibanaRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = kibanacatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid kibana create request", err, "requuid", requuid, req.Options)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// get the dedicated master nodes of the elasticsearch service
+	// get the elasticsearch service uuid
+	service, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ESServiceName)
+	if err != nil {
+		glog.Errorln("get the elasticsearch service", req.Options.ESServiceName, "error", err, "requuid", requuid, req.Options)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// get the elasticsearch service attr
+	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	esMasterNodes := escatalog.DefaultMasterNumber
+	if attr.Replicas == 1 {
+		esMasterNodes = 1
+	}
+
+	unicastHosts, minMasterNodes := escatalog.GetUnicastHostsAndMinMasterNodes(attr.DomainName, req.Options.ESServiceName, esMasterNodes)
+
+	// create the service in the control plane and the container platform
+	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options, unicastHosts, minMasterNodes)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created kibana service", serviceUUID, "requuid", requuid, req.Service)
+
+	// kibana does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
