@@ -11,6 +11,7 @@ const (
 	CatalogService_CouchDB       = "couchdb"
 	CatalogService_Consul        = "consul"
 	CatalogService_ElasticSearch = "elasticsearch"
+	CatalogService_Kibana        = "kibana"
 
 	// The system variables in the sys.conf file
 	SYS_FILE_NAME = "sys.conf"

@@ -54,6 +54,11 @@ FireCamp ElasticSearch currently supports the open source version (xpack.securit
 
 There are multiple free security plugins for ElasticSearch, such as [HTTP Authentication plugin](https://github.com/elasticfence/elasticsearch-http-user-auth), [SearchGuard](https://github.com/floragunncom/search-guard/tree/5.0.0). We will consider to support them in the future.
 
+## Logging
+
+The ElasticSearch logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
+
+
 Refs:
 
 1. [Install ElasticSearch with Docker](https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html)

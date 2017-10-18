@@ -21,14 +21,16 @@ const (
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html
 	// suggests 9200-9300 for http.port and 9300-9400 for transport.tcp.port.
 	// The Dockerfile expose 9200 and 9300.
-	httpPort         = 9200
-	transportTCPPort = 9300
+	HTTPPort         = 9200
+	TransportTCPPort = 9300
 
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
 	// "26 GB is safe on most systems".
 	maxHeapMB = 26 * 1024
 
-	defaultMasterNumber = int64(3)
+	// DefaultMasterNumber is the default dedicated master nodes.
+	DefaultMasterNumber = int64(3)
+
 	// if there are more than 10 data nodes, DisableDedicatedMaster will be skipped,
 	// and dedicated master nodes will be created
 	dataNodeThreshold = int64(10)
@@ -46,7 +48,7 @@ func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
 		return errors.New("2 nodes without the dedicated masters are not allowed as it could hit split-brain issue")
 	}
 	if !r.Options.DisableDedicatedMaster && r.Options.DedicatedMasters != 0 {
-		if r.Options.DedicatedMasters < defaultMasterNumber {
+		if r.Options.DedicatedMasters < DefaultMasterNumber {
 			return errors.New("the cluster should have at least 3 dedicated masters")
 		}
 		if (r.Options.DedicatedMasters % 2) == 0 {
@@ -62,8 +64,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	// adjust the parameters
 	masterNodeNumber := int64(0)
 	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
-		if opts.DedicatedMasters < defaultMasterNumber {
-			masterNodeNumber = defaultMasterNumber
+		if opts.DedicatedMasters < DefaultMasterNumber {
+			masterNodeNumber = DefaultMasterNumber
 		} else {
 			masterNodeNumber = opts.DedicatedMasters
 		}
@@ -73,8 +75,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, masterNodeNumber, res, opts)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: httpPort, HostPort: httpPort},
-		{ContainerPort: transportTCPPort, HostPort: transportTCPPort},
+		{ContainerPort: HTTPPort, HostPort: HTTPPort},
+		{ContainerPort: TransportTCPPort, HostPort: TransportTCPPort},
 	}
 
 	return &manage.CreateServiceRequest{
@@ -102,7 +104,15 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	res *common.Resources, opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
-	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, masterNodeNumber, opts)
+	unicastHosts := ""
+	minMasterNodes := int64(0)
+	if masterNodeNumber == 0 {
+		// if the dedicated master is disabled, all data nodes are possible to become master.
+		// https://www.elastic.co/guide/en/elasticsearch/guide/1.x/_important_configuration_changes.html
+		unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.Replicas)
+	} else {
+		unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, masterNodeNumber)
+	}
 
 	replicas := opts.Replicas + masterNodeNumber
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
@@ -150,8 +160,8 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the jvm.options file
-		content = fmt.Sprintf(jvmHeapConfigs, res.ReserveMemMB, res.ReserveMemMB)
-		content += jvmConfigs
+		content = fmt.Sprintf(ESJvmHeapConfigs, res.ReserveMemMB, res.ReserveMemMB)
+		content += ESJvmConfigs
 		jvmCfg := &manage.ReplicaConfigFile{
 			FileName: jvmConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -165,24 +175,8 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
-func getUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeNumber int64, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, minMasterNodes int64) {
-	if masterNodeNumber == 0 {
-		// simply add half nodes to unitcast hosts
-		for i := int64(0); i < (opts.Replicas/2)+1; i++ {
-			member := utils.GenServiceMemberName(service, i)
-			memberHost := dns.GenDNSName(member, domain)
-			if i == int64(0) {
-				unicastHosts = memberHost
-			} else {
-				unicastHosts += esSep + memberHost
-			}
-		}
-		// if the dedicated master is disabled, all data nodes are possible to become master.
-		// https://www.elastic.co/guide/en/elasticsearch/guide/1.x/_important_configuration_changes.html
-		return unicastHosts, (opts.Replicas / 2) + 1
-	}
-
-	// has dedicated master nodes, put master nodes into unicast
+// GetUnicastHostsAndMinMasterNodes returns the unicast hosts and minMasterNodes
+func GetUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeNumber int64) (unicastHosts string, minMasterNodes int64) {
 	for i := int64(0); i < masterNodeNumber; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
@@ -233,13 +227,15 @@ node.data: %s
 node.ingest: %s
 `
 
+	// ESJvmHeapConfigs includes the jvm Xms and Xmx size
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
-	jvmHeapConfigs = `
+	ESJvmHeapConfigs = `
 -Xms%dm
 -Xmx%dm
 `
 
-	jvmConfigs = `
+	// ESJvmConfigs includes other default jvm configs
+	ESJvmConfigs = `
 -Des.enforce.bootstrap.checks=true
 
 ## Expert settings

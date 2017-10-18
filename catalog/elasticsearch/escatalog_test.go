@@ -28,7 +28,7 @@ func TestESCatalog(t *testing.T) {
 		DisableForceAwareness:  false,
 	}
 
-	unicastHosts, minMasterNodes := getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes := GetUnicastHostsAndMinMasterNodes(domain, service, replicas)
 	expectHosts := service + "-0." + domain
 	expectMasterNodes := int64(1)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -42,7 +42,7 @@ func TestESCatalog(t *testing.T) {
 
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, replicas)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
 		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
 	}
@@ -53,7 +53,7 @@ func TestESCatalog(t *testing.T) {
 	}
 
 	opts.DedicatedMasters = 3
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 1, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, replicas)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
 		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
 	}
@@ -70,7 +70,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 0, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, replicas)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -85,7 +85,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -98,7 +98,7 @@ func TestESCatalog(t *testing.T) {
 	}
 
 	opts.DedicatedMasters = 5
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain
 	for i := 1; i < 5; i++ {
 		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
@@ -120,7 +120,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, 0, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, replicas)
 	expectHosts = service + "-0." + domain
 	for i := 1; i < 5; i++ {
 		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
@@ -138,7 +138,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -151,7 +151,7 @@ func TestESCatalog(t *testing.T) {
 	}
 
 	opts.DedicatedMasters = 5
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain
 	for i := 1; i < 5; i++ {
 		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
@@ -173,7 +173,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = true
 	opts.DisableForceAwareness = true
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain + ", " + service + "-1." + domain + ", " + service + "-2." + domain
 	expectMasterNodes = int64(2)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
@@ -188,7 +188,7 @@ func TestESCatalog(t *testing.T) {
 	opts.DisableDedicatedMaster = false
 	opts.DisableForceAwareness = false
 
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	if unicastHosts != expectHosts || minMasterNodes != expectMasterNodes {
 		t.Fatalf("expect hosts %s get %s, expect minMasterNodes %d get %d", expectHosts, unicastHosts, expectMasterNodes, minMasterNodes)
 	}
@@ -200,7 +200,7 @@ func TestESCatalog(t *testing.T) {
 
 	opts.DedicatedMasters = 5
 	expectMasterNodes = 3
-	unicastHosts, minMasterNodes = getUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters, opts)
+	unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.DedicatedMasters)
 	expectHosts = service + "-0." + domain
 	for i := 1; i < 5; i++ {
 		expectHosts += ", " + service + "-" + strconv.Itoa(i) + "." + domain
