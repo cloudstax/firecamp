@@ -16,6 +16,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
@@ -54,6 +55,7 @@ var (
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
 	pgReplUserPasswd = flag.String("pg-replpasswd", "replpassword", "The PostgreSQL password for the standby DB to access the primary")
+	pgContainerImage = flag.String("pg-image", pgcatalog.ContainerImage, "The PostgreSQL container image, "+pgcatalog.ContainerImage+" or "+pgcatalog.PostGISContainerImage)
 
 	// The kafka service creation specific parameters
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion, default: false")
@@ -813,12 +815,14 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Replicas:       *replicas,
-		VolumeSizeGB:   *volSizeGB,
-		Admin:          defaultPGAdmin,
-		AdminPasswd:    *adminPasswd,
-		ReplUser:       *pgReplUser,
-		ReplUserPasswd: *pgReplUserPasswd,
+		Options: &manage.CatalogPostgreSQLOptions{
+			Replicas:       *replicas,
+			VolumeSizeGB:   *volSizeGB,
+			ContainerImage: *pgContainerImage,
+			AdminPasswd:    *adminPasswd,
+			ReplUser:       *pgReplUser,
+			ReplUserPasswd: *pgReplUserPasswd,
+		},
 	}
 
 	err := cli.CatalogCreatePostgreSQLService(ctx, req)

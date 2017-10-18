@@ -133,6 +133,14 @@ BuildCatalogImages() {
   rm -f ${path}/waitdns.sh
   docker push $image
 
+  # build postgres postgis docker image
+  echo
+  target=$system"-postgres-postgis"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/postgres/9.6/postgis-dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
+
 
   # build cassandra docker image
   echo

@@ -25,7 +25,7 @@ func ConvertToHTTPError(err error) (errmsg string, errcode int) {
 	case db.ErrDBTableNotFound:
 		return http.StatusText(http.StatusNotFound), http.StatusNotFound
 	}
-	return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	return err.Error(), http.StatusInternalServerError
 }
 
 func ConvertHTTPError(httperrcode int) error {

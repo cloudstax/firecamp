@@ -144,7 +144,15 @@ func main() {
 		initializeMongodb(ctx, cli)
 
 	case servicePostgres:
-		replicaCfgs := pgcatalog.GenReplicaConfigs(*platform, *cluster, *service, zones, *replicas, *port, *adminPasswd, *replUser, *replPasswd)
+		opts := &manage.CatalogPostgreSQLOptions{
+			Replicas:       *replicas,
+			VolumeSizeGB:   *volSizeGB,
+			ContainerImage: pgcatalog.ContainerImage,
+			AdminPasswd:    *adminPasswd,
+			ReplUser:       *replUser,
+			ReplUserPasswd: *replPasswd,
+		}
+		replicaCfgs := pgcatalog.GenReplicaConfigs(*platform, *cluster, *service, zones, *port, opts)
 		createAndWaitService(ctx, cli, replicaCfgs, pgcatalog.ContainerImage)
 
 		initializePostgreSQL(ctx, cli)

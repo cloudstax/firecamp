@@ -247,9 +247,14 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	err = pgcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.Options)
+		return err.Error(), http.StatusBadRequest
+	}
+
 	// create the service in the control plane and the container platform
-	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName,
-		req.Replicas, req.VolumeSizeGB, req.AdminPasswd, req.ReplUser, req.ReplUserPasswd, req.Resource)
+	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -356,7 +361,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	err = rediscatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest parameters are not valid, requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform
@@ -427,7 +432,7 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	err = couchdbcatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("CatalogCreateCouchDBRequest parameters are not valid, requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform
@@ -482,7 +487,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	err = consulcatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("CatalogCreateConsulRequest parameters are not valid, requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform
@@ -553,7 +558,7 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	err = escatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("invalid elasticsearch create request", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform
@@ -589,7 +594,7 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	err = kibanacatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("invalid kibana create request", err, "requuid", requuid, req.Options)
-		return manage.ConvertToHTTPError(err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// get the dedicated master nodes of the elasticsearch service

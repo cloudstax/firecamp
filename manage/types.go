@@ -183,18 +183,25 @@ type CatalogCreateMongoDBRequest struct {
 	AdminPasswd string
 }
 
+// CatalogPostgreSQLOptions includes the config options for PostgreSQL.
+type CatalogPostgreSQLOptions struct {
+	Replicas     int64
+	VolumeSizeGB int64
+
+	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
+	ContainerImage string
+
+	// the default admin user is: postgres
+	AdminPasswd    string
+	ReplUser       string
+	ReplUserPasswd string
+}
+
 // CatalogCreatePostgreSQLRequest creates a PostgreSQL service.
 type CatalogCreatePostgreSQLRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
-
-	Replicas     int64
-	VolumeSizeGB int64
-
-	Admin          string
-	AdminPasswd    string
-	ReplUser       string
-	ReplUserPasswd string
+	Options  *CatalogPostgreSQLOptions
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.

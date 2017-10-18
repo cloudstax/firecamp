@@ -1,6 +1,7 @@
 package pgcatalog
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -13,7 +14,10 @@ import (
 const (
 	// ContainerImage is the main PostgreSQL running container.
 	ContainerImage = common.ContainerNamePrefix + "postgres:" + common.Version
-	defaultPort    = 5432
+	// PostGISContainerImage is the container image for PostgreSQL with PostGIS.
+	PostGISContainerImage = common.ContainerNamePrefix + "postgres-postgis:" + common.Version
+
+	defaultPort = 5432
 
 	containerRolePrimary = "primary"
 	containerRoleStandby = "standby"
@@ -27,16 +31,30 @@ const (
 // 1) One PostgreSQL has 1 primary and 2 secondary replicas across 3 availability zones.
 // 2) Listen on the standard port, 5432.
 
+// ValidateRequest checks if the request is valid
+func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
+	// for now, limit the container image to postgres and postgres-postgis only.
+	// after we get more requirements and finalize the design for the custom image, we may remove this check.
+	if len(req.Options.ContainerImage) != 0 && req.Options.ContainerImage != ContainerImage && req.Options.ContainerImage != PostGISContainerImage {
+		return errors.New("only postgres and postgres-postgis images are supported")
+	}
+	return nil
+}
+
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, replicas int64, volSizeGB int64,
-	adminPasswd string, replUser string, replPasswd string, res *common.Resources) *manage.CreateServiceRequest {
+	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, defaultPort, adminPasswd, replUser, replPasswd)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
 
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
 		HostPort:      defaultPort,
+	}
+
+	image := ContainerImage
+	if len(opts.ContainerImage) != 0 {
+		image = opts.ContainerImage
 	}
 
 	return &manage.CreateServiceRequest{
@@ -48,9 +66,9 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		Resource: res,
 
-		ContainerImage: ContainerImage,
-		Replicas:       replicas,
-		VolumeSizeGB:   volSizeGB,
+		ContainerImage: image,
+		Replicas:       opts.Replicas,
+		VolumeSizeGB:   opts.VolumeSizeGB,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   []common.PortMapping{portmapping},
 
@@ -61,23 +79,23 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
-	port int64, adminPasswd string, replUser string, replPasswd string) []*manage.ReplicaConfig {
-	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string,
+	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ReplicaConfig {
+	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 
 	// generate the primary configs
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryHost, port, adminPasswd, replUser, replPasswd)
+	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
-	for i := 1; i < int(replicas); i++ {
-		index := i % len(azs)
-		member := utils.GenServiceMemberName(service, int64(i))
+	for i := int64(1); i < opts.Replicas; i++ {
+		index := int(i) % len(azs)
+		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		replicaCfgs[i] = genStandbyConfig(platform, azs[index], memberHost, primaryHost, port, adminPasswd, replUser, replPasswd)
+		replicaCfgs[i] = genStandbyConfig(platform, azs[index], memberHost, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
 	}
 
 	return replicaCfgs
