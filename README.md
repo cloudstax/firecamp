@@ -44,7 +44,12 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/firecamp/wiki/Architecture) and [Work Flow](https://github.com/cloudstax/firecamp/wiki/Work-Flows) wiki.
 
 ## Installation
-The FireCamp cluster could be easily installed using AWS CloudFormation for AWS ECS and Docker Swarm. For the details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
+The FireCamp cluster could be easily installed using AWS CloudFormation for AWS ECS and Docker Swarm.
+1. [Create FireCamp cluster](https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https://s3.amazonaws.com/cloudstax/firecamp/releases/0.8.0/cf-templates/firecamp-master.template). This will create an ECS or Docker Swarm cluster across 3 availability zones. The cluster only has the private network address and not accessible from the external internet. The Bastion node is also created and is the only node that could SSH to the cluster.
+2. SSH to the Bastion node and wget [firecamp cli](https://s3.amazonaws.com/cloudstax/firecamp/releases/0.8.0/packages/firecamp-service-cli.tgz).
+3. Use the firecamp cli to create the stateful service. Refer to [Service Tutorials](https://github.com/cloudstax/firecamp/wiki/Tutorials) for each service.
+
+For the Installation details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
 
 ## Catalog Services
 * [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb)
@@ -56,6 +61,7 @@ The FireCamp cluster could be easily installed using AWS CloudFormation for AWS 
 * [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
 * [Consul](https://github.com/cloudstax/firecamp/tree/master/catalog/consul)
 * [ElasticSearch](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch)
+* [Kibana](https://github.com/cloudstax/firecamp/tree/master/catalog/kibana)
 * MySQL: coming soon.
 
 ## Questions and Issues
