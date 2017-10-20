@@ -16,6 +16,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -737,10 +738,10 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = escatalog.DefaultHeapMB
+		*reserveMemMB = kibanacatalog.DefaultReserveMemoryMB
 	}
-	if *reserveMemMB < escatalog.DefaultHeapMB {
-		fmt.Printf("The reserved memory for Kibana service is less than %d. Please increase it for production system\n", escatalog.DefaultHeapMB)
+	if *reserveMemMB < kibanacatalog.DefaultReserveMemoryMB {
+		fmt.Printf("The reserved memory for Kibana service is less than %d. Please increase it for production system\n", kibanacatalog.DefaultReserveMemoryMB)
 	}
 
 	req := &manage.CatalogCreateKibanaRequest{

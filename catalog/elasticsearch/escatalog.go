@@ -189,6 +189,13 @@ func GetUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeN
 	return unicastHosts, (masterNodeNumber / 2) + 1
 }
 
+// GetFirstMemberHost returns the first member's dns name
+func GetFirstMemberHost(domain string, service string) string {
+	member := utils.GenServiceMemberName(service, 0)
+	memberHost := dns.GenDNSName(member, domain)
+	return memberHost
+}
+
 const (
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html
 	//
@@ -235,7 +242,22 @@ node.ingest: %s
 `
 
 	// ESJvmConfigs includes other default jvm configs
+	// for cgroups setting, see the detail explanations in the bin/es-docker file of the elasticsearch docker 5.6.3.
 	ESJvmConfigs = `
+# The virtual file /proc/self/cgroup should list the current cgroup
+# membership. For each hierarchy, you can follow the cgroup path from
+# this file to the cgroup filesystem (usually /sys/fs/cgroup/) and
+# introspect the statistics for the cgroup for the given
+# hierarchy. Alas, Docker breaks this by mounting the container
+# statistics at the root while leaving the cgroup paths as the actual
+# paths. Therefore, Elasticsearch provides a mechanism to override
+# reading the cgroup path from /proc/self/cgroup and instead uses the
+# cgroup path defined the JVM system property
+# es.cgroups.hierarchy.override. Therefore, we set this value here so
+# that cgroup statistics are available for the container this process
+# will run in.
+-Des.cgroups.hierarchy.override=/
+
 -Des.enforce.bootstrap.checks=true
 
 ## Expert settings

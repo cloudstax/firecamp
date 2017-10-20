@@ -612,16 +612,11 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return manage.ConvertToHTTPError(err)
 	}
 
-	esMasterNodes := escatalog.DefaultMasterNumber
-	if attr.Replicas == 1 {
-		esMasterNodes = 1
-	}
-
-	unicastHosts, minMasterNodes := escatalog.GetUnicastHostsAndMinMasterNodes(attr.DomainName, req.Options.ESServiceName, esMasterNodes)
+	esNode := escatalog.GetFirstMemberHost(attr.DomainName, attr.ServiceName)
 
 	// create the service in the control plane and the container platform
 	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Options, unicastHosts, minMasterNodes)
+		req.Service.ServiceName, req.Resource, req.Options, esNode)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
