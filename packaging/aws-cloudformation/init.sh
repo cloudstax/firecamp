@@ -77,8 +77,8 @@ if [ "$containerPlatform" = "ecs" ]; then
   service docker start
 
   # install cloudstax ecs init
-  wget -O /tmp/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm
-  rpm -ivh /tmp/cloudstax-ecs-init-1.14.4-1.amzn1.x86_64.rpm
+  wget -O /tmp/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm
+  rpm -ivh /tmp/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm
   echo "ECS_CLUSTER=$clusterName" >> /etc/ecs/ecs.config
   start ecs
 
