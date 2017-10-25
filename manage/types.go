@@ -27,6 +27,7 @@ const (
 	CatalogCreateConsulOp        = CatalogOpPrefix + "Create-Consul"
 	CatalogCreateElasticSearchOp = CatalogOpPrefix + "Create-ElasticSearch"
 	CatalogCreateKibanaOp        = CatalogOpPrefix + "Create-Kibana"
+	CatalogCreateLogstashOp      = CatalogOpPrefix + "Create-Logstash"
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
@@ -375,6 +376,38 @@ type CatalogCreateKibanaRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogKibanaOptions
+}
+
+// CatalogLogstashOptions includes the config options for Logstash.
+type CatalogLogstashOptions struct {
+	Replicas     int64
+	VolumeSizeGB int64
+
+	// The container image for the service, such as cloudstax/firecamp-logstash:version or cloudstax/firecamp-logstash-input-couchdb:version
+	ContainerImage string
+
+	// The internal queue model: "memory" or "persisted"
+	QueueType             string
+	EnableDeadLetterQueue bool
+
+	// The pipeline configs.
+	// There is no need to have multiple config file, as Logstash currently has a single event pipeline.
+	// All configuration files are just concatenated (in order) as if you had written a single flat file.
+	PipelineConfigs string
+
+	// https://www.elastic.co/guide/en/logstash/5.6/tuning-logstash.html
+	// The pipeline settings
+	PipelineWorkers       int
+	PipelineOutputWorkers int
+	PipelineBatchSize     int
+	PipelineBatchDelay    int
+}
+
+// CatalogCreateLogstashRequest creates a Logstash service.
+type CatalogCreateLogstashRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogLogstashOptions
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

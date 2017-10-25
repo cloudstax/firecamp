@@ -243,6 +243,23 @@ BuildCatalogImages() {
   docker push $image
 
 
+  # build logstash docker image
+  echo
+  target=$system"-logstash"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/logstash/5.6.3/dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
+
+  # build logstash docker image with couchdb input plugin
+  echo
+  target=$system"-logstash-input-couchdb"
+  image="${org}${target}:${version}"
+  path="${TOPWD}/catalog/logstash/5.6.3/dockerfile-input-couchdb/"
+  docker build -q -t $image $path
+  docker push $image
+
+
 }
 
 if [ "$buildtarget" = "all" ]; then

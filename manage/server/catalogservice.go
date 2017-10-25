@@ -14,6 +14,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kibana"
+	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
@@ -48,6 +49,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createElasticSearchService(ctx, r, requuid)
 	case manage.CatalogCreateKibanaOp:
 		return s.createKibanaService(ctx, r, requuid)
+	case manage.CatalogCreateLogstashOp:
+		return s.createLogstashService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -626,6 +629,42 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	glog.Infoln("created kibana service", serviceUUID, "requuid", requuid, req.Service)
 
 	// kibana does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateLogstashRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateLogstashRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+		glog.Errorln("CatalogCreateLogstashRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = logstashcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid logstash create request", err, "requuid", requuid, req.Options)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
+		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created logstash service", serviceUUID, "requuid", requuid, req.Service)
+
+	// logstash does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 

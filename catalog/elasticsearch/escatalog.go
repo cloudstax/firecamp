@@ -313,6 +313,12 @@ node.ingest: %s
 -XX:HeapDumpPath=/data/es.hprof
 
 ## GC logging
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+#-XX:+PrintGCDateStamps
+#-XX:+PrintClassHistogram
+#-XX:+PrintTenuringDistribution
+-XX:+PrintGCApplicationStoppedTime
 
 # log GC status to a file with time stamps
 # ensure the directory exists
@@ -320,9 +326,9 @@ node.ingest: %s
 
 # By default, the GC log file will not rotate.
 # By uncommenting the lines below, the GC log file
-# will be rotated every 128MB at most 8 times.
+# will be rotated every 64MB at most 8 times.
 -XX:+UseGCLogFileRotation
 -XX:NumberOfGCLogFiles=8
--XX:GCLogFileSize=128M
+-XX:GCLogFileSize=64M
 `
 )

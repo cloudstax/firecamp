@@ -17,6 +17,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kibana"
+	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -33,7 +34,7 @@ import (
 
 var (
 	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana")
+	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
 	cluster         = flag.String("cluster", "default", "The ECS cluster")
 	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region          = flag.String("region", "", "The target AWS region")
@@ -105,6 +106,16 @@ var (
 	kbKeyFile       = flag.String("kb-key-file", "", "The Kibana service key file")
 	kbCertFile      = flag.String("kb-cert-file", "", "The Kibana service certificate file")
 
+	// The logstash service creation specific parameters.
+	lsContainerImage        = flag.String("ls-container-image", logstashcatalog.ContainerImage, "The Logstash container image: "+logstashcatalog.ContainerImage+" or "+logstashcatalog.InputCouchDBContainerImage)
+	lsQueueType             = flag.String("ls-queue-type", logstashcatalog.QueueTypeMemory, "The Logstash service queue type: memory or persisted")
+	lsEnableDLQ             = flag.Bool("ls-enable-dlq", true, "Whether enables the Dead Letter Queue for Logstash, default: true")
+	lsPipelineFile          = flag.String("ls-pipeline-file", "", "The Logstash pipeline config file")
+	lsPipelineWorkers       = flag.Int("ls-workers", 0, "The number of worker threads for Logstash filter and output processing, 0 means using the default logstash workers")
+	lsPipelineOutputWorkers = flag.Int("ls-outputworkers", 0, "The number of worker threads for each output, 0 means using the default logstash value")
+	lsPipelineBatchSize     = flag.Int("ls-batch-size", 0, "How many events to retrieve from inputs before sending to filters+workers, 0 means using the default logstash batch size")
+	lsPipelineBatchDelay    = flag.Int("ls-batch-delay", 0, "How long to wait before dispatching an undersized batch to filters+workers, Unit: milliseconds, 0 means using the default logstash batch delay")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -132,7 +143,7 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
@@ -218,6 +229,8 @@ func main() {
 			createESService(ctx, cli)
 		case catalog.CatalogService_Kibana:
 			createKibanaService(ctx, cli)
+		case catalog.CatalogService_Logstash:
+			createLogstashService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
@@ -790,6 +803,71 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The kibana service created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createLogstashService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *volSizeGB == 0 {
+		fmt.Println("please specify the valid volume size")
+		os.Exit(-1)
+	}
+	if *lsPipelineFile == "" {
+		fmt.Println("please specify the valid pipeline config file")
+		os.Exit(-1)
+	}
+	if *reserveMemMB == common.DefaultReserveMemoryMB {
+		*reserveMemMB = logstashcatalog.DefaultReserveMemoryMB
+	}
+	if *reserveMemMB < logstashcatalog.DefaultReserveMemoryMB {
+		fmt.Printf("The reserved memory for Logstash service is less than %d. Please increase it for production system\n", logstashcatalog.DefaultReserveMemoryMB)
+	}
+
+	// load the content of the pipeline config file
+	// TODO how to validate the config file. for now, rely on the user to ensure it.
+	cfgBytes, err := ioutil.ReadFile(*lsPipelineFile)
+	if err != nil {
+		fmt.Println("read the pipeline config file error", err, *lsPipelineFile)
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateLogstashRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogLogstashOptions{
+			Replicas:              *replicas,
+			VolumeSizeGB:          *volSizeGB,
+			ContainerImage:        *lsContainerImage,
+			QueueType:             *lsQueueType,
+			EnableDeadLetterQueue: *lsEnableDLQ,
+			PipelineConfigs:       string(cfgBytes),
+			PipelineWorkers:       *lsPipelineWorkers,
+			PipelineOutputWorkers: *lsPipelineOutputWorkers,
+			PipelineBatchSize:     *lsPipelineBatchSize,
+			PipelineBatchDelay:    *lsPipelineBatchDelay,
+		},
+	}
+
+	err = cli.CatalogCreateLogstashService(ctx, req)
+	if err != nil {
+		fmt.Println("create logstash service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The logstash service created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
