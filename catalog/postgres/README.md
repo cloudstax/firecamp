@@ -1,8 +1,6 @@
 The FireCamp PostgreSQL container is based on the [official PostgreSQL Debian image](https://hub.docker.com/_/postgres/). The data volume will be mounted to the /data directory inside container. The PostgreSQL data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
 
-**Security**
-
-User and password are required to access the DB. The replication user and password is also enabled for the standby to replicate from the primary.
+## PostgreSQL Cluster
 
 **Replication**
 
@@ -22,7 +20,17 @@ When the primary container starts at the first time, the primary will initialize
 
 When the standby container starts at the first time, the standby will use pg_basebackup to copy the base backup from the primary. Once the standby is initialized, the standby will keep streaming the logs from the primary.
 
-**Logging**
+**Custom Plugins**
+
+The PostGIS is supported as the example for how to customize your PostgreSQL, catalog/postgres/9.6/postgis-dockerfile. To create a PostgreSQL cluster with PostGIS, specify -pg-image=cloudstax/firecamp-postgres-postgis:latest at the service creation.
+
+If the additional custom plugin is required, we could follow the same way to create a new docker image and specify it when creating the service. Note, this is currently disabled until we hear the actual requirement.
+
+## Security
+
+User and password are required to access the DB. The replication user and password is also enabled for the standby to replicate from the primary.
+
+## Logging
 
 The PostgreSQL logs are sent to the Cloud Logs, such as AWS CloudWatch logs. Could easily check what happens to PostgreSQL through CloudWatch logs.
 

@@ -29,6 +29,8 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 * The Bastion node: the Bastion AutoScaleGroup is created and is the only one that could SSH to the FireCamp cluster nodes and talk with the FireCamp manage service.
 * Service security: user and password are required to access the service, such as MongoDB. And other service internal security features are enabled, such as MongoDB access control between members of a ReplicaSet.
 
+**Flexible Custom Plugins**: FireCamp could be easily expanded to support the custom plugins, such as PostGIS for PostgreSQL, CouchDB input plugin for Logstash, etc. The custom container image could be created from the base image, such as [PostGIS](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres/9.6/postgis-dockerfile/Dockerfile), and specify the image when creating the service.
+
 **Easy Scale**: FireCamp makes it easy to scale out the stateful services. For the primary based service, such as MongoDB, FireCamp integrates with Cloud Volume Snapshot to simplify adding a new replica. For example, to add a new replica to an existing MongoDB ReplicaSet, FireCamp will pause one current replica, create a Snapshot of the replica's Cloud Volume, create a new Volume from the Snapshot, and assign the new volume to the new replica.
 
 **Smooth Upgrade**: FireCamp is aware of the service's membership, and follows the service's rule to maintain the membership. For example, when upgrade a MongoDB ReplicaSet, it is better to gracefully stop and upgrade the primary member first. FireCamp will automatically detect who is the primary member, upgrade it first, and then upgrade other members one by one.
