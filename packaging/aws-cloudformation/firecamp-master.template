@@ -511,6 +511,22 @@
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
             }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9600",
+            "ToPort": "9600",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5044",
+            "ToPort": "5044",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
           }
         ]
       }

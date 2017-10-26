@@ -5,7 +5,7 @@ To build a new release, 3 steps are required. This will be enhanced in the futur
 Currently need to update multiple files.
 1) The version in Makefile
 2) Version in common/types.go
-3) Update the "Release" and "CFS3KeyPrefix" in firecamp-master.template and firecamp-test.template
+3) Update the "Release" and "CFS3KeyPrefix" in firecamp-master.template and firecamp-existingvpc.template
 
 2. Docker Images
 make docker to build the docker images for this release.
