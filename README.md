@@ -62,6 +62,7 @@ For the Installation details, please refer to [Installation](https://github.com/
 * [Consul](https://github.com/cloudstax/firecamp/tree/master/catalog/consul)
 * [ElasticSearch](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch)
 * [Kibana](https://github.com/cloudstax/firecamp/tree/master/catalog/kibana)
+* [Logstash](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash)
 * MySQL: coming soon.
 
 ## Questions and Issues
