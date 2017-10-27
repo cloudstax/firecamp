@@ -189,6 +189,23 @@
 
             },
             "PropagateAtLaunch": "true"
+          },
+          {
+            "Key": {
+              "Fn::Join":[
+                "-",
+                [
+                  "firecamp",
+                  {
+                    "Ref": "ContainerPlatformRole"
+                  }
+                ]
+              ]
+            },
+            "Value": {
+              "Ref": "ClusterName"
+            },
+            "PropagateAtLaunch": "true"
           }
         ]
       },
