@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 version=$1
 clusterName=$2
@@ -59,8 +59,9 @@ sysctl -w vm.overcommit_memory=1
 # docker.x86_64                 17.03.1ce-1.50.amzn1                   amzn-updates
 # docker.x86_64                 17.03.2ce-1.59.amzn1                   amzn-updates
 if [ "$containerPlatform" = "ecs" ]; then
-  # ecs-init-1.14.4-1 supports up to docker 17.03.2ce
-  yum install -y docker-17.03.2ce-1.59.amzn1
+  # ecs-init-1.14.5-1 only requires docker >= 17.03.2ce
+  # yum install -y docker-17.03.2ce-1.59.amzn1
+  yum install -y docker
 else
   yum install -y docker
 fi
@@ -77,7 +78,20 @@ if [ "$containerPlatform" = "ecs" ]; then
   service docker start
 
   # install cloudstax ecs init
-  wget -O /tmp/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm
+  for i in `seq 1 3`
+  do
+    wget -O /tmp/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm
+    if [ "$?" = "0" ]; then
+      break
+    elif [ "$i" = "3" ]; then
+      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz"
+      exit 2
+    else
+      # wget fail, sleep and retry
+      sleep 3
+    fi
+  done
+
   rpm -ivh /tmp/cloudstax-ecs-init-1.14.5-1.amzn1.x86_64.rpm
   echo "ECS_CLUSTER=$clusterName" >> /etc/ecs/ecs.config
   start ecs
@@ -126,14 +140,29 @@ if [ "$containerPlatform" = "swarm" ]; then
   service docker start
 
   # get swarminit command to init swarm
-  wget -O firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
-  tar -zxf firecamp-swarminit.tgz
-  chmod +x firecamp-swarminit
+  for i in `seq 1 3`
+  do
+    wget -O /tmp/firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
+    if [ "$?" = "0" ]; then
+      break
+    elif [ "$i" = "3" ]; then
+      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz"
+      exit 2
+    else
+      # wget fail, sleep and retry
+      sleep 3
+    fi
+  done
+
+  tar -zxf firecamp-swarminit.tgz -C /tmp
+  chmod +x /tmp/firecamp-swarminit
 
   # initialize the swarm node
-  /firecamp-swarminit -cluster="$clusterName" -role="$containerPlatformRole" -availability-zones="$azs"
-
-  echo "firecamp-swarminit done"
+  /tmp/firecamp-swarminit -cluster="$clusterName" -role="$containerPlatformRole" -availability-zones="$azs"
+  if [ "$?" != "0" ]; then
+    echo "firecamp-swarminit error"
+    exit 3
+  fi
 
   if [ "$containerPlatformRole" = "worker" ]; then
     # worker node, install the firecamp plugin
