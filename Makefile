@@ -18,15 +18,6 @@ catalogs:
 test:
 	./scripts/gotest.sh
 
-rpm: install
-	mkdir -p build/SOURCES
-	cp $(GOPATH)/bin/firecamp-dockervolume firecamp-dockervolume
-	cp packaging/firecamp-dockervolume/rpm/firecamp-dockervolume.conf firecamp-dockervolume.conf
-	tar -czf build/SOURCES/firecamp-dockervolume.tgz firecamp-dockervolume firecamp-dockervolume.conf
-	rpmbuild --define '%_topdir $(PWD)/build' -bb packaging/firecamp-dockervolume/rpm/firecamp-dockervolume.spec
-	rm firecamp-dockervolume
-	rm firecamp-dockervolume.conf
-
 clean:
 	-rm -rf build
 	-rm $(GOPATH)/bin/firecamp* || true
