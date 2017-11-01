@@ -247,9 +247,7 @@
       }
     },
     "ServiceAutoScalingGroup": {
-      "DependsOn": [
-        "ECSCluster"
-      ],
+      "DependsOn": "ECSCluster",
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {

@@ -206,9 +206,7 @@
       }
     },
     "WorkerAutoScalingGroup": {
-      "DependsOn": [
-        "ManagerAutoScalingGroup"
-      ],
+      "DependsOn": "ManagerAutoScalingGroup",
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {

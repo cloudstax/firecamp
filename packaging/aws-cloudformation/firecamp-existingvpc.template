@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. Note: The firecamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC.",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -351,6 +351,9 @@
           },
           "KeyPairName": {
             "Ref": "KeyPairName"
+          },
+          "VPCID": {
+            "Ref": "VPCID"
           },
           "SubnetIDs": {
             "Fn::Join": [
