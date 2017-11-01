@@ -154,7 +154,7 @@ if [ "$containerPlatform" = "swarm" ]; then
     fi
   done
 
-  tar -zxf firecamp-swarminit.tgz -C /tmp
+  tar -zxf /tmp/firecamp-swarminit.tgz -C /tmp
   chmod +x /tmp/firecamp-swarminit
 
   # initialize the swarm node

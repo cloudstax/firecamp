@@ -32,15 +32,10 @@
       "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
-    "DesiredCapacity":{
+    "NumberOfNodes":{
       "Type":"Number",
       "Default":"3",
       "Description":"Number of instances to launch."
-    },
-    "MaxSize":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Maximum number of instances that can be launched."
     },
     "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
@@ -298,11 +293,8 @@
               }
             ]
           },
-          "DesiredCapacity": {
-            "Ref": "DesiredCapacity"
-          },
-          "MaxSize":{
-            "Ref": "MaxSize"
+          "NumberOfNodes": {
+            "Ref": "NumberOfNodes"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroupID"

@@ -1,7 +1,116 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
   "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. Note: The firecamp system will create the HostedZone in AWS Route53. Unfortunately the CloudFormation stack is not able to delete the DNS records. Please manually cleanup the HostedZone after shuting down the stack.",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Network Configuration"
+          },
+          "Parameters": [
+            "VPCID",
+            "SubnetIDs",
+            "AvailabilityZones",
+            "RemoteAccessCIDR"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Security Configuration"
+          },
+          "Parameters": [
+            "KeyPairName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "FireCamp Cluster Configuration"
+          },
+          "Parameters": [
+            "ContainerPlatform",
+            "ClusterName",
+            "Release",
+            "CFS3BucketName",
+            "CFS3KeyPrefix",
+            "NumberOfManagers",
+            "NumberOfNodes",
+            "NodeInstanceType"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "VPCID": {
+          "default": "VPC ID"
+        },
+        "SubnetIDs": {
+          "default": "Subnet IDs"
+        },
+        "AvailabilityZones": {
+          "default": "Availability Zones"
+        },
+        "RemoteAccessCIDR": {
+          "default": "Allowed Bastion External Access CIDR"
+        },
+
+        "KeyPairName": {
+          "default": "Key Pair Name"
+        },
+
+        "ContainerPlatform": {
+          "default": "Container Platform"
+        },
+        "ClusterName": {
+          "default": "Cluster Name"
+        },
+        "Release": {
+          "default": "CloudStax FireCamp Release Version"
+        },
+        "CFS3BucketName": {
+          "default": "CloudStax FireCamp S3 Bucket Name"
+        },
+        "CFS3KeyPrefix": {
+          "default": "CloudStax FireCamp S3 Key Prefix"
+        },
+        "NumberOfManagers": {
+          "default": "Number of Docker Swarm Managers"
+        },
+        "NumberOfNodes": {
+          "default": "Number of Container Worker Nodes"
+        },
+        "NodeInstanceType": {
+          "default": "Node Instance Type"
+        }
+      }
+    }
+  },
   "Parameters":{
+    "VPCID":{
+      "Type":"AWS::EC2::VPC::Id",
+      "Description":"Select a VPC that allows instances to access the Internet."
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "AvailabilityZones": {
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
+    },
+    "RemoteAccessCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "Default":"0.0.0.0/0",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "Allowed CIDR block to SSH to the nodes."
+    },
+
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
+    },
+
     "ContainerPlatform":{
       "Type": "String",
       "Default": "ecs",
@@ -16,22 +125,11 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
-    },
-    "VPCID":{
-      "Type":"AWS::EC2::VPC::Id",
-      "Description":"Select a VPC that allows instances to access the Internet."
-    },
-    "SubnetIDs": {
-      "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
-    "AvailabilityZones": {
-      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
-      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
+    "Release": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
+      "Description": "The FireCamp release version"
     },
     "CFS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
@@ -40,38 +138,20 @@
       "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
-    "Release": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
-      "Description": "The FireCamp release version"
-    },
     "CFS3KeyPrefix": {
         "Type": "String",
         "Default": "firecamp/releases/latest/cf-templates",
         "Description": "The S3 key prefix"
-    },
-    "RemoteAccessCIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-      "Type": "String",
-      "Default":"0.0.0.0/0",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block to access SSH or the firecamp manage http server."
     },
     "NumberOfManagers":{
       "Type":"Number",
       "Default":"1",
       "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
     },
-    "DesiredCapacity":{
+    "NumberOfNodes":{
       "Type":"Number",
       "Default":"1",
-      "Description":"Number of instances to launch. For Swarm, this is the number of worker nodes. One manager node will be created automatically."
-    },
-    "MaxSize":{
-      "Type":"Number",
-      "Default":"1",
-      "Description":"Maximum number of instances that can be launched."
+      "Description":"Number of instances to launch. For Swarm, this is the number of worker nodes."
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -291,11 +371,8 @@
           "NumberOfManagers": {
             "Ref": "NumberOfManagers"
           },
-          "DesiredCapacity": {
-            "Ref": "DesiredCapacity"
-          },
-          "MaxSize": {
-            "Ref": "MaxSize"
+          "NumberOfNodes": {
+            "Ref": "NumberOfNodes"
           },
           "NodeInstanceType": {
             "Ref": "NodeInstanceType"

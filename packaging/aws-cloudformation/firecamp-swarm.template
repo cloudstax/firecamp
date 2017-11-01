@@ -37,15 +37,10 @@
       "Default":"3",
       "Description":"Number of the Swarm manager instances to launch."
     },
-    "DesiredWorkerCapacity":{
+    "NumberOfNodes":{
       "Type":"Number",
       "Default":"3",
       "Description":"Number of the Swarm worker instances to launch."
-    },
-    "MaxWorkerSize":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Maximum number of the Swarm worker instances that can be launched."
     },
     "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
@@ -192,10 +187,7 @@
               }
             ]
           },
-          "DesiredCapacity": {
-            "Ref": "NumberOfManagers"
-          },
-          "MaxSize":{
+          "NumberOfNodes": {
             "Ref": "NumberOfManagers"
           },
           "ServiceSecurityGroupID": {
@@ -261,11 +253,8 @@
               }
             ]
           },
-          "DesiredCapacity": {
-            "Ref": "DesiredWorkerCapacity"
-          },
-          "MaxSize":{
-            "Ref": "MaxWorkerSize"
+          "NumberOfNodes": {
+            "Ref": "NumberOfNodes"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroupID"
