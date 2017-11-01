@@ -167,8 +167,9 @@ func main() {
 
 	err = manageserver.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
-
-	glog.Fatalln("StartServer error", err)
+	if err != nil {
+		glog.Fatalln("StartServer error", err)
+	}
 }
 
 func createControlDB(ctx context.Context, region string, cluster string, logIns cloudlog.CloudLog,

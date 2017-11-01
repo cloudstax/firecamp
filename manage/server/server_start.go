@@ -1,9 +1,12 @@
 package manageserver
 
 import (
-	"flag"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -36,9 +39,21 @@ func StartServer(platform string, cluster string, azs []string, manageDNSName st
 		}
 	}
 
-	err = dns.RegisterDNSName(context.Background(), domain, dnsname, serverInfo, dnsIns)
+	// register dns
+	ctx := context.Background()
+	private := true
+	vpcID := serverInfo.GetLocalVpcID()
+	vpcRegion := serverInfo.GetLocalRegion()
+	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(ctx, domain, vpcID, vpcRegion, private)
 	if err != nil {
-		glog.Errorln("RegisterDNSName error", err, "domain", domain, "dnsname", dnsname)
+		glog.Errorln("GetOrCreateHostedZoneIDByName error", err, "domain", domain, "vpcID", vpcID)
+		return err
+	}
+
+	privateIP := serverInfo.GetPrivateIP()
+	err = dnsIns.UpdateDNSRecord(ctx, dnsname, privateIP, hostedZoneID)
+	if err != nil {
+		glog.Errorln("UpdateDNSRecord error", err, "domain", domain, "dnsname", dnsname)
 		return err
 	}
 
@@ -50,10 +65,6 @@ func StartServer(platform string, cluster string, azs []string, manageDNSName st
 	s := &http.Server{
 		Addr:    addr,
 		Handler: serv,
-		//ReadTimeout:    10 * time.Second,
-		//WriteTimeout:   10 * time.Second,
-		//TLSConfig:
-		//ErrorLog:
 	}
 
 	if tlsEnabled && caFile != "" {
@@ -66,13 +77,35 @@ func StartServer(platform string, cluster string, azs []string, manageDNSName st
 		s.TLSConfig = tlsConf
 	}
 
-	glog.Infoln("start the management service for cluster", cluster, azs, "on", addr,
-		"tlsEnabled", tlsEnabled, "ca file", caFile, "cert file", certFile, "key file", keyFile)
-	// not log error to std
-	flag.Set("stderrthreshold", "FATAL")
+	go func() {
+		glog.Infoln("start the management service for cluster", cluster, azs, "on", addr,
+			"tlsEnabled", tlsEnabled, "ca file", caFile, "cert file", certFile, "key file", keyFile)
 
-	if tlsEnabled {
-		return s.ListenAndServeTLS(certFile, keyFile)
-	}
-	return s.ListenAndServe()
+		if tlsEnabled {
+			err = s.ListenAndServeTLS(certFile, keyFile)
+		}
+		err = s.ListenAndServe()
+
+		if err != http.ErrServerClosed {
+			glog.Fatalln("ListenAndServe returns error", err)
+		}
+	}()
+
+	// graceful stop
+	stop := make(chan os.Signal, 1)
+
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	glog.Infoln("Shutdown the management http server")
+
+	// delete the dns record
+	err = dnsIns.DeleteDNSRecord(ctx, dnsname, privateIP, hostedZoneID)
+	glog.Infoln("DeleteDNSRecord domain", domain, "dnsname", dnsname, "hostedZone", hostedZoneID, "error", err)
+
+	return s.Shutdown(ctx)
 }
