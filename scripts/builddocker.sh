@@ -136,12 +136,16 @@ BuildCatalogImages() {
   # build postgres postgis docker image
   echo
   cd ${TOPWD}/catalog/postgres/9.6/postgis-dockerfile/
-  sed -i "s/latest/$version/g" Dockerfile
+  if [ "$version" != "latest" ]; then
+    sed -i "s/latest/$version/g" Dockerfile
+  fi
   target=$system"-postgres-postgis"
   image="${org}${target}:${version}"
   docker build -q -t $image .
   docker push $image
-  sed -i "s/$version/latest/g" Dockerfile
+  if [ "$version" != "latest" ]; then
+    sed -i "s/$version/latest/g" Dockerfile
+  fi
   cd -
 
 
@@ -257,12 +261,16 @@ BuildCatalogImages() {
   # build logstash docker image with couchdb input plugin
   echo
   cd ${TOPWD}/catalog/logstash/5.6.3/dockerfile-input-couchdb/
-  sed -i "s/latest/$version/g" Dockerfile
+  if [ "$version" != "latest" ]; then
+    sed -i "s/latest/$version/g" Dockerfile
+  fi
   target=$system"-logstash-input-couchdb"
   image="${org}${target}:${version}"
   docker build -q -t $image .
   docker push $image
-  sed -i "s/$version/latest/g" Dockerfile
+  if [ "$version" != "latest" ]; then
+    sed -i "s/$version/latest/g" Dockerfile
+  fi
   cd -
 
 

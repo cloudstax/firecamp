@@ -334,72 +334,76 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-// Delete one service, DELETE /servicename
 func (s *ManageHTTPServer) delOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
-	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
-		switch trimURL {
-		case manage.DeleteTaskOp:
-			return s.deleteTask(ctx, w, r, requuid)
-		default:
-			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-		}
-	} else {
-		return s.deleteService(ctx, w, r, trimURL, requuid)
+	switch trimURL {
+	case manage.DeleteServiceOp:
+		return s.deleteService(ctx, w, r, requuid)
+	case manage.DeleteTaskOp:
+		return s.deleteTask(ctx, w, r, requuid)
+	default:
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 }
 
-func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWriter, r *http.Request, servicename string, requuid string) (errmsg string, errcode int) {
-	req := &manage.ServiceCommonRequest{}
+func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	req := &manage.DeleteServiceRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("deleteService decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Cluster != s.cluster || req.Region != s.region || req.ServiceName != servicename {
+	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
 		glog.Errorln("deleteService invalid request, local cluster", s.cluster, "region",
-			s.region, "service", servicename, "requuid", requuid, req)
+			s.region, "requuid", requuid, req)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
 	// delete the service on the container platform
-	err = s.containersvcIns.StopService(ctx, s.cluster, servicename)
+	err = s.containersvcIns.StopService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("StopService error", err, "service", servicename, "requuid", requuid)
+		glog.Errorln("StopService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.containersvcIns.DeleteService(ctx, s.cluster, servicename)
+	err = s.containersvcIns.DeleteService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("delete service from container platform error", err,
-			"service", servicename, "requuid", requuid)
+		glog.Errorln("delete service from container platform error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
 	// delete the service cloud log
-	svc, err := s.dbIns.GetService(ctx, s.cluster, servicename)
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("GetService error", err, "service", servicename, "requuid", requuid)
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.logIns.DeleteServiceLogConfig(ctx, s.cluster, servicename, svc.ServiceUUID)
+	err = s.logIns.DeleteServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID)
 	if err != nil {
-		glog.Errorln("DeleteServiceLogConfig error", err, "service", servicename, "requuid", requuid)
+		glog.Errorln("DeleteServiceLogConfig error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
 	// delete the service on the control plane
 	// TODO support the possible concurrent service deletion and creation with the same name.
-	err = s.svc.DeleteService(ctx, s.cluster, servicename)
+	volIDs, err := s.svc.DeleteService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("DeleteService error", err, servicename, "requuid", requuid)
+		glog.Errorln("DeleteService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("deleted service", servicename, "requuid", requuid, r)
+	glog.Infoln("deleted service", req.Service.ServiceName, "requuid", requuid, "volumes", volIDs)
+
+	resp := &manage.DeleteServiceResponse{VolumeIDs: volIDs}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal DeleteServiceResponse error", err, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 
 	return "", http.StatusOK
 }

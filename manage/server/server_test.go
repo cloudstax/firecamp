@@ -397,10 +397,12 @@ func genSetInitRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *
 }
 
 func genDeleteRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
-	req := &manage.ServiceCommonRequest{
-		Region:      mgtsvc.region,
-		Cluster:     mgtsvc.cluster,
-		ServiceName: service,
+	req := &manage.DeleteServiceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      mgtsvc.region,
+			Cluster:     mgtsvc.cluster,
+			ServiceName: service,
+		},
 	}
 
 	b, err := json.Marshal(req)
@@ -409,5 +411,5 @@ func genDeleteRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *h
 	}
 
 	body := ioutil.NopCloser(bytes.NewReader(b))
-	return &http.Request{Method: "DELETE", URL: &url.URL{Path: service}, Body: body}
+	return &http.Request{Method: "DELETE", URL: &url.URL{Path: manage.DeleteServiceOp}, Body: body}
 }

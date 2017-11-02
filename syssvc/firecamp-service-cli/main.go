@@ -1040,22 +1040,17 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
-	// list all service members
-	members := listServiceMembers(ctx, cli)
-
-	volIDs := make([]string, len(members))
-	for i, member := range members {
-		volIDs[i] = member.VolumeID
-	}
 
 	// delete the service from the control plane.
-	serviceReq := &manage.ServiceCommonRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceName: *service,
+	serviceReq := &manage.DeleteServiceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
 	}
 
-	err := cli.DeleteService(ctx, serviceReq)
+	volIDs, err := cli.DeleteService(ctx, serviceReq)
 	if err != nil {
 		fmt.Println("DeleteService error", err)
 		os.Exit(-1)

@@ -340,7 +340,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	}
 
 	// test service deletion
-	err = s.DeleteService(ctx, cluster, service)
+	vols, err = s.DeleteService(ctx, cluster, service)
 	if err != nil {
 		t.Fatalf("DeleteService %s error % vols %s", service, err, vols)
 	}

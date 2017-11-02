@@ -283,14 +283,14 @@ func (s *ManageService) ListServices(ctx context.Context, cluster string) (svcs 
 //   - caller should stop and delete the service on the container platform.
 //   - the actual cloud serviceMembers of this service are not deleted, customer needs
 //     to delete them manually.
-func (s *ManageService) DeleteService(ctx context.Context, cluster string, service string) error {
+func (s *ManageService) DeleteService(ctx context.Context, cluster string, service string) (volIDs []string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get service
 	sitem, err := s.dbIns.GetService(ctx, cluster, service)
 	if err != nil {
 		glog.Errorln("GetService error", err, "service", service, "cluster", cluster, "requuid", requuid)
-		return err
+		return volIDs, err
 	}
 
 	// get service attr
@@ -299,10 +299,10 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		if err == db.ErrDBRecordNotFound {
 			glog.Infoln("service attr not found, delete service item, requuid", requuid, sitem)
 			err = s.dbIns.DeleteService(ctx, cluster, service)
-			return err
+			return volIDs, err
 		}
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, "service", sitem)
-		return err
+		return volIDs, err
 	}
 
 	if sattr.ServiceStatus != common.ServiceStatusDeleting {
@@ -311,7 +311,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		err = s.dbIns.UpdateServiceAttr(ctx, sattr, newAttr)
 		if err != nil {
 			glog.Errorln("set service deleting status error", err, "requuid", requuid, "service attr", sattr)
-			return err
+			return volIDs, err
 		}
 
 		sattr = newAttr
@@ -324,7 +324,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	members, err := s.dbIns.ListServiceMembers(ctx, sattr.ServiceUUID)
 	if err != nil {
 		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, "service attr", sattr)
-		return err
+		return volIDs, err
 	}
 
 	// delete the member's dns record, static ip and config files
@@ -355,7 +355,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			err = s.dbIns.DeleteServiceStaticIP(ctx, m.StaticIP)
 			if err != nil && err != db.ErrDBRecordNotFound {
 				glog.Errorln("DeleteServiceStaticIP error", err, "requuid", requuid, "member", m)
-				return err
+				return volIDs, err
 			}
 			glog.Infoln("deleted member's static ip, requuid", requuid, m)
 		}
@@ -365,7 +365,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			err := s.dbIns.DeleteConfigFile(ctx, m.ServiceUUID, c.FileID)
 			if err != nil && err != db.ErrDBRecordNotFound {
 				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c, "serviceMember", m)
-				return err
+				return volIDs, err
 			}
 			glog.V(1).Infoln("deleted config file", c.FileID, m.ServiceUUID, "requuid", requuid)
 		}
@@ -379,14 +379,14 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		if err != nil {
 			// TODO continue if volume not found
 			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
-			return err
+			return volIDs, err
 		}
 		if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
 			glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
 			err = s.serverIns.DetachVolume(ctx, m.VolumeID, m.ServerInstanceID, m.DeviceName)
 			if err != nil {
 				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
-				return err
+				return volIDs, err
 			}
 		}
 	}
@@ -397,9 +397,12 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberName)
 		if err != nil && err != db.ErrDBRecordNotFound {
 			glog.Errorln("DeleteServiceMember error", err, "requuid", requuid, m)
-			return err
+			return volIDs, err
 		}
+
 		glog.V(1).Infoln("deleted serviceMember, requuid", requuid, m)
+
+		volIDs = append(volIDs, m.VolumeID)
 	}
 	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
 
@@ -410,7 +413,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceName)
 	if err != nil && err != db.ErrDBRecordNotFound {
 		glog.Errorln("DeleteDevice error", err, "requuid", requuid, sattr)
-		return err
+		return volIDs, err
 	}
 	glog.Infoln("deleted device", sattr, "requuid", requuid)
 
@@ -418,7 +421,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	err = s.dbIns.DeleteServiceAttr(ctx, sattr.ServiceUUID)
 	if err != nil && err != db.ErrDBRecordNotFound {
 		glog.Errorln("DeleteServiceAttr error", err, sattr)
-		return err
+		return volIDs, err
 	}
 	glog.Infoln("deleted service attr", sattr, "requuid", requuid)
 
@@ -426,11 +429,11 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	err = s.dbIns.DeleteService(ctx, cluster, service)
 	if err != nil && err != db.ErrDBRecordNotFound {
 		glog.Errorln("DeleteService error", err, "service", service, "cluster", cluster, "requuid", requuid)
-		return err
+		return volIDs, err
 	}
 
 	glog.Infoln("delete service complete, service", service, "cluster", cluster, "requuid", requuid)
-	return nil
+	return volIDs, nil
 }
 
 // DeleteSystemTables deletes all system tables.

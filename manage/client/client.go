@@ -209,28 +209,32 @@ func (c *ManageClient) ListService(ctx context.Context, r *manage.ListServiceReq
 	return res.Services, err
 }
 
-// DeleteService deletes one service
-func (c *ManageClient) DeleteService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+// DeleteService deletes one service and returns the service's volume IDs
+func (c *ManageClient) DeleteService(ctx context.Context, r *manage.DeleteServiceRequest) (volIDs []string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return volIDs, err
 	}
 
-	urlStr := c.serverURL + r.ServiceName
+	urlStr := c.serverURL + manage.DeleteServiceOp
 	req, err := http.NewRequest(http.MethodDelete, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return volIDs, err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return volIDs, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return manage.ConvertHTTPError(resp.StatusCode)
+		return volIDs, manage.ConvertHTTPError(resp.StatusCode)
 	}
 
-	return nil
+	defer c.closeRespBody(resp)
+
+	res := &manage.DeleteServiceResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.VolumeIDs, err
 }
 
 // GetConfigFile gets the config file.

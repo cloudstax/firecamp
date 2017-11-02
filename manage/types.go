@@ -12,6 +12,7 @@ const (
 	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+	DeleteServiceOp      = SpecialOpPrefix + "Delete-Service"
 	RunTaskOp            = SpecialOpPrefix + "Run-Task"
 	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"
 	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
@@ -124,6 +125,16 @@ type ListServiceRequest struct {
 // ListServiceResponse returns all listed services' attributes.
 type ListServiceResponse struct {
 	Services []*common.ServiceAttr
+}
+
+// DeleteServiceRequest deletes the service.
+type DeleteServiceRequest struct {
+	Service *ServiceCommonRequest
+}
+
+// DeleteServiceResponse returns the volumes of the service.
+type DeleteServiceResponse struct {
+	VolumeIDs []string
 }
 
 // GetConfigFileRequest gets one config file.

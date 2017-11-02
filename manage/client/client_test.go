@@ -263,13 +263,15 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	delNum := 0
 	for i := 1; i < serviceNum+1; i += 5 {
 		s1 := servicePrefix + strconv.Itoa(i)
-		r := &manage.ServiceCommonRequest{
-			Region:      serverInfo.GetLocalRegion(),
-			Cluster:     cluster,
-			ServiceName: s1,
+		r := &manage.DeleteServiceRequest{
+			Service: &manage.ServiceCommonRequest{
+				Region:      serverInfo.GetLocalRegion(),
+				Cluster:     cluster,
+				ServiceName: s1,
+			},
 		}
 
-		err := cli.DeleteService(context.Background(), r)
+		_, err = cli.DeleteService(context.Background(), r)
 		if err != nil {
 			t.Fatalf("delete service error %s, %s", err, r)
 		}
@@ -280,13 +282,15 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	listServicesTest(t, cli, serviceNum-delNum, "", cluster, serverInfo)
 
 	// negative case: delete non-exist service
-	r2 := &manage.ServiceCommonRequest{
-		Region:      serverInfo.GetLocalRegion(),
-		Cluster:     cluster,
-		ServiceName: "xxxx",
+	r2 := &manage.DeleteServiceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      serverInfo.GetLocalRegion(),
+			Cluster:     cluster,
+			ServiceName: "xxxx",
+		},
 	}
 
-	err = cli.DeleteService(context.Background(), r2)
+	_, err = cli.DeleteService(context.Background(), r2)
 	if err != common.ErrNotFound {
 		t.Fatalf("delete service error %s, %s", err, r2)
 	}
