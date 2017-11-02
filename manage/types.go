@@ -244,6 +244,9 @@ type CatalogRedisOptions struct {
 	Shards           int64
 	ReplicasPerShard int64
 
+	// Redis memory cache size
+	MemoryCacheSizeMB int64
+
 	VolumeSizeGB int64
 
 	// whether disable Redis "append only file", not recommended unless for cache only.

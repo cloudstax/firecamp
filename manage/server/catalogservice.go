@@ -363,7 +363,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 
 	err = rediscatalog.ValidateRequest(req)
 	if err != nil {
-		glog.Errorln("CatalogCreateRedisRequest parameters are not valid, requuid", requuid, req)
+		glog.Errorln("CatalogCreateRedisRequest parameters are not valid, requuid", requuid, req.Service, req.Options)
 		return err.Error(), http.StatusBadRequest
 	}
 

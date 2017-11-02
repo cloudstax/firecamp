@@ -24,12 +24,10 @@ const (
 	listenPort  = 6379
 	clusterPort = 16379
 
-	minClusterShards                 = 3
-	invalidShards                    = 2
-	minReplTimeoutSecs               = 60
-	defaultSlaveClientOutputBufferMB = 512
-	reservedMemoryMB                 = 128
-	shardName                        = "shard"
+	minClusterShards   = 3
+	invalidShards      = 2
+	minReplTimeoutSecs = 60
+	shardName          = "shard"
 
 	redisConfFileName        = "redis.conf"
 	redisClusterInfoFileName = "cluster.info"
@@ -56,24 +54,20 @@ const (
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
-	return validateRequest(r.Resource.MaxMemMB, r.Options)
-}
-
-func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
-	if opts.ReplicasPerShard < 1 {
+	if r.Options.ReplicasPerShard < 1 {
 		return common.ErrInvalidArgs
 	}
-	if opts.Shards == invalidShards {
+	if r.Options.Shards == invalidShards {
 		return errors.New("Redis cluster mode requires at least 3 shards")
 	}
-	if maxMemMB == common.DefaultMaxMemoryMB {
-		return errors.New("Please specify the max memory")
+	if r.Options.MemoryCacheSizeMB <= 0 {
+		return errors.New("Please specify the memory cache size")
 	}
-	if opts.Shards != 1 && maxMemMB <= (defaultSlaveClientOutputBufferMB+reservedMemoryMB) {
-		return fmt.Errorf("For Redis cluster mode, please specify at least %d MB memory", (defaultSlaveClientOutputBufferMB + reservedMemoryMB))
+	if r.Resource.MaxMemMB != common.DefaultMaxMemoryMB && r.Resource.MaxMemMB <= r.Options.MemoryCacheSizeMB {
+		return errors.New("The container max memory should be larger than Redis memory cache size")
 	}
 
-	switch opts.MaxMemPolicy {
+	switch r.Options.MaxMemPolicy {
 	case "":
 		return nil
 	case maxMemPolicyAllKeysLRU:
@@ -101,7 +95,7 @@ func validateRequest(maxMemMB int64, opts *manage.CatalogRedisOptions) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res.MaxMemMB, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
@@ -118,7 +112,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    opts.MemoryCacheSizeMB,
+		},
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.ReplicasPerShard * opts.Shards,
@@ -134,8 +133,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, maxMemMB int64,
-	opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
 	// adjust the replTimeoutSecs if needed
 	replTimeoutSecs := opts.ReplTimeoutSecs
 	if replTimeoutSecs < minReplTimeoutSecs {
@@ -144,11 +142,6 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	maxMemPolicy := opts.MaxMemPolicy
 	if len(maxMemPolicy) == 0 {
 		maxMemPolicy = maxMemPolicyNoEviction
-	}
-	redisMaxMemBytes := (maxMemMB - reservedMemoryMB) * 1024 * 1024
-	if opts.ReplicasPerShard != 1 {
-		// replication mode needs to reserve some memory for the output buffer to slave
-		redisMaxMemBytes -= defaultSlaveClientOutputBufferMB * 1024 * 1024
 	}
 
 	domain := dns.GenDefaultDomainName(cluster)
@@ -171,7 +164,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			if platform == common.ContainerPlatformSwarm {
 				bind = "0.0.0.0"
 			}
-			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, redisMaxMemBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
+			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, opts.MemoryCacheSizeMB, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
 				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
 			}

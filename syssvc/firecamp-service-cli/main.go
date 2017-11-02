@@ -67,6 +67,7 @@ var (
 	// The redis service creation specific parameters.
 	redisShards           = flag.Int64("redis-shards", 1, "The number of shards for the Redis service")
 	redisReplicasPerShard = flag.Int64("redis-replicas-pershard", 1, "The number of replicas in one Redis shard")
+	redisMemSizeMB        = flag.Int64("redis-memory-size", 0, "The Redis memory cache size, unit: MB")
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
@@ -498,9 +499,10 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogRedisOptions{
-			Shards:           *redisShards,
-			ReplicasPerShard: *redisReplicasPerShard,
-			VolumeSizeGB:     *volSizeGB,
+			Shards:            *redisShards,
+			ReplicasPerShard:  *redisReplicasPerShard,
+			MemoryCacheSizeMB: *redisMemSizeMB,
+			VolumeSizeGB:      *volSizeGB,
 
 			DisableAOF:      *redisDisableAOF,
 			AuthPass:        *redisAuthPass,
