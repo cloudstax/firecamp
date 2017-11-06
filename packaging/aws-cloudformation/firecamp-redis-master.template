@@ -1,0 +1,915 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server.",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Network Configuration"
+          },
+          "Parameters": [
+            "AvailabilityZones",
+            "NumberOfAZs",
+            "VPCCIDR",
+            "PrivateSubnet1CIDR",
+            "PrivateSubnet2CIDR",
+            "PrivateSubnet3CIDR",
+            "PublicSubnet1CIDR",
+            "PublicSubnet2CIDR",
+            "PublicSubnet3CIDR",
+            "RemoteAccessCIDR"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Security Configuration"
+          },
+          "Parameters": [
+            "KeyPairName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Linux Bastion Amazon EC2 Configuration"
+          },
+          "Parameters": [
+            "BastionAMIOS",
+            "BastionInstanceType",
+            "NumBastionHosts"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Redis Cluster Configuration"
+          },
+          "Parameters": [
+            "ClusterName",
+            "FireCampRelease",
+            "CFS3BucketName",
+            "CFS3KeyPrefix",
+            "NumberOfNodes",
+            "NodeInstanceType"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Redis Service Configuration"
+          },
+          "Parameters": [
+            "RedisRelease",
+            "ServiceName",
+            "Shards",
+            "ReplicasPerShard",
+            "MemoryCacheSizeMB",
+            "VolumeSizeGB",
+            "DisableAOF",
+            "AuthPass",
+            "MaxMemoryPolicy",
+            "ConfigCommandName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "AWS Quick Start Configuration"
+          },
+          "Parameters": [
+            "QSS3BucketName",
+            "QSAWSVPCS3KeyPrefix",
+            "QSBastionS3KeyPrefix"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "AvailabilityZones": {
+          "default": "Availability Zones"
+        },
+        "NumberOfAZs": {
+          "default": "Number of Availability Zones"
+        },
+        "VPCCIDR": {
+          "default": "VPC CIDR"
+        },
+        "PrivateSubnet1CIDR": {
+          "default": "Private Subnet 1 CIDR"
+        },
+        "PrivateSubnet2CIDR": {
+          "default": "Private Subnet 2 CIDR"
+        },
+        "PrivateSubnet3CIDR": {
+          "default": "Private Subnet 3 CIDR"
+        },
+        "PublicSubnet1CIDR": {
+          "default": "Public Subnet 1 CIDR"
+        },
+        "PublicSubnet2CIDR": {
+          "default": "Public Subnet 2 CIDR"
+        },
+        "PublicSubnet3CIDR": {
+          "default": "Public Subnet 3 CIDR"
+        },
+        "RemoteAccessCIDR": {
+          "default": "Allowed Bastion External Access CIDR"
+        },
+
+        "KeyPairName": {
+          "default": "Key Pair Name"
+        },
+
+        "BastionAMIOS": {
+          "default": "Bastion AMI Operating System"
+        },
+        "BastionInstanceType": {
+          "default": "Bastion Instance Type"
+        },
+        "NumBastionHosts": {
+          "default": "Number of Bastion Hosts"
+        },
+
+        "ClusterName": {
+          "default": "Cluster Name"
+        },
+        "FireCampRelease": {
+          "default": "CloudStax FireCamp Release Version"
+        },
+        "CFS3BucketName": {
+          "default": "CloudStax FireCamp S3 Bucket Name"
+        },
+        "CFS3KeyPrefix": {
+          "default": "CloudStax FireCamp S3 Key Prefix"
+        },
+        "NumberOfNodes": {
+          "default": "Number of Container Worker Nodes"
+        },
+        "NodeInstanceType": {
+          "default": "Node Instance Type"
+        },
+
+        "RedisRelease": {
+          "default": "Redis Release Version"
+        },
+        "ServiceName": {
+          "default": "Service Name"
+        },
+        "Shards": {
+          "default": "Number of Redis Shards"
+        },
+        "ReplicasPerShard": {
+          "default": "Number of Replicas Per Shard"
+        },
+        "MemoryCacheSizeMB": {
+          "default": "Redis Node Memory Cache Size MB"
+        },
+        "VolumeSizeGB": {
+          "default": "Redis Node Volume Size GB"
+        },
+        "DisableAOF": {
+          "default": "Disable Append Only File"
+        },
+        "AuthPass": {
+          "default": "Redis AUTH Password"
+        },
+        "MaxMemoryPolicy": {
+          "default": "Redis Eviction Policy"
+        },
+        "ConfigCommandName": {
+          "default": "New Name of Redis CONFIG Command"
+        },
+
+        "QSS3BucketName": {
+          "default": "Quick Start S3 Bucket Name"
+        },
+        "QSAWSVPCS3KeyPrefix": {
+          "default": "AWS VPC Quick Start S3 Key Prefix"
+        },
+        "QSBastionS3KeyPrefix": {
+          "default": "AWS Bastion Quick Start S3 Key Prefix"
+        }
+      }
+    }
+  },
+  "Parameters":{
+    "AvailabilityZones": {
+      "Description": "List of Availability Zones to use for the subnets in the VPC. This MUST match the number of AvailabilityZones. Please use 3 AvailabilityZones for the production system.",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    },
+    "NumberOfAZs": {
+      "AllowedValues": [
+        "2",
+        "3"
+      ],
+      "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
+      "Default": "3",
+      "Type": "String"
+    },
+    "VPCCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "Default": "10.0.0.0/16",
+      "Type": "String",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Description": "CIDR Block for the VPC"
+    },
+    "PrivateSubnet1CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.0.0/19",
+      "Description": "CIDR block for private subnet 1 located in Availability Zone 1.",
+      "Type": "String"
+    },
+    "PrivateSubnet2CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.32.0/19",
+      "Description": "CIDR block for private subnet 2 located in Availability Zone 2.",
+      "Type": "String"
+    },
+    "PrivateSubnet3CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.64.0/19",
+      "Description": "CIDR block for private subnet 2 located in Availability Zone 2.",
+      "Type": "String"
+    },
+    "PublicSubnet1CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.128.0/20",
+      "Description": "CIDR Block for the public DMZ subnet 1 located in Availability Zone 1",
+      "Type": "String"
+    },
+    "PublicSubnet2CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.144.0/20",
+      "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
+      "Type": "String"
+    },
+    "PublicSubnet3CIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+      "Default": "10.0.160.0/20",
+      "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
+      "Type": "String"
+    },
+    "RemoteAccessCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "Default": "0.0.0.0/0",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes"
+    },
+
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
+    },
+
+    "BastionAMIOS": {
+      "AllowedValues": [
+        "Amazon-Linux-HVM",
+        "CentOS-7-HVM",
+        "Ubuntu-Server-14.04-LTS-HVM",
+        "Ubuntu-Server-16.04-LTS-HVM"
+      ],
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the bastion instances",
+      "Type": "String"
+    },
+    "BastionInstanceType": {
+        "Default": "t2.micro",
+        "Type": "String",
+        "Description": "Amazon EC2 instance type for the second bastion instance",
+        "AllowedValues": [
+            "t2.nano",
+            "t2.micro",
+            "t2.small",
+            "t2.medium",
+            "t2.large",
+            "m3.large",
+            "m3.xlarge",
+            "m3.2xlarge",
+            "m4.large",
+            "m4.xlarge",
+            "m4.2xlarge",
+            "m4.4xlarge"
+        ]
+    },
+    "NumBastionHosts": {
+      "AllowedValues": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "Default": "1",
+      "Description": "Enter the number of bastion hosts to create",
+      "Type": "String"
+    },
+
+    "ClusterName":{
+      "Type":"String",
+      "Description":"Name of the ECS or Swarm cluster. Could be same with the Stack name",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "FireCampRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
+      "Description": "The FireCamp release version"
+    },
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+        "Type": "String",
+        "Default": "firecamp/releases/latest/cf-templates",
+        "Description": "The S3 key prefix"
+    },
+    "NumberOfNodes":{
+      "Type":"Number",
+      "Default":"3",
+      "Description":"Number of Nodes. This MUST match the total number of Redis nodes, Shards * ReplicasPerShard."
+    },
+    "NodeInstanceType":{
+      "Description":"EC2 instance type",
+      "Type":"String",
+      "Default":"m4.large",
+      "AllowedValues":[
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge"
+      ],
+      "ConstraintDescription":"Please choose a valid instance type."
+    },
+
+    "RedisRelease": {
+      "Type": "String",
+      "Default": "4.0",
+      "AllowedValues": [
+        "4.0"
+      ],
+      "Description": "Redis Release Version"
+    },
+    "ServiceName": {
+      "Type": "String",
+      "Description": "The Redis Service Name",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "Shards": {
+      "Type": "Number",
+      "Default": "3",
+      "Description": "Number of Redis shards"
+    },
+    "ReplicasPerShard": {
+      "Type": "Number",
+      "Default": "2",
+      "Description": "Number of replicas per shard"
+    },
+    "MemoryCacheSizeMB": {
+      "Type": "Number",
+      "Default": "256",
+      "Description": "The memory cache size of one Redis node"
+    },
+    "VolumeSizeGB": {
+      "Type": "Number",
+      "Default": "1",
+      "Description": "The Redis node volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
+    },
+    "DisableAOF": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Enable/Disable Redis append only file"
+    },
+    "AuthPass": {
+      "Type": "String",
+      "Default": "",
+      "NoEcho": "true",
+      "MaxLength": "255",
+      "Description": "Enter your Redis AUTH Password",
+      "ConstraintDescription": "Input your Redis AUTH password"
+    },
+    "MaxMemoryPolicy": {
+      "Type": "String",
+      "Default": "noeviction",
+      "AllowedValues": [
+        "noeviction",
+        "volatile-lru",
+        "allkeys-lru",
+        "volatile-lfu",
+        "allkeys-lfu",
+        "volatile-random",
+        "allkeys-random",
+        "volatile-ttl"
+      ],
+      "Description": "Redis eviction policy when the memory limit is reached"
+    },
+    "ConfigCommandName": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The new name for Redis CONFIG command, empty name means disable the command",
+      "MinLength": "0",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
+    },
+
+    "QSS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Default": "quickstart-reference",
+      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Type": "String"
+    },
+    "QSAWSVPCS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "aws/vpc/latest/",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Type": "String"
+    },
+    "QSBastionS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "linux/bastion/latest/",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Type": "String"
+    }
+  },
+  "Conditions": {
+    "2AZCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "NumberOfAZs"
+        },
+        2
+      ]
+    },
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    }
+  },
+  "Resources":{
+    "VPCStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSAWSVPCS3KeyPrefix}templates/aws-vpc.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                 "GovCloudCondition",
+                 "s3-us-gov-west-1",
+                 "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "NumberOfAZs": {
+            "Ref": "NumberOfAZs"
+          },
+          "PrivateSubnet1ACIDR": {
+            "Ref": "PrivateSubnet1CIDR"
+          },
+          "PrivateSubnet2ACIDR": {
+            "Ref": "PrivateSubnet2CIDR"
+          },
+          "PrivateSubnet3ACIDR": {
+            "Ref": "PrivateSubnet3CIDR"
+          },
+          "PublicSubnet1CIDR": {
+            "Ref": "PublicSubnet1CIDR"
+          },
+          "PublicSubnet2CIDR": {
+            "Ref": "PublicSubnet2CIDR"
+          },
+          "PublicSubnet3CIDR": {
+            "Ref": "PublicSubnet3CIDR"
+          },
+          "VPCCIDR": {
+            "Ref": "VPCCIDR"
+          }
+        }
+      }
+    },
+    "BastionStack": {
+      "DependsOn": "VPCStack",
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSBastionS3KeyPrefix}templates/linux-bastion.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                 "GovCloudCondition",
+                 "s3-us-gov-west-1",
+                 "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "BastionInstanceType": {
+            "Ref": "BastionInstanceType"
+          },
+          "NumBastionHosts": {
+            "Ref": "NumBastionHosts"
+          },
+          "BastionAMIOS": {
+            "Ref": "BastionAMIOS"
+          },
+          "EnableTCPForwarding": "true",
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "PublicSubnet1ID": {
+            "Fn::GetAtt": [
+              "VPCStack",
+              "Outputs.PublicSubnet1ID"
+            ]
+          },
+          "PublicSubnet2ID": {
+            "Fn::GetAtt": [
+              "VPCStack",
+              "Outputs.PublicSubnet2ID"
+            ]
+          },
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSS3KeyPrefix": {
+            "Ref": "QSBastionS3KeyPrefix"
+          },
+          "RemoteAccessCIDR": {
+            "Ref": "RemoteAccessCIDR"
+          },
+          "VPCID": {
+            "Fn::GetAtt": [
+              "VPCStack",
+              "Outputs.VPCID"
+            ]
+          }
+        }
+      }
+    },
+
+    "RedisAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "Application instances with access to the Redis service"
+      }
+    },
+    "ServiceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "The access ports to the services in cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "SourceSecurityGroupId": {
+              "Fn::GetAtt": [
+                "BastionStack",
+                "Outputs.BastionSecurityGroupID"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "RedisAccessSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "InternalAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Fn::GetAtt": [
+            "VPCStack",
+            "Outputs.VPCID"
+          ]
+        },
+        "GroupDescription": "The inter-server access ports in cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27040",
+            "ToPort": "27040",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "16379",
+            "ToPort": "16379",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+
+    "FireCampStack": {
+      "DependsOn": "BastionStack",
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "Release": {
+            "Ref": "FireCampRelease"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroup"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "VPCID": {
+            "Fn::GetAtt": [
+              "VPCStack",
+              "Outputs.VPCID"
+            ]
+          },
+          "SubnetIDs": {
+            "Fn::If": [
+              "2AZCondition",
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ]
+                ]
+              ],
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet3AID"
+                  ]
+                ]
+              ]
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "NumberOfNodes": {
+            "Ref": "NumberOfNodes"
+          },
+          "NodeInstanceType": {
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    },
+
+    "RedisStack": {
+      "DependsOn": "FireCampStack",
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-redis-lambda.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "ServiceName": {
+            "Ref": "ServiceName"
+          },
+          "Shards": {
+            "Ref": "Shards"
+          },
+          "ReplicasPerShard": {
+            "Ref": "ReplicasPerShard"
+          },
+          "MemoryCacheSizeMB": {
+            "Ref": "MemoryCacheSizeMB"
+          },
+          "VolumeSizeGB": {
+            "Ref": "VolumeSizeGB"
+          },
+          "DisableAOF": {
+            "Ref": "DisableAOF"
+          },
+          "AuthPass": {
+            "Ref": "AuthPass"
+          },
+          "MaxMemoryPolicy": {
+            "Ref": "MaxMemoryPolicy"
+          },
+          "ConfigCommandName": {
+            "Ref": "ConfigCommandName"
+          },
+
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "SubnetIDs": {
+            "Fn::If": [
+              "2AZCondition",
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ]
+                ]
+              ],
+              "Fn::Join": [
+                ",",
+                [
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet1AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet2AID"
+                  ],
+                  "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.PrivateSubnet3AID"
+                  ]
+                ]
+              ]
+            ]
+          }
+        }
+      }
+    }
+  },
+  "Outputs":{
+    "VPCID": {
+      "Value":{
+        "Fn::GetAtt": [
+          "VPCStack",
+          "Outputs.VPCID"
+        ]
+      }
+    },
+    "RedisAccessSecurityGroup":{
+      "Value":{
+        "Ref": "RedisAccessSecurityGroup"
+      }
+    }
+  }
+}

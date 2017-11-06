@@ -1,0 +1,244 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates the Lambda function to create and delete the Redis service.",
+  "Parameters":{
+    "ServiceSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+      "Type": "String",
+      "Default": "firecamp/releases/latest/cf-templates",
+      "Description": "The S3 key prefix"
+    },
+
+    "ClusterName":{
+      "Type":"String",
+      "Description":"The Cluster Name",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "ServiceName": {
+      "Type": "String",
+      "Description": "The Redis Service Name",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "Shards": {
+      "Type": "Number",
+      "Default": "3",
+      "Description": "Number of Redis shards"
+    },
+    "ReplicasPerShard": {
+      "Type": "Number",
+      "Default": "2",
+      "Description": "Number of replicas per shard"
+    },
+    "MemoryCacheSizeMB": {
+      "Type": "Number",
+      "Default": "256",
+      "Description": "The memory cache size of one Redis node"
+    },
+    "VolumeSizeGB": {
+      "Type": "Number",
+      "Default": "1",
+      "Description": "The Redis node volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
+    },
+    "DisableAOF": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Enable/Disable Redis append only file"
+    },
+    "AuthPass": {
+      "Type": "String",
+      "Default": "",
+      "NoEcho": "true",
+      "MaxLength": "255",
+      "Description": "Enter your Redis AUTH Password",
+      "ConstraintDescription": "Input your Redis AUTH password"
+    },
+    "ReplTimeoutSecs": {
+      "Type": "Number",
+      "Default": "60",
+      "Description": "The Redis replication timeout seconds"
+    },
+    "MaxMemoryPolicy": {
+      "Type": "String",
+      "Default": "noeviction",
+      "AllowedValues": [
+        "noeviction",
+        "volatile-lru",
+        "allkeys-lru",
+        "volatile-lfu",
+        "allkeys-lfu",
+        "volatile-random",
+        "allkeys-random",
+        "volatile-ttl"
+      ],
+      "Description": "Redis eviction policy when the memory limit is reached"
+    },
+    "ConfigCommandName": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The new name for Redis CONFIG command, empty name means disable the command",
+      "MinLength": "0",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
+    }
+  },
+  "Resources":{
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [{
+            "Action": ["sts:AssumeRole"],
+            "Effect": "Allow",
+            "Principal": {
+              "Service": ["lambda.amazonaws.com"]
+            }
+          }],
+          "Version": "2012-10-17"
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Effect": "Allow",
+                "Resource": "arn:aws:logs:*:*:*"
+              },
+              {
+                "Action": [
+                  "ec2:CreateNetworkInterface",
+                  "ec2:DescribeNetworkInterfaces",
+                  "ec2:DeleteNetworkInterface"
+                ],
+                "Effect": "Allow",
+                "Resource": "*"
+              }
+            ],
+            "Version": "2012-10-17"
+          },
+          "PolicyName": "root"
+        }]
+      }
+    },
+
+    "LambdaFunction" : {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "CFS3BucketName"
+          },
+          "S3Key": {
+            "Fn::Join": [
+              "/",
+              [
+                {
+                  "Ref": "CFS3KeyPrefix"
+                },
+                "redislambda.zip"
+              ]
+            ]
+          }
+        },
+        "Runtime" : "python3.6",
+        "Role" : {
+          "Fn::GetAtt" : [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Timeout" : "300",
+        "Handler" : "redis.lambda_handler",
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "ServiceSecurityGroupID"
+            }
+          ],
+          "SubnetIds": {
+            "Ref": "SubnetIDs"
+          }
+        }
+      }
+    },
+
+    "LambdaCustomResource" : {
+      "Type" : "Custom::RedisLambdaCustomResource",
+      "Properties" : {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "LambdaFunction",
+            "Arn"
+          ]
+        },
+        "Region": {
+          "Ref": "AWS::Region"
+        },
+        "Cluster":{
+          "Ref": "ClusterName"
+        },
+        "ServiceName": {
+          "Ref": "ServiceName"
+        },
+        "Shards": {
+          "Ref": "Shards"
+        },
+        "ReplicasPerShard": {
+          "Ref": "ReplicasPerShard"
+        },
+        "MemoryCacheSizeMB": {
+          "Ref": "MemoryCacheSizeMB"
+        },
+        "VolumeSizeGB": {
+          "Ref": "VolumeSizeGB"
+        },
+        "DisableAOF": {
+          "Ref": "DisableAOF"
+        },
+        "AuthPass": {
+          "Ref": "AuthPass"
+        },
+        "ReplTimeoutSecs": {
+          "Ref": "ReplTimeoutSecs"
+        },
+        "MaxMemPolicy": {
+          "Ref": "MaxMemoryPolicy"
+        },
+        "ConfigCmdName": {
+          "Ref": "ConfigCommandName"
+        }
+      }
+    }
+  }
+}
