@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server.",
+  "Description": "This template creates a new VPC and an AWS ECS cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes. The application runs on RedisAccessSecurityGroup to access Redis.",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -805,7 +805,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-redis-lambda.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-lambda-redis.template",
             {
               "QSS3Region": {
                 "Fn::If": [

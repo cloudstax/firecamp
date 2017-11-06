@@ -139,6 +139,7 @@
                 "Action": [
                   "ec2:CreateNetworkInterface",
                   "ec2:DescribeNetworkInterfaces",
+                  "ec2:DetachNetworkInterface",
                   "ec2:DeleteNetworkInterface"
                 ],
                 "Effect": "Allow",
@@ -166,7 +167,7 @@
                 {
                   "Ref": "CFS3KeyPrefix"
                 },
-                "redislambda.zip"
+                "lambdaredis.zip"
               ]
             ]
           }
@@ -195,6 +196,7 @@
 
     "LambdaCustomResource" : {
       "Type" : "Custom::RedisLambdaCustomResource",
+      "DependsOn": "VPCDestroyENI",
       "Properties" : {
         "ServiceToken": {
           "Fn::GetAtt": [
@@ -238,6 +240,94 @@
         "ConfigCmdName": {
           "Ref": "ConfigCommandName"
         }
+      }
+    },
+
+    "VPCDestroyENIFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": {
+            "Fn::Join": [
+              "",
+              [
+                "var response = require('cfn-response');\n",
+                "var AWS = require('aws-sdk');\n",
+                "exports.handler = function(event, context) {\n",
+                "  // https://stackoverflow.com/questions/41299662/aws-lambda-created-eni-not-deleting-while-deletion-of-stack\n",
+                "  console.log(\"REQUEST RECEIVED:\", JSON.stringify(event));\n",
+                "  if (event.RequestType != 'Delete') {\n",
+                "    response.send(event, context, response.SUCCESS, {});\n",
+                "    return;\n",
+                "  }\n",
+                "\n",
+                "  // https://github.com/hashicorp/terraform/issues/5767\n",
+                "  var ec2 = new AWS.EC2();\n",
+                "  var params = {\n",
+                "    Filters: [\n",
+                "      {\n",
+                "        Name: 'group-id',\n",
+                "        Values: event.ResourceProperties.SecurityGroups\n",
+                "      },\n",
+                "      {\n",
+                "        Name: 'description',\n",
+                "        Values: ['AWS Lambda VPC ENI: *']\n",
+                "      }\n",
+                "    ]\n",
+                "  };\n",
+                "\n",
+                "  console.log(\"Deleting attachments!\");\n",
+                "  // Detach all network-interface attachments\n",
+                "  ec2.describeNetworkInterfaces(params).promise().then(function(data) {\n",
+                "    console.log(\"Got Interfaces:\", JSON.stringify(data));\n",
+                "    return Promise.all(data.NetworkInterfaces.map(function(networkInterface) {\n",
+                "      var networkInterfaceId = networkInterface.NetworkInterfaceId;\n",
+                "      var attachmentId = networkInterface.Attachment.AttachmentId;\n",
+                "      return ec2.detachNetworkInterface({AttachmentId: attachmentId}).promise().then(function(data) {\n",
+                "        return ec2.waitFor('networkInterfaceAvailable', {NetworkInterfaceIds: [networkInterfaceId]}).promise();\n",
+                "      }).then(function(data) {\n",
+                "        console.log(\"Detached Interface, deleting:\", networkInterfaceId);\n",
+                "        return ec2.deleteNetworkInterface({NetworkInterfaceId: networkInterfaceId}).promise();\n",
+                "      });\n",
+                "    }));\n",
+                "  }).then(function(data) {\n",
+                "    console.log(\"Success!\");\n",
+                "    response.send(event, context, response.SUCCESS, {});\n",
+                "  }).catch(function(err) {\n",
+                "    console.log(\"Failure:\", JSON.stringify(err));\n",
+                "    response.send(event, context, response.FAILED, {});\n",
+                "  });\n",
+                "};\n"
+              ]
+            ]
+          }
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Timeout": "300",
+        "Runtime": "nodejs4.3"
+      }
+    },
+
+    "VPCDestroyENI": {
+      "Type": "Custom::VPCDestroyENI",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "VPCDestroyENIFunction",
+            "Arn"
+          ]
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "ServiceSecurityGroupID"
+          }
+        ]
       }
     }
   }
