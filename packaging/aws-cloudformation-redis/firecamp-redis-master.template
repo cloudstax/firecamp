@@ -805,7 +805,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-lambda-redis.template",
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/redis/firecamp-lambda-redis.template",
             {
               "QSS3Region": {
                 "Fn::If": [

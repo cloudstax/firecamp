@@ -6,6 +6,9 @@ version=latest
 install:
 	./scripts/install.sh
 
+lambda:
+	./scripts/buildlambda.sh
+
 docker: install
 	./scripts/builddocker.sh $(version) all
 

@@ -167,7 +167,7 @@
                 {
                   "Ref": "CFS3KeyPrefix"
                 },
-                "lambdaredis.zip"
+                "redis/firecamp-lambda-redis.zip"
               ]
             ]
           }
