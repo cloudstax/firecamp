@@ -180,7 +180,7 @@ BuildCatalogImages() {
   echo
   target=$system"-kafka"
   image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/kafka/0.11/dockerfile/"
+  path="${TOPWD}/catalog/kafka/1.0/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
