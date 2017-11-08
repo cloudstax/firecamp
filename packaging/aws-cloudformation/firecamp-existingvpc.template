@@ -50,7 +50,7 @@
           "default": "Availability Zones"
         },
         "RemoteAccessCIDR": {
-          "default": "Allowed Bastion External Access CIDR"
+          "default": "Allowed External Access CIDR"
         },
 
         "KeyPairName": {

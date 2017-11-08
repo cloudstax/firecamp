@@ -1,14 +1,14 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates the Lambda function to create and delete the Redis service.",
+  "Description": "This template creates the Lambda function that creates and deletes the Redis service.",
   "Parameters":{
     "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+      "Description": "The SecurityGroup to access the cluster nodes."
     },
     "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
+      "Description": "The existing subnet in your VPC where you want to deploy node(s).",
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
 

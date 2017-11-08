@@ -11,8 +11,22 @@ def lambda_handler(event, context):
     reason = 'unknown exception'
     # https://aws.amazon.com/premiumsupport/knowledge-center/best-practices-custom-cf-lambda/
     try:
+        print(event)
+
         requestType = event['RequestType']
         properties = event['ResourceProperties']
+
+        manageserver='firecamp-manageserver.'+properties['Cluster']+'-firecamp.com'
+        # wait till dns is updated for firecamp manageserver
+        for i in range(30):
+            try:
+                print(manageserver, socket.gethostbyname(manageserver))
+                break
+            except:
+                print("lookup manageserver ip error:", sys.exc_info(), manageserver)
+                time.sleep(3)
+
+        print(manageserver, socket.gethostbyname(manageserver))
 
         if requestType == 'Create':
             shards = int(properties['Shards'])
@@ -47,19 +61,8 @@ def lambda_handler(event, context):
 
             print(data)
 
-            url = 'http://firecamp-manageserver.'+ properties['Cluster'] + '-firecamp.com:27040/?Catalog-Create-Redis'
+            url = 'http://' + manageserver + ':27040/?Catalog-Create-Redis'
             headers = {'Content-type': 'application/json'}
-
-            # wait till dns is updated for firecamp manageserver
-            for i in range(30):
-                try:
-                    print(socket.gethostbyname('firecamp-manageserver.'+properties['Cluster']+'-firecamp.com'))
-                    break
-                except:
-                    print("lookup manageserver ip error:", sys.exc_info())
-                    time.sleep(3)
-
-            print(socket.gethostbyname('firecamp-manageserver.'+properties['Cluster']+'-firecamp.com'))
 
             # retry 3 times
             reason = 'create redis failed'
@@ -88,7 +91,8 @@ def lambda_handler(event, context):
                 return
 
             # wait till redis cluster initialized
-            print("wait redis service initialized")
+
+            url = 'http://' + manageserver + ':27040/?Catalog-Check-Service-Init'
             initdata = {
                 "ServiceType": "redis",
                 "Service": {
@@ -100,10 +104,12 @@ def lambda_handler(event, context):
                 "ReplicasPerShard": int(properties['ReplicasPerShard'])
             }
 
+            print("wait redis service initialized", initdata)
+
             reason = 'wait redis init timed out'
             for i in range(20):
                 try:
-                    rsp = requests.put(url, data=json.dumps(initdata), headers=headers, timeout=20)
+                    rsp = requests.get(url, data=json.dumps(initdata), headers=headers, timeout=20)
                     if rsp.status_code == 200:
                         initres = json.loads(rsp.content)
                         if initres["Initialized"]:
@@ -130,7 +136,7 @@ def lambda_handler(event, context):
                 }
             }
 
-            url = 'http://firecamp-manageserver.'+ properties['Cluster'] + '-firecamp.com:27040/?Delete-Service'
+            url = 'http://' + manageserver + ':27040/?Delete-Service'
             headers = {'Content-type': 'application/json'}
 
             # retry 3 times

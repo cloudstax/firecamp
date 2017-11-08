@@ -1,0 +1,168 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates the subnet for Lambda function in an existing VPC. Refer to https://medium.com/@philippholly/aws-lambda-enable-outgoing-internet-access-within-vpc-8dd250e11e12 for how to enable the outgoing internet access within VPC for Lambda function.",
+  "Parameters":{
+    "VPCID":{
+      "Type":"AWS::EC2::VPC::Id",
+      "Description":"Select a VPC that allows instances to access the Internet."
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "AvailabilityZones": {
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
+    },
+    "LambdaSubnetCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "Default":"0.0.0.0/0",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "The Subnet CIDR to run the service creation Lambda function."
+    },
+    "ClusterName":{
+      "Type":"String",
+      "Description":"Name of the cluster.",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    }
+  },
+  "Resources":{
+    "LambdaSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "AvailabilityZones"
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "LambdaSubnetCIDR"
+        },
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+				"Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "firecamp-lambda-redis",
+                  {
+                    "Ref": "ClusterName"
+                  }
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+		"LambdaNAT": {
+			"Type": "AWS::EC2::NatGateway",
+			"Properties" : {
+				"AllocationId": {
+					"Fn::GetAtt": [
+            "LambdaEIP",
+            "AllocationId"
+          ]
+        },
+				"SubnetId": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "SubnetIDs"
+            }
+          ]
+        },
+				"Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "firecamp-lambda-redis",
+                  {
+                    "Ref": "ClusterName"
+                  }
+                ]
+              ]
+            }
+          }
+        ]
+			}
+		},
+		"LambdaEIP": {
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": {
+          "Ref": "VPCID"
+        }
+			}
+    },
+    "LambdaRouteTable" : {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+				"Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "firecamp-lambda-redis",
+                  {
+                    "Ref": "ClusterName"
+                  }
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+		"LambdaRoute" : {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+          "Ref": "LambdaRouteTable"
+        },
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"NatGatewayId": {
+          "Ref": "LambdaNAT"
+        }
+			}
+    },
+    "LambdaSubnetRouteTableAssociation" : {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "LambdaSubnet"
+        },
+        "RouteTableId": {
+          "Ref": "LambdaRouteTable"
+        }
+      }
+    }
+  },
+  "Outputs":{
+    "LambdaSubnet":{
+      "Value":{
+        "Ref": "LambdaSubnet"
+      }
+    }
+  }
+}
