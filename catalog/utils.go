@@ -27,3 +27,8 @@ PLATFORM=%s
 SERVICE_MEMBER=%s
 `
 )
+
+// MBToBytes converts MB to bytes
+func MBToBytes(mb int64) int64 {
+	return mb * 1024 * 1024
+}

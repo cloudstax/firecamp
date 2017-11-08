@@ -144,6 +144,8 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		maxMemPolicy = maxMemPolicyNoEviction
 	}
 
+	memBytes := catalog.MBToBytes(opts.MemoryCacheSizeMB)
+
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
@@ -164,7 +166,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			if platform == common.ContainerPlatformSwarm {
 				bind = "0.0.0.0"
 			}
-			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, opts.MemoryCacheSizeMB, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
+			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
 				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
 			}
