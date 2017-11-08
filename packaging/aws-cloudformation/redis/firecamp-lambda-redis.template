@@ -193,6 +193,15 @@
         }
       }
     },
+    "LambdaFunctionLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DependsOn": "LambdaFunction",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "LambdaFunction"}]]},
+        "RetentionInDays": 1
+      }
+    },
 
     "LambdaCustomResource" : {
       "Type" : "Custom::RedisLambdaCustomResource",
@@ -311,6 +320,15 @@
         },
         "Timeout": "300",
         "Runtime": "nodejs4.3"
+      }
+    },
+    "VPCDestroyENIFunctionLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DependsOn": "VPCDestroyENIFunction",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "VPCDestroyENIFunction"}]]},
+        "RetentionInDays": 1
       }
     },
 
