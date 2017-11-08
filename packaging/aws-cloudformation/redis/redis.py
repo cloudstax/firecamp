@@ -11,7 +11,7 @@ def lambda_handler(event, context):
     reason = 'unknown exception'
     # https://aws.amazon.com/premiumsupport/knowledge-center/best-practices-custom-cf-lambda/
     try:
-        print(event)
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), event)
 
         requestType = event['RequestType']
         properties = event['ResourceProperties']
@@ -26,7 +26,7 @@ def lambda_handler(event, context):
                 print("lookup manageserver ip error:", sys.exc_info(), manageserver)
                 time.sleep(3)
 
-        print(manageserver, socket.gethostbyname(manageserver))
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), manageserver, socket.gethostbyname(manageserver))
 
         if requestType == 'Create':
             shards = int(properties['Shards'])
@@ -71,15 +71,15 @@ def lambda_handler(event, context):
                 try:
                     rsp = requests.put(url, data=json.dumps(data), headers=headers, timeout=60)
                     if rsp.status_code == 200:
-                        print("redis service created")
+                        print(time.strftime('%Y-%m-%d %H:%M:%S'), "redis service created")
                         succ = True
                         break
 
-                    print("create redis failed, status_code:", rsp.status_code, "reason:", rsp.reason)
+                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "create redis failed, status_code:", rsp.status_code, "reason:", rsp.reason)
                     reason = rsp.reason
                     time.sleep(5)
                 except:
-                    print("create redis error:", sys.exc_info())
+                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "create redis error:", sys.exc_info())
                     time.sleep(5)
 
             if succ != True:
@@ -104,25 +104,26 @@ def lambda_handler(event, context):
                 "ReplicasPerShard": int(properties['ReplicasPerShard'])
             }
 
-            print("wait redis service initialized", initdata)
+            print(time.strftime('%Y-%m-%d %H:%M:%S'), "wait redis service initialized", initdata)
 
             reason = 'wait redis init timed out'
-            for i in range(20):
+            for i in range(40):
                 try:
                     rsp = requests.get(url, data=json.dumps(initdata), headers=headers, timeout=20)
                     if rsp.status_code == 200:
                         initres = json.loads(rsp.content)
+                        print(time.strftime('%Y-%m-%d %H:%M:%S'), "redis init status:", initres)
                         if initres["Initialized"]:
                             sendResponse(event, context, 'SUCCESS', '', '')
                             return
                     else:
-                        print("wait redis init failed, status_code:", rsp.status_code, "reason:", rsp.reason)
+                        print(time.strftime('%Y-%m-%d %H:%M:%S'), "wait redis init failed, status_code:", rsp.status_code, "reason:", rsp.reason)
                         reason = rsp.reason
 
-                    time.sleep(6)
+                    time.sleep(5)
                 except:
-                    print("wait redis error:", sys.exc_info())
-                    time.sleep(6)
+                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "wait redis error:", sys.exc_info())
+                    time.sleep(5)
 
             sendResponse(event, context, 'FAILED', reason, '')
             return
@@ -146,15 +147,15 @@ def lambda_handler(event, context):
                     rsp = requests.delete(url, data=json.dumps(data), headers=headers, timeout=120)
                     if rsp.status_code == 200:
                         respdata = json.loads(rsp.content)
-                        print("redis service deleted, please manually delete the volumes", respdata)
+                        print(time.strftime('%Y-%m-%d %H:%M:%S'), "redis service deleted, please manually delete the volumes", respdata)
                         sendResponse(event, context, 'SUCCESS', '', respdata)
                         return
                     else:
-                        print("delete redis failed, status_code:", rsp.status_code, "reason:", rsp.reason)
+                        print(time.strftime('%Y-%m-%d %H:%M:%S'), "delete redis failed, status_code:", rsp.status_code, "reason:", rsp.reason)
                         reason = rsp.reason
                         time.sleep(5)
                 except:
-                    print("delete redis error:", sys.exc_info())
+                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "delete redis error:", sys.exc_info())
                     time.sleep(5)
 
             sendResponse(event, context, 'FAILED', reason, '')
@@ -168,7 +169,7 @@ def lambda_handler(event, context):
             sendResponse(event, context, 'FAILED', reason, '')
             return
     except:
-        print('error:', sys.exc_info(), 'event:', event)
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), 'error:', sys.exc_info(), 'event:', event)
         sendResponse(event, context, 'FAILED', reason, '')
         return
 
@@ -186,7 +187,7 @@ def sendResponse(event, context, status, reason, responseData):
         if responseData != '':
             body['Data'] = responseData
 
-        print('response body:', body)
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), 'response body:', body)
 
         url = event['ResponseURL']
         print(url)
@@ -196,7 +197,7 @@ def sendResponse(event, context, status, reason, responseData):
 
         rsp = requests.put(url, data=bodydata, headers=headers)
 
-        print('send response result:', rsp.status_code, 'reason', rsp.reason)
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), 'send response result:', rsp.status_code, 'reason', rsp.reason)
     except:
-        print('sendResponse error:', sys.exc_info())
+        print(time.strftime('%Y-%m-%d %H:%M:%S'), 'sendResponse error:', sys.exc_info())
 
