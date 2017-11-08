@@ -1,0 +1,637 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Description": "This template creates an AWS ECS cluster and the Redis Cluster Service in an existing VPC. The application runs on RedisAccessSecurityGroup and VPC to access Redis.",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Network Configuration"
+          },
+          "Parameters": [
+            "VPCID",
+            "SubnetIDs",
+            "AvailabilityZones",
+            "RemoteAccessCIDR",
+            "LambdaSubnetCIDR"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Security Configuration"
+          },
+          "Parameters": [
+            "KeyPairName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "FireCamp Cluster Configuration"
+          },
+          "Parameters": [
+            "ClusterName",
+            "FireCampRelease",
+            "CFS3BucketName",
+            "CFS3KeyPrefix",
+            "NumberOfNodes",
+            "NodeInstanceType"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Redis Service Configuration"
+          },
+          "Parameters": [
+            "RedisRelease",
+            "ServiceName",
+            "Shards",
+            "ReplicasPerShard",
+            "MemoryCacheSizeMB",
+            "VolumeSizeGB",
+            "DisableAOF",
+            "AuthPass",
+            "MaxMemoryPolicy",
+            "ConfigCommandName"
+          ]
+        },
+      ],
+      "ParameterLabels": {
+        "VPCID": {
+          "default": "VPC ID"
+        },
+        "SubnetIDs": {
+          "default": "Subnet IDs"
+        },
+        "AvailabilityZones": {
+          "default": "Availability Zones"
+        },
+        "RemoteAccessCIDR": {
+          "default": "Allowed External Access CIDR"
+        },
+        "LambdaSubnetCIDR": {
+          "default": "Lambda Subnet CIDR"
+        },
+
+        "KeyPairName": {
+          "default": "Key Pair Name"
+        },
+
+        "ClusterName": {
+          "default": "Cluster Name"
+        },
+        "FireCampRelease": {
+          "default": "CloudStax FireCamp Release Version"
+        },
+        "CFS3BucketName": {
+          "default": "CloudStax FireCamp S3 Bucket Name"
+        },
+        "CFS3KeyPrefix": {
+          "default": "CloudStax FireCamp S3 Key Prefix"
+        },
+        "NumberOfNodes": {
+          "default": "Number of Container Worker Nodes"
+        },
+        "NodeInstanceType": {
+          "default": "Node Instance Type"
+        },
+
+        "RedisRelease": {
+          "default": "Redis Release Version"
+        },
+        "ServiceName": {
+          "default": "Service Name"
+        },
+        "Shards": {
+          "default": "Number of Redis Shards"
+        },
+        "ReplicasPerShard": {
+          "default": "Number of Replicas Per Shard"
+        },
+        "MemoryCacheSizeMB": {
+          "default": "Redis Node Memory Cache Size MB"
+        },
+        "VolumeSizeGB": {
+          "default": "Redis Node Volume Size GB"
+        },
+        "DisableAOF": {
+          "default": "Disable Append Only File"
+        },
+        "AuthPass": {
+          "default": "Redis AUTH Password"
+        },
+        "MaxMemoryPolicy": {
+          "default": "Redis Eviction Policy"
+        },
+        "ConfigCommandName": {
+          "default": "New Name of Redis CONFIG Command"
+        }
+      }
+    }
+  },
+  "Parameters":{
+    "VPCID":{
+      "Type":"AWS::EC2::VPC::Id",
+      "Description":"Select a VPC that allows instances to access the Internet."
+    },
+    "SubnetIDs": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "AvailabilityZones": {
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
+    },
+    "RemoteAccessCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "Default":"0.0.0.0/0",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "Allowed CIDR block to SSH to the nodes."
+    },
+    "LambdaSubnetCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "The Subnet CIDR to run the Redis creation Lambda function."
+    },
+
+    "KeyPairName":{
+      "Type":"AWS::EC2::KeyPair::KeyName",
+      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
+    },
+
+    "ClusterName":{
+      "Type":"String",
+      "Description":"Name of the cluster.",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "FireCampRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
+      "Description": "The FireCamp release version"
+    },
+    "CFS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "CFS3KeyPrefix": {
+        "Type": "String",
+        "Default": "firecamp/releases/latest/cf-templates",
+        "Description": "The S3 key prefix"
+    },
+    "NumberOfNodes":{
+      "Type":"Number",
+      "Default":"6",
+      "Description":"Number of Nodes. This MUST match the total number of Redis nodes, Shards * ReplicasPerShard."
+    },
+    "NodeInstanceType":{
+      "Description":"EC2 instance type",
+      "Type":"String",
+      "Default":"t2.micro",
+      "AllowedValues":[
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge"
+      ],
+      "ConstraintDescription":"Please choose a valid instance type."
+    },
+
+    "RedisRelease": {
+      "Type": "String",
+      "Default": "4.0",
+      "AllowedValues": [
+        "4.0"
+      ],
+      "Description": "Redis Release Version"
+    },
+    "ServiceName": {
+      "Type": "String",
+      "Description": "The Redis Service Name",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
+    "Shards": {
+      "Type": "Number",
+      "Default": "3",
+      "Description": "Number of Redis shards"
+    },
+    "ReplicasPerShard": {
+      "Type": "Number",
+      "Default": "2",
+      "Description": "Number of replicas per shard"
+    },
+    "MemoryCacheSizeMB": {
+      "Type": "Number",
+      "Default": "256",
+      "Description": "The memory cache size of one Redis node"
+    },
+    "VolumeSizeGB": {
+      "Type": "Number",
+      "Default": "1",
+      "Description": "The Redis node volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
+    },
+    "DisableAOF": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Enable/Disable Redis append only file"
+    },
+    "AuthPass": {
+      "Type": "String",
+      "Default": "",
+      "NoEcho": "true",
+      "MaxLength": "255",
+      "Description": "Enter your Redis AUTH Password",
+      "ConstraintDescription": "Input your Redis AUTH password"
+    },
+    "MaxMemoryPolicy": {
+      "Type": "String",
+      "Default": "noeviction",
+      "AllowedValues": [
+        "noeviction",
+        "volatile-lru",
+        "allkeys-lru",
+        "volatile-lfu",
+        "allkeys-lfu",
+        "volatile-random",
+        "allkeys-random",
+        "volatile-ttl"
+      ],
+      "Description": "Redis eviction policy when the memory limit is reached"
+    },
+    "ConfigCommandName": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The new name for Redis CONFIG command, empty name means disable the command",
+      "MinLength": "0",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
+    }
+  },
+  "Mappings": {
+    "AWSAMIRegionMap": {
+      "AMI": {
+        "AMIID": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
+      },
+      "ap-northeast-1": {
+        "AMIID": "ami-923d12f5"
+      },
+      "ap-northeast-2": {
+        "AMIID": "ami-9d15c7f3"
+      },
+      "ap-south-1": {
+        "AMIID": "ami-52c7b43d"
+      },
+      "ap-southeast-1": {
+        "AMIID": "ami-fc5ae39f"
+      },
+      "ap-southeast-2": {
+        "AMIID": "ami-162c2575"
+      },
+      "ca-central-1": {
+        "AMIID": "ami-0bd66a6f"
+      },
+      "eu-central-1": {
+        "AMIID": "ami-b968bad6"
+      },
+      "eu-west-1": {
+        "AMIID": "ami-01ccc867"
+      },
+      "eu-west-2": {
+        "AMIID": "ami-b6daced2"
+      },
+      "sa-east-1": {
+        "AMIID": "ami-37cfad5b"
+      },
+      "us-east-1": {
+        "AMIID": "ami-c58c1dd3"
+      },
+      "us-east-2": {
+        "AMIID": "ami-4191b524"
+      },
+      "us-west-1": {
+        "AMIID": "ami-7a85a01a"
+      },
+      "us-west-2": {
+        "AMIID": "ami-4836a428"
+      }
+    }
+  },
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    }
+  },
+  "Resources":{
+    "RedisLambdaSubnet": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-existingvpc-lambdanet.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "LambdaSubnetCIDR": {
+            "Ref": "LambdaSubnetCIDR"
+          },
+          "ClusterName": {
+            "Ref": "ClusterName"
+          }
+        }
+      }
+    },
+
+    "RedisAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "GroupDescription": "Instances with access to the services in the cluster"
+      }
+    },
+    "ServiceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "GroupDescription": "The access ports to the services in the cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "RemoteAccessCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "RedisAccessSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "InternalAccessSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "GroupDescription": "The inter-server access ports in the cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27040",
+            "ToPort": "27040",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "16379",
+            "ToPort": "16379",
+            "SourceSecurityGroupId": {
+              "Ref": "ServiceSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+
+    "FireCampStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "Release": {
+            "Ref": "FireCampRelease"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "InternalAccessSecurityGroupID": {
+            "Ref": "InternalAccessSecurityGroup"
+          },
+          "KeyPairName": {
+            "Ref": "KeyPairName"
+          },
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "NumberOfNodes": {
+            "Ref": "NumberOfNodes"
+          },
+          "NodeInstanceType": {
+            "Ref": "NodeInstanceType"
+          }
+        }
+      }
+    },
+
+    "RedisStack": {
+      "DependsOn": "FireCampStack",
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/redis/firecamp-lambda-redis.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "ServiceName": {
+            "Ref": "ServiceName"
+          },
+          "Shards": {
+            "Ref": "Shards"
+          },
+          "ReplicasPerShard": {
+            "Ref": "ReplicasPerShard"
+          },
+          "MemoryCacheSizeMB": {
+            "Ref": "MemoryCacheSizeMB"
+          },
+          "VolumeSizeGB": {
+            "Ref": "VolumeSizeGB"
+          },
+          "DisableAOF": {
+            "Ref": "DisableAOF"
+          },
+          "AuthPass": {
+            "Ref": "AuthPass"
+          },
+          "MaxMemoryPolicy": {
+            "Ref": "MaxMemoryPolicy"
+          },
+          "ConfigCommandName": {
+            "Ref": "ConfigCommandName"
+          },
+          "CFS3BucketName": {
+            "Ref": "CFS3BucketName"
+          },
+          "CFS3KeyPrefix": {
+            "Ref": "CFS3KeyPrefix"
+          },
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "SubnetIDs": {
+            "Fn::GetAtt": [
+              "RedisLambdaSubnet",
+              "Outputs.LambdaSubnet"
+            ]
+          }
+        }
+      }
+    }
+
+  },
+  "Outputs":{
+    "RedisAccessSecurityGroup":{
+      "Value":{
+        "Ref": "RedisAccessSecurityGroup"
+      }
+    }
+  }
+}
