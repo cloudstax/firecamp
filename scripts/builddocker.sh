@@ -189,7 +189,7 @@ BuildCatalogImages() {
   echo
   target=$system"-redis"
   image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/redis/4.0.1/dockerfile/"
+  path="${TOPWD}/catalog/redis/4.0/dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
@@ -198,7 +198,7 @@ BuildCatalogImages() {
   echo
   target=$system"-redis-init"
   image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/redis/4.0.1/init-task-dockerfile/"
+  path="${TOPWD}/catalog/redis/4.0/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
