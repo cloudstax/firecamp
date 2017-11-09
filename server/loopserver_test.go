@@ -17,11 +17,16 @@ func TestLoopServerVolume(t *testing.T) {
 
 	// create 2 volumes
 	az := "az-west"
-	vol1, err := s.CreateVolume(ctx, az, 1)
+	opts := &CreateVolumeOptions{
+		AvailabilityZone: az,
+		VolumeType:       VolumeTypeGPSSD,
+		VolumeSizeGB:     1,
+	}
+	vol1, err := s.CreateVolume(ctx, opts)
 	if err != nil {
 		t.Fatalf("failed to CreateVolume, error", err)
 	}
-	vol2, err := s.CreateVolume(ctx, az, 1)
+	vol2, err := s.CreateVolume(ctx, opts)
 	if err != nil {
 		t.Fatalf("failed to CreateVolume, error", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -57,7 +59,18 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 
-	az1bVol1, err := e.CreateVolume(ctx, az, 1)
+	opts := &server.CreateVolumeOptions{
+		AvailabilityZone: az,
+		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeSizeGB:     1,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: cluster,
+			},
+		},
+	}
+	az1bVol1, err := e.CreateVolume(ctx, opts)
 	if err != nil {
 		glog.Errorln("CreateVolume error", err)
 		return

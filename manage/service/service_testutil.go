@@ -593,7 +593,19 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 
-	_, err = s.createServiceMember(ctx, "uuid"+service, volSize, az, dev, memberName, ip, cfgs)
+	volOpts := &server.CreateVolumeOptions{
+		AvailabilityZone: az,
+		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeSizeGB:     volSize,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: common.SystemName + common.NameSeparator + cluster + common.NameSeparator + service,
+			},
+		},
+	}
+
+	_, err = s.createServiceMember(ctx, "uuid"+service, volOpts, az, dev, memberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}

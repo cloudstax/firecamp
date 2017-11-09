@@ -89,6 +89,11 @@ type EnvKeyValuePair struct {
 	Value string
 }
 
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
+
 // define the common environment keys
 const (
 	// this is for passing the firecamp version to AWS ECS task definition.

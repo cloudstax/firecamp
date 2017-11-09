@@ -15,11 +15,17 @@ func TestMemServer(t *testing.T) {
 	ctx := context.Background()
 	volSizeGB := int64(1)
 
-	volID1, err := s.CreateVolume(ctx, info.GetLocalAvailabilityZone(), volSizeGB)
+	opts := &CreateVolumeOptions{
+		AvailabilityZone: info.GetLocalAvailabilityZone(),
+		VolumeType:       VolumeTypeGPSSD,
+		VolumeSizeGB:     volSizeGB,
+	}
+
+	volID1, err := s.CreateVolume(ctx, opts)
 	if err != nil {
 		t.Fatalf("CreateVolume error %s", err)
 	}
-	volID2, err := s.CreateVolume(ctx, info.GetLocalAvailabilityZone(), volSizeGB)
+	volID2, err := s.CreateVolume(ctx, opts)
 	if err != nil {
 		t.Fatalf("CreateVolume error %s", err)
 	}

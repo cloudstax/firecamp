@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"golang.org/x/net/context"
+
+	"github.com/cloudstax/firecamp/common"
 )
 
 var (
@@ -27,10 +29,22 @@ const (
 	VolumeStateDeleted   = "deleted"
 	VolumeStateError     = "error"
 
-	VolumeTypeHDD     = "standard"
-	VolumeTypeGPSSD   = "gp2"
+	// General Purpose SSD
+	VolumeTypeGPSSD = "gp2"
+	// Provisioned IOPS SSD
 	VolumeTypeIOPSSSD = "io1"
+	// Throughput Optimized HDD
+	VolumeTypeTPHDD = "st1"
 )
+
+// CreateVolumeOptions includes the creation parameters for the volume.
+type CreateVolumeOptions struct {
+	AvailabilityZone string
+	VolumeType       string
+	IOPS             int64
+	VolumeSizeGB     int64
+	TagSpecs         []common.KeyValuePair
+}
 
 // VolumeInfo records the volume's information.
 type VolumeInfo struct {
@@ -58,7 +72,7 @@ type Server interface {
 	GetVolumeInfo(ctx context.Context, volID string) (info VolumeInfo, err error)
 	DetachVolume(ctx context.Context, volID string, instanceID string, devName string) error
 	WaitVolumeDetached(ctx context.Context, volID string) error
-	CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error)
+	CreateVolume(ctx context.Context, opts *CreateVolumeOptions) (volID string, err error)
 	WaitVolumeCreated(ctx context.Context, volID string) error
 	DeleteVolume(ctx context.Context, volID string) error
 

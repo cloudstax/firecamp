@@ -53,7 +53,18 @@ func TestAWSEC2(t *testing.T) {
 	}
 
 	// create one volume
-	az1aVol1, err = e.CreateVolume(ctx, "us-west-1a", 1)
+	opts := &server.CreateVolumeOptions{
+		AvailabilityZone: "us-west-1a",
+		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeSizeGB:     1,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: cluster,
+			},
+		},
+	}
+	az1aVol1, err = e.CreateVolume(ctx, opts)
 	if err != nil {
 		t.Fatal("failed to create volume at us-west-1a, error", err)
 	}

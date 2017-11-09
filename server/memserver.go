@@ -70,13 +70,13 @@ func (s *MemServer) WaitVolumeDetached(ctx context.Context, volID string) error 
 	return common.ErrInternal
 }
 
-func (s *MemServer) CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error) {
+func (s *MemServer) CreateVolume(ctx context.Context, opts *CreateVolumeOptions) (volID string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
 	s.creationCount++
 
-	volID = az + "-" + strconv.Itoa(s.creationCount)
+	volID = opts.AvailabilityZone + "-" + strconv.Itoa(s.creationCount)
 	devName := devPrefix + strconv.Itoa(s.creationCount)
 
 	s.volumes[volID] = devName

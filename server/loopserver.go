@@ -171,13 +171,13 @@ func (s *LoopServer) WaitVolumeDetached(ctx context.Context, volID string) error
 	return nil
 }
 
-func (s *LoopServer) CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error) {
+func (s *LoopServer) CreateVolume(ctx context.Context, opts *CreateVolumeOptions) (volID string, err error) {
 	s.vlock.Lock()
 	defer s.vlock.Unlock()
 
 	s.creationCount++
 
-	volID = az + "-" + strconv.Itoa(s.creationCount)
+	volID = opts.AvailabilityZone + "-" + strconv.Itoa(s.creationCount)
 
 	// create loopfile
 	loopfile := s.loopfilePath(volID)

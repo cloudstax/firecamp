@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -714,8 +715,8 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 	allMembers := make([]*common.ServiceMember, req.Replicas)
 	copy(allMembers, members)
 
-	for i := int64(len(members)); i < req.Replicas; i++ {
-		memberName := utils.GenServiceMemberName(req.Service.ServiceName, i)
+	for i := len(members); i < int(req.Replicas); i++ {
+		memberName := utils.GenServiceMemberName(req.Service.ServiceName, int64(i))
 
 		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
@@ -764,7 +765,19 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 			return err
 		}
 
-		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, req.VolumeSizeGB,
+		volOpts := &server.CreateVolumeOptions{
+			AvailabilityZone: req.ReplicaConfigs[i].Zone,
+			VolumeType:       server.VolumeTypeGPSSD,
+			VolumeSizeGB:     req.VolumeSizeGB,
+			TagSpecs: []common.KeyValuePair{
+				common.KeyValuePair{
+					Key:   "Name",
+					Value: common.SystemName + common.NameSeparator + sattr.ClusterName + common.NameSeparator + sattr.ServiceName + common.NameSeparator + strconv.Itoa(i),
+				},
+			},
+		}
+
+		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, volOpts,
 			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
@@ -813,11 +826,11 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 	return configs, nil
 }
 
-func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volSize int64, az string,
+func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volOpts *server.CreateVolumeOptions, az string,
 	devName string, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	volID, err := s.serverIns.CreateVolume(ctx, az, volSize)
+	volID, err := s.serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
 		glog.Errorln("CreateVolume failed, volID", volID, "serviceUUID", serviceUUID, "az", az, "error", err, "requuid", requuid)
 		return nil, err

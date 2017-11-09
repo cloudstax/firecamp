@@ -299,20 +299,40 @@ func (s *AWSEc2) WaitVolumeAttached(ctx context.Context, volID string) error {
 }
 
 // CreateVolume creates one volume
-func (s *AWSEc2) CreateVolume(ctx context.Context, az string, volSizeGB int64) (volID string, err error) {
+func (s *AWSEc2) CreateVolume(ctx context.Context, opts *server.CreateVolumeOptions) (volID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	params := &ec2.CreateVolumeInput{
-		AvailabilityZone: aws.String(az),
-		Size:             aws.Int64(volSizeGB),
-		VolumeType:       aws.String(server.VolumeTypeGPSSD),
+		AvailabilityZone: aws.String(opts.AvailabilityZone),
+		VolumeType:       aws.String(opts.VolumeType),
+		Size:             aws.Int64(opts.VolumeSizeGB),
+	}
+	if opts.VolumeType == server.VolumeTypeIOPSSSD {
+		params.Iops = aws.Int64(opts.IOPS)
+	}
+	if len(opts.TagSpecs) != 0 {
+		tags := make([]*ec2.Tag, len(opts.TagSpecs))
+		for i, tag := range opts.TagSpecs {
+			ec2tag := &ec2.Tag{
+				Key:   aws.String(tag.Key),
+				Value: aws.String(tag.Value),
+			}
+			tags[i] = ec2tag
+		}
+
+		ec2tagspec := &ec2.TagSpecification{
+			ResourceType: aws.String("volume"),
+			Tags:         tags,
+		}
+
+		params.TagSpecifications = []*ec2.TagSpecification{ec2tagspec}
 	}
 
 	svc := ec2.New(s.sess)
 	resp, err := svc.CreateVolume(params)
 
 	if err != nil {
-		glog.Errorln("failed to CreateVolume, AvailabilityZone", az, "error", err, "requuid", requuid)
+		glog.Errorln("CreateVolume error", err, "requuid", requuid, opts)
 		return "", err
 	}
 

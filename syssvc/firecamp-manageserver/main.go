@@ -185,10 +185,20 @@ func createControlDB(ctx context.Context, region string, cluster string, logIns 
 	}
 
 	// create the controldb volume
-	az := serverInfo.GetLocalAvailabilityZone()
+	volOpts := &server.CreateVolumeOptions{
+		AvailabilityZone: serverInfo.GetLocalAvailabilityZone(),
+		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeSizeGB:     common.ControlDBVolumeSizeGB,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: common.SystemName + common.NameSeparator + cluster + common.NameSeparator + common.ControlDBServiceName,
+			},
+		},
+	}
 	// TODO if some step fails, the volume may not be deleted.
 	//      add tag to EBS volume, so the old volume could be deleted.
-	volID, err := serverIns.CreateVolume(ctx, az, common.ControlDBVolumeSizeGB)
+	volID, err := serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
 		glog.Fatalln("failed to create the controldb volume", err)
 	}
