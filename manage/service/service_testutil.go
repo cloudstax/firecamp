@@ -511,8 +511,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("GetOrCreateHostedZoneIDByName error %s, domain %s, vpc %s %s", err, domain, vpcID, region)
 	}
 
+	devNames := common.ServiceDeviceNames{
+		PrimaryDeviceName: dev,
+	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -571,8 +574,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
 
+	devNames = common.ServiceDeviceNames{
+		PrimaryDeviceName: dev,
+	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, dev, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)

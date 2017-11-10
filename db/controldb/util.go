@@ -74,7 +74,7 @@ func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 		VolumeSizeGB:    attr.VolumeSizeGB,
 		ClusterName:     attr.ClusterName,
 		ServiceName:     attr.ServiceName,
-		DeviceName:      attr.DeviceName,
+		DeviceNames:     GenPbServiceDeviceNames(&(attr.DeviceNames)),
 		RegisterDNS:     attr.RegisterDNS,
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
@@ -91,12 +91,26 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 		attr.VolumeSizeGB,
 		attr.ClusterName,
 		attr.ServiceName,
-		attr.DeviceName,
+		GenDbServiceDeviceNames(attr.DeviceNames),
 		attr.RegisterDNS,
 		attr.DomainName,
 		attr.HostedZoneID,
 		attr.RequireStaticIP)
 	return dbAttr
+}
+
+func GenDbServiceDeviceNames(devNames *pb.ServiceDeviceNames) common.ServiceDeviceNames {
+	return common.ServiceDeviceNames{
+		PrimaryDeviceName: devNames.PrimaryDeviceName,
+		LogDeviceName:     devNames.LogDeviceName,
+	}
+}
+
+func GenPbServiceDeviceNames(devNames *common.ServiceDeviceNames) *pb.ServiceDeviceNames {
+	return &pb.ServiceDeviceNames{
+		PrimaryDeviceName: devNames.PrimaryDeviceName,
+		LogDeviceName:     devNames.LogDeviceName,
+	}
 }
 
 func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
@@ -107,7 +121,8 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.VolumeSizeGB == a2.VolumeSizeGB &&
 		a1.ClusterName == a2.ClusterName &&
 		a1.ServiceName == a2.ServiceName &&
-		a1.DeviceName == a2.DeviceName &&
+		a1.DeviceNames.PrimaryDeviceName == a2.DeviceNames.PrimaryDeviceName &&
+		a1.DeviceNames.LogDeviceName == a2.DeviceNames.LogDeviceName &&
 		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&

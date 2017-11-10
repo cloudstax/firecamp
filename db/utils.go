@@ -53,7 +53,7 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 }
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int64,
-	cluster string, service string, devName string,
+	cluster string, service string, deviceNames common.ServiceDeviceNames,
 	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
@@ -63,7 +63,7 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int6
 		VolumeSizeGB:    volSizeGB,
 		ClusterName:     cluster,
 		ServiceName:     service,
-		DeviceName:      devName,
+		DeviceNames:     deviceNames,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
@@ -72,7 +72,7 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int6
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64, volSizeGB int64,
-	cluster string, service string, devName string,
+	cluster string, service string, deviceNames common.ServiceDeviceNames,
 	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
@@ -82,7 +82,7 @@ func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas 
 		VolumeSizeGB:    volSizeGB,
 		ClusterName:     cluster,
 		ServiceName:     service,
-		DeviceName:      devName,
+		DeviceNames:     deviceNames,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
@@ -98,7 +98,8 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.VolumeSizeGB == t2.VolumeSizeGB &&
 		t1.ClusterName == t2.ClusterName &&
 		t1.ServiceName == t2.ServiceName &&
-		t1.DeviceName == t2.DeviceName &&
+		t1.DeviceNames.PrimaryDeviceName == t2.DeviceNames.PrimaryDeviceName &&
+		t1.DeviceNames.LogDeviceName == t2.DeviceNames.LogDeviceName &&
 		t1.RegisterDNS == t2.RegisterDNS &&
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID &&
@@ -117,7 +118,7 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 		VolumeSizeGB:    t1.VolumeSizeGB,
 		ClusterName:     t1.ClusterName,
 		ServiceName:     t1.ServiceName,
-		DeviceName:      t1.DeviceName,
+		DeviceNames:     t1.DeviceNames,
 		RegisterDNS:     t1.RegisterDNS,
 		DomainName:      t1.DomainName,
 		HostedZoneID:    t1.HostedZoneID,

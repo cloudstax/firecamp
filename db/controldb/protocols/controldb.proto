@@ -101,7 +101,7 @@ message ServiceAttr {
   int64 volumeSizeGB = 5;
   string clusterName = 6;
   string serviceName = 7;
-  string deviceName = 8;
+  ServiceDeviceNames deviceNames = 8;
 
   // whether the service has the strict membership, such as database replicas.
   // if yes, each serviceMember will be assigned a member name and registered to DNS.
@@ -110,6 +110,11 @@ message ServiceAttr {
   string domainName = 10;
   string hostedZoneID = 11;
   bool requireStaticIP = 12;
+}
+
+message ServiceDeviceNames {
+  string primaryDeviceName = 1;
+  string logDeviceName = 2;
 }
 
 message CreateServiceAttrResponse {

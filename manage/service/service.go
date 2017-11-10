@@ -146,7 +146,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.checkAndCreateServiceMembers(ctx, serviceAttr, req)
+	err = s.checkAndCreateServiceMembers(ctx, deviceName, serviceAttr, req)
 	if err != nil {
 		glog.Errorln("checkAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
@@ -392,6 +392,17 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		}
 	}
 
+	// delete the device
+	for _, m := range members {
+		err = s.dbIns.DeleteDevice(ctx, cluster, m.DeviceName)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("DeleteDevice error", err, "requuid", requuid, sattr)
+			return volIDs, err
+		}
+		glog.Infoln("deleted device", sattr, "requuid", requuid)
+		break
+	}
+
 	// delete all serviceMember records in DB
 	glog.Infoln("deleting serviceMembers from DB, service attr", sattr, "serviceMembers", len(members), "requuid", requuid)
 	for _, m := range members {
@@ -409,14 +420,6 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 	// TODO the static ip record is created before the service member record.
 	// some static ip record may be left in DB. scan to delete them.
-
-	// delete the device
-	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceName)
-	if err != nil && err != db.ErrDBRecordNotFound {
-		glog.Errorln("DeleteDevice error", err, "requuid", requuid, sattr)
-		return volIDs, err
-	}
-	glog.Infoln("deleted device", sattr, "requuid", requuid)
 
 	// delete service attr
 	err = s.dbIns.DeleteServiceAttr(ctx, sattr.ServiceUUID)
@@ -624,8 +627,11 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// create service attr
+	devNames := common.ServiceDeviceNames{
+		PrimaryDeviceName: deviceName,
+	}
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Volume.VolumeSizeGB,
-		req.Service.Cluster, req.Service.ServiceName, deviceName, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
+		req.Service.Cluster, req.Service.ServiceName, devNames, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -684,7 +690,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	}
 }
 
-func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
+func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, deviceName string,
 	sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -779,7 +785,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 		}
 
 		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, volOpts,
-			req.ReplicaConfigs[i].Zone, sattr.DeviceName, memberName, hostIP, cfgs)
+			req.ReplicaConfigs[i].Zone, deviceName, memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)

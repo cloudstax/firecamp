@@ -86,7 +86,7 @@ type ServiceAttr struct {
 	VolumeSizeGB  int64
 	ClusterName   string
 	ServiceName   string
-	DeviceName    string
+	DeviceNames   ServiceDeviceNames
 
 	// whether the service members need to know each other, such as database replicas.
 	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
@@ -114,8 +114,8 @@ type ServiceMember struct {
 	ServerInstanceID    string
 	LastModified        int64
 
-	// TODO add a new struct to include VolumeID, DeviceName and Configs,
-	//      as one service may have multiple volumes.
+	// The volumes of one member. One member could have multiple volumes.
+	// For example, one for DB data, the other for log.
 	VolumeID   string
 	DeviceName string
 
@@ -125,6 +125,29 @@ type ServiceMember struct {
 	// One member could have multiple config files.
 	// For example, cassandra.yaml and rackdc properties files.
 	Configs []*MemberConfig
+}
+
+// ServiceDeviceNames represent the device names of one service.
+// For now, allow maximum 2 devices. Could further expand if necessary in the future.
+type ServiceDeviceNames struct {
+	PrimaryDeviceName string
+	// The LogDeviceName could be empty if service only needs one volume.
+	LogDeviceName string
+}
+
+// MemberVolumes represent the volumes of one member.
+type MemberVolumes struct {
+	// The config files will be created on the primary volume.
+	PrimaryVolumeID   string
+	PrimaryDeviceName string
+
+	// The possible log volume to store the service's data log
+	LogVolumeID   string
+	LogDeviceName string
+	// The log volume will be mounted on the sub-directory of the primary volume mount path.
+	// For example, the primary volume is mounted under /mntroot/serviceuuid, the log volume
+	// is mounted under /mntroot/serviceuuid/log.
+	LogMountPath string
 }
 
 // MemberConfig represents the configs of one member

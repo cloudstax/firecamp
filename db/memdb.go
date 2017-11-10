@@ -447,7 +447,7 @@ func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
 		VolumeSizeGB:    t.VolumeSizeGB,
 		ClusterName:     t.ClusterName,
 		ServiceName:     t.ServiceName,
-		DeviceName:      t.DeviceName,
+		DeviceNames:     t.DeviceNames,
 		RegisterDNS:     t.RegisterDNS,
 		DomainName:      t.DomainName,
 		HostedZoneID:    t.HostedZoneID,

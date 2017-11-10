@@ -51,13 +51,16 @@ func TestAttrReadWriter(t *testing.T) {
 	requireStaticIP := false
 
 	attr := &pb.ServiceAttr{
-		ServiceUUID:     serviceUUID,
-		ServiceStatus:   serviceStatus,
-		Replicas:        int64(taskCounts),
-		VolumeSizeGB:    int64(volSize),
-		ClusterName:     cluster,
-		ServiceName:     serviceName,
-		DeviceName:      devName,
+		ServiceUUID:   serviceUUID,
+		ServiceStatus: serviceStatus,
+		Replicas:      int64(taskCounts),
+		VolumeSizeGB:  int64(volSize),
+		ClusterName:   cluster,
+		ServiceName:   serviceName,
+		DeviceNames: &pb.ServiceDeviceNames{
+			PrimaryDeviceName: devName,
+			LogDeviceName:     devName + "log",
+		},
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZone,
@@ -164,13 +167,16 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 	requireStaticIP := false
 
 	attr := &pb.ServiceAttr{
-		ServiceUUID:     serviceUUID,
-		ServiceStatus:   serviceStatus,
-		Replicas:        int64(i),
-		VolumeSizeGB:    int64(i),
-		ClusterName:     cluster,
-		ServiceName:     serviceNamePrefix + strconv.Itoa(i),
-		DeviceName:      devNamePrefix + strconv.Itoa(i),
+		ServiceUUID:   serviceUUID,
+		ServiceStatus: serviceStatus,
+		Replicas:      int64(i),
+		VolumeSizeGB:  int64(i),
+		ClusterName:   cluster,
+		ServiceName:   serviceNamePrefix + strconv.Itoa(i),
+		DeviceNames: &pb.ServiceDeviceNames{
+			PrimaryDeviceName: devNamePrefix + strconv.Itoa(i),
+			LogDeviceName:     devNamePrefix + "logs" + strconv.Itoa(i),
+		},
 		RegisterDNS:     registerDNS,
 		DomainName:      domainPrefix + strconv.Itoa(i),
 		HostedZoneID:    hostedZone,
@@ -366,14 +372,17 @@ func TestServiceSvcAttr(t *testing.T) {
 
 func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
 	a2 := &pb.ServiceAttr{
-		ServiceUUID:     a1.ServiceUUID,
-		ServiceStatus:   a1.ServiceStatus,
-		LastModified:    a1.LastModified,
-		Replicas:        a1.Replicas,
-		VolumeSizeGB:    a1.VolumeSizeGB,
-		ClusterName:     a1.ClusterName,
-		ServiceName:     a1.ServiceName,
-		DeviceName:      a1.DeviceName,
+		ServiceUUID:   a1.ServiceUUID,
+		ServiceStatus: a1.ServiceStatus,
+		LastModified:  a1.LastModified,
+		Replicas:      a1.Replicas,
+		VolumeSizeGB:  a1.VolumeSizeGB,
+		ClusterName:   a1.ClusterName,
+		ServiceName:   a1.ServiceName,
+		DeviceNames: &pb.ServiceDeviceNames{
+			PrimaryDeviceName: a1.DeviceNames.PrimaryDeviceName,
+			LogDeviceName:     a1.DeviceNames.LogDeviceName,
+		},
 		RegisterDNS:     a1.RegisterDNS,
 		DomainName:      a1.DomainName,
 		HostedZoneID:    a1.HostedZoneID,

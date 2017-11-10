@@ -279,8 +279,12 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 		// create service attr
 		str := strconv.Itoa(i)
 		uuid := serviceUUIDPrefix + str
+		devNames := common.ServiceDeviceNames{
+			PrimaryDeviceName: devNamePrefix + str,
+			LogDeviceName:     devNamePrefix + "log" + str,
+		}
 		attr := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
+			serviceNamePrefix+str, devNames, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 		err := dbcli.CreateServiceAttr(ctx, attr)
 		if err != nil {
 			glog.Errorln("create service, expect success, got", err, attr)
@@ -296,7 +300,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// negative case: create the service attr again with different field
 		attr1 := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), int64(i), cluster,
-			serviceNamePrefix+str+"xxx", devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
+			serviceNamePrefix+str+"xxx", devNames, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 		err = dbcli.CreateServiceAttr(ctx, attr1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing service attr with different field, expect db.ErrDBConditionalCheckFailed, got", err, attr1)
@@ -323,7 +327,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// update service attr
 		attr1 = db.CreateServiceAttr(uuid, "ACTIVE", time.Now().UnixNano(), int64(i), int64(i), cluster,
-			serviceNamePrefix+str, devNamePrefix+str, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
+			serviceNamePrefix+str, devNames, registerDNS, domainPrefix+str, hostedZone, requireStaticIP)
 
 		// negative case: old attr mismatch
 		err = dbcli.UpdateServiceAttr(ctx, attr1, attr1)

@@ -14,7 +14,10 @@ func TestDBUtils(t *testing.T) {
 	volSize := int64(1)
 	cluster := "cluster"
 	service := "service-1"
-	devName := "dev-1"
+	devNames := common.ServiceDeviceNames{
+		PrimaryDeviceName: "dev-1",
+		LogDeviceName:     "dev-2",
+	}
 	registerDNS := true
 	domain := ""
 	hostedZoneID := ""
@@ -22,10 +25,10 @@ func TestDBUtils(t *testing.T) {
 
 	mtime := time.Now().UnixNano()
 	attr1 := CreateInitialServiceAttr(serviceUUID, replicas, volSize,
-		cluster, service, devName, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		volSize, cluster, service, devName, registerDNS, domain, hostedZoneID, requireStaticIP)
+		volSize, cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
@@ -43,10 +46,10 @@ func TestDBUtils(t *testing.T) {
 	staticIP := "10.0.0.1"
 	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
 	cfgs := []*common.MemberConfig{cfg}
-	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, staticIP, cfgs)
+	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, volID, devNames.PrimaryDeviceName, staticIP, cfgs)
 	member2 := CreateServiceMember(serviceUUID, memberName,
 		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
-		volID, devName, staticIP, cfgs)
+		volID, devNames.PrimaryDeviceName, staticIP, cfgs)
 	if !EqualServiceMember(member1, member2, true) {
 		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
 	}

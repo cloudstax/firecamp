@@ -1,6 +1,7 @@
 package awsdynamodb
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,6 +21,13 @@ import (
 // CreateServiceAttr puts a new ServiceAttr record into DB
 func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
+
+	devNamesBytes, err := json.Marshal(attr.DeviceNames)
+	if err != nil {
+		glog.Errorln("Marshal ServiceDeviceNames error", err, "requuid", requuid, attr)
+		return err
+	}
+
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
@@ -49,8 +57,8 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			ServiceName: {
 				S: aws.String(attr.ServiceName),
 			},
-			DeviceName: {
-				S: aws.String(attr.DeviceName),
+			DeviceNames: {
+				B: devNamesBytes,
 			},
 			RegisterDNS: {
 				BOOL: aws.Bool(attr.RegisterDNS),
@@ -171,6 +179,12 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
+	var devNames common.ServiceDeviceNames
+	err = json.Unmarshal(resp.Item[DeviceNames].B, &devNames)
+	if err != nil {
+		glog.Errorln("Unmarshal ServiceDeviceNames error", err, "requuid", requuid, resp)
+		return nil, db.ErrDBInternal
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -180,7 +194,7 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		volSize,
 		*(resp.Item[ClusterName].S),
 		*(resp.Item[ServiceName].S),
-		*(resp.Item[DeviceName].S),
+		devNames,
 		*(resp.Item[RegisterDNS].BOOL),
 		*(resp.Item[DomainName].S),
 		*(resp.Item[HostedZoneID].S),

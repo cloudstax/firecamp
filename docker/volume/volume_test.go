@@ -177,7 +177,10 @@ func TestFindIdleVolume(t *testing.T) {
 	serverInsPrefix := "serverins-"
 	volIDPrefix := "vol-"
 
-	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, int64(1), cluster, service, "/dev/xvdf", true, domain, "hostedzone", false)
+	devNames := common.ServiceDeviceNames{
+		PrimaryDeviceName: "/dev/xvdf",
+	}
+	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, int64(1), cluster, service, devNames, true, domain, "hostedzone", false)
 
 	// add 2 service tasks
 	for i := 0; i < 2; i++ {

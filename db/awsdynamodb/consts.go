@@ -42,6 +42,7 @@ const (
 	VolumeID            = "VolumeID"
 	VolumeSizeGB        = "VolumeSizeGB"
 	DeviceName          = "DeviceName"
+	DeviceNames         = "DeviceNames"
 	AvailableZone       = "AvailableZone"
 	TaskID              = "TaskID"
 	ContainerInstanceID = "ContainerInstanceID"
