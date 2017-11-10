@@ -121,7 +121,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.ReplicasPerShard * opts.Shards,
-		VolumeSizeGB:   opts.VolumeSizeGB,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 

@@ -26,6 +26,7 @@ import (
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/manage/client"
+	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -40,6 +41,8 @@ var (
 	region          = flag.String("region", "", "The target AWS region")
 	service         = flag.String("service-name", "", "The target service name in ECS")
 	replicas        = flag.Int64("replicas", 3, "The number of replicas for the service")
+	volType         = flag.String("volume-type", server.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
+	volIops         = flag.Int64("volume-iops", 100, "The EBS volume IOPS when io1 type is chosen, otherwise ignored")
 	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
 	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
 	reserveCPUUnits = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
@@ -59,7 +62,11 @@ var (
 	pgReplUserPasswd = flag.String("pg-replpasswd", "replpassword", "The PostgreSQL password for the standby DB to access the primary")
 	pgContainerImage = flag.String("pg-image", pgcatalog.ContainerImage, "The PostgreSQL container image, "+pgcatalog.ContainerImage+" or "+pgcatalog.PostGISContainerImage)
 
+	// The ZooKeeper service specific parameters
+	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
+
 	// The kafka service creation specific parameters
+	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion, default: false")
 	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours, default: 168 hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
@@ -96,6 +103,7 @@ var (
 	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
 
 	// The elasticsearch service creation specific parameters.
+	esHeapSizeMB             = flag.Int64("es-heap-size", escatalog.DefaultHeapMB, "The ElasticSearch JVM heap size, unit: MB")
 	esDedicatedMasters       = flag.Int64("es-dedicated-masters", 3, "The number of dedicated masters for ElasticSearch")
 	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
 	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
@@ -108,6 +116,7 @@ var (
 	kbCertFile      = flag.String("kb-cert-file", "", "The Kibana service certificate file")
 
 	// The logstash service creation specific parameters.
+	lsHeapSizeMB            = flag.Int64("ls-heap-size", logstashcatalog.DefaultHeapMB, "The Logstash JVM heap size, unit: MB")
 	lsContainerImage        = flag.String("ls-container-image", logstashcatalog.ContainerImage, "The Logstash container image: "+logstashcatalog.ContainerImage+" or "+logstashcatalog.InputCouchDBContainerImage)
 	lsQueueType             = flag.String("ls-queue-type", logstashcatalog.QueueTypeMemory, "The Logstash service queue type: memory or persisted")
 	lsEnableDLQ             = flag.Bool("ls-enable-dlq", true, "Whether enables the Dead Letter Queue for Logstash, default: true")
@@ -299,10 +308,16 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Replicas:     *replicas,
-		VolumeSizeGB: *volSizeGB,
-		Admin:        *admin,
-		AdminPasswd:  *adminPasswd,
+		Options: &manage.CatalogMongoDBOptions{
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+			Admin:       *admin,
+			AdminPasswd: *adminPasswd,
+		},
 	}
 
 	err := cli.CatalogCreateMongoDBService(ctx, req)
@@ -345,8 +360,14 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Replicas:     *replicas,
-		VolumeSizeGB: *volSizeGB,
+		Options: &manage.CatalogCassandraOptions{
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+		},
 	}
 
 	err := cli.CatalogCreateCassandraService(ctx, req)
@@ -395,10 +416,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
 	}
-	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = zkcatalog.DefaultHeapMB
-	}
-	if *reserveMemMB < zkcatalog.DefaultHeapMB {
+	if *zkHeapSizeMB < zkcatalog.DefaultHeapMB {
 		fmt.Printf("The ZooKeeper heap size is less than %d. Please increase it for production system\n", zkcatalog.DefaultHeapMB)
 	}
 
@@ -414,8 +432,15 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Replicas:     *replicas,
-		VolumeSizeGB: *volSizeGB,
+		Options: &manage.CatalogZooKeeperOptions{
+			Replicas:   *replicas,
+			HeapSizeMB: *zkHeapSizeMB,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+		},
 	}
 
 	err := cli.CatalogCreateZooKeeperService(ctx, req)
@@ -438,10 +463,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid replica number, volume size and zookeeper service name")
 		os.Exit(-1)
 	}
-	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = kafkacatalog.DefaultHeapMB
-	}
-	if *reserveMemMB < kafkacatalog.DefaultHeapMB {
+	if *kafkaHeapSizeMB < kafkacatalog.DefaultHeapMB {
 		fmt.Printf("The Kafka heap size is less than %d. Please increase it for production system\n", kafkacatalog.DefaultHeapMB)
 	}
 
@@ -457,12 +479,19 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Replicas:     *replicas,
-		VolumeSizeGB: *volSizeGB,
+		Options: &manage.CatalogKafkaOptions{
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
 
-		AllowTopicDel:  *kafkaAllowTopicDel,
-		RetentionHours: *kafkaRetentionHours,
-		ZkServiceName:  *kafkaZkService,
+			HeapSizeMB:     *kafkaHeapSizeMB,
+			AllowTopicDel:  *kafkaAllowTopicDel,
+			RetentionHours: *kafkaRetentionHours,
+			ZkServiceName:  *kafkaZkService,
+		},
 	}
 
 	err := cli.CatalogCreateKafkaService(ctx, req)
@@ -502,7 +531,12 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 			Shards:            *redisShards,
 			ReplicasPerShard:  *redisReplicasPerShard,
 			MemoryCacheSizeMB: *redisMemSizeMB,
-			VolumeSizeGB:      *volSizeGB,
+
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
 
 			DisableAOF:      *redisDisableAOF,
 			AuthPass:        *redisAuthPass,
@@ -558,10 +592,15 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogCouchDBOptions{
-			Replicas:     *replicas,
-			VolumeSizeGB: *volSizeGB,
-			Admin:        *admin,
-			AdminPasswd:  *adminPasswd,
+			Replicas:    *replicas,
+			Admin:       *admin,
+			AdminPasswd: *adminPasswd,
+
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
 		},
 	}
 
@@ -643,11 +682,16 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogConsulOptions{
-			Replicas:     *replicas,
-			VolumeSizeGB: *volSizeGB,
-			Datacenter:   *consulDc,
-			Domain:       *consulDomain,
-			Encrypt:      *consulEncrypt,
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+
+			Datacenter: *consulDc,
+			Domain:     *consulDomain,
+			Encrypt:    *consulEncrypt,
 		},
 	}
 
@@ -700,10 +744,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
 	}
-	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = escatalog.DefaultHeapMB
-	}
-	if *reserveMemMB <= escatalog.DefaultHeapMB {
+	if *esHeapSizeMB <= escatalog.DefaultHeapMB {
 		fmt.Printf("The ElasticSearch heap size equals to or less than %d. Please increase it for production system\n", escatalog.DefaultHeapMB)
 	}
 
@@ -720,8 +761,14 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogElasticSearchOptions{
-			Replicas:               *replicas,
-			VolumeSizeGB:           *volSizeGB,
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+
+			HeapSizeMB:             *esHeapSizeMB,
 			DedicatedMasters:       *esDedicatedMasters,
 			DisableDedicatedMaster: *esDisableDedicatedMaster,
 			DisableForceAwareness:  *esDisableForceAware,
@@ -772,8 +819,12 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogKibanaOptions{
-			Replicas:      *replicas,
-			VolumeSizeGB:  *volSizeGB,
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
 			ESServiceName: *kbESServiceName,
 			ProxyBasePath: *kbProxyBasePath,
 		},
@@ -822,11 +873,8 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid pipeline config file")
 		os.Exit(-1)
 	}
-	if *reserveMemMB == common.DefaultReserveMemoryMB {
-		*reserveMemMB = logstashcatalog.DefaultReserveMemoryMB
-	}
-	if *reserveMemMB < logstashcatalog.DefaultReserveMemoryMB {
-		fmt.Printf("The reserved memory for Logstash service is less than %d. Please increase it for production system\n", logstashcatalog.DefaultReserveMemoryMB)
+	if *lsHeapSizeMB < logstashcatalog.DefaultHeapMB {
+		fmt.Printf("The reserved memory for Logstash service is less than %d. Please increase it for production system\n", logstashcatalog.DefaultHeapMB)
 	}
 
 	// load the content of the pipeline config file
@@ -850,8 +898,13 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogLogstashOptions{
-			Replicas:              *replicas,
-			VolumeSizeGB:          *volSizeGB,
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
+			HeapSizeMB:            *lsHeapSizeMB,
 			ContainerImage:        *lsContainerImage,
 			QueueType:             *lsQueueType,
 			EnableDeadLetterQueue: *lsEnableDLQ,
@@ -897,8 +950,12 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogPostgreSQLOptions{
-			Replicas:       *replicas,
-			VolumeSizeGB:   *volSizeGB,
+			Replicas: *replicas,
+			Volume: &manage.ServiceVolume{
+				VolumeType:   *volType,
+				IOPS:         *volIops,
+				VolumeSizeGB: *volSizeGB,
+			},
 			ContainerImage: *pgContainerImage,
 			AdminPasswd:    *adminPasswd,
 			ReplUser:       *pgReplUser,

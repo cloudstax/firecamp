@@ -77,8 +77,8 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	domainName string, vpcID string) (serviceUUID string, err error) {
 	// check args
 	if len(req.Service.Cluster) == 0 || len(req.Service.ServiceName) == 0 ||
-		len(req.Service.Region) == 0 || req.Replicas <= 0 || req.VolumeSizeGB <= 0 || len(vpcID) == 0 {
-		glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.VolumeSizeGB, "vpc", vpcID)
+		len(req.Service.Region) == 0 || req.Replicas <= 0 || req.Volume.VolumeSizeGB <= 0 || len(vpcID) == 0 {
+		glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.Volume.VolumeSizeGB, "vpc", vpcID)
 		return "", common.ErrInvalidArgs
 	}
 	if int64(len(req.ReplicaConfigs)) != req.Replicas {
@@ -624,7 +624,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// create service attr
-	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.VolumeSizeGB,
+	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Volume.VolumeSizeGB,
 		req.Service.Cluster, req.Service.ServiceName, deviceName, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
@@ -767,8 +767,9 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context,
 
 		volOpts := &server.CreateVolumeOptions{
 			AvailabilityZone: req.ReplicaConfigs[i].Zone,
-			VolumeType:       server.VolumeTypeGPSSD,
-			VolumeSizeGB:     req.VolumeSizeGB,
+			VolumeType:       req.Volume.VolumeType,
+			IOPS:             req.Volume.IOPS,
+			VolumeSizeGB:     req.Volume.VolumeSizeGB,
 			TagSpecs: []common.KeyValuePair{
 				common.KeyValuePair{
 					Key:   "Name",

@@ -34,14 +34,19 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
+	cluster string, service string, opts *manage.CatalogZooKeeperOptions, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas, res.ReserveMemMB)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ClientPort, HostPort: ClientPort},
 		{ContainerPort: peerConnectPort, HostPort: peerConnectPort},
 		{ContainerPort: leaderElectPort, HostPort: leaderElectPort},
+	}
+
+	reserveMemMB := res.ReserveMemMB
+	if res.ReserveMemMB < opts.HeapSizeMB {
+		reserveMemMB = opts.HeapSizeMB
 	}
 
 	return &manage.CreateServiceRequest{
@@ -51,11 +56,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    reserveMemMB,
+		},
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicas,
-		VolumeSizeGB:   volSizeGB,
+		Replicas:       opts.Replicas,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
@@ -65,12 +75,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64, reserveMemMB int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
-	serverList := genServerList(service, domain, replicas)
+	serverList := genServerList(service, domain, opts.Replicas)
 
-	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
-	for i := 0; i < int(replicas); i++ {
+	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
+	for i := 0; i < int(opts.Replicas); i++ {
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
@@ -93,11 +103,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		// create the java.env file
-		jvmMemMB := reserveMemMB
-		if reserveMemMB == common.DefaultMaxMemoryMB {
-			jvmMemMB = DefaultHeapMB
-		}
-		content = fmt.Sprintf(javaEnvConfig, jvmMemMB)
+		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB)
 		javaEnvCfg := &manage.ReplicaConfigFile{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,

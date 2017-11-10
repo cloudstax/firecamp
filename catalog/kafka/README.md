@@ -20,7 +20,7 @@ The Unclean Leader Election is disabled by default. If the unclean leader electi
 The auto topic creation is enabled by default. The default max number of partitions is 8. If the cluster has more than 8 nodes, the auto-created topic will have 8 partitions. If the total nodes are less than 8, the partitions of the auto-created topic will be the same with the number of nodes.
 
 **[JVM Configs](http://docs.confluent.io/current/kafka/deployment.html#jvm)**
-Java 1.8 with G1 collector is used. The default Java heap size, both Xmx and Xms, are set to 6GB. If your Kafka wants other memory, you could specify the "reserve-memory" when creating the Kafka service by the firecamp-service-cli. The Java GC tuning also follow the recommendation.
+Java 1.8 with G1 collector is used. The default Java heap size, both Xmx and Xms, are set to 6GB. If your Kafka wants other memory, you could specify the "kafka-heap-size" when creating the Kafka service by the firecamp-service-cli. The Java GC tuning also follow the recommendation.
 
 **Set JVM TTL for Kafka Java client**
 By default, JVM caches a successful DNS lookup forever. Kafka Java client should [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Kafka container moves to another node, JVM could lookup the new address.

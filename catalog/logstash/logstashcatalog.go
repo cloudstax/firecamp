@@ -17,8 +17,8 @@ const (
 	// InputCouchDBContainerImage is the container image for Logstash with the couchdb input plugin
 	InputCouchDBContainerImage = common.ContainerNamePrefix + "logstash-input-couchdb:" + common.Version
 
-	// DefaultReserveMemoryMB is the default reserved memory size for Kibana
-	DefaultReserveMemoryMB = 2048
+	// DefaultHeapMB is the default reserved memory size for Logstash
+	DefaultHeapMB = 2048
 
 	QueueTypeMemory  = "memory"
 	QueueTypePersist = "persisted"
@@ -53,11 +53,16 @@ func ValidateRequest(r *manage.CatalogCreateLogstashRequest) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogLogstashOptions) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: httpPort, HostPort: httpPort},
 		{ContainerPort: beatsPort, HostPort: beatsPort},
+	}
+
+	reserveMemMB := res.ReserveMemMB
+	if res.ReserveMemMB < opts.HeapSizeMB {
+		reserveMemMB = opts.HeapSizeMB
 	}
 
 	return &manage.CreateServiceRequest{
@@ -67,11 +72,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    reserveMemMB,
+		},
 
 		ContainerImage: opts.ContainerImage,
 		Replicas:       opts.Replicas,
-		VolumeSizeGB:   opts.VolumeSizeGB,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
@@ -81,7 +91,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, res *common.Resources, opts *manage.CatalogLogstashOptions) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogLogstashOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
@@ -122,7 +132,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the jvm.options file
-		content = fmt.Sprintf(jvmHeapConfigs, res.ReserveMemMB, res.ReserveMemMB)
+		content = fmt.Sprintf(jvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
 		content += jvmConfigs
 		jvmCfg := &manage.ReplicaConfigFile{
 			FileName: jvmConfFileName,

@@ -8,7 +8,7 @@ One Logstash member only runs in one availability zone. To tolerate one availabi
 
 **Memory**
 
-By default, FireCamp sets 2GB for Logstash heap. As Logstash suggests, the Xms and Xmx are set to the same value to prevent the heap from resizing at runtime.
+By default, FireCamp sets 2GB for Logstash heap. As Logstash suggests, the Xms and Xmx are set to the same value to prevent the heap from resizing at runtime. You could adjust the memory size by setting the "ls-heap-size" when creating the service.
 
 **Pipeline Config File**
 

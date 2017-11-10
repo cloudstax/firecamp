@@ -38,14 +38,19 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources,
-	allowTopicDel bool, retentionHours int64, zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
+	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
+	zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
 	zkServers := genZkServerList(zkattr)
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, replicas, res.ReserveMemMB, allowTopicDel, retentionHours, zkServers)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort},
+	}
+
+	reserveMemMB := res.ReserveMemMB
+	if res.ReserveMemMB < opts.HeapSizeMB {
+		reserveMemMB = opts.HeapSizeMB
 	}
 
 	return &manage.CreateServiceRequest{
@@ -55,11 +60,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    reserveMemMB,
+		},
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicas,
-		VolumeSizeGB:   volSizeGB,
+		Replicas:       opts.Replicas,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
@@ -69,26 +79,25 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, replicas int64,
-	reserveMemMB int64, allowTopicDel bool, retentionHours int64, zkServers string) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKafkaOptions, zkServers string) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	// adjust the default configs by the number of members(replicas)
 	replFactor := defaultReplFactor
-	if int(replicas) < defaultReplFactor {
-		replFactor = int(replicas)
+	if int(opts.Replicas) < defaultReplFactor {
+		replFactor = int(opts.Replicas)
 	}
 	minInsyncReplica := defaultInsyncReplicas
-	if int(replicas) < defaultInsyncReplicas {
-		minInsyncReplica = int(replicas)
+	if int(opts.Replicas) < defaultInsyncReplicas {
+		minInsyncReplica = int(opts.Replicas)
 	}
 	numPartitions := defaultMaxPartitions
-	if int(replicas) < defaultMaxPartitions {
-		numPartitions = int(replicas)
+	if int(opts.Replicas) < defaultMaxPartitions {
+		numPartitions = int(opts.Replicas)
 	}
 
-	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
-	for i := 0; i < int(replicas); i++ {
+	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
+	for i := 0; i < int(opts.Replicas); i++ {
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
@@ -97,7 +106,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		// create the server.properties file
 		index := i % len(azs)
 		topicDel := "false"
-		if allowTopicDel {
+		if opts.AllowTopicDel {
 			topicDel = "true"
 		}
 		bind := memberHost
@@ -105,7 +114,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			bind = catalog.BindAllIP
 		}
 		content := fmt.Sprintf(serverPropConfig, i, azs[index], topicDel, numPartitions, bind, memberHost,
-			replFactor, replFactor, replFactor, minInsyncReplica, retentionHours, zkServers)
+			replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -113,11 +122,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the java.env file
-		jvmMemMB := reserveMemMB
-		if reserveMemMB == common.DefaultReserveMemoryMB {
-			jvmMemMB = DefaultHeapMB
-		}
-		content = fmt.Sprintf(javaEnvConfig, jvmMemMB, jvmMemMB)
+		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB)
 		javaEnvCfg := &manage.ReplicaConfigFile{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,

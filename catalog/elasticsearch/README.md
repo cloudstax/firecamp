@@ -30,7 +30,7 @@ The nofile and nproc are increased. The vm.swappiness is set to 1. The vm.max_ma
 
 **[JVM Heap](https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html)**
 
-ElasticSearch suggests to set Xms and Xmx to the same. The default heap size is 2g. You should increase it for the production system, by setting the reserve-memory when creating the service.
+ElasticSearch suggests to set Xms and Xmx to the same. The default heap size is 2g. You should increase it for the production system, by setting the "es-heap-size" when creating the service.
 
 It is better to not "Set Xmx to no more than 50% of your physical RAM, to ensure that there is enough physical RAM left for kernel file system caches." And should try to stay below the threshold, "26 GB is safe on most systems". FireCamp limits the Xmx under 26GB.
 

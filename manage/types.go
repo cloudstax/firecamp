@@ -68,6 +68,13 @@ type ServiceCommonRequest struct {
 	ServiceName string
 }
 
+// ServiceVolume contains the volume parameters.
+type ServiceVolume struct {
+	VolumeType   string
+	IOPS         int64
+	VolumeSizeGB int64
+}
+
 // CreateServiceRequest contains the parameters for creating a service.
 // Currently every replica should have its own ReplicaConfig. This aims to
 // provide the flexibility for different services.
@@ -78,7 +85,7 @@ type CreateServiceRequest struct {
 
 	ContainerImage string
 	Replicas       int64
-	VolumeSizeGB   int64
+	Volume         *ServiceVolume
 	ContainerPath  string // The mount path inside container
 	PortMappings   []common.PortMapping
 	Envkvs         []*common.EnvKeyValuePair
@@ -183,22 +190,26 @@ type DeleteTaskRequest struct {
 
 // The integrated catalog services supported by the system.
 
-// CatalogCreateMongoDBRequest creates a MongoDB ReplicaSet service.
-type CatalogCreateMongoDBRequest struct {
-	Service  *ServiceCommonRequest
-	Resource *common.Resources
-
-	Replicas     int64
-	VolumeSizeGB int64
+// CatalogMongoDBOptions includes the config options for MongoDB.
+type CatalogMongoDBOptions struct {
+	Replicas int64
+	Volume   *ServiceVolume
 
 	Admin       string
 	AdminPasswd string
 }
 
+// CatalogCreateMongoDBRequest creates a MongoDB ReplicaSet service.
+type CatalogCreateMongoDBRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogMongoDBOptions
+}
+
 // CatalogPostgreSQLOptions includes the config options for PostgreSQL.
 type CatalogPostgreSQLOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
 
 	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
 	ContainerImage string
@@ -216,36 +227,54 @@ type CatalogCreatePostgreSQLRequest struct {
 	Options  *CatalogPostgreSQLOptions
 }
 
+// CatalogCassandraOptions includes the config options for Cassandra.
+type CatalogCassandraOptions struct {
+	Replicas int64
+	Volume   *ServiceVolume
+}
+
 // CatalogCreateCassandraRequest creates a Cassandra service.
 type CatalogCreateCassandraRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
+	Options  *CatalogCassandraOptions
+}
 
-	Replicas     int64
-	VolumeSizeGB int64
+// CatalogZooKeeperOptions includes the options for ZooKeeper.
+type CatalogZooKeeperOptions struct {
+	Replicas int64
+	Volume   *ServiceVolume
+
+	// ZooKeeper JVM heap size
+	HeapSizeMB int64
 }
 
 // CatalogCreateZooKeeperRequest creates a ZooKeeper service.
 type CatalogCreateZooKeeperRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
+	Options  *CatalogZooKeeperOptions
+}
 
-	Replicas     int64
-	VolumeSizeGB int64
+// CatalogKafkaOptions includes the options for Kafka.
+type CatalogKafkaOptions struct {
+	Replicas int64
+	Volume   *ServiceVolume
+
+	// Kafka JVM heap size
+	HeapSizeMB int64
+
+	AllowTopicDel  bool
+	RetentionHours int64
+	// the existing ZooKeeper service that Kafka will use.
+	ZkServiceName string
 }
 
 // CatalogCreateKafkaRequest creates a Kafka service.
 type CatalogCreateKafkaRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
-
-	Replicas     int64
-	VolumeSizeGB int64
-
-	AllowTopicDel  bool
-	RetentionHours int64
-	// the existing ZooKeeper service that Kafka will use.
-	ZkServiceName string
+	Options  *CatalogKafkaOptions
 }
 
 // CatalogRedisOptions includes the config options for Redis.
@@ -258,7 +287,7 @@ type CatalogRedisOptions struct {
 	// Redis memory cache size
 	MemoryCacheSizeMB int64
 
-	VolumeSizeGB int64
+	Volume *ServiceVolume
 
 	// whether disable Redis "append only file", not recommended unless for cache only.
 	DisableAOF bool
@@ -286,8 +315,8 @@ type CatalogCreateRedisRequest struct {
 
 // CatalogCouchDBOptions includes the config options for CouchDB.
 type CatalogCouchDBOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
 
 	// CouchDB admin username and password
 	Admin       string
@@ -316,8 +345,8 @@ type CatalogCreateCouchDBRequest struct {
 
 // CatalogConsulOptions includes the config options for Consul.
 type CatalogConsulOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
 
 	// https://www.consul.io/docs/agent/options.html#_datacenter
 	// if not specified, use the current Region.
@@ -352,8 +381,11 @@ type CatalogCreateConsulResponse struct {
 
 // CatalogElasticSearchOptions includes the config options for ElasticSearch.
 type CatalogElasticSearchOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
+
+	// ElasticSearch JVM heap size
+	HeapSizeMB int64
 
 	DedicatedMasters       int64
 	DisableDedicatedMaster bool
@@ -369,8 +401,8 @@ type CatalogCreateElasticSearchRequest struct {
 
 // CatalogKibanaOptions includes the config options for Kibana.
 type CatalogKibanaOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
 
 	// the ElasticSearch service that Kibana is used for
 	ESServiceName string
@@ -394,8 +426,11 @@ type CatalogCreateKibanaRequest struct {
 
 // CatalogLogstashOptions includes the config options for Logstash.
 type CatalogLogstashOptions struct {
-	Replicas     int64
-	VolumeSizeGB int64
+	Replicas int64
+	Volume   *ServiceVolume
+
+	// Logstash JVM heap size
+	HeapSizeMB int64
 
 	// The container image for the service, such as cloudstax/firecamp-logstash:version or cloudstax/firecamp-logstash-input-couchdb:version
 	ContainerImage string

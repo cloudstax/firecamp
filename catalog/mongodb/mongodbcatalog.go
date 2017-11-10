@@ -37,10 +37,10 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, replicas int64, volSizeGB int64, res *common.Resources) (*manage.CreateServiceRequest, error) {
+	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replSetName := service
-	replicaCfgs, err := GenReplicaConfigs(platform, azs, cluster, service, replicas, replSetName, defaultPort, res.MaxMemMB)
+	replicaCfgs, err := GenReplicaConfigs(platform, azs, cluster, service, opts.Replicas, replSetName, defaultPort, res.MaxMemMB)
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +60,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicas,
-		VolumeSizeGB:   volSizeGB,
+		Replicas:       opts.Replicas,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   []common.PortMapping{portmapping},
 

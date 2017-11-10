@@ -198,7 +198,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 
 	// create the service in the control plane and the container platform
 	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+		req.Service.ServiceName, req.Options, req.Resource)
 	if err != nil {
 		glog.Errorln("mongodbcatalog GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -210,10 +210,10 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Admin)
+	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Options.Admin)
 
 	// run the init task in the background
-	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Replicas, req.Admin, req.AdminPasswd, requuid)
+	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
 
 	return "", http.StatusOK
 }
@@ -287,7 +287,7 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 
 	// create the service in the control plane and the container platform
 	crReq := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+		req.Service.ServiceName, req.Options, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -316,9 +316,9 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 	}
 
 	// get the zk service
-	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.ZkServiceName)
+	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ZkServiceName)
 	if err != nil {
-		glog.Errorln("get zk service", req.ZkServiceName, "error", err, "requuid", requuid, req.Service)
+		glog.Errorln("get zk service", req.Options.ZkServiceName, "error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -332,8 +332,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 
 	// create the service in the control plane and the container platform
 	crReq := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource,
-		req.AllowTopicDel, req.RetentionHours, zkattr)
+		req.Service.ServiceName, req.Options, req.Resource, zkattr)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -687,7 +686,7 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 
 	// create the service in the control plane and the container platform
 	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
-		s.cluster, req.Service.ServiceName, req.Replicas, req.VolumeSizeGB, req.Resource)
+		s.cluster, req.Service.ServiceName, req.Options, req.Resource)
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

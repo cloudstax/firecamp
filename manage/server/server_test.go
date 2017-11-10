@@ -312,9 +312,12 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			ReserveMemMB:    2,
 		},
 
-		ContainerImage:  "image",
-		Replicas:        int64(taskCount),
-		VolumeSizeGB:    int64(taskCount + 1),
+		ContainerImage: "image",
+		Replicas:       int64(taskCount),
+		Volume: &manage.ServiceVolume{
+			VolumeType:   server.VolumeTypeGPSSD,
+			VolumeSizeGB: int64(taskCount + 1),
+		},
 		ContainerPath:   "",
 		RegisterDNS:     true,
 		RequireStaticIP: false,

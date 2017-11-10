@@ -41,7 +41,7 @@ const (
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
-	if r.Resource.ReserveMemMB > maxHeapMB {
+	if r.Options.HeapSizeMB > maxHeapMB {
 		return errors.New("max heap size is 26GB")
 	}
 	if r.Options.Replicas == int64(2) && r.Options.DisableDedicatedMaster {
@@ -72,11 +72,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, masterNodeNumber, res, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, masterNodeNumber, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: HTTPPort, HostPort: HTTPPort},
 		{ContainerPort: TransportTCPPort, HostPort: TransportTCPPort},
+	}
+
+	reserveMemMB := res.ReserveMemMB
+	if res.ReserveMemMB < opts.HeapSizeMB {
+		reserveMemMB = opts.HeapSizeMB
 	}
 
 	return &manage.CreateServiceRequest{
@@ -86,11 +91,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    reserveMemMB,
+		},
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas + masterNodeNumber,
-		VolumeSizeGB:   opts.VolumeSizeGB,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
@@ -101,7 +111,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string, masterNodeNumber int64,
-	res *common.Resources, opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
+	opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	unicastHosts := ""
@@ -160,7 +170,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the jvm.options file
-		content = fmt.Sprintf(ESJvmHeapConfigs, res.ReserveMemMB, res.ReserveMemMB)
+		content = fmt.Sprintf(ESJvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
 		content += ESJvmConfigs
 		jvmCfg := &manage.ReplicaConfigFile{
 			FileName: jvmConfFileName,

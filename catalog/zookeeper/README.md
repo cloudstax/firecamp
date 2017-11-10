@@ -22,7 +22,7 @@ In the future, [SASL](https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooK
 
 **JVM Configs**
 
-By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memory, you could specify the "reserve-memory" when creating the ZooKeeper service by the firecamp-service-cli.
+By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memory, you could specify the "zk-heap-size" when creating the ZooKeeper service by the firecamp-service-cli.
 
 **Set JVM TTL for ZooKeeper Java client**
 

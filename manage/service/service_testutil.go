@@ -22,8 +22,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	servicePrefix := "service-"
 	service := "service-0"
 
-	var volSize int64
-	volSize = 1
+	volSize := int64(1)
+	servicevol := &manage.ServiceVolume{
+		VolumeType:   server.VolumeTypeGPSSD,
+		VolumeSizeGB: volSize,
+	}
+
 	az := "az-west"
 
 	registerDNS := true
@@ -61,7 +65,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				ServiceName: service,
 			},
 			Replicas:        int64(taskCount1),
-			VolumeSizeGB:    volSize,
+			Volume:          servicevol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -161,7 +165,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				ServiceName: service,
 			},
 			Replicas:        int64(taskCount2),
-			VolumeSizeGB:    volSize,
+			Volume:          servicevol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -279,7 +283,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				ServiceName: service,
 			},
 			Replicas:        int64(taskCount3),
-			VolumeSizeGB:    volSize,
+			Volume:          servicevol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -352,8 +356,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	servicePrefix := "service-"
 	taskCount := 3
 
-	var volSize int64
-	volSize = 1
+	volSize := int64(1)
+	servicevol := &manage.ServiceVolume{
+		VolumeType:   server.VolumeTypeGPSSD,
+		VolumeSizeGB: volSize,
+	}
+
 	idx := 0
 	firstIP := 4
 	ipPrefix, _, _, _ := serverIns.GetCidrBlock()
@@ -383,7 +391,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			ServiceName: service,
 		},
 		Replicas:        int64(taskCount),
-		VolumeSizeGB:    volSize,
+		Volume:          servicevol,
 		RegisterDNS:     registerDNS,
 		RequireStaticIP: requireStaticIP,
 		ReplicaConfigs:  replicaCfgs,

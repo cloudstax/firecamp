@@ -35,9 +35,9 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, replicas int64, volSizeGB int64, res *common.Resources) *manage.CreateServiceRequest {
+	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, replicas)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts.Replicas)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: intraNodePort, HostPort: intraNodePort},
@@ -57,8 +57,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		Resource: res,
 
 		ContainerImage: ContainerImage,
-		Replicas:       replicas,
-		VolumeSizeGB:   volSizeGB,
+		Replicas:       opts.Replicas,
+		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
 
