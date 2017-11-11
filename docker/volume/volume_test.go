@@ -195,9 +195,13 @@ func TestFindIdleVolume(t *testing.T) {
 	memNumber := 5
 	for i := 0; i < memNumber; i++ {
 		str := strconv.Itoa(i)
+		mvols := common.MemberVolumes{
+			PrimaryVolumeID:   volIDPrefix + str,
+			PrimaryDeviceName: "/dev/xvdf",
+		}
 		m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
 			mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
-			serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+			serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 		err := dbIns.CreateServiceMember(ctx, m)
 		if err != nil {
 			t.Fatalf("CreateServiceMember error %s, index %d", err, i)
@@ -206,9 +210,13 @@ func TestFindIdleVolume(t *testing.T) {
 
 	// test selecting the idle member owned by local node
 	str := strconv.Itoa(memNumber + 1)
+	mvols := common.MemberVolumes{
+		PrimaryVolumeID:   volIDPrefix + str,
+		PrimaryDeviceName: "/dev/xvdf",
+	}
 	m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(memNumber+1)),
 		mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(),
-		serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+		serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 	err := dbIns.CreateServiceMember(ctx, m)
 	if err != nil {
 		t.Fatalf("CreateServiceMember error %s, index %d", err, memNumber+1)
@@ -236,9 +244,13 @@ func TestFindIdleVolume(t *testing.T) {
 		selected := false
 		for i := 2; i < memNumber; i++ {
 			str := strconv.Itoa(i)
+			mvols := common.MemberVolumes{
+				PrimaryVolumeID:   volIDPrefix + str,
+				PrimaryDeviceName: "/dev/xvdf",
+			}
 			m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
 				mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
-				serverInsPrefix+str, mtime, volIDPrefix+str, "/dev/xvdf", common.DefaultHostIP, nil)
+				serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 			if db.EqualServiceMember(m, m1, false) {
 				fmt.Println("select member", i)
 				selected = true
@@ -446,7 +458,7 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 
 	// volume mounted, unmount before exit
 	defer unmount(svcUUID, driver2, t, expecterr)
-	defer serverIns.DetachVolume(ctx, member.VolumeID, member.ContainerInstanceID, member.DeviceName)
+	defer serverIns.DetachVolume(ctx, member.Volumes.PrimaryVolumeID, member.ContainerInstanceID, member.Volumes.PrimaryDeviceName)
 
 	// get volume
 	req := volume.Request{Name: svcUUID}
