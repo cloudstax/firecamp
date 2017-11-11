@@ -146,7 +146,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.checkAndCreateServiceMembers(ctx, deviceName, serviceAttr, req)
+	err = s.checkAndCreateServiceMembers(ctx, serviceAttr, req)
 	if err != nil {
 		glog.Errorln("checkAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
@@ -233,9 +233,11 @@ func (s *ManageService) ListServiceVolumes(ctx context.Context, cluster string, 
 		return nil, err
 	}
 
-	serviceVolumes = make([]string, len(members))
-	for i, m := range members {
-		serviceVolumes[i] = m.VolumeID
+	for _, m := range members {
+		serviceVolumes = append(serviceVolumes, m.Volumes.PrimaryVolumeID)
+		if len(m.Volumes.LogVolumeID) != 0 {
+			serviceVolumes = append(serviceVolumes, m.Volumes.LogVolumeID)
+		}
 	}
 
 	glog.Infoln("cluster", cluster, "service", service, "has", len(serviceVolumes), "serviceVolumes, requuid", requuid)
@@ -371,36 +373,12 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			glog.V(1).Infoln("deleted config file", c.FileID, m.ServiceUUID, "requuid", requuid)
 		}
 
-		// check if the volume is still in-use. This might be possible at some corner case.
-		// Probably happens at the below sequence during the test: 1) volume attached to the node,
-		// 2) volume driver gets restarted, 3) delete the service. The volume is not detached.
-		// Checked the volume driver log, looks volume driver only received the “Get” request and
-		// returned volume not mounted. No unmount call to the volume driver.
-		volState, err := s.serverIns.GetVolumeState(ctx, m.VolumeID)
+		// detach the member's volumes
+		err = s.detachVolumes(ctx, m, requuid)
 		if err != nil {
-			// TODO continue if volume not found
-			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
+			glog.Errorln("detach volume error", err, "requuid", requuid, m.Volumes, m)
 			return volIDs, err
 		}
-		if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
-			glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
-			err = s.serverIns.DetachVolume(ctx, m.VolumeID, m.ServerInstanceID, m.DeviceName)
-			if err != nil {
-				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
-				return volIDs, err
-			}
-		}
-	}
-
-	// delete the device
-	for _, m := range members {
-		err = s.dbIns.DeleteDevice(ctx, cluster, m.DeviceName)
-		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("DeleteDevice error", err, "requuid", requuid, sattr)
-			return volIDs, err
-		}
-		glog.Infoln("deleted device", sattr, "requuid", requuid)
-		break
 	}
 
 	// delete all serviceMember records in DB
@@ -414,12 +392,32 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 		glog.V(1).Infoln("deleted serviceMember, requuid", requuid, m)
 
-		volIDs = append(volIDs, m.VolumeID)
+		volIDs = append(volIDs, m.Volumes.PrimaryVolumeID)
+		if len(m.Volumes.LogVolumeID) != 0 {
+			volIDs = append(volIDs, m.Volumes.LogVolumeID)
+		}
 	}
 	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
 
 	// TODO the static ip record is created before the service member record.
 	// some static ip record may be left in DB. scan to delete them.
+
+	// delete the device
+	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceNames.PrimaryDeviceName)
+	if err != nil && err != db.ErrDBRecordNotFound {
+		glog.Errorln("delete primary device error", err, "requuid", requuid, sattr.DeviceNames, sattr)
+		return volIDs, err
+	}
+	glog.Infoln("deleted primary device, requuid", requuid, sattr.DeviceNames, sattr)
+
+	if len(sattr.DeviceNames.LogDeviceName) != 0 {
+		err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceNames.LogDeviceName)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("delete log device error", err, "requuid", requuid, sattr)
+			return volIDs, err
+		}
+		glog.Infoln("deleted log device, requuid", requuid, sattr.DeviceNames, sattr)
+	}
 
 	// delete service attr
 	err = s.dbIns.DeleteServiceAttr(ctx, sattr.ServiceUUID)
@@ -438,6 +436,49 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 	glog.Infoln("delete service complete, service", service, "cluster", cluster, "requuid", requuid)
 	return volIDs, nil
+}
+
+func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMember, requuid string) error {
+	// check if the volume is still in-use. This might be possible at some corner case.
+	// Probably happens at the below sequence during the test: 1) volume attached to the node,
+	// 2) volume driver gets restarted, 3) delete the service. The volume is not detached.
+	// Checked the volume driver log, looks volume driver only received the “Get” request and
+	// returned volume not mounted. No unmount call to the volume driver.
+
+	// detach the log volume
+	if len(m.Volumes.LogVolumeID) != 0 {
+		volState, err := s.serverIns.GetVolumeState(ctx, m.Volumes.LogVolumeID)
+		if err != nil && err != common.ErrNotFound {
+			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
+			return err
+		}
+		if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
+			glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
+			err = s.serverIns.DetachVolume(ctx, m.Volumes.LogVolumeID, m.ServerInstanceID, m.Volumes.LogDeviceName)
+			if err != nil {
+				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
+				return err
+			}
+		}
+	}
+
+	// detach the primary volume
+	volState, err := s.serverIns.GetVolumeState(ctx, m.Volumes.PrimaryVolumeID)
+	if err != nil && err != common.ErrNotFound {
+		// TODO continue if volume not found
+		glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
+		return err
+	}
+	if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
+		glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
+		err = s.serverIns.DetachVolume(ctx, m.Volumes.PrimaryVolumeID, m.ServerInstanceID, m.Volumes.PrimaryDeviceName)
+		if err != nil {
+			glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteSystemTables deletes all system tables.
@@ -690,8 +731,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	}
 }
 
-func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, deviceName string,
-	sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
+func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list to find out how many serviceMembers were already created
@@ -785,7 +825,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, device
 		}
 
 		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, volOpts,
-			req.ReplicaConfigs[i].Zone, deviceName, memberName, hostIP, cfgs)
+			req.ReplicaConfigs[i].Zone, &(sattr.DeviceNames), memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
@@ -801,12 +841,21 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, device
 	// then available. block waiting here, as EBS Volume creation is pretty fast,
 	// usually 3 seconds. see ec2_test.go output.
 	for _, member := range allMembers {
-		err = s.serverIns.WaitVolumeCreated(ctx, member.VolumeID)
+		err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.PrimaryVolumeID)
 		if err != nil {
-			glog.Errorln("WaitVolumeCreated error", err, "serviceMember", member, "requuid", requuid)
+			glog.Errorln("wait primary volume created error", err, "requuid", requuid, member.Volumes, member)
 			return errors.New("wait volume created error: " + err.Error())
 		}
-		glog.Infoln("created volume", member.VolumeID, req.Service, "requuid", requuid)
+
+		if len(member.Volumes.LogVolumeID) != 0 {
+			err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.LogVolumeID)
+			if err != nil {
+				glog.Errorln("wait log volume created error", err, "requuid", requuid, member.Volumes, member)
+				return errors.New("wait volume created error: " + err.Error())
+			}
+		}
+
+		glog.Infoln("created volumes, requuid", requuid, member.Volumes, member)
 	}
 
 	return nil
@@ -834,16 +883,22 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volOpts *server.CreateVolumeOptions, az string,
-	devName string, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+	devNames *common.ServiceDeviceNames, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
 	volID, err := s.serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
 		glog.Errorln("CreateVolume failed, volID", volID, "serviceUUID", serviceUUID, "az", az, "error", err, "requuid", requuid)
 		return nil, err
 	}
 
-	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, volID, devName, staticIP, cfgs)
+	// TODO check and create the log volume
+	mvols := common.MemberVolumes{
+		PrimaryVolumeID:   volID,
+		PrimaryDeviceName: devNames.PrimaryDeviceName,
+	}
+	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)
