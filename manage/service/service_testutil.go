@@ -23,7 +23,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	service := "service-0"
 
 	volSize := int64(1)
-	servicevol := &manage.ServiceVolume{
+	servicevol := &common.ServiceVolume{
 		VolumeType:   server.VolumeTypeGPSSD,
 		VolumeSizeGB: volSize,
 	}
@@ -357,7 +357,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	taskCount := 3
 
 	volSize := int64(1)
-	servicevol := &manage.ServiceVolume{
+	servicevol := &common.ServiceVolume{
 		VolumeType:   server.VolumeTypeGPSSD,
 		VolumeSizeGB: volSize,
 	}

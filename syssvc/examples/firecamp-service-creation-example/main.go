@@ -147,7 +147,7 @@ func main() {
 	case servicePostgres:
 		opts := &manage.CatalogPostgreSQLOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   server.VolumeTypeGPSSD,
 				VolumeSizeGB: *volSizeGB,
 			},
@@ -190,7 +190,7 @@ func createAndWaitService(ctx context.Context, cli *client.ManageClient, replica
 
 		ContainerImage: containerImage,
 		Replicas:       *replicas,
-		Volume: &manage.ServiceVolume{
+		Volume: &common.ServiceVolume{
 			VolumeType:   server.VolumeTypeGPSSD,
 			VolumeSizeGB: *volSizeGB,
 		},

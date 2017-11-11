@@ -78,7 +78,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 			ServiceName: service1,
 		},
 		Replicas: int64(taskCounts),
-		Volume: &manage.ServiceVolume{
+		Volume: &common.ServiceVolume{
 			VolumeType:   server.VolumeTypeGPSSD,
 			VolumeSizeGB: int64(taskCounts + 1),
 		},
@@ -316,7 +316,7 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 			ServiceName: service1,
 		},
 		Replicas: int64(taskCounts),
-		Volume: &manage.ServiceVolume{
+		Volume: &common.ServiceVolume{
 			VolumeType:   server.VolumeTypeGPSSD,
 			VolumeSizeGB: int64(taskCounts + 1),
 		},

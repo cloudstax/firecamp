@@ -107,6 +107,13 @@ type ServiceAttr struct {
 	//AdminPasswd string
 }
 
+// ServiceVolume contains the volume parameters.
+type ServiceVolume struct {
+	VolumeType   string
+	IOPS         int64
+	VolumeSizeGB int64
+}
+
 // ServiceMember represents the attributes of one service member.
 type ServiceMember struct {
 	ServiceUUID         string // partition key

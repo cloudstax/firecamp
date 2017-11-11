@@ -68,13 +68,6 @@ type ServiceCommonRequest struct {
 	ServiceName string
 }
 
-// ServiceVolume contains the volume parameters.
-type ServiceVolume struct {
-	VolumeType   string
-	IOPS         int64
-	VolumeSizeGB int64
-}
-
 // CreateServiceRequest contains the parameters for creating a service.
 // Currently every replica should have its own ReplicaConfig. This aims to
 // provide the flexibility for different services.
@@ -85,7 +78,7 @@ type CreateServiceRequest struct {
 
 	ContainerImage string
 	Replicas       int64
-	Volume         *ServiceVolume
+	Volume         *common.ServiceVolume
 	ContainerPath  string // The mount path inside container
 	PortMappings   []common.PortMapping
 	Envkvs         []*common.EnvKeyValuePair
@@ -193,7 +186,7 @@ type DeleteTaskRequest struct {
 // CatalogMongoDBOptions includes the config options for MongoDB.
 type CatalogMongoDBOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	Admin       string
 	AdminPasswd string
@@ -209,7 +202,7 @@ type CatalogCreateMongoDBRequest struct {
 // CatalogPostgreSQLOptions includes the config options for PostgreSQL.
 type CatalogPostgreSQLOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
 	ContainerImage string
@@ -230,7 +223,7 @@ type CatalogCreatePostgreSQLRequest struct {
 // CatalogCassandraOptions includes the config options for Cassandra.
 type CatalogCassandraOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.
@@ -243,7 +236,7 @@ type CatalogCreateCassandraRequest struct {
 // CatalogZooKeeperOptions includes the options for ZooKeeper.
 type CatalogZooKeeperOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// ZooKeeper JVM heap size
 	HeapSizeMB int64
@@ -259,7 +252,7 @@ type CatalogCreateZooKeeperRequest struct {
 // CatalogKafkaOptions includes the options for Kafka.
 type CatalogKafkaOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// Kafka JVM heap size
 	HeapSizeMB int64
@@ -287,7 +280,7 @@ type CatalogRedisOptions struct {
 	// Redis memory cache size
 	MemoryCacheSizeMB int64
 
-	Volume *ServiceVolume
+	Volume *common.ServiceVolume
 
 	// whether disable Redis "append only file", not recommended unless for cache only.
 	DisableAOF bool
@@ -316,7 +309,7 @@ type CatalogCreateRedisRequest struct {
 // CatalogCouchDBOptions includes the config options for CouchDB.
 type CatalogCouchDBOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// CouchDB admin username and password
 	Admin       string
@@ -346,7 +339,7 @@ type CatalogCreateCouchDBRequest struct {
 // CatalogConsulOptions includes the config options for Consul.
 type CatalogConsulOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// https://www.consul.io/docs/agent/options.html#_datacenter
 	// if not specified, use the current Region.
@@ -382,7 +375,7 @@ type CatalogCreateConsulResponse struct {
 // CatalogElasticSearchOptions includes the config options for ElasticSearch.
 type CatalogElasticSearchOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// ElasticSearch JVM heap size
 	HeapSizeMB int64
@@ -402,7 +395,7 @@ type CatalogCreateElasticSearchRequest struct {
 // CatalogKibanaOptions includes the config options for Kibana.
 type CatalogKibanaOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// the ElasticSearch service that Kibana is used for
 	ESServiceName string
@@ -427,7 +420,7 @@ type CatalogCreateKibanaRequest struct {
 // CatalogLogstashOptions includes the config options for Logstash.
 type CatalogLogstashOptions struct {
 	Replicas int64
-	Volume   *ServiceVolume
+	Volume   *common.ServiceVolume
 
 	// Logstash JVM heap size
 	HeapSizeMB int64

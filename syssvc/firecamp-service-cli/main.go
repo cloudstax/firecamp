@@ -310,7 +310,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogMongoDBOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -362,7 +362,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogCassandraOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -435,7 +435,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		Options: &manage.CatalogZooKeeperOptions{
 			Replicas:   *replicas,
 			HeapSizeMB: *zkHeapSizeMB,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -481,7 +481,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogKafkaOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -532,7 +532,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 			ReplicasPerShard:  *redisReplicasPerShard,
 			MemoryCacheSizeMB: *redisMemSizeMB,
 
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -596,7 +596,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 			Admin:       *admin,
 			AdminPasswd: *adminPasswd,
 
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -683,7 +683,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogConsulOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -762,7 +762,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogElasticSearchOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -820,7 +820,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogKibanaOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -899,7 +899,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogLogstashOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
@@ -951,7 +951,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 		},
 		Options: &manage.CatalogPostgreSQLOptions{
 			Replicas: *replicas,
-			Volume: &manage.ServiceVolume{
+			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				IOPS:         *volIops,
 				VolumeSizeGB: *volSizeGB,
