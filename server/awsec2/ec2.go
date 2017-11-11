@@ -25,6 +25,7 @@ const (
 	// aws specific error
 	errVolumeIncorrectState  = "IncorrectState"
 	errVolumeInUse           = "VolumeInUse"
+	errVolumeNotFound        = "InvalidVolume.NotFound"
 	errInvalidParameterValue = "InvalidParameterValue"
 
 	// max retry count for volume state
@@ -159,7 +160,10 @@ func (s *AWSEc2) GetVolumeState(ctx context.Context, volID string) (state string
 	info, err := s.GetVolumeInfo(ctx, volID)
 	if err != nil {
 		glog.Errorln("GetVolumeState", volID, "error", err, "requuid", requuid)
-		return "", nil
+		if err.(awserr.Error).Code() == errVolumeNotFound {
+			return "", common.ErrNotFound
+		}
+		return "", err
 	}
 	return info.State, nil
 }

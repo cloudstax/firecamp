@@ -32,6 +32,11 @@ func main() {
 
 	e := awsec2.NewAWSEc2(sess)
 
+	state, err := e.GetVolumeState(ctx, "vol-aaaaaa")
+	if err != nil {
+		glog.Errorln("get non-exist volume error", err, state)
+	}
+
 	imageID := "ami-327f5352"
 	az := "us-west-1a"
 	cluster := "test" + utils.GenUUID()
