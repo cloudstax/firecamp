@@ -66,7 +66,7 @@ func main() {
 
 	opts := &server.CreateVolumeOptions{
 		AvailabilityZone: az,
-		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     1,
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{

@@ -28,13 +28,6 @@ const (
 	VolumeStateDeleting  = "deleting"
 	VolumeStateDeleted   = "deleted"
 	VolumeStateError     = "error"
-
-	// General Purpose SSD
-	VolumeTypeGPSSD = "gp2"
-	// Provisioned IOPS SSD
-	VolumeTypeIOPSSSD = "io1"
-	// Throughput Optimized HDD
-	VolumeTypeTPHDD = "st1"
 )
 
 // CreateVolumeOptions includes the creation parameters for the volume.

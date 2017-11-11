@@ -24,7 +24,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 
 	volSize := int64(1)
 	servicevol := &common.ServiceVolume{
-		VolumeType:   server.VolumeTypeGPSSD,
+		VolumeType:   common.VolumeTypeGPSSD,
 		VolumeSizeGB: volSize,
 	}
 
@@ -358,7 +358,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	volSize := int64(1)
 	servicevol := &common.ServiceVolume{
-		VolumeType:   server.VolumeTypeGPSSD,
+		VolumeType:   common.VolumeTypeGPSSD,
 		VolumeSizeGB: volSize,
 	}
 
@@ -609,7 +609,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	volOpts := &server.CreateVolumeOptions{
 		AvailabilityZone: az,
-		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     volSize,
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{

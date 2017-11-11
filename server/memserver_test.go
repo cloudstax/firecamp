@@ -17,7 +17,7 @@ func TestMemServer(t *testing.T) {
 
 	opts := &CreateVolumeOptions{
 		AvailabilityZone: info.GetLocalAvailabilityZone(),
-		VolumeType:       VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     volSizeGB,
 	}
 

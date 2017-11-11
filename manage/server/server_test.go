@@ -315,7 +315,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 		ContainerImage: "image",
 		Replicas:       int64(taskCount),
 		Volume: &common.ServiceVolume{
-			VolumeType:   server.VolumeTypeGPSSD,
+			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: int64(taskCount + 1),
 		},
 		ContainerPath:   "",

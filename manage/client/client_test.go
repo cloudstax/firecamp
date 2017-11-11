@@ -205,7 +205,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			ContainerImage: "image",
 			Replicas:       int64(repNum),
 			Volume: &common.ServiceVolume{
-				VolumeType:   server.VolumeTypeGPSSD,
+				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(repNum),
 			},
 			ContainerPath:  "",

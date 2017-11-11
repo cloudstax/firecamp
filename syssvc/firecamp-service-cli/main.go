@@ -26,7 +26,6 @@ import (
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/manage/client"
-	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -41,7 +40,7 @@ var (
 	region          = flag.String("region", "", "The target AWS region")
 	service         = flag.String("service-name", "", "The target service name in ECS")
 	replicas        = flag.Int64("replicas", 3, "The number of replicas for the service")
-	volType         = flag.String("volume-type", server.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
+	volType         = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops         = flag.Int64("volume-iops", 100, "The EBS volume IOPS when io1 type is chosen, otherwise ignored")
 	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
 	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")

@@ -55,7 +55,7 @@ func TestAWSEC2(t *testing.T) {
 	// create one volume
 	opts := &server.CreateVolumeOptions{
 		AvailabilityZone: "us-west-1a",
-		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     1,
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{

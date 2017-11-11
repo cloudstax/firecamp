@@ -187,7 +187,7 @@ func createControlDB(ctx context.Context, region string, cluster string, logIns 
 	// create the controldb volume
 	volOpts := &server.CreateVolumeOptions{
 		AvailabilityZone: serverInfo.GetLocalAvailabilityZone(),
-		VolumeType:       server.VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     common.ControlDBVolumeSizeGB,
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{

@@ -4,6 +4,8 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/cloudstax/firecamp/common"
+
 	"golang.org/x/net/context"
 )
 
@@ -19,7 +21,7 @@ func TestLoopServerVolume(t *testing.T) {
 	az := "az-west"
 	opts := &CreateVolumeOptions{
 		AvailabilityZone: az,
-		VolumeType:       VolumeTypeGPSSD,
+		VolumeType:       common.VolumeTypeGPSSD,
 		VolumeSizeGB:     1,
 	}
 	vol1, err := s.CreateVolume(ctx, opts)

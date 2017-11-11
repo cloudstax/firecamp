@@ -18,7 +18,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/manage/client"
-	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -148,7 +147,7 @@ func main() {
 		opts := &manage.CatalogPostgreSQLOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
-				VolumeType:   server.VolumeTypeGPSSD,
+				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: *volSizeGB,
 			},
 			ContainerImage: pgcatalog.ContainerImage,
@@ -191,7 +190,7 @@ func createAndWaitService(ctx context.Context, cli *client.ManageClient, replica
 		ContainerImage: containerImage,
 		Replicas:       *replicas,
 		Volume: &common.ServiceVolume{
-			VolumeType:   server.VolumeTypeGPSSD,
+			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: *volSizeGB,
 		},
 		ContainerPath: common.DefaultContainerMountPath,

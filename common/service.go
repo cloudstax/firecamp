@@ -24,6 +24,13 @@ const (
 
 	// The log device mount path suffix, /mnt/serviceuuid-log
 	LogDevicePathSuffix = "log"
+
+	// General Purpose SSD
+	VolumeTypeGPSSD = "gp2"
+	// Provisioned IOPS SSD
+	VolumeTypeIOPSSSD = "io1"
+	// Throughput Optimized HDD
+	VolumeTypeTPHDD = "st1"
 )
 
 // Resources represents the service/task resources, cpu and memory.
