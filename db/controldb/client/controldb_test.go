@@ -406,6 +406,10 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		memberName := memberNamePrefix + str
 		cfg := &common.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 		cfgs := []*common.MemberConfig{cfg}
+		mvols := common.MemberVolumes{
+			PrimaryVolumeID:   volIDPrefix + str,
+			PrimaryDeviceName: devNamePrefix + str,
+		}
 		member := db.CreateServiceMember(serviceUUID,
 			memberName,
 			az,
@@ -413,8 +417,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			contInsIDPrefix+str,
 			serverInsIDPrefix+str,
 			mtime,
-			volIDPrefix+str,
-			devNamePrefix+str,
+			mvols,
 			staticIPPrefix+str,
 			cfgs)
 		err := dbcli.CreateServiceMember(ctx, member)
@@ -438,8 +441,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			contInsIDPrefix+str,
 			serverInsIDPrefix+str,
 			mtime,
-			volIDPrefix+str,
-			devNamePrefix+str,
+			mvols,
 			staticIPPrefix+str,
 			cfgs)
 		err = dbcli.CreateServiceMember(ctx, member1)
@@ -474,8 +476,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			contInsIDPrefix+str+updateSuffix,
 			serverInsIDPrefix+str+updateSuffix,
 			time.Now().UnixNano(),
-			volIDPrefix+str,
-			devNamePrefix+str,
+			mvols,
 			staticIPPrefix+str,
 			cfgs)
 

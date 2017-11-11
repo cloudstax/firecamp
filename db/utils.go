@@ -127,7 +127,7 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 }
 
 func CreateInitialServiceMember(serviceUUID string, memberName string, az string,
-	volID string, devName string, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
+	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
@@ -136,8 +136,7 @@ func CreateInitialServiceMember(serviceUUID string, memberName string, az string
 		ContainerInstanceID: DefaultContainerInstanceID,
 		ServerInstanceID:    DefaultServerInstanceID,
 		LastModified:        time.Now().UnixNano(),
-		VolumeID:            volID,
-		DeviceName:          devName,
+		Volumes:             vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
 	}
@@ -145,7 +144,7 @@ func CreateInitialServiceMember(serviceUUID string, memberName string, az string
 
 func CreateServiceMember(serviceUUID string, memberName string,
 	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
-	volID string, devName string, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
+	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
@@ -154,8 +153,7 @@ func CreateServiceMember(serviceUUID string, memberName string,
 		ContainerInstanceID: containerInstanceID,
 		ServerInstanceID:    ec2InstanceID,
 		LastModified:        mtime,
-		VolumeID:            volID,
-		DeviceName:          devName,
+		Volumes:             vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
 	}
@@ -169,10 +167,19 @@ func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skip
 		t1.ContainerInstanceID == t2.ContainerInstanceID &&
 		t1.ServerInstanceID == t2.ServerInstanceID &&
 		(skipMtime || t1.LastModified == t2.LastModified) &&
-		t1.VolumeID == t2.VolumeID &&
-		t1.DeviceName == t2.DeviceName &&
+		EqualMemberVolumes(&(t1.Volumes), &(t2.Volumes)) &&
 		t1.StaticIP == t2.StaticIP &&
 		equalConfigs(t1.Configs, t2.Configs) {
+		return true
+	}
+	return false
+}
+
+func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool {
+	if v1.PrimaryVolumeID == v2.PrimaryVolumeID &&
+		v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
+		v1.LogVolumeID == v2.LogVolumeID &&
+		v1.LogDeviceName == v2.LogDeviceName {
 		return true
 	}
 	return false
@@ -213,8 +220,7 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConf
 		ContainerInstanceID: t1.ContainerInstanceID,
 		ServerInstanceID:    t1.ServerInstanceID,
 		LastModified:        time.Now().UnixNano(),
-		VolumeID:            t1.VolumeID,
-		DeviceName:          t1.DeviceName,
+		Volumes:             t1.Volumes,
 		StaticIP:            t1.StaticIP,
 		Configs:             c,
 	}
@@ -229,8 +235,7 @@ func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, container
 		ContainerInstanceID: containerInstanceID,
 		ServerInstanceID:    ec2InstanceID,
 		LastModified:        time.Now().UnixNano(),
-		VolumeID:            t1.VolumeID,
-		DeviceName:          t1.DeviceName,
+		Volumes:             t1.Volumes,
 		StaticIP:            t1.StaticIP,
 		Configs:             t1.Configs,
 	}

@@ -297,9 +297,13 @@ func TestServiceMembers(t *testing.T) {
 	for i, c := range x {
 		cfg := &common.MemberConfig{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
 		cfgs := []*common.MemberConfig{cfg}
+		mvols := common.MemberVolumes{
+			PrimaryVolumeID:   volPrefix + c,
+			PrimaryDeviceName: dev1,
+		}
 		s1[i] = db.CreateServiceMember(service1, service1+c,
 			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			volPrefix+c, dev1, staticIPPrefix+c, cfgs)
+			mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -313,9 +317,13 @@ func TestServiceMembers(t *testing.T) {
 		c := x[i]
 		cfg := &common.MemberConfig{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
 		cfgs := []*common.MemberConfig{cfg}
+		mvols := common.MemberVolumes{
+			PrimaryVolumeID:   volPrefix + c,
+			PrimaryDeviceName: dev2,
+		}
 		s2[i] = db.CreateServiceMember(service2, service2+c,
 			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			volPrefix+c, dev2, staticIPPrefix+c, cfgs)
+			mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {

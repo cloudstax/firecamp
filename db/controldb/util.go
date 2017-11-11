@@ -148,6 +148,15 @@ func GenPbMemberConfig(cfgs []*common.MemberConfig) []*pb.MemberConfig {
 	return pbcfgs
 }
 
+func GenPbMemberVolumes(vols *common.MemberVolumes) *pb.MemberVolumes {
+	return &pb.MemberVolumes{
+		PrimaryVolumeID:   vols.PrimaryVolumeID,
+		PrimaryDeviceName: vols.PrimaryDeviceName,
+		LogVolumeID:       vols.LogVolumeID,
+		LogDeviceName:     vols.LogDeviceName,
+	}
+}
+
 func GenPbServiceMember(member *common.ServiceMember) *pb.ServiceMember {
 	pbmember := &pb.ServiceMember{
 		ServiceUUID:         member.ServiceUUID,
@@ -157,8 +166,7 @@ func GenPbServiceMember(member *common.ServiceMember) *pb.ServiceMember {
 		ContainerInstanceID: member.ContainerInstanceID,
 		ServerInstanceID:    member.ServerInstanceID,
 		LastModified:        member.LastModified,
-		VolumeID:            member.VolumeID,
-		DeviceName:          member.DeviceName,
+		Volumes:             GenPbMemberVolumes(&(member.Volumes)),
 		StaticIP:            member.StaticIP,
 		Configs:             GenPbMemberConfig(member.Configs),
 	}
@@ -181,6 +189,15 @@ func GenDbMemberConfig(cfgs []*pb.MemberConfig) []*common.MemberConfig {
 	return dbcfgs
 }
 
+func GenDbMemberVolumes(vols *pb.MemberVolumes) common.MemberVolumes {
+	return common.MemberVolumes{
+		PrimaryVolumeID:   vols.PrimaryVolumeID,
+		PrimaryDeviceName: vols.PrimaryDeviceName,
+		LogVolumeID:       vols.LogVolumeID,
+		LogDeviceName:     vols.LogDeviceName,
+	}
+}
+
 func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
 	dbmember := db.CreateServiceMember(member.ServiceUUID,
 		member.MemberName,
@@ -189,8 +206,7 @@ func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
 		member.ContainerInstanceID,
 		member.ServerInstanceID,
 		member.LastModified,
-		member.VolumeID,
-		member.DeviceName,
+		GenDbMemberVolumes(member.Volumes),
 		member.StaticIP,
 		GenDbMemberConfig(member.Configs))
 	return dbmember
@@ -210,6 +226,13 @@ func EqualMemberConfig(c1 []*pb.MemberConfig, c2 []*pb.MemberConfig) bool {
 	return true
 }
 
+func EqualsMemberVolumes(v1 *pb.MemberVolumes, v2 *pb.MemberVolumes) bool {
+	return (v1.PrimaryVolumeID == v2.PrimaryVolumeID &&
+		v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
+		v1.LogVolumeID == v2.LogVolumeID &&
+		v1.LogDeviceName == v2.LogDeviceName)
+}
+
 func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bool) bool {
 	if a1.ServiceUUID == a2.ServiceUUID &&
 		a1.MemberName == a2.MemberName &&
@@ -218,8 +241,7 @@ func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bo
 		a1.ContainerInstanceID == a2.ContainerInstanceID &&
 		a1.ServerInstanceID == a2.ServerInstanceID &&
 		(skipMtime || a1.LastModified == a2.LastModified) &&
-		a1.VolumeID == a2.VolumeID &&
-		a1.DeviceName == a2.DeviceName &&
+		EqualsMemberVolumes(a1.Volumes, a2.Volumes) &&
 		a1.StaticIP == a2.StaticIP &&
 		EqualMemberConfig(a1.Configs, a2.Configs) {
 		return true
@@ -280,6 +302,15 @@ func CopyMemberConfig(a1 []*pb.MemberConfig) []*pb.MemberConfig {
 	return cfgs
 }
 
+func CopyMemberVolumes(v1 *pb.MemberVolumes) *pb.MemberVolumes {
+	return &pb.MemberVolumes{
+		PrimaryVolumeID:   v1.PrimaryVolumeID,
+		PrimaryDeviceName: v1.PrimaryDeviceName,
+		LogVolumeID:       v1.LogVolumeID,
+		LogDeviceName:     v1.LogDeviceName,
+	}
+}
+
 func CopyServiceMember(a1 *pb.ServiceMember) *pb.ServiceMember {
 	return &pb.ServiceMember{
 		ServiceUUID:         a1.ServiceUUID,
@@ -289,8 +320,7 @@ func CopyServiceMember(a1 *pb.ServiceMember) *pb.ServiceMember {
 		ContainerInstanceID: a1.ContainerInstanceID,
 		ServerInstanceID:    a1.ServerInstanceID,
 		LastModified:        a1.LastModified,
-		VolumeID:            a1.VolumeID,
-		DeviceName:          a1.DeviceName,
+		Volumes:             CopyMemberVolumes(a1.Volumes),
 		StaticIP:            a1.StaticIP,
 		Configs:             CopyMemberConfig(a1.Configs),
 	}

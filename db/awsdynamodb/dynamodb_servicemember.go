@@ -18,6 +18,13 @@ import (
 // CreateServiceMember creates one EBS serviceMember in DB
 func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
+
+	volBytes, err := json.Marshal(member.Volumes)
+	if err != nil {
+		glog.Errorln("Marshal MemberVolumes error", err, member, "requuid", requuid)
+		return err
+	}
+
 	configBytes, err := json.Marshal(member.Configs)
 	if err != nil {
 		glog.Errorln("Marshal MemberConfigs error", err, member, "requuid", requuid)
@@ -50,11 +57,8 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 			ServerInstanceID: {
 				S: aws.String(member.ServerInstanceID),
 			},
-			VolumeID: {
-				S: aws.String(member.VolumeID),
-			},
-			DeviceName: {
-				S: aws.String(member.DeviceName),
+			MemberVolumes: {
+				B: volBytes,
 			},
 			StaticIP: {
 				S: aws.String(member.StaticIP),
@@ -83,8 +87,7 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 
 	// sanity check. ServiceUUID, VolumeID, etc, are not allowed to update.
 	if oldMember.ServiceUUID != newMember.ServiceUUID ||
-		oldMember.VolumeID != newMember.VolumeID ||
-		oldMember.DeviceName != newMember.DeviceName ||
+		!db.EqualMemberVolumes(&(oldMember.Volumes), &(newMember.Volumes)) ||
 		oldMember.AvailableZone != newMember.AvailableZone ||
 		oldMember.MemberName != newMember.MemberName ||
 		oldMember.StaticIP != newMember.StaticIP {
@@ -345,6 +348,13 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		return nil, db.ErrDBInternal
 	}
 
+	var volumes common.MemberVolumes
+	err = json.Unmarshal(item[MemberVolumes].B, &volumes)
+	if err != nil {
+		glog.Errorln("Unmarshal json MemberVolumes error", err, item)
+		return nil, db.ErrDBInternal
+	}
+
 	member := db.CreateServiceMember(serviceUUID,
 		*(item[tableSortKey].S),
 		*(item[AvailableZone].S),
@@ -352,8 +362,7 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		*(item[ContainerInstanceID].S),
 		*(item[ServerInstanceID].S),
 		mtime,
-		*(item[VolumeID].S),
-		*(item[DeviceName].S),
+		volumes,
 		*(item[StaticIP].S),
 		configs)
 

@@ -21,6 +21,9 @@ const (
 
 	// Task types
 	TaskTypeInit = "init"
+
+	// The log device mount path suffix, /mnt/serviceuuid-log
+	LogDevicePathSuffix = "log"
 )
 
 // Resources represents the service/task resources, cpu and memory.
@@ -116,8 +119,7 @@ type ServiceMember struct {
 
 	// The volumes of one member. One member could have multiple volumes.
 	// For example, one for DB data, the other for log.
-	VolumeID   string
-	DeviceName string
+	Volumes MemberVolumes
 
 	// The static IP assigned to this member
 	StaticIP string
@@ -138,16 +140,17 @@ type ServiceDeviceNames struct {
 // MemberVolumes represent the volumes of one member.
 type MemberVolumes struct {
 	// The config files will be created on the primary volume.
-	PrimaryVolumeID   string
+	PrimaryVolumeID string
+	// The primary device will be mounted to /mnt/serviceuuid on the host and /data in the container
 	PrimaryDeviceName string
 
 	// The possible log volume to store the service's data log
-	LogVolumeID   string
+	LogVolumeID string
+	// The log device will be mounted to /mnt/serviceuuid-log on the host and /log in the container.
+	// We don't want to mount the log device under the primary device mount path, such as /mnt/serviceuuid/log.
+	// If there is some bug that the log device is not mounted, the service log will be directly written to
+	// the primary device. Later when the log device is mounted again, some logs will be temporary lost.
 	LogDeviceName string
-	// The log volume will be mounted on the sub-directory of the primary volume mount path.
-	// For example, the primary volume is mounted under /mntroot/serviceuuid, the log volume
-	// is mounted under /mntroot/serviceuuid/log.
-	LogMountPath string
 }
 
 // MemberConfig represents the configs of one member

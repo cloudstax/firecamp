@@ -458,14 +458,13 @@ func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
 func copyServiceMember(t *common.ServiceMember) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t.ServiceUUID,
-		VolumeID:            t.VolumeID,
-		LastModified:        t.LastModified,
-		DeviceName:          t.DeviceName,
+		MemberName:          t.MemberName,
 		AvailableZone:       t.AvailableZone,
+		LastModified:        t.LastModified,
 		TaskID:              t.TaskID,
 		ContainerInstanceID: t.ContainerInstanceID,
 		ServerInstanceID:    t.ServerInstanceID,
-		MemberName:          t.MemberName,
+		Volumes:             t.Volumes,
 		StaticIP:            t.StaticIP,
 		Configs:             t.Configs,
 	}

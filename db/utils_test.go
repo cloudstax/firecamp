@@ -46,10 +46,14 @@ func TestDBUtils(t *testing.T) {
 	staticIP := "10.0.0.1"
 	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
 	cfgs := []*common.MemberConfig{cfg}
-	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, volID, devNames.PrimaryDeviceName, staticIP, cfgs)
+	mvols := common.MemberVolumes{
+		PrimaryVolumeID:   volID,
+		PrimaryDeviceName: devNames.PrimaryDeviceName,
+	}
+	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
 	member2 := CreateServiceMember(serviceUUID, memberName,
 		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
-		volID, devNames.PrimaryDeviceName, staticIP, cfgs)
+		mvols, staticIP, cfgs)
 	if !EqualServiceMember(member1, member2, true) {
 		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
 	}

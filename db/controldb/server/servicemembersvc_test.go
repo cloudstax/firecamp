@@ -52,6 +52,10 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		cfg := &pb.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 		cfgs := []*pb.MemberConfig{cfg}
 
+		mvols := &pb.MemberVolumes{
+			PrimaryVolumeID:   volID,
+			PrimaryDeviceName: devName,
+		}
 		member := &pb.ServiceMember{
 			ServiceUUID:         serviceUUID,
 			MemberName:          memberName,
@@ -59,8 +63,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 			TaskID:              taskID,
 			ContainerInstanceID: contInsID,
 			ServerInstanceID:    serverInsID,
-			VolumeID:            volID,
-			DeviceName:          devName,
+			Volumes:             mvols,
 			StaticIP:            staticIP,
 			Configs:             cfgs,
 		}
@@ -234,6 +237,10 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	cfg := &pb.MemberConfig{FileID: cfgIDPrefix + str, FileName: cfgNamePrefix + str, FileMD5: cfgMD5Prefix + str}
 	cfgs := []*pb.MemberConfig{cfg}
 
+	mvols := &pb.MemberVolumes{
+		PrimaryVolumeID:   volID,
+		PrimaryDeviceName: devName,
+	}
 	member := &pb.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberName:          memberName,
@@ -241,8 +248,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 		TaskID:              taskID,
 		ContainerInstanceID: contInsID,
 		ServerInstanceID:    serverInsID,
-		VolumeID:            volID,
-		DeviceName:          devName,
+		Volumes:             mvols,
 		StaticIP:            staticIP,
 		Configs:             cfgs,
 	}

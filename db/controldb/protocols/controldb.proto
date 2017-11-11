@@ -146,10 +146,9 @@ message ServiceMember {
   string serverInstanceID = 6;
   int64 lastModified = 7;
 
-  string volumeID = 8;
-  string deviceName = 9;
-  string staticIP = 10;
-  repeated MemberConfig configs = 11;
+  MemberVolumes volumes = 8;
+  string staticIP = 9;
+  repeated MemberConfig configs = 10;
 }
 
 message CreateServiceMemberResponse {
@@ -168,6 +167,13 @@ message UpdateServiceMemberRequest {
 }
 
 message UpdateServiceMemberResponse {
+}
+
+message MemberVolumes {
+  string primaryVolumeID = 1;
+  string primaryDeviceName = 2;
+  string logVolumeID = 3;
+  string logDeviceName = 4;
 }
 
 message MemberConfig {
