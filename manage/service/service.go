@@ -133,7 +133,11 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	}
 
 	// create service attr
-	created, serviceAttr, err := s.checkAndCreateServiceAttr(ctx, serviceUUID, deviceName, domainName, hostedZoneID, req)
+	svols := &common.ServiceVolumes{
+		PrimaryDeviceName: deviceName,
+		PrimaryVolume:     *req.Volume,
+	}
+	created, serviceAttr, err := s.checkAndCreateServiceAttr(ctx, serviceUUID, svols, domainName, hostedZoneID, req)
 	if err != nil {
 		glog.Errorln("checkAndCreateServiceAttr error", err, "requuid", requuid, req.Service)
 		return "", err
@@ -402,21 +406,11 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	// TODO the static ip record is created before the service member record.
 	// some static ip record may be left in DB. scan to delete them.
 
-	// delete the device
-	err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceNames.PrimaryDeviceName)
-	if err != nil && err != db.ErrDBRecordNotFound {
-		glog.Errorln("delete primary device error", err, "requuid", requuid, sattr.DeviceNames, sattr)
+	// delete the devices
+	err = s.deleteDevices(ctx, sattr, requuid)
+	if err != nil {
+		glog.Errorln("delete device error", err, "requuid", requuid, sattr.Volumes, sattr)
 		return volIDs, err
-	}
-	glog.Infoln("deleted primary device, requuid", requuid, sattr.DeviceNames, sattr)
-
-	if len(sattr.DeviceNames.LogDeviceName) != 0 {
-		err = s.dbIns.DeleteDevice(ctx, cluster, sattr.DeviceNames.LogDeviceName)
-		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("delete log device error", err, "requuid", requuid, sattr)
-			return volIDs, err
-		}
-		glog.Infoln("deleted log device, requuid", requuid, sattr.DeviceNames, sattr)
 	}
 
 	// delete service attr
@@ -476,6 +470,27 @@ func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMemb
 			glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *ManageService) deleteDevices(ctx context.Context, sattr *common.ServiceAttr, requuid string) error {
+	// delete the primary device
+	err := s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.PrimaryDeviceName)
+	if err != nil && err != db.ErrDBRecordNotFound {
+		glog.Errorln("delete primary device error", err, "requuid", requuid, sattr.Volumes, sattr)
+		return err
+	}
+	glog.Infoln("deleted primary device, requuid", requuid, sattr.Volumes, sattr)
+
+	if len(sattr.Volumes.LogDeviceName) != 0 {
+		err = s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.LogDeviceName)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("delete log device error", err, "requuid", requuid, sattr.Volumes, sattr)
+			return err
+		}
+		glog.Infoln("deleted log device, requuid", requuid, sattr.Volumes, sattr)
 	}
 
 	return nil
@@ -663,16 +678,13 @@ func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, se
 	return s.serverIns.GetNextDeviceName(lastDev)
 }
 
-func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUUID string, deviceName string,
+func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUUID string, svols *common.ServiceVolumes,
 	domainName string, hostedZoneID string, req *manage.CreateServiceRequest) (serviceCreated bool, sattr *common.ServiceAttr, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// create service attr
-	devNames := common.ServiceDeviceNames{
-		PrimaryDeviceName: deviceName,
-	}
-	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Volume.VolumeSizeGB,
-		req.Service.Cluster, req.Service.ServiceName, devNames, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
+	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Service.Cluster,
+		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -814,7 +826,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 		volOpts := &server.CreateVolumeOptions{
 			AvailabilityZone: req.ReplicaConfigs[i].Zone,
 			VolumeType:       req.Volume.VolumeType,
-			IOPS:             req.Volume.IOPS,
+			Iops:             req.Volume.Iops,
 			VolumeSizeGB:     req.Volume.VolumeSizeGB,
 			TagSpecs: []common.KeyValuePair{
 				common.KeyValuePair{
@@ -825,7 +837,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 		}
 
 		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, volOpts,
-			req.ReplicaConfigs[i].Zone, &(sattr.DeviceNames), memberName, hostIP, cfgs)
+			&(sattr.Volumes), req.ReplicaConfigs[i].Zone, memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
@@ -882,8 +894,9 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 	return configs, nil
 }
 
-func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string, volOpts *server.CreateVolumeOptions, az string,
-	devNames *common.ServiceDeviceNames, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string,
+	volOpts *server.CreateVolumeOptions, svols *common.ServiceVolumes, az string, memberName string,
+	staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
@@ -896,7 +909,7 @@ func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID str
 	// TODO check and create the log volume
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
-		PrimaryDeviceName: devNames.PrimaryDeviceName,
+		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
 	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)

@@ -11,12 +11,19 @@ import (
 func TestDBUtils(t *testing.T) {
 	serviceUUID := "uuid-1"
 	replicas := int64(1)
-	volSize := int64(1)
 	cluster := "cluster"
 	service := "service-1"
-	devNames := common.ServiceDeviceNames{
+	svols := common.ServiceVolumes{
 		PrimaryDeviceName: "dev-1",
-		LogDeviceName:     "dev-2",
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
+		LogDeviceName: "dev-2",
+		LogVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
 	}
 	registerDNS := true
 	domain := ""
@@ -24,11 +31,11 @@ func TestDBUtils(t *testing.T) {
 	requireStaticIP := false
 
 	mtime := time.Now().UnixNano()
-	attr1 := CreateInitialServiceAttr(serviceUUID, replicas, volSize,
-		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
+	attr1 := CreateInitialServiceAttr(serviceUUID, replicas,
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		volSize, cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
@@ -48,7 +55,7 @@ func TestDBUtils(t *testing.T) {
 	cfgs := []*common.MemberConfig{cfg}
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
-		PrimaryDeviceName: devNames.PrimaryDeviceName,
+		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
 	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
 	member2 := CreateServiceMember(serviceUUID, memberName,

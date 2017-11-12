@@ -65,16 +65,32 @@ func EqualService(a1 *pb.Service, a2 *pb.Service) bool {
 	return false
 }
 
+func GenPbServiceVolume(vol *common.ServiceVolume) *pb.ServiceVolume {
+	return &pb.ServiceVolume{
+		VolumeType:   vol.VolumeType,
+		VolumeSizeGB: vol.VolumeSizeGB,
+		Iops:         vol.Iops,
+	}
+}
+
+func GenPbServiceVolumes(svol *common.ServiceVolumes) *pb.ServiceVolumes {
+	return &pb.ServiceVolumes{
+		PrimaryDeviceName: svol.PrimaryDeviceName,
+		PrimaryVolume:     GenPbServiceVolume(&(svol.PrimaryVolume)),
+		LogDeviceName:     svol.LogDeviceName,
+		LogVolume:         GenPbServiceVolume(&(svol.LogVolume)),
+	}
+}
+
 func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 	pbAttr := &pb.ServiceAttr{
 		ServiceUUID:     attr.ServiceUUID,
 		ServiceStatus:   attr.ServiceStatus,
 		LastModified:    attr.LastModified,
 		Replicas:        attr.Replicas,
-		VolumeSizeGB:    attr.VolumeSizeGB,
 		ClusterName:     attr.ClusterName,
 		ServiceName:     attr.ServiceName,
-		DeviceNames:     GenPbServiceDeviceNames(&(attr.DeviceNames)),
+		Volumes:         GenPbServiceVolumes(&(attr.Volumes)),
 		RegisterDNS:     attr.RegisterDNS,
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
@@ -83,15 +99,31 @@ func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 	return pbAttr
 }
 
+func GenDbServiceVolume(vol *pb.ServiceVolume) *common.ServiceVolume {
+	return &common.ServiceVolume{
+		VolumeType:   vol.VolumeType,
+		VolumeSizeGB: vol.VolumeSizeGB,
+		Iops:         vol.Iops,
+	}
+}
+
+func GenDbServiceVolumes(svol *pb.ServiceVolumes) *common.ServiceVolumes {
+	return &common.ServiceVolumes{
+		PrimaryDeviceName: svol.PrimaryDeviceName,
+		PrimaryVolume:     *GenDbServiceVolume(svol.PrimaryVolume),
+		LogDeviceName:     svol.LogDeviceName,
+		LogVolume:         *GenDbServiceVolume(svol.LogVolume),
+	}
+}
+
 func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 	dbAttr := db.CreateServiceAttr(attr.ServiceUUID,
 		attr.ServiceStatus,
 		attr.LastModified,
 		attr.Replicas,
-		attr.VolumeSizeGB,
 		attr.ClusterName,
 		attr.ServiceName,
-		GenDbServiceDeviceNames(attr.DeviceNames),
+		*GenDbServiceVolumes(attr.Volumes),
 		attr.RegisterDNS,
 		attr.DomainName,
 		attr.HostedZoneID,
@@ -99,17 +131,39 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 	return dbAttr
 }
 
-func GenDbServiceDeviceNames(devNames *pb.ServiceDeviceNames) common.ServiceDeviceNames {
-	return common.ServiceDeviceNames{
-		PrimaryDeviceName: devNames.PrimaryDeviceName,
-		LogDeviceName:     devNames.LogDeviceName,
+func EqualServiceVolume(v1 *pb.ServiceVolume, v2 *pb.ServiceVolume) bool {
+	if v1.VolumeType == v2.VolumeType &&
+		v1.VolumeSizeGB == v2.VolumeSizeGB &&
+		v1.Iops == v2.Iops {
+		return true
 	}
+	return false
 }
 
-func GenPbServiceDeviceNames(devNames *common.ServiceDeviceNames) *pb.ServiceDeviceNames {
-	return &pb.ServiceDeviceNames{
-		PrimaryDeviceName: devNames.PrimaryDeviceName,
-		LogDeviceName:     devNames.LogDeviceName,
+func EqualServiceVolumes(v1 *pb.ServiceVolumes, v2 *pb.ServiceVolumes) bool {
+	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
+		EqualServiceVolume(v1.PrimaryVolume, v2.PrimaryVolume) &&
+		v1.LogDeviceName == v2.LogDeviceName &&
+		EqualServiceVolume(v1.LogVolume, v2.LogVolume) {
+		return true
+	}
+	return false
+}
+
+func CopyServiceVolumes(v1 *pb.ServiceVolumes) *pb.ServiceVolumes {
+	return &pb.ServiceVolumes{
+		PrimaryDeviceName: v1.PrimaryDeviceName,
+		PrimaryVolume: &pb.ServiceVolume{
+			VolumeType:   v1.PrimaryVolume.VolumeType,
+			VolumeSizeGB: v1.PrimaryVolume.VolumeSizeGB,
+			Iops:         v1.PrimaryVolume.Iops,
+		},
+		LogDeviceName: v1.LogDeviceName,
+		LogVolume: &pb.ServiceVolume{
+			VolumeType:   v1.LogVolume.VolumeType,
+			VolumeSizeGB: v1.LogVolume.VolumeSizeGB,
+			Iops:         v1.LogVolume.Iops,
+		},
 	}
 }
 
@@ -118,11 +172,9 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.ServiceStatus == a2.ServiceStatus &&
 		(skipMtime || a1.LastModified == a2.LastModified) &&
 		a1.Replicas == a2.Replicas &&
-		a1.VolumeSizeGB == a2.VolumeSizeGB &&
 		a1.ClusterName == a2.ClusterName &&
 		a1.ServiceName == a2.ServiceName &&
-		a1.DeviceNames.PrimaryDeviceName == a2.DeviceNames.PrimaryDeviceName &&
-		a1.DeviceNames.LogDeviceName == a2.DeviceNames.LogDeviceName &&
+		EqualServiceVolumes(a1.Volumes, a2.Volumes) &&
 		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&

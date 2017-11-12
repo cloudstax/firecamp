@@ -331,7 +331,7 @@ func queryServiceTest(t *testing.T, cli *ManageClient, cluster string, servicePr
 	}
 
 	if attr.ServiceName != s1 || attr.ServiceStatus != targetServiceStatus ||
-		attr.Replicas != int64(i) || attr.VolumeSizeGB != int64(i) {
+		attr.Replicas != int64(i) || attr.Volumes.PrimaryVolume.VolumeSizeGB != int64(i) {
 		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", s1, targetServiceStatus, i, i, attr)
 	}
 	glog.Infoln("GetServiceAttr output", attr)

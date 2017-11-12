@@ -22,7 +22,7 @@ import (
 func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	devNamesBytes, err := json.Marshal(attr.DeviceNames)
+	volBytes, err := json.Marshal(attr.Volumes)
 	if err != nil {
 		glog.Errorln("Marshal ServiceDeviceNames error", err, "requuid", requuid, attr)
 		return err
@@ -48,17 +48,14 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			Replicas: {
 				N: aws.String(strconv.FormatInt(attr.Replicas, 10)),
 			},
-			VolumeSizeGB: {
-				N: aws.String(strconv.FormatInt(attr.VolumeSizeGB, 10)),
-			},
 			ClusterName: {
 				S: aws.String(attr.ClusterName),
 			},
 			ServiceName: {
 				S: aws.String(attr.ServiceName),
 			},
-			DeviceNames: {
-				B: devNamesBytes,
+			ServiceVolumes: {
+				B: volBytes,
 			},
 			RegisterDNS: {
 				BOOL: aws.Bool(attr.RegisterDNS),
@@ -169,20 +166,15 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		glog.Errorln("Atoi Replicas error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
-	volSize, err := strconv.ParseInt(*(resp.Item[VolumeSizeGB].N), 10, 64)
-	if err != nil {
-		glog.Errorln("ParseInt VolumeSizeGB error", err, "requuid", requuid, "resp", resp)
-		return nil, db.ErrDBInternal
-	}
 	mtime, err := strconv.ParseInt(*(resp.Item[LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
-	var devNames common.ServiceDeviceNames
-	err = json.Unmarshal(resp.Item[DeviceNames].B, &devNames)
+	var vols common.ServiceVolumes
+	err = json.Unmarshal(resp.Item[ServiceVolumes].B, &vols)
 	if err != nil {
-		glog.Errorln("Unmarshal ServiceDeviceNames error", err, "requuid", requuid, resp)
+		glog.Errorln("Unmarshal ServiceVolumes error", err, "requuid", requuid, resp)
 		return nil, db.ErrDBInternal
 	}
 
@@ -191,10 +183,9 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[ServiceStatus].S),
 		mtime,
 		replicas,
-		volSize,
 		*(resp.Item[ClusterName].S),
 		*(resp.Item[ServiceName].S),
-		devNames,
+		vols,
 		*(resp.Item[RegisterDNS].BOOL),
 		*(resp.Item[DomainName].S),
 		*(resp.Item[HostedZoneID].S),

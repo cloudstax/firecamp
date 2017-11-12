@@ -52,18 +52,17 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 	return false
 }
 
-func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int64,
-	cluster string, service string, deviceNames common.ServiceDeviceNames,
+func CreateInitialServiceAttr(serviceUUID string, replicas int64,
+	cluster string, service string, vols common.ServiceVolumes,
 	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
 		LastModified:    time.Now().UnixNano(),
 		Replicas:        replicas,
-		VolumeSizeGB:    volSizeGB,
 		ClusterName:     cluster,
 		ServiceName:     service,
-		DeviceNames:     deviceNames,
+		Volumes:         vols,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
@@ -71,18 +70,17 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, volSizeGB int6
 	}
 }
 
-func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64, volSizeGB int64,
-	cluster string, service string, deviceNames common.ServiceDeviceNames,
+func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
+	cluster string, service string, vols common.ServiceVolumes,
 	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
 		LastModified:    mtime,
 		Replicas:        replicas,
-		VolumeSizeGB:    volSizeGB,
 		ClusterName:     cluster,
 		ServiceName:     service,
-		DeviceNames:     deviceNames,
+		Volumes:         vols,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
@@ -95,15 +93,32 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.ServiceStatus == t2.ServiceStatus &&
 		(skipMtime || t1.LastModified == t2.LastModified) &&
 		t1.Replicas == t2.Replicas &&
-		t1.VolumeSizeGB == t2.VolumeSizeGB &&
 		t1.ClusterName == t2.ClusterName &&
 		t1.ServiceName == t2.ServiceName &&
-		t1.DeviceNames.PrimaryDeviceName == t2.DeviceNames.PrimaryDeviceName &&
-		t1.DeviceNames.LogDeviceName == t2.DeviceNames.LogDeviceName &&
+		EqualServiceVolumes(&(t1.Volumes), &(t2.Volumes)) &&
 		t1.RegisterDNS == t2.RegisterDNS &&
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID &&
 		t1.RequireStaticIP == t2.RequireStaticIP {
+		return true
+	}
+	return false
+}
+
+func EqualServiceVolumes(v1 *common.ServiceVolumes, v2 *common.ServiceVolumes) bool {
+	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
+		EqualServiceVolume(&(v1.PrimaryVolume), &(v2.PrimaryVolume)) &&
+		v1.LogDeviceName == v2.LogDeviceName &&
+		EqualServiceVolume(&(v1.LogVolume), &(v2.LogVolume)) {
+		return true
+	}
+	return false
+}
+
+func EqualServiceVolume(v1 *common.ServiceVolume, v2 *common.ServiceVolume) bool {
+	if v1.VolumeType == v2.VolumeType &&
+		v1.Iops == v2.Iops &&
+		v1.VolumeSizeGB == v2.VolumeSizeGB {
 		return true
 	}
 	return false
@@ -115,10 +130,9 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 		ServiceStatus:   status,
 		LastModified:    time.Now().UnixNano(),
 		Replicas:        t1.Replicas,
-		VolumeSizeGB:    t1.VolumeSizeGB,
 		ClusterName:     t1.ClusterName,
 		ServiceName:     t1.ServiceName,
-		DeviceNames:     t1.DeviceNames,
+		Volumes:         t1.Volumes,
 		RegisterDNS:     t1.RegisterDNS,
 		DomainName:      t1.DomainName,
 		HostedZoneID:    t1.HostedZoneID,

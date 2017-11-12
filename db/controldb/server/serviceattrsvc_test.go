@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/controldb"
 	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
@@ -41,7 +42,6 @@ func TestAttrReadWriter(t *testing.T) {
 
 	serviceStatus := "CREATING"
 	taskCounts := 3
-	volSize := 1
 	cluster := "cluster"
 	serviceName := "servicename-1"
 	devName := "/dev/xvda"
@@ -54,12 +54,19 @@ func TestAttrReadWriter(t *testing.T) {
 		ServiceUUID:   serviceUUID,
 		ServiceStatus: serviceStatus,
 		Replicas:      int64(taskCounts),
-		VolumeSizeGB:  int64(volSize),
 		ClusterName:   cluster,
 		ServiceName:   serviceName,
-		DeviceNames: &pb.ServiceDeviceNames{
+		Volumes: &pb.ServiceVolumes{
 			PrimaryDeviceName: devName,
-			LogDeviceName:     devName + "log",
+			PrimaryVolume: &pb.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: 1,
+			},
+			LogDeviceName: devName + "log",
+			LogVolume: &pb.ServiceVolume{
+				VolumeType:   common.VolumeTypeIOPSSSD,
+				VolumeSizeGB: 1,
+			},
 		},
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
@@ -170,12 +177,19 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 		ServiceUUID:   serviceUUID,
 		ServiceStatus: serviceStatus,
 		Replicas:      int64(i),
-		VolumeSizeGB:  int64(i),
 		ClusterName:   cluster,
 		ServiceName:   serviceNamePrefix + strconv.Itoa(i),
-		DeviceNames: &pb.ServiceDeviceNames{
+		Volumes: &pb.ServiceVolumes{
 			PrimaryDeviceName: devNamePrefix + strconv.Itoa(i),
-			LogDeviceName:     devNamePrefix + "logs" + strconv.Itoa(i),
+			PrimaryVolume: &pb.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: int64(i),
+			},
+			LogDeviceName: devNamePrefix + "logs" + strconv.Itoa(i),
+			LogVolume: &pb.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: int64(i),
+			},
 		},
 		RegisterDNS:     registerDNS,
 		DomainName:      domainPrefix + strconv.Itoa(i),
@@ -372,17 +386,13 @@ func TestServiceSvcAttr(t *testing.T) {
 
 func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
 	a2 := &pb.ServiceAttr{
-		ServiceUUID:   a1.ServiceUUID,
-		ServiceStatus: a1.ServiceStatus,
-		LastModified:  a1.LastModified,
-		Replicas:      a1.Replicas,
-		VolumeSizeGB:  a1.VolumeSizeGB,
-		ClusterName:   a1.ClusterName,
-		ServiceName:   a1.ServiceName,
-		DeviceNames: &pb.ServiceDeviceNames{
-			PrimaryDeviceName: a1.DeviceNames.PrimaryDeviceName,
-			LogDeviceName:     a1.DeviceNames.LogDeviceName,
-		},
+		ServiceUUID:     a1.ServiceUUID,
+		ServiceStatus:   a1.ServiceStatus,
+		LastModified:    a1.LastModified,
+		Replicas:        a1.Replicas,
+		ClusterName:     a1.ClusterName,
+		ServiceName:     a1.ServiceName,
+		Volumes:         controldb.CopyServiceVolumes(a1.Volumes),
 		RegisterDNS:     a1.RegisterDNS,
 		DomainName:      a1.DomainName,
 		HostedZoneID:    a1.HostedZoneID,

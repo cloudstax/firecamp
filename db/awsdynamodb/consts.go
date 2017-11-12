@@ -32,6 +32,7 @@ const (
 	ServiceName     = "ServiceName"
 	ServiceStatus   = "ServiceStatus"
 	ServiceUUID     = "ServiceUUID"
+	ServiceVolumes  = "ServiceVolumes"
 	Replicas        = "Replicas"
 	RegisterDNS     = "RegisterDNS"
 	DomainName      = "DomainName"

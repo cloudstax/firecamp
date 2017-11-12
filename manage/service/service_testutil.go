@@ -511,11 +511,15 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("GetOrCreateHostedZoneIDByName error %s, domain %s, vpc %s %s", err, domain, vpcID, region)
 	}
 
-	devNames := common.ServiceDeviceNames{
+	vols := common.ServiceVolumes{
 		PrimaryDeviceName: dev,
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: volSize,
+		},
 	}
-	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
+	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -574,11 +578,15 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
 
-	devNames = common.ServiceDeviceNames{
+	vols = common.ServiceVolumes{
 		PrimaryDeviceName: dev,
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: volSize,
+		},
 	}
-	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount), volSize,
-		cluster, service, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
+	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -619,7 +627,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		},
 	}
 
-	_, err = s.createServiceMember(ctx, "uuid"+service, volOpts, az, &devNames, memberName, ip, cfgs)
+	_, err = s.createServiceMember(ctx, "uuid"+service, volOpts, &vols, az, memberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}

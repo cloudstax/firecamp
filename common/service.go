@@ -93,10 +93,9 @@ type ServiceAttr struct {
 	ServiceStatus string
 	LastModified  int64
 	Replicas      int64
-	VolumeSizeGB  int64
 	ClusterName   string
 	ServiceName   string
-	DeviceNames   ServiceDeviceNames
+	Volumes       ServiceVolumes
 
 	// whether the service members need to know each other, such as database replicas.
 	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
@@ -114,11 +113,22 @@ type ServiceAttr struct {
 	//AdminPasswd string
 }
 
+// ServiceVolumes represent the volumes of one service.
+// For now, allow maximum 2 devices. Could further expand if necessary in the future.
+type ServiceVolumes struct {
+	PrimaryDeviceName string
+	PrimaryVolume     ServiceVolume
+
+	// The LogDeviceName could be empty if service only needs one volume.
+	LogDeviceName string
+	LogVolume     ServiceVolume
+}
+
 // ServiceVolume contains the volume parameters.
 type ServiceVolume struct {
 	VolumeType   string
-	IOPS         int64
 	VolumeSizeGB int64
+	Iops         int64
 }
 
 // ServiceMember represents the attributes of one service member.
@@ -141,14 +151,6 @@ type ServiceMember struct {
 	// One member could have multiple config files.
 	// For example, cassandra.yaml and rackdc properties files.
 	Configs []*MemberConfig
-}
-
-// ServiceDeviceNames represent the device names of one service.
-// For now, allow maximum 2 devices. Could further expand if necessary in the future.
-type ServiceDeviceNames struct {
-	PrimaryDeviceName string
-	// The LogDeviceName could be empty if service only needs one volume.
-	LogDeviceName string
 }
 
 // MemberVolumes represent the volumes of one member.

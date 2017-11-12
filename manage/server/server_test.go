@@ -284,7 +284,7 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 		t.Fatalf("Unmarshal GetServiceAttributesResponse error %s, %s", err, w)
 	}
 	if res.Service.ServiceName != service || res.Service.ServiceStatus != targetServiceStatus ||
-		res.Service.Replicas != int64(i) || res.Service.VolumeSizeGB != int64(i+1) {
+		res.Service.Replicas != int64(i) || res.Service.Volumes.PrimaryVolume.VolumeSizeGB != int64(i+1) {
 		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", service, targetServiceStatus, i, i+1, res.Service)
 	}
 	glog.Infoln("GetServiceAttributesResponse", res)

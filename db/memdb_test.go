@@ -174,12 +174,20 @@ func TestServiceAttr(t *testing.T) {
 	var s [5]*common.ServiceAttr
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
-		devNames := common.ServiceDeviceNames{
+		svols := common.ServiceVolumes{
 			PrimaryDeviceName: devPrefix + c,
-			LogDeviceName:     devPrefix + "log" + c,
+			PrimaryVolume: common.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: int64(volSize + i),
+			},
+			LogDeviceName: devPrefix + "log" + c,
+			LogVolume: common.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: int64(volSize + i),
+			},
 		}
-		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i), int64(volSize+i),
-			clusterName, servicePrefix+c, devNames, registerDNS, domain, hostedZoneID, requireStaticIP)
+		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i),
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {

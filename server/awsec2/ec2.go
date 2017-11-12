@@ -311,8 +311,8 @@ func (s *AWSEc2) CreateVolume(ctx context.Context, opts *server.CreateVolumeOpti
 		VolumeType:       aws.String(opts.VolumeType),
 		Size:             aws.Int64(opts.VolumeSizeGB),
 	}
-	if opts.VolumeType == server.VolumeTypeIOPSSSD {
-		params.Iops = aws.Int64(opts.IOPS)
+	if opts.VolumeType == common.VolumeTypeIOPSSSD {
+		params.Iops = aws.Int64(opts.Iops)
 	}
 	if len(opts.TagSpecs) != 0 {
 		tags := make([]*ec2.Tag, len(opts.TagSpecs))

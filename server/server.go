@@ -34,7 +34,7 @@ const (
 type CreateVolumeOptions struct {
 	AvailabilityZone string
 	VolumeType       string
-	IOPS             int64
+	Iops             int64
 	VolumeSizeGB     int64
 	TagSpecs         []common.KeyValuePair
 }

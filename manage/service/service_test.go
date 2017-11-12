@@ -139,10 +139,14 @@ func TestUnassignedIPs(t *testing.T) {
 	az := serverInfo.GetLocalAvailabilityZone()
 	assignedIPs := make(map[string]string)
 
-	devNames := common.ServiceDeviceNames{
+	vols := common.ServiceVolumes{
 		PrimaryDeviceName: "/dev/xvdf",
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, 1, "cluster1", "service1", devNames, true, "domain1", "hostedZone1", true)
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	// case: 1 network interface with 0 private ip
@@ -338,10 +342,14 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	ctx := context.Background()
 	az := serverInfo.GetLocalAvailabilityZone()
 
-	devNames := common.ServiceDeviceNames{
+	vols := common.ServiceVolumes{
 		PrimaryDeviceName: "/dev/xvdf",
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, 1, "cluster1", "service1", devNames, true, "domain1", "hostedZone1", true)
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)
@@ -412,10 +420,14 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	ctx := context.Background()
 	az := serverInfo.GetLocalAvailabilityZone()
 
-	devNames := common.ServiceDeviceNames{
+	vols := common.ServiceVolumes{
 		PrimaryDeviceName: "/dev/xvdf",
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, 1, "cluster1", "service1", devNames, true, "domain1", "hostedZone1", true)
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)

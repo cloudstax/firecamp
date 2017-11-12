@@ -41,7 +41,7 @@ var (
 	service         = flag.String("service-name", "", "The target service name in ECS")
 	replicas        = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volType         = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
-	volIops         = flag.Int64("volume-iops", 100, "The EBS volume IOPS when io1 type is chosen, otherwise ignored")
+	volIops         = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
 	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
 	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
 	reserveCPUUnits = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
@@ -311,7 +311,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 			Admin:       *admin,
@@ -363,7 +363,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 		},
@@ -436,7 +436,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 			HeapSizeMB: *zkHeapSizeMB,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 		},
@@ -482,7 +482,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 
@@ -533,7 +533,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 
@@ -597,7 +597,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 		},
@@ -684,7 +684,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 
@@ -763,7 +763,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 
@@ -821,7 +821,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 			ESServiceName: *kbESServiceName,
@@ -900,7 +900,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 			HeapSizeMB:            *lsHeapSizeMB,
@@ -952,7 +952,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
-				IOPS:         *volIops,
+				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
 			ContainerImage: *pgContainerImage,
