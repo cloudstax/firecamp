@@ -113,7 +113,8 @@ func TestServiceCreationRetryWithStaticIP(t *testing.T) {
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 
 	requireStaticIP := true
-	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP)
+	requireLogVolume := true
+	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP, requireLogVolume)
 }
 
 func TestServiceCreationRetryWithoutStaticIP(t *testing.T) {
@@ -125,7 +126,8 @@ func TestServiceCreationRetryWithoutStaticIP(t *testing.T) {
 	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
 
 	requireStaticIP := false
-	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP)
+	requireLogVolume := false
+	TestUtil_ServiceCreationRetry(t, s, dbIns, dnsIns, serverIns, requireStaticIP, requireLogVolume)
 }
 
 func TestUnassignedIPs(t *testing.T) {

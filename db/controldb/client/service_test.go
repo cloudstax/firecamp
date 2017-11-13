@@ -72,7 +72,8 @@ func TestServiceCreationRetryWithControlDBWithStaticIP(t *testing.T) {
 	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
 
 	requireStaticIP := true
-	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP)
+	requireLogVolume := true
+	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP, requireLogVolume)
 }
 
 func TestServiceCreationRetryWithControlDBWithoutStaticIP(t *testing.T) {
@@ -93,5 +94,6 @@ func TestServiceCreationRetryWithControlDBWithoutStaticIP(t *testing.T) {
 	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
 
 	requireStaticIP := false
-	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP)
+	requireLogVolume := false
+	manageservice.TestUtil_ServiceCreationRetry(t, s, dbcli, dnsIns, serverIns, requireStaticIP, requireLogVolume)
 }

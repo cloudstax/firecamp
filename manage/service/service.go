@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -680,6 +679,7 @@ func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, se
 	lastDev := firstDevice
 	for _, x := range devs {
 		if x.DeviceName == excludeDevice {
+			lastDev = x.DeviceName
 			continue
 		}
 
@@ -860,21 +860,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 			return err
 		}
 
-		volOpts := &server.CreateVolumeOptions{
-			AvailabilityZone: req.ReplicaConfigs[i].Zone,
-			VolumeType:       req.Volume.VolumeType,
-			Iops:             req.Volume.Iops,
-			VolumeSizeGB:     req.Volume.VolumeSizeGB,
-			TagSpecs: []common.KeyValuePair{
-				common.KeyValuePair{
-					Key:   "Name",
-					Value: common.SystemName + common.NameSeparator + sattr.ClusterName + common.NameSeparator + sattr.ServiceName + common.NameSeparator + strconv.Itoa(i),
-				},
-			},
-		}
-
-		member, err := s.createServiceMember(ctx, sattr.ServiceUUID, volOpts,
-			&(sattr.Volumes), req.ReplicaConfigs[i].Zone, memberName, hostIP, cfgs)
+		member, err := s.createServiceMember(ctx, sattr, req.ReplicaConfigs[i].Zone, memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
@@ -931,24 +917,56 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 	return configs, nil
 }
 
-func (s *ManageService) createServiceMember(ctx context.Context, serviceUUID string,
-	volOpts *server.CreateVolumeOptions, svols *common.ServiceVolumes, az string, memberName string,
-	staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
+	az string, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
+
+	volOpts := &server.CreateVolumeOptions{
+		AvailabilityZone: az,
+		VolumeType:       sattr.Volumes.PrimaryVolume.VolumeType,
+		VolumeSizeGB:     sattr.Volumes.PrimaryVolume.VolumeSizeGB,
+		Iops:             sattr.Volumes.PrimaryVolume.Iops,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: common.SystemName + common.NameSeparator + sattr.ClusterName + common.NameSeparator + memberName,
+			},
+		},
+	}
 
 	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
 	volID, err := s.serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
-		glog.Errorln("CreateVolume failed, volID", volID, "serviceUUID", serviceUUID, "az", az, "error", err, "requuid", requuid)
+		glog.Errorln("create the primary volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
 		return nil, err
 	}
 
-	// TODO check and create the log volume
+	glog.Infoln("created primary volume", volID, "az", az, "requuid", requuid, sattr)
+
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
-		PrimaryDeviceName: svols.PrimaryDeviceName,
+		PrimaryDeviceName: sattr.Volumes.PrimaryDeviceName,
 	}
-	member = db.CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
+
+	if len(sattr.Volumes.LogDeviceName) != 0 {
+		volOpts.VolumeType = sattr.Volumes.LogVolume.VolumeType
+		volOpts.VolumeSizeGB = sattr.Volumes.LogVolume.VolumeSizeGB
+		volOpts.Iops = sattr.Volumes.LogVolume.Iops
+
+		// create the log device
+		volID, err = s.serverIns.CreateVolume(ctx, volOpts)
+		if err != nil {
+			glog.Errorln("create the log volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
+			return nil, err
+		}
+
+		glog.Infoln("created log volume", volID, "az", az, "requuid", requuid, sattr)
+
+		mvols.LogVolumeID = volID
+		mvols.LogDeviceName = sattr.Volumes.LogDeviceName
+	}
+
+	member = db.CreateInitialServiceMember(sattr.ServiceUUID, memberName, az, mvols, staticIP, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)

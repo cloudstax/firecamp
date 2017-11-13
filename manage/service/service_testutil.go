@@ -58,6 +58,15 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			replicaCfgs[i] = replicaCfg
 		}
 
+		var logVol *common.ServiceVolume
+		if idx == 2 {
+			logVol = &common.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: 1,
+				Iops:         100,
+			}
+		}
+
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
 				Region:      region,
@@ -66,6 +75,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount1),
 			Volume:          servicevol,
+			LogVolume:       logVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -83,6 +93,21 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		if err != nil {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount1 %d",
 				err, cluster, service, taskCount1)
+		}
+
+		// get service attr to verify
+		sattr, err := dbIns.GetServiceAttr(ctx, svcUUID)
+		if err != nil {
+			t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
+		}
+		if idx == 2 {
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) == 0 {
+				t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			}
+		} else {
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) != 0 {
+				t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			}
 		}
 
 		// list service members to verify
@@ -113,6 +138,17 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 					t.Fatalf("expect ip %s for member %s", ip, member)
 				}
 			}
+			if idx == 2 {
+				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+					len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
+					t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+				}
+			} else {
+				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+					len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
+					t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+				}
+			}
 		}
 		// increase the firstIP for the next service
 		firstIP = firstIP + taskCount1
@@ -122,7 +158,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	}
 	// verify the Device, Service, ServiceAttr and ServiceMember
 	deviceItems, err := dbIns.ListDevices(ctx, cluster)
-	if err != nil || len(deviceItems) != 3 {
+	if err != nil || len(deviceItems) != 4 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
 	}
 	serviceItems, err := dbIns.ListServices(ctx, cluster)
@@ -158,6 +194,15 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			replicaCfgs[i] = replicaCfg
 		}
 
+		var logVol *common.ServiceVolume
+		if idx == 4 {
+			logVol = &common.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: 1,
+				Iops:         100,
+			}
+		}
+
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
 				Region:      region,
@@ -166,6 +211,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount2),
 			Volume:          servicevol,
+			LogVolume:       logVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -183,6 +229,21 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		if err != nil {
 			t.Fatalf("SetServiceInitialized error %s, cluster %s, service %s, taskCount2 %d",
 				err, cluster, service, taskCount2)
+		}
+
+		// get service attr to verify
+		sattr, err := dbIns.GetServiceAttr(ctx, svcUUID)
+		if err != nil {
+			t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
+		}
+		if idx == 4 {
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) == 0 {
+				t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			}
+		} else {
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) != 0 {
+				t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			}
 		}
 
 		// list service members to verify
@@ -213,6 +274,17 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 					t.Fatalf("expect ip %s for member %s", ip, member)
 				}
 			}
+			if idx == 4 {
+				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+					len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
+					t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+				}
+			} else {
+				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+					len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
+					t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+				}
+			}
 		}
 		// increase the firstIP for the next service
 		firstIP = firstIP + taskCount2
@@ -222,7 +294,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	}
 	// verify the Device, Service and ServiceMember
 	deviceItems, err = dbIns.ListDevices(ctx, cluster)
-	if err != nil || len(deviceItems) != 5 {
+	if err != nil || len(deviceItems) != 7 {
 		t.Fatalf("ListDevices error %s, deviceItems %s", err, deviceItems)
 	}
 	serviceItems, err = dbIns.ListServices(ctx, cluster)
@@ -350,7 +422,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	}
 }
 
-func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS, serverIns *server.LoopServer, requireStaticIP bool) {
+func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS, serverIns *server.LoopServer, requireStaticIP bool, requireLogVolume bool) {
 	cluster := "cluster1"
 	az := "az-west"
 	servicePrefix := "service-"
@@ -396,6 +468,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		RequireStaticIP: requireStaticIP,
 		ReplicaConfigs:  replicaCfgs,
 	}
+	if requireLogVolume {
+		req.LogVolume = &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: volSize,
+			Iops:         1,
+		}
+	}
 
 	// TODO test more cases. for example, service at different status, config file exists.
 	// 1. device item exist
@@ -407,6 +486,23 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if err != nil {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d",
 			err, cluster, service, taskCount)
+	}
+	// get service attr to verify
+	sattr, err := dbIns.GetServiceAttr(ctx, svcUUID)
+	if err != nil {
+		t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
+	}
+	if sattr.Volumes.PrimaryDeviceName != "/dev/loop1" {
+		t.Fatalf("expect primary device for service %s, service volumes %s", service, sattr.Volumes)
+	}
+	if requireLogVolume {
+		if sattr.Volumes.LogDeviceName != "/dev/loop2" {
+			t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		}
+	} else {
+		if len(sattr.Volumes.LogDeviceName) != 0 {
+			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		}
 	}
 	// list service members to verify
 	memberItems, err := dbIns.ListServiceMembers(ctx, svcUUID)
@@ -435,6 +531,17 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 				t.Fatalf("expect ip %s for member %s", ip, member)
 			}
 		}
+		if requireLogVolume {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
+				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+			}
+		} else {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
+				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+			}
+		}
 	}
 	// increase the firstIP for the next service
 	firstIP = firstIP + taskCount
@@ -443,8 +550,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	if err != nil || dev != "/dev/loop2" {
-		t.Fatalf("createDevice error %s, expectDev /dev/loop2, got %s", err, dev)
+	expectDev := "/dev/loop2"
+	if requireLogVolume {
+		expectDev = "/dev/loop3"
+	}
+	if err != nil || dev != expectDev {
+		t.Fatalf("createDevice error %s, expectDev %s got %s", err, expectDev, dev)
 	}
 
 	serviceItem := db.CreateService(cluster, service, "uuid"+service)
@@ -460,6 +571,24 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if err != nil || svcUUID != "uuid"+service {
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
+	}
+	// get service attr to verify
+	sattr, err = dbIns.GetServiceAttr(ctx, svcUUID)
+	if err != nil {
+		t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
+	}
+	if sattr.Volumes.PrimaryDeviceName != expectDev {
+		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+	}
+	if requireLogVolume {
+		expectDev = "/dev/loop4"
+		if sattr.Volumes.LogDeviceName != expectDev {
+			t.Fatalf("expect log device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+		}
+	} else {
+		if len(sattr.Volumes.LogDeviceName) != 0 {
+			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		}
 	}
 	// list service members to verify
 	memberItems, err = dbIns.ListServiceMembers(ctx, svcUUID)
@@ -488,6 +617,17 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 				t.Fatalf("expect ip %s for member %s", ip, member)
 			}
 		}
+		if requireLogVolume {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
+				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+			}
+		} else {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
+				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+			}
+		}
 	}
 	// increase the firstIP for the next service
 	firstIP = firstIP + taskCount
@@ -496,8 +636,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	if err != nil || dev != "/dev/loop3" {
-		t.Fatalf("createDevice error %s, expectDev /dev/loop3, got %s", err, dev)
+	expectDev = "/dev/loop3"
+	if requireLogVolume {
+		expectDev = "/dev/loop5"
+	}
+	if err != nil || dev != expectDev {
+		t.Fatalf("createDevice error %s, expectDev %s, got %s", err, expectDev, dev)
 	}
 
 	serviceItem = db.CreateService(cluster, service, "uuid"+service)
@@ -511,22 +655,24 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("GetOrCreateHostedZoneIDByName error %s, domain %s, vpc %s %s", err, domain, vpcID, region)
 	}
 
-	vols := common.ServiceVolumes{
-		PrimaryDeviceName: dev,
-		PrimaryVolume: common.ServiceVolume{
-			VolumeType:   common.VolumeTypeGPSSD,
-			VolumeSizeGB: volSize,
-		},
+	// update the ServiceName in CreateServiceRequest
+	req.Service.ServiceName = service
+	svols, err := s.createServiceVolumes(ctx, req)
+	if err != nil {
+		t.Fatalf("createServiceVolumes error %s", err)
+	}
+	if svols.PrimaryDeviceName != expectDev {
+		t.Fatalf("expect device %s got %s", expectDev, svols.PrimaryDeviceName)
+	}
+	if requireLogVolume && svols.LogDeviceName != "/dev/loop6" {
+		t.Fatalf("expect log device /dev/loop6, get %s", svols.LogDeviceName)
 	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
 	}
-
-	// update the ServiceName in CreateServiceRequest
-	req.Service.ServiceName = service
 
 	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
@@ -568,8 +714,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	if err != nil || dev != "/dev/loop4" {
-		t.Fatalf("createDevice error %s, expectDev /dev/loop4, got %s", err, dev)
+	expectDev = "/dev/loop4"
+	if requireLogVolume {
+		expectDev = "/dev/loop7"
+	}
+	if err != nil || dev != expectDev {
+		t.Fatalf("createDevice error %s, expectDev %s, got %s", err, expectDev, dev)
 	}
 
 	serviceItem = db.CreateService(cluster, service, "uuid"+service)
@@ -578,12 +728,24 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
 
-	vols = common.ServiceVolumes{
+	vols := common.ServiceVolumes{
 		PrimaryDeviceName: dev,
 		PrimaryVolume: common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: volSize,
 		},
+	}
+	if requireLogVolume {
+		logDev, err := s.createDevice(ctx, cluster, service, expectDev, "requuid")
+		if err != nil || logDev != "/dev/loop8" {
+			t.Fatalf("create log device error %s, expectDev /dev/loop8, got %s", err, logDev)
+		}
+		vols.LogDeviceName = logDev
+		vols.LogVolume = common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: volSize,
+			Iops:         1,
+		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
 		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP)
@@ -615,19 +777,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 
-	volOpts := &server.CreateVolumeOptions{
-		AvailabilityZone: az,
-		VolumeType:       common.VolumeTypeGPSSD,
-		VolumeSizeGB:     volSize,
-		TagSpecs: []common.KeyValuePair{
-			common.KeyValuePair{
-				Key:   "Name",
-				Value: common.SystemName + common.NameSeparator + cluster + common.NameSeparator + service,
-			},
-		},
-	}
-
-	_, err = s.createServiceMember(ctx, "uuid"+service, volOpts, &vols, az, memberName, ip, cfgs)
+	_, err = s.createServiceMember(ctx, serviceAttr, az, memberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}
@@ -657,6 +807,24 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateService error %s, cluster %s, service %s, taskCount %d, uuid %s %s",
 			err, cluster, service, taskCount, svcUUID, "uuid"+service)
 	}
+	// get service attr to verify
+	sattr, err = dbIns.GetServiceAttr(ctx, svcUUID)
+	if err != nil {
+		t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
+	}
+	if sattr.Volumes.PrimaryDeviceName != expectDev {
+		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+	}
+	if requireLogVolume {
+		expectDev = "/dev/loop8"
+		if sattr.Volumes.LogDeviceName != expectDev {
+			t.Fatalf("expect log device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+		}
+	} else {
+		if len(sattr.Volumes.LogDeviceName) != 0 {
+			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		}
+	}
 	// list service members to verify
 	memberItems, err = dbIns.ListServiceMembers(ctx, svcUUID)
 	if err != nil || len(memberItems) != taskCount {
@@ -682,6 +850,17 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			ip := ipPrefix + strconv.Itoa(firstIP+i)
 			if member.StaticIP != ip {
 				t.Fatalf("expect ip %s for member %s", ip, member)
+			}
+		}
+		if requireLogVolume {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
+				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+			}
+		} else {
+			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
+				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
+				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
 			}
 		}
 	}
