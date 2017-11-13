@@ -116,14 +116,12 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 			"vpc", vpcID, "requuid", requuid, req.Service)
 	}
 
-	// create device item
-	deviceName, err := s.createDevice(ctx, req.Service.Cluster, req.Service.ServiceName)
+	// create service volumes
+	svols, err := s.createServiceVolumes(ctx, req)
 	if err != nil {
-		glog.Errorln("createDevice error", err, "requuid", requuid, req.Service)
+		glog.Errorln("createServiceVolumes error", err, "requuid", requuid, req.Service)
 		return "", err
 	}
-
-	glog.Infoln("assigned device", deviceName, "to service", req.Service.ServiceName, "requuid", requuid)
 
 	// create service item
 	serviceUUID, err = s.createService(ctx, req.Service.Cluster, req.Service.ServiceName)
@@ -133,10 +131,6 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	}
 
 	// create service attr
-	svols := &common.ServiceVolumes{
-		PrimaryDeviceName: deviceName,
-		PrimaryVolume:     *req.Volume,
-	}
 	created, serviceAttr, err := s.checkAndCreateServiceAttr(ctx, serviceUUID, svols, domainName, hostedZoneID, req)
 	if err != nil {
 		glog.Errorln("checkAndCreateServiceAttr error", err, "requuid", requuid, req.Service)
@@ -555,12 +549,45 @@ func (s *ManageService) checkAndCreateSystemTables(ctx context.Context) error {
 
 // lists device items, assigns the next block device name to the service,
 // and creates the device item in DB.
-func (s *ManageService) createDevice(ctx context.Context, cluster string, service string) (devName string, err error) {
+func (s *ManageService) createServiceVolumes(ctx context.Context, req *manage.CreateServiceRequest) (*common.ServiceVolumes, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// create the device for the primary volume
+	excludeDevice := ""
+	primaryDevName, err := s.createDevice(ctx, req.Service.Cluster, req.Service.ServiceName, excludeDevice, requuid)
+	if err != nil {
+		glog.Errorln("create primary device error", err, "requuid", requuid, req.Service)
+		return nil, err
+	}
+
+	glog.Infoln("created primary device", primaryDevName, "requuid", requuid, req.Service)
+
+	svols := &common.ServiceVolumes{
+		PrimaryDeviceName: primaryDevName,
+		PrimaryVolume:     *req.Volume,
+	}
+
+	if req.LogVolume != nil {
+		excludeDevice = primaryDevName
+		logDevName, err := s.createDevice(ctx, req.Service.Cluster, req.Service.ServiceName, excludeDevice, requuid)
+		if err != nil {
+			glog.Errorln("create log device error", err, "requuid", requuid, req.Service)
+			return nil, err
+		}
+
+		glog.Infoln("created log device", logDevName, "requuid", requuid, req.Service)
+
+		svols.LogDeviceName = logDevName
+		svols.LogVolume = *req.LogVolume
+	}
+
+	return svols, nil
+}
+
+func (s *ManageService) createDevice(ctx context.Context, cluster string, service string, excludeDevice string, requuid string) (devName string, err error) {
 	for i := 0; i < maxRetryCount; i++ {
 		// assign the device name
-		devName, err := s.assignDeviceName(ctx, cluster, service)
+		devName, err := s.assignDeviceName(ctx, cluster, service, excludeDevice)
 		if err != nil {
 			if err == errServiceHasDevice && len(devName) != 0 {
 				glog.Infoln("device", devName, "is already assigned to service",
@@ -624,7 +651,7 @@ func (s *ManageService) createService(ctx context.Context, cluster string, servi
 	return currItem.ServiceUUID, nil
 }
 
-func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, service string) (devName string, err error) {
+func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, service string, excludeDevice string) (devName string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list current device items
@@ -637,8 +664,14 @@ func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, se
 	firstDevice := s.serverIns.GetFirstDeviceName()
 
 	if len(devs) == 0 {
-		glog.Infoln("assign first device", firstDevice, "cluster", cluster, "requuid", requuid)
-		return firstDevice, nil
+		if firstDevice != excludeDevice {
+			glog.Infoln("assign first device", firstDevice, "service", service, "requuid", requuid)
+			return firstDevice, nil
+		}
+
+		secondDevice, err := s.serverIns.GetNextDeviceName(firstDevice)
+		glog.Infoln("assign the second device", secondDevice, "error", err, "service", service, "requuid", requuid)
+		return secondDevice, err
 	}
 
 	// get the last device
@@ -646,6 +679,10 @@ func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, se
 	//			then service for xvdg is deleted.
 	lastDev := firstDevice
 	for _, x := range devs {
+		if x.DeviceName == excludeDevice {
+			continue
+		}
+
 		// The service creation involves multiple steps, and may fail at any step.
 		// The customer may retry the creation. Check if device is already assigned
 		// to one service.

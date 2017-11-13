@@ -43,7 +43,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		service := servicePrefix + strconv.Itoa(i)
 		expectDev := "/dev/xvd" + devSeq
-		dev, err := s.createDevice(ctx, cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -55,7 +55,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 26; i++ {
 		service := servicePrefix + "b" + strconv.Itoa(i)
 		expectDev := "/dev/xvdb" + devSeq
-		dev, err := s.createDevice(ctx, cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -67,7 +67,7 @@ func TestDeviceName(t *testing.T) {
 	for i := 0; i < 26; i++ {
 		service := servicePrefix + "c" + strconv.Itoa(i)
 		expectDev := "/dev/xvdc" + devSeq
-		dev, err := s.createDevice(ctx, cluster, service)
+		dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
 		if err != nil || dev != expectDev {
 			t.Fatalf("assignDeviceName failed, expectDev %s, dev %s, error %s", expectDev, dev, err)
 		}
@@ -76,7 +76,7 @@ func TestDeviceName(t *testing.T) {
 
 	// create device item for the existing service
 	service := servicePrefix + "b0"
-	dev, err := s.createDevice(ctx, cluster, service)
+	dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
 	if err != nil || dev != "/dev/xvdba" {
 		t.Fatalf("create service %s again, expectDev /dev/xvdba, get %s, error %s", service, dev, err)
 	}

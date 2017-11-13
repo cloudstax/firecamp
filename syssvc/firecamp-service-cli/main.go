@@ -43,6 +43,9 @@ var (
 	volType         = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops         = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
 	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
+	logVolType      = flag.String("log-volume-type", "", "The service journal EBS volume type: gp2|io1|st1")
+	logVolIops      = flag.Int64("log-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
+	logVolSizeGB    = flag.Int64("log-volume-size", 0, "The service journal EBS volume size, unit: GB")
 	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
 	reserveCPUUnits = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
 	maxMemMB        = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
@@ -217,13 +220,21 @@ func main() {
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
 	case opCreate:
+		var logVol *common.ServiceVolume
+		if len(*logVolType) != 0 {
+			logVol = &common.ServiceVolume{
+				VolumeType:   *logVolType,
+				VolumeSizeGB: *logVolSizeGB,
+				Iops:         *logVolIops,
+			}
+		}
 		switch *serviceType {
 		case catalog.CatalogService_MongoDB:
-			createMongoDBService(ctx, cli)
+			createMongoDBService(ctx, cli, logVol)
 		case catalog.CatalogService_PostgreSQL:
-			createPostgreSQLService(ctx, cli)
+			createPostgreSQLService(ctx, cli, logVol)
 		case catalog.CatalogService_Cassandra:
-			createCassandraService(ctx, cli)
+			createCassandraService(ctx, cli, logVol)
 		case catalog.CatalogService_ZooKeeper:
 			createZkService(ctx, cli)
 		case catalog.CatalogService_Kafka:
@@ -285,7 +296,7 @@ func main() {
 	}
 }
 
-func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
+func createMongoDBService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -314,6 +325,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
+			LogVolume:   logVol,
 			Admin:       *admin,
 			AdminPasswd: *adminPasswd,
 		},
@@ -337,7 +349,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient) {
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createCassandraService(ctx context.Context, cli *client.ManageClient) {
+func createCassandraService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -366,6 +378,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient) {
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
+			LogVolume: logVol,
 		},
 	}
 
@@ -926,7 +939,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
+func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -955,6 +968,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient) {
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
+			LogVolume:      logVol,
 			ContainerImage: *pgContainerImage,
 			AdminPasswd:    *adminPasswd,
 			ReplUser:       *pgReplUser,

@@ -164,7 +164,6 @@ func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
 
 	// volume is not mounted locally, return success. If the service doesn't exist,
 	// the later mount will fail.
-	// could not return error here, or else, amazon-ecs-agent may not start the container.
 	glog.Infoln("volume is not mounted for service", serviceUUID)
 	return volume.Response{Volume: &volume.Volume{Name: r.Name}}
 }
@@ -204,9 +203,9 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
 		if len(v.member.Volumes.LogVolumeID) != 0 {
-			logvolid := svcuuid + common.NameSeparator + common.LogDevicePathSuffix
-			name = containersvc.GenVolumeSourceName(logvolid, memberIndex)
-			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolid)})
+			logvolpath := svcuuid + common.NameSeparator + common.LogDevicePathSuffix
+			name = containersvc.GenVolumeSourceName(logvolpath, memberIndex)
+			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
 		}
 	}
 
@@ -1168,7 +1167,7 @@ func (d *FireCampVolumeDriver) mountVolumes(ctx context.Context, member *common.
 		err := d.mountFS(member.Volumes.LogDeviceName, mpath)
 		if err != nil {
 			glog.Errorln("mount log device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
-			// unmount the primary device. TODO what if the unmount fails?
+			// unmount the primary device. TODO if the unmount fails, manual retry may be required.
 			d.unmountFS(primaryMountPath)
 			return err
 		}

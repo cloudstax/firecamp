@@ -22,6 +22,39 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
+func testParseRequestName(t *testing.T, d *FireCampVolumeDriver) {
+	serviceuuid := "uuid"
+	name := serviceuuid
+	uuid, mpath, mindex, err := d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mindex != -1 {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	}
+
+	name = serviceuuid + "-1"
+	uuid, mpath, mindex, err = d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mindex != 0 {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	}
+
+	name = serviceuuid + "-log-2"
+	uuid, mpath, mindex, err = d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != serviceuuid+"-log" || mindex != 1 {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	}
+
+	// negative case
+	name = serviceuuid + "-aaa-1"
+	uuid, mpath, mindex, err = d.parseRequestName(name)
+	if err != common.ErrInvalidArgs {
+		t.Fatalf("expect err, but get uuid %s, err %s", uuid, err)
+	}
+	name = serviceuuid + "-aaa-1-1"
+	uuid, mpath, mindex, err = d.parseRequestName(name)
+	if err != common.ErrInvalidArgs {
+		t.Fatalf("expect err, but get uuid %s, err %s", uuid, err)
+	}
+}
+
 func TestVolumeDriver(t *testing.T) {
 	requireStaticIP := true
 	testVolumeDriver(t, requireStaticIP)
@@ -58,6 +91,9 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 	az := "local-az"
 	domain := "test.com"
 	vpcID := "vpc1"
+
+	// test parseRequestName
+	testParseRequestName(t, driver)
 
 	// create the 1st service
 	service1 := "service1"

@@ -399,7 +399,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	// TODO test more cases. for example, service at different status, config file exists.
 	// 1. device item exist
-	dev, err := s.createDevice(ctx, cluster, service)
+	dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
 	if err != nil || dev != "/dev/loop1" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop1, got %s", err, dev)
 	}
@@ -442,7 +442,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 2. device and service item exist
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(ctx, cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	if err != nil || dev != "/dev/loop2" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop2, got %s", err, dev)
 	}
@@ -495,7 +495,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 3. device and service item exist, the 3rd device, service attr is at creating
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(ctx, cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	if err != nil || dev != "/dev/loop3" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop3, got %s", err, dev)
 	}
@@ -567,7 +567,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 4. device and service item exist, the 4th device, service attr is at creating, and one serviceMember created
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
-	dev, err = s.createDevice(ctx, cluster, service)
+	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	if err != nil || dev != "/dev/loop4" {
 		t.Fatalf("createDevice error %s, expectDev /dev/loop4, got %s", err, dev)
 	}
