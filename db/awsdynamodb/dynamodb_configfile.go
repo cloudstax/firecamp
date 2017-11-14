@@ -47,7 +47,7 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create config file", cfg.FileName, cfg.FileID,
@@ -55,8 +55,7 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created config file", cfg.FileName, cfg.FileID,
-		"serviceUUID", cfg.ServiceUUID, "requuid", requuid, "resp", resp)
+	glog.Infoln("created config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return nil
 }
 
@@ -151,6 +150,6 @@ func (d *DynamoDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fil
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted config file", fileID, "serviceUUID", serviceUUID, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted config file", fileID, "serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
 }

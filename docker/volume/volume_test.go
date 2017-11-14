@@ -48,9 +48,9 @@ func TestParseRequestName(t *testing.T) {
 		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
 	}
 
-	name = common.LogDevicePathPrefix + common.NameSeparator + serviceuuid + "-2"
+	name = utils.GetServiceLogVolumeName(serviceuuid + "-2")
 	uuid, mpath, mindex, err = d.parseRequestName(name)
-	if err != nil || uuid != serviceuuid || mpath != common.LogDevicePathPrefix+common.NameSeparator+serviceuuid || mindex != 1 {
+	if err != nil || uuid != serviceuuid || mpath != utils.GetServiceLogVolumeName(serviceuuid) || mindex != 1 {
 		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
 	}
 
@@ -140,7 +140,7 @@ func TestVolumeFunctions(t *testing.T) {
 		t.Fatalf("CreateService error", err)
 	}
 
-	volumeFuncTest(t, driver, common.LogDevicePathPrefix+common.NameSeparator+uuid2)
+	volumeFuncTest(t, driver, utils.GetServiceLogVolumeName(uuid2))
 }
 
 func TestVolumeDriver(t *testing.T) {
@@ -537,13 +537,13 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 
 func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string, addSlot bool, requireLogVolume bool) {
 	name := svcUUID
-	logName := common.LogDevicePathPrefix + common.NameSeparator + svcUUID
+	logName := utils.GetServiceLogVolumeName(svcUUID)
 	if addSlot {
 		name += "-0"
 		logName += "-0"
 	}
 	mountpath := driver.mountpoint(svcUUID)
-	logmountpath := driver.mountpoint(common.LogDevicePathPrefix + common.NameSeparator + svcUUID)
+	logmountpath := driver.mountpoint(utils.GetServiceLogVolumeName(svcUUID))
 
 	// mount the volume
 	mreq := volume.MountRequest{Name: name}
@@ -646,7 +646,7 @@ func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string,
 func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *FireCampVolumeDriver,
 	driver2 *FireCampVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember, requireLogVolume bool) {
 	name := svcUUID
-	logName := common.LogDevicePathPrefix + common.NameSeparator + svcUUID
+	logName := utils.GetServiceLogVolumeName(svcUUID)
 
 	// mount the volume
 	mreq := volume.MountRequest{Name: name}
@@ -707,7 +707,7 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 
 func unmount(svcUUID string, driver *FireCampVolumeDriver, t *testing.T, expecterr bool, requireLogVolume bool) {
 	if requireLogVolume {
-		ureq := volume.UnmountRequest{Name: common.LogDevicePathPrefix + common.NameSeparator + svcUUID}
+		ureq := volume.UnmountRequest{Name: utils.GetServiceLogVolumeName(svcUUID)}
 		uresp := driver.Unmount(ureq)
 		if expecterr {
 			if len(uresp.Err) == 0 {

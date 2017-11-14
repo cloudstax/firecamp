@@ -22,8 +22,9 @@ const (
 	// Task types
 	TaskTypeInit = "init"
 
-	// The log device mount path prefix, /mnt/log-serviceuuid
-	LogDevicePathPrefix = "log"
+	// The log volume name prefix, the log volume name will be log-serviceuuid,
+	// the mount path will be /mnt/log-serviceuuid
+	LogVolumeNamePrefix = "log"
 
 	// General Purpose SSD
 	VolumeTypeGPSSD = "gp2"

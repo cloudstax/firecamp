@@ -187,7 +187,7 @@ func (r *AWSRoute53) isTargetHostedZone(ctx context.Context, svc *route53.Route5
 	// check the hosted zone has the target vpcID and vpcRegion
 	for _, vpc := range getResp.VPCs {
 		if *(vpc.VPCId) == targetVpcID && *(vpc.VPCRegion) == targetVpcRegion {
-			glog.Infoln("find hosted zone", hostedZoneID, "requuid", requuid, "resp", getResp)
+			glog.Infoln("find hosted zone", hostedZoneID, "requuid", requuid, "vpc", vpc)
 			return true, nil
 		}
 	}
@@ -257,7 +257,7 @@ func (r *AWSRoute53) changeServiceDNSRecord(ctx context.Context, action string, 
 		return r.convertError(err, action)
 	}
 
-	glog.Infoln("changed service dns", params, "requuid", requuid, "resp", resp)
+	glog.Infoln("changed service dns", dnsName, "to", hostIP, "action", action, "requuid", requuid, "resp", resp)
 	return nil
 }
 
