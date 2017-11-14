@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -22,7 +23,18 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-func testParseRequestName(t *testing.T, d *FireCampVolumeDriver) {
+func TestParseRequestName(t *testing.T) {
+	// create FireCampVolumeDriver
+	dbIns := db.NewMemDB()
+	mockDNS := dns.NewMockDNS()
+	serverIns := server.NewLoopServer()
+	mockServerInfo := server.NewMockServerInfo()
+	contSvcIns := containersvc.NewMemContainerSvc()
+	mockContInfo := containersvc.NewMockContainerSvcInfo()
+
+	d := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+	d.ifname = "lo"
+
 	serviceuuid := "uuid"
 	name := serviceuuid
 	uuid, mpath, mindex, err := d.parseRequestName(name)
@@ -55,15 +67,97 @@ func testParseRequestName(t *testing.T, d *FireCampVolumeDriver) {
 	}
 }
 
-func TestVolumeDriver(t *testing.T) {
-	requireStaticIP := true
-	testVolumeDriver(t, requireStaticIP)
+func TestVolumeFunctions(t *testing.T) {
+	// create FireCampVolumeDriver
+	dbIns := db.NewMemDB()
+	mockDNS := dns.NewMockDNS()
+	serverIns := server.NewLoopServer()
+	mockServerInfo := server.NewMockServerInfo()
+	contSvcIns := containersvc.NewMemContainerSvc()
+	mockContInfo := containersvc.NewMockContainerSvcInfo()
 
-	requireStaticIP = false
-	testVolumeDriver(t, requireStaticIP)
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
+
+	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
+	driver.ifname = "lo"
+
+	requuid := utils.GenRequestUUID()
+	ctx := context.Background()
+	ctx = utils.NewRequestContext(ctx, requuid)
+
+	cluster := "cluster1"
+	region := "local-region"
+	az := "local-az"
+	domain := "test.com"
+	vpcID := "vpc1"
+	taskCounts := 1
+
+	// create the 1st service
+	service1 := "service1"
+
+	// create the config files for replicas
+	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
+	for i := 0; i < taskCounts; i++ {
+		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
+		configs := []*manage.ReplicaConfigFile{cfg}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfgs[i] = replicaCfg
+	}
+
+	req := &manage.CreateServiceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      region,
+			Cluster:     cluster,
+			ServiceName: service1,
+		},
+		Replicas: int64(taskCounts),
+		Volume: &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
+		RegisterDNS:    true,
+		ReplicaConfigs: replicaCfgs,
+	}
+
+	uuid1, err := mgsvc.CreateService(ctx, req, domain, vpcID)
+	if err != nil {
+		t.Fatalf("CreateService error", err)
+	}
+
+	volumeFuncTest(t, driver, uuid1)
+
+	// create the 2nd service
+	service2 := "service2"
+	req.Service.ServiceName = service2
+	req.LogVolume = &common.ServiceVolume{
+		VolumeType:   common.VolumeTypeIOPSSSD,
+		VolumeSizeGB: 1,
+		Iops:         1,
+	}
+
+	uuid2, err := mgsvc.CreateService(ctx, req, domain, vpcID)
+	if err != nil {
+		t.Fatalf("CreateService error", err)
+	}
+
+	volumeFuncTest(t, driver, uuid2+common.NameSeparator+common.LogDevicePathSuffix)
 }
 
-func testVolumeDriver(t *testing.T, requireStaticIP bool) {
+func TestVolumeDriver(t *testing.T) {
+	requireStaticIP := true
+	requireLogVolume := true
+	testVolumeDriver(t, requireStaticIP, requireLogVolume)
+	requireLogVolume = false
+	testVolumeDriver(t, requireStaticIP, requireLogVolume)
+
+	requireStaticIP = false
+	requireLogVolume = false
+	testVolumeDriver(t, requireStaticIP, requireLogVolume)
+	requireLogVolume = true
+	testVolumeDriver(t, requireStaticIP, requireLogVolume)
+}
+
+func testVolumeDriver(t *testing.T, requireStaticIP bool, requireLogVolume bool) {
 	flag.Parse()
 
 	// create FireCampVolumeDriver
@@ -74,10 +168,6 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 	contSvcIns := containersvc.NewMemContainerSvc()
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
 
-	requuid := utils.GenRequestUUID()
-	ctx := context.Background()
-	ctx = utils.NewRequestContext(ctx, requuid)
-
 	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
@@ -85,15 +175,16 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 
 	defer cleanupStaticIP(requireStaticIP, driver.ifname, serverIns)
 
+	requuid := utils.GenRequestUUID()
+	ctx := context.Background()
+	ctx = utils.NewRequestContext(ctx, requuid)
+
 	cluster := "cluster1"
 	taskCounts := 1
 	region := "local-region"
 	az := "local-az"
 	domain := "test.com"
 	vpcID := "vpc1"
-
-	// test parseRequestName
-	testParseRequestName(t, driver)
 
 	// create the 1st service
 	service1 := "service1"
@@ -122,6 +213,13 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 		RequireStaticIP: requireStaticIP,
 		ReplicaConfigs:  replicaCfgs,
 	}
+	if requireLogVolume {
+		req.LogVolume = &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+			Iops:         1,
+		}
+	}
 
 	uuid1, err := mgsvc.CreateService(ctx, req, domain, vpcID)
 	if err != nil {
@@ -137,18 +235,20 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 
 	volumeFuncTest(t, driver, uuid1)
 
-	volumeMountTest(t, driver, uuid1)
+	addSlot := false
+	volumeMountTest(t, driver, uuid1, addSlot, requireLogVolume)
 
 	// check the device is umounted.
 	mountpath := driver.mountpoint(uuid1)
 	if driver.isDeviceMountToPath(mountpath) {
-		t.Fatalf("device is still mounted to %s", mountpath)
 		runlsblk()
 		rundf()
+		t.Fatalf("device is still mounted to %s", mountpath)
 	}
 
 	// test again with volume name as uuid+index
-	volumeMountTest(t, driver, uuid1+"-0")
+	addSlot = true
+	volumeMountTest(t, driver, uuid1, addSlot, requireLogVolume)
 
 	// create the 2nd service
 	service2 := "service2"
@@ -175,14 +275,14 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool) {
 	driver2 := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.ifname = "lo"
 
-	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, member)
+	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, member, requireLogVolume)
 
 	// check the device is umounted.
 	mountpath = driver.mountpoint(uuid2)
 	if driver.isDeviceMountToPath(mountpath) {
-		t.Fatalf("device is still mounted to %s", mountpath)
 		runlsblk()
 		rundf()
+		t.Fatalf("device is still mounted to %s", mountpath)
 	}
 }
 
@@ -386,8 +486,7 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 }
 
 func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) {
-	svcslot := svcuuid + "-1"
-	path := defaultRoot + "/" + svcuuid
+	path := filepath.Join(defaultRoot, svcuuid)
 
 	r := volume.Request{Name: svcuuid}
 	p := driver.Get(r)
@@ -423,6 +522,7 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 	}
 
 	// test serviceuuid-index
+	svcslot := svcuuid + "-1"
 	r = volume.Request{Name: svcslot}
 	p = driver.Get(r)
 	if len(p.Err) != 0 || p.Volume == nil || p.Volume.Name != svcslot {
@@ -435,34 +535,100 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 	}
 }
 
-func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string) {
+func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string, addSlot bool, requireLogVolume bool) {
+	name := svcUUID
+	logName := svcUUID + common.NameSeparator + common.LogDevicePathSuffix
+	if addSlot {
+		name += "-0"
+		logName += "-0"
+	}
+	mountpath := driver.mountpoint(svcUUID)
+	logmountpath := driver.mountpoint(svcUUID + common.NameSeparator + common.LogDevicePathSuffix)
+
 	// mount the volume
-	mreq := volume.MountRequest{Name: svcUUID}
+	mreq := volume.MountRequest{Name: name}
 	mresp := driver.Mount(mreq)
 	if len(mresp.Err) != 0 {
-		t.Fatalf("failed to mount volume", svcUUID, "error", mresp.Err)
+		t.Fatalf("failed to mount volume", name, "error", mresp.Err)
+	}
+	if requireLogVolume {
+		mreq = volume.MountRequest{Name: logName}
+		mresp = driver.Mount(mreq)
+		if len(mresp.Err) != 0 {
+			t.Fatalf("failed to mount volume", logName, "error", mresp.Err)
+		}
 	}
 
 	expecterr := false
 	// volume mounted, unmount before exit
-	defer unmount(svcUUID, driver, t, expecterr)
+	defer unmount(svcUUID, driver, t, expecterr, requireLogVolume)
+
+	// check volume is mounted
+	if !driver.isDeviceMountToPath(mountpath) {
+		runlsblk()
+		rundf()
+		t.Fatalf("device is not mounted to %s", mountpath)
+	}
+	if requireLogVolume {
+		if !driver.isDeviceMountToPath(logmountpath) {
+			runlsblk()
+			rundf()
+			t.Fatalf("log device is not mounted to %s", logmountpath)
+		}
+	}
 
 	// mount again to test the multiple mounts on the same volume
+	mreq = volume.MountRequest{Name: name}
 	mresp = driver.Mount(mreq)
 	if len(mresp.Err) != 0 {
 		t.Fatalf("failed to mount volume", svcUUID, "error", mresp.Err)
 	}
+	if requireLogVolume {
+		mreq = volume.MountRequest{Name: logName}
+		mresp = driver.Mount(mreq)
+		if len(mresp.Err) != 0 {
+			t.Fatalf("failed to mount volume", logName, "error", mresp.Err)
+		}
+	}
 
 	// volume mounted, unmount before exit
-	defer unmount(svcUUID, driver, t, expecterr)
+	defer unmount(svcUUID, driver, t, expecterr, requireLogVolume)
+
+	// check volume is mounted
+	if !driver.isDeviceMountToPath(mountpath) {
+		runlsblk()
+		rundf()
+		t.Fatalf("device is not mounted to %s", mountpath)
+	}
+	if requireLogVolume {
+		if !driver.isDeviceMountToPath(logmountpath) {
+			runlsblk()
+			rundf()
+			t.Fatalf("log device is not mounted to %s", logmountpath)
+		}
+	}
 
 	// get volume
-	req := volume.Request{Name: svcUUID}
+	req := volume.Request{Name: name}
 	resp := driver.Get(req)
 	if len(resp.Err) != 0 {
 		t.Fatalf("failed to get volume", svcUUID, "error", resp.Err)
 	}
-	glog.Infoln("get volume", svcUUID, "resp", resp)
+	glog.Infoln("get volume", svcUUID, "resp", resp, resp.Volume)
+	if resp.Volume.Mountpoint != mountpath {
+		t.Fatalf("expect mount point %s, get %s", mountpath, resp.Volume.Mountpoint)
+	}
+	if requireLogVolume {
+		logreq := volume.Request{Name: logName}
+		resp = driver.Get(logreq)
+		if len(resp.Err) != 0 {
+			t.Fatalf("failed to get log volume", logName, "error", resp.Err)
+		}
+		glog.Infoln("get log volume", logName, "resp", resp, resp.Volume)
+		if resp.Volume.Mountpoint != logmountpath {
+			t.Fatalf("expect mount point %s, get %s", logmountpath, resp.Volume.Mountpoint)
+		}
+	}
 
 	// list volume
 	resp = driver.List(req)
@@ -478,27 +644,45 @@ func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string)
 }
 
 func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *FireCampVolumeDriver,
-	driver2 *FireCampVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember) {
+	driver2 *FireCampVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember, requireLogVolume bool) {
+	name := svcUUID
+	logName := svcUUID + common.NameSeparator + common.LogDevicePathSuffix
+
 	// mount the volume
-	mreq := volume.MountRequest{Name: svcUUID}
+	mreq := volume.MountRequest{Name: name}
 	mresp := driver.Mount(mreq)
 	if len(mresp.Err) != 0 {
-		t.Fatalf("failed to mount volume", svcUUID, "error", mresp.Err)
+		t.Fatalf("failed to mount volume", name, "error", mresp.Err)
+	}
+	if requireLogVolume {
+		mreq = volume.MountRequest{Name: logName}
+		mresp = driver.Mount(mreq)
+		if len(mresp.Err) != 0 {
+			t.Fatalf("failed to mount volume", logName, "error", mresp.Err)
+		}
 	}
 
 	expecterr := true
 	// volume mounted, unmount before exit
-	defer unmount(svcUUID, driver2, t, expecterr)
+	defer unmount(svcUUID, driver2, t, expecterr, requireLogVolume)
 
 	// mount again to test the multiple mounts on the same volume
+	mreq = volume.MountRequest{Name: name}
 	mresp = driver.Mount(mreq)
 	if len(mresp.Err) != 0 {
-		t.Fatalf("failed to mount volume", svcUUID, "error", mresp.Err)
+		t.Fatalf("failed to mount volume", name, "error", mresp.Err)
+	}
+	if requireLogVolume {
+		mreq = volume.MountRequest{Name: logName}
+		mresp = driver.Mount(mreq)
+		if len(mresp.Err) != 0 {
+			t.Fatalf("failed to mount volume", logName, "error", mresp.Err)
+		}
 	}
 
 	// volume mounted, unmount before exit
-	defer unmount(svcUUID, driver2, t, expecterr)
-	defer serverIns.DetachVolume(ctx, member.Volumes.PrimaryVolumeID, member.ContainerInstanceID, member.Volumes.PrimaryDeviceName)
+	defer unmount(svcUUID, driver2, t, expecterr, requireLogVolume)
+	defer driver2.detachVolumes(ctx, member, "requuid")
 
 	// get volume
 	req := volume.Request{Name: svcUUID}
@@ -506,14 +690,14 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 	if len(resp.Err) != 0 {
 		t.Fatalf("failed to get volume", svcUUID, "error", resp.Err)
 	}
-	glog.Infoln("get volume", svcUUID, "resp", resp)
+	glog.Infoln("get volume", svcUUID, "resp", resp.Volume)
 
 	// list volume
 	resp = driver.List(req)
 	if len(resp.Err) != 0 {
 		t.Fatalf("failed to list volumes, error", resp.Err)
 	}
-	glog.Infoln("list volumes", resp)
+	glog.Infoln("list volumes", resp.Volumes)
 
 	// show misc info
 	//runblkid("/dev/loop0")
@@ -521,16 +705,30 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 	//runlsblk()
 }
 
-func unmount(svcUUID string, driver *FireCampVolumeDriver, t *testing.T, expecterr bool) {
+func unmount(svcUUID string, driver *FireCampVolumeDriver, t *testing.T, expecterr bool, requireLogVolume bool) {
+	if requireLogVolume {
+		ureq := volume.UnmountRequest{Name: svcUUID + common.NameSeparator + common.LogDevicePathSuffix}
+		uresp := driver.Unmount(ureq)
+		if expecterr {
+			if len(uresp.Err) == 0 {
+				t.Fatalf("failed to unmount log volume", svcUUID, "error", uresp.Err)
+			}
+		} else {
+			if len(uresp.Err) != 0 {
+				t.Fatalf("failed to unmount log volume", svcUUID, "error", uresp.Err)
+			}
+		}
+	}
+
 	ureq := volume.UnmountRequest{Name: svcUUID}
 	uresp := driver.Unmount(ureq)
 	if expecterr {
 		if len(uresp.Err) == 0 {
-			t.Fatalf("failed to unmount volume", svcUUID, "error", uresp.Err)
+			t.Fatalf("failed to unmount primary volume", svcUUID, "error", uresp.Err)
 		}
 	} else {
 		if len(uresp.Err) != 0 {
-			t.Fatalf("failed to unmount volume", svcUUID, "error", uresp.Err)
+			t.Fatalf("failed to unmount primary volume", svcUUID, "error", uresp.Err)
 		}
 	}
 }

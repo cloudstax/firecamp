@@ -1075,7 +1075,7 @@ func (d *FireCampVolumeDriver) attachVolumes(ctx context.Context, member *common
 	}
 
 	if len(vols.LogVolumeID) != 0 {
-		err := d.serverIns.AttachVolume(ctx, vols.PrimaryVolumeID, member.ServerInstanceID, vols.PrimaryDeviceName)
+		err := d.serverIns.AttachVolume(ctx, vols.LogVolumeID, member.ServerInstanceID, vols.LogDeviceName)
 		if err != nil {
 			glog.Errorln("attach the log volume error", err, "requuid", requuid, member.Volumes, member)
 			d.serverIns.DetachVolume(ctx, vols.PrimaryVolumeID, member.ServerInstanceID, vols.PrimaryDeviceName)
