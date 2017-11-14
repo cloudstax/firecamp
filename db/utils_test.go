@@ -19,8 +19,8 @@ func TestDBUtils(t *testing.T) {
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: 1,
 		},
-		LogDeviceName: "dev-2",
-		LogVolume: common.ServiceVolume{
+		JournalDeviceName: "dev-2",
+		JournalVolume: common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: 1,
 		},

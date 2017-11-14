@@ -219,8 +219,8 @@ func TestServiceAttrs(t *testing.T) {
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 			},
-			LogDeviceName: devPrefix + "log" + c,
-			LogVolume: common.ServiceVolume{
+			JournalDeviceName: devPrefix + "journal" + c,
+			JournalVolume: common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 			},

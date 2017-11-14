@@ -271,8 +271,8 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		PortMappings:  req.PortMappings,
 		Replicas:      req.Replicas,
 	}
-	if req.LogVolume != nil {
-		createOpts.LogContainerPath = req.LogContainerPath
+	if req.JournalVolume != nil {
+		createOpts.JournalContainerPath = req.JournalContainerPath
 	}
 
 	zones := make(map[string]bool)

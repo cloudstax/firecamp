@@ -77,8 +77,8 @@ func GenPbServiceVolumes(svol *common.ServiceVolumes) *pb.ServiceVolumes {
 	return &pb.ServiceVolumes{
 		PrimaryDeviceName: svol.PrimaryDeviceName,
 		PrimaryVolume:     GenPbServiceVolume(&(svol.PrimaryVolume)),
-		LogDeviceName:     svol.LogDeviceName,
-		LogVolume:         GenPbServiceVolume(&(svol.LogVolume)),
+		JournalDeviceName:     svol.JournalDeviceName,
+		JournalVolume:         GenPbServiceVolume(&(svol.JournalVolume)),
 	}
 }
 
@@ -111,8 +111,8 @@ func GenDbServiceVolumes(svol *pb.ServiceVolumes) *common.ServiceVolumes {
 	return &common.ServiceVolumes{
 		PrimaryDeviceName: svol.PrimaryDeviceName,
 		PrimaryVolume:     *GenDbServiceVolume(svol.PrimaryVolume),
-		LogDeviceName:     svol.LogDeviceName,
-		LogVolume:         *GenDbServiceVolume(svol.LogVolume),
+		JournalDeviceName:     svol.JournalDeviceName,
+		JournalVolume:         *GenDbServiceVolume(svol.JournalVolume),
 	}
 }
 
@@ -143,8 +143,8 @@ func EqualServiceVolume(v1 *pb.ServiceVolume, v2 *pb.ServiceVolume) bool {
 func EqualServiceVolumes(v1 *pb.ServiceVolumes, v2 *pb.ServiceVolumes) bool {
 	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
 		EqualServiceVolume(v1.PrimaryVolume, v2.PrimaryVolume) &&
-		v1.LogDeviceName == v2.LogDeviceName &&
-		EqualServiceVolume(v1.LogVolume, v2.LogVolume) {
+		v1.JournalDeviceName == v2.JournalDeviceName &&
+		EqualServiceVolume(v1.JournalVolume, v2.JournalVolume) {
 		return true
 	}
 	return false
@@ -158,11 +158,11 @@ func CopyServiceVolumes(v1 *pb.ServiceVolumes) *pb.ServiceVolumes {
 			VolumeSizeGB: v1.PrimaryVolume.VolumeSizeGB,
 			Iops:         v1.PrimaryVolume.Iops,
 		},
-		LogDeviceName: v1.LogDeviceName,
-		LogVolume: &pb.ServiceVolume{
-			VolumeType:   v1.LogVolume.VolumeType,
-			VolumeSizeGB: v1.LogVolume.VolumeSizeGB,
-			Iops:         v1.LogVolume.Iops,
+		JournalDeviceName: v1.JournalDeviceName,
+		JournalVolume: &pb.ServiceVolume{
+			VolumeType:   v1.JournalVolume.VolumeType,
+			VolumeSizeGB: v1.JournalVolume.VolumeSizeGB,
+			Iops:         v1.JournalVolume.Iops,
 		},
 	}
 }
@@ -204,8 +204,8 @@ func GenPbMemberVolumes(vols *common.MemberVolumes) *pb.MemberVolumes {
 	return &pb.MemberVolumes{
 		PrimaryVolumeID:   vols.PrimaryVolumeID,
 		PrimaryDeviceName: vols.PrimaryDeviceName,
-		LogVolumeID:       vols.LogVolumeID,
-		LogDeviceName:     vols.LogDeviceName,
+		JournalVolumeID:       vols.JournalVolumeID,
+		JournalDeviceName:     vols.JournalDeviceName,
 	}
 }
 
@@ -245,8 +245,8 @@ func GenDbMemberVolumes(vols *pb.MemberVolumes) common.MemberVolumes {
 	return common.MemberVolumes{
 		PrimaryVolumeID:   vols.PrimaryVolumeID,
 		PrimaryDeviceName: vols.PrimaryDeviceName,
-		LogVolumeID:       vols.LogVolumeID,
-		LogDeviceName:     vols.LogDeviceName,
+		JournalVolumeID:       vols.JournalVolumeID,
+		JournalDeviceName:     vols.JournalDeviceName,
 	}
 }
 
@@ -281,8 +281,8 @@ func EqualMemberConfig(c1 []*pb.MemberConfig, c2 []*pb.MemberConfig) bool {
 func EqualsMemberVolumes(v1 *pb.MemberVolumes, v2 *pb.MemberVolumes) bool {
 	return (v1.PrimaryVolumeID == v2.PrimaryVolumeID &&
 		v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
-		v1.LogVolumeID == v2.LogVolumeID &&
-		v1.LogDeviceName == v2.LogDeviceName)
+		v1.JournalVolumeID == v2.JournalVolumeID &&
+		v1.JournalDeviceName == v2.JournalDeviceName)
 }
 
 func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bool) bool {
@@ -358,8 +358,8 @@ func CopyMemberVolumes(v1 *pb.MemberVolumes) *pb.MemberVolumes {
 	return &pb.MemberVolumes{
 		PrimaryVolumeID:   v1.PrimaryVolumeID,
 		PrimaryDeviceName: v1.PrimaryDeviceName,
-		LogVolumeID:       v1.LogVolumeID,
-		LogDeviceName:     v1.LogDeviceName,
+		JournalVolumeID:       v1.JournalVolumeID,
+		JournalDeviceName:     v1.JournalDeviceName,
 	}
 }
 

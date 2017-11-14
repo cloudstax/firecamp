@@ -232,8 +232,8 @@ func (s *ManageService) ListServiceVolumes(ctx context.Context, cluster string, 
 
 	for _, m := range members {
 		serviceVolumes = append(serviceVolumes, m.Volumes.PrimaryVolumeID)
-		if len(m.Volumes.LogVolumeID) != 0 {
-			serviceVolumes = append(serviceVolumes, m.Volumes.LogVolumeID)
+		if len(m.Volumes.JournalVolumeID) != 0 {
+			serviceVolumes = append(serviceVolumes, m.Volumes.JournalVolumeID)
 		}
 	}
 
@@ -390,8 +390,8 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		glog.V(1).Infoln("deleted serviceMember, requuid", requuid, m)
 
 		volIDs = append(volIDs, m.Volumes.PrimaryVolumeID)
-		if len(m.Volumes.LogVolumeID) != 0 {
-			volIDs = append(volIDs, m.Volumes.LogVolumeID)
+		if len(m.Volumes.JournalVolumeID) != 0 {
+			volIDs = append(volIDs, m.Volumes.JournalVolumeID)
 		}
 	}
 	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
@@ -432,16 +432,16 @@ func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMemb
 	// Checked the volume driver log, looks volume driver only received the “Get” request and
 	// returned volume not mounted. No unmount call to the volume driver.
 
-	// detach the log volume
-	if len(m.Volumes.LogVolumeID) != 0 {
-		volState, err := s.serverIns.GetVolumeState(ctx, m.Volumes.LogVolumeID)
+	// detach the journal volume
+	if len(m.Volumes.JournalVolumeID) != 0 {
+		volState, err := s.serverIns.GetVolumeState(ctx, m.Volumes.JournalVolumeID)
 		if err != nil && err != common.ErrNotFound {
 			glog.Errorln("GetVolumeState error", err, "requuid", requuid, m)
 			return err
 		}
 		if volState == server.VolumeStateInUse || volState == server.VolumeStateAttaching {
 			glog.Errorln("the service volume is still in-use or attaching, detach it, requuid", requuid, m)
-			err = s.serverIns.DetachVolume(ctx, m.Volumes.LogVolumeID, m.ServerInstanceID, m.Volumes.LogDeviceName)
+			err = s.serverIns.DetachVolume(ctx, m.Volumes.JournalVolumeID, m.ServerInstanceID, m.Volumes.JournalDeviceName)
 			if err != nil {
 				glog.Errorln("DetachVolume error", err, "requuid", requuid, m)
 				return err
@@ -477,13 +477,13 @@ func (s *ManageService) deleteDevices(ctx context.Context, sattr *common.Service
 	}
 	glog.Infoln("deleted primary device, requuid", requuid, sattr.Volumes, sattr)
 
-	if len(sattr.Volumes.LogDeviceName) != 0 {
-		err = s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.LogDeviceName)
+	if len(sattr.Volumes.JournalDeviceName) != 0 {
+		err = s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.JournalDeviceName)
 		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("delete log device error", err, "requuid", requuid, sattr.Volumes, sattr)
+			glog.Errorln("delete journal device error", err, "requuid", requuid, sattr.Volumes, sattr)
 			return err
 		}
-		glog.Infoln("deleted log device, requuid", requuid, sattr.Volumes, sattr)
+		glog.Infoln("deleted journal device, requuid", requuid, sattr.Volumes, sattr)
 	}
 
 	return nil
@@ -566,18 +566,18 @@ func (s *ManageService) createServiceVolumes(ctx context.Context, req *manage.Cr
 		PrimaryVolume:     *req.Volume,
 	}
 
-	if req.LogVolume != nil {
+	if req.JournalVolume != nil {
 		excludeDevice = primaryDevName
-		logDevName, err := s.createDevice(ctx, req.Service.Cluster, req.Service.ServiceName, excludeDevice, requuid)
+		journalDevName, err := s.createDevice(ctx, req.Service.Cluster, req.Service.ServiceName, excludeDevice, requuid)
 		if err != nil {
-			glog.Errorln("create log device error", err, "requuid", requuid, req.Service)
+			glog.Errorln("create journal device error", err, "requuid", requuid, req.Service)
 			return nil, err
 		}
 
-		glog.Infoln("created log device", logDevName, "requuid", requuid, req.Service)
+		glog.Infoln("created journal device", journalDevName, "requuid", requuid, req.Service)
 
-		svols.LogDeviceName = logDevName
-		svols.LogVolume = *req.LogVolume
+		svols.JournalDeviceName = journalDevName
+		svols.JournalVolume = *req.JournalVolume
 	}
 
 	return svols, nil
@@ -882,10 +882,10 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 			return errors.New("wait volume created error: " + err.Error())
 		}
 
-		if len(member.Volumes.LogVolumeID) != 0 {
-			err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.LogVolumeID)
+		if len(member.Volumes.JournalVolumeID) != 0 {
+			err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.JournalVolumeID)
 			if err != nil {
-				glog.Errorln("wait log volume created error", err, "requuid", requuid, member.Volumes, member)
+				glog.Errorln("wait journal volume created error", err, "requuid", requuid, member.Volumes, member)
 				return errors.New("wait volume created error: " + err.Error())
 			}
 		}
@@ -948,22 +948,22 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		PrimaryDeviceName: sattr.Volumes.PrimaryDeviceName,
 	}
 
-	if len(sattr.Volumes.LogDeviceName) != 0 {
-		volOpts.VolumeType = sattr.Volumes.LogVolume.VolumeType
-		volOpts.VolumeSizeGB = sattr.Volumes.LogVolume.VolumeSizeGB
-		volOpts.Iops = sattr.Volumes.LogVolume.Iops
+	if len(sattr.Volumes.JournalDeviceName) != 0 {
+		volOpts.VolumeType = sattr.Volumes.JournalVolume.VolumeType
+		volOpts.VolumeSizeGB = sattr.Volumes.JournalVolume.VolumeSizeGB
+		volOpts.Iops = sattr.Volumes.JournalVolume.Iops
 
-		// create the log device
+		// create the journal device
 		volID, err = s.serverIns.CreateVolume(ctx, volOpts)
 		if err != nil {
-			glog.Errorln("create the log volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
+			glog.Errorln("create the journal volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
 			return nil, err
 		}
 
-		glog.Infoln("created log volume", volID, "az", az, "requuid", requuid, sattr)
+		glog.Infoln("created journal volume", volID, "az", az, "requuid", requuid, sattr)
 
-		mvols.LogVolumeID = volID
-		mvols.LogDeviceName = sattr.Volumes.LogDeviceName
+		mvols.JournalVolumeID = volID
+		mvols.JournalDeviceName = sattr.Volumes.JournalDeviceName
 	}
 
 	member = db.CreateInitialServiceMember(sattr.ServiceUUID, memberName, az, mvols, staticIP, cfgs)

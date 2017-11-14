@@ -22,9 +22,9 @@ const (
 	// Task types
 	TaskTypeInit = "init"
 
-	// The log volume name prefix, the log volume name will be log-serviceuuid,
-	// the mount path will be /mnt/log-serviceuuid
-	LogVolumeNamePrefix = "log"
+	// The journal volume name prefix, the journal volume name will be journal-serviceuuid,
+	// the mount path will be /mnt/journal-serviceuuid
+	JournalVolumeNamePrefix = "journal"
 
 	// General Purpose SSD
 	VolumeTypeGPSSD = "gp2"
@@ -120,9 +120,9 @@ type ServiceVolumes struct {
 	PrimaryDeviceName string
 	PrimaryVolume     ServiceVolume
 
-	// The LogDeviceName could be empty if service only needs one volume.
-	LogDeviceName string
-	LogVolume     ServiceVolume
+	// The JournalDeviceName could be empty if service only needs one volume.
+	JournalDeviceName string
+	JournalVolume     ServiceVolume
 }
 
 // ServiceVolume contains the volume parameters.
@@ -143,7 +143,7 @@ type ServiceMember struct {
 	LastModified        int64
 
 	// The volumes of one member. One member could have multiple volumes.
-	// For example, one for DB data, the other for log.
+	// For example, one for DB data, the other for journal.
 	Volumes MemberVolumes
 
 	// The static IP assigned to this member
@@ -161,13 +161,13 @@ type MemberVolumes struct {
 	// The primary device will be mounted to /mnt/serviceuuid on the host and /data in the container
 	PrimaryDeviceName string
 
-	// The possible log volume to store the service's data log
-	LogVolumeID string
-	// The log device will be mounted to /mnt/serviceuuid-log on the host and /log in the container.
-	// We don't want to mount the log device under the primary device mount path, such as /mnt/serviceuuid/log.
-	// If there is some bug that the log device is not mounted, the service log will be directly written to
-	// the primary device. Later when the log device is mounted again, some logs will be temporary lost.
-	LogDeviceName string
+	// The possible journal volume to store the service's journal
+	JournalVolumeID string
+	// The journal device will be mounted to /mnt/journal-serviceuuid on the host and /journal in the container.
+	// We don't want to mount the journal device under the primary device mount path, such as /mnt/serviceuuid/journal.
+	// If there is some bug that the journal device is not mounted, the service journal will be directly written to
+	// the primary device. Later when the journal device is mounted again, some journal will be temporary lost.
+	JournalDeviceName string
 }
 
 // MemberConfig represents the configs of one member

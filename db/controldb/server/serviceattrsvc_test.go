@@ -62,8 +62,8 @@ func TestAttrReadWriter(t *testing.T) {
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 			},
-			LogDeviceName: devName + "log",
-			LogVolume: &pb.ServiceVolume{
+			JournalDeviceName: devName + "journal",
+			JournalVolume: &pb.ServiceVolume{
 				VolumeType:   common.VolumeTypeIOPSSSD,
 				VolumeSizeGB: 1,
 			},
@@ -185,8 +185,8 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(i),
 			},
-			LogDeviceName: devNamePrefix + "logs" + strconv.Itoa(i),
-			LogVolume: &pb.ServiceVolume{
+			JournalDeviceName: devNamePrefix + "journal" + strconv.Itoa(i),
+			JournalVolume: &pb.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(i),
 			},

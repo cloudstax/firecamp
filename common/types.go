@@ -54,7 +54,7 @@ const (
 	ContainerNameSuffix = "container"
 
 	DefaultContainerMountPath          = "/data"
-	DefaultLogVolumeContainerMountPath = "/log"
+	DefaultJournalVolumeContainerMountPath = "/journal"
 	DefaultConfigDir                   = "/conf"
 	DefaultConfigPath                  = DefaultContainerMountPath + DefaultConfigDir
 	DefaultConfigFileMode              = 0600

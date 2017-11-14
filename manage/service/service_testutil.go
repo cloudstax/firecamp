@@ -58,9 +58,9 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			replicaCfgs[i] = replicaCfg
 		}
 
-		var logVol *common.ServiceVolume
+		var journalVol *common.ServiceVolume
 		if idx == 2 {
-			logVol = &common.ServiceVolume{
+			journalVol = &common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 				Iops:         100,
@@ -75,7 +75,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount1),
 			Volume:          servicevol,
-			LogVolume:       logVol,
+			JournalVolume:       journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -101,12 +101,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
 		}
 		if idx == 2 {
-			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) == 0 {
-				t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.JournalDeviceName) == 0 {
+				t.Fatalf("expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 			}
 		} else {
-			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) != 0 {
-				t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.JournalDeviceName) != 0 {
+				t.Fatalf("not expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 			}
 		}
 
@@ -140,13 +140,13 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			}
 			if idx == 2 {
 				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-					len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
-					t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+					len(member.Volumes.JournalVolumeID) == 0 || len(member.Volumes.JournalDeviceName) == 0 {
+					t.Fatalf("expect journal device for service %s, service volumes %s", service, member.Volumes)
 				}
 			} else {
 				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-					len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
-					t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+					len(member.Volumes.JournalVolumeID) != 0 || len(member.Volumes.JournalDeviceName) != 0 {
+					t.Fatalf("not expect journal device for service %s, service volumes %s", service, member.Volumes)
 				}
 			}
 		}
@@ -194,9 +194,9 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			replicaCfgs[i] = replicaCfg
 		}
 
-		var logVol *common.ServiceVolume
+		var journalVol *common.ServiceVolume
 		if idx == 4 {
-			logVol = &common.ServiceVolume{
+			journalVol = &common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 				Iops:         100,
@@ -211,7 +211,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount2),
 			Volume:          servicevol,
-			LogVolume:       logVol,
+			JournalVolume:       journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -237,12 +237,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
 		}
 		if idx == 4 {
-			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) == 0 {
-				t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.JournalDeviceName) == 0 {
+				t.Fatalf("expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 			}
 		} else {
-			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.LogDeviceName) != 0 {
-				t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+			if len(sattr.Volumes.PrimaryDeviceName) == 0 || len(sattr.Volumes.JournalDeviceName) != 0 {
+				t.Fatalf("not expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 			}
 		}
 
@@ -276,13 +276,13 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			}
 			if idx == 4 {
 				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-					len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
-					t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+					len(member.Volumes.JournalVolumeID) == 0 || len(member.Volumes.JournalDeviceName) == 0 {
+					t.Fatalf("expect journal device for service %s, service volumes %s", service, member.Volumes)
 				}
 			} else {
 				if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-					len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
-					t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+					len(member.Volumes.JournalVolumeID) != 0 || len(member.Volumes.JournalDeviceName) != 0 {
+					t.Fatalf("not expect journal device for service %s, service volumes %s", service, member.Volumes)
 				}
 			}
 		}
@@ -422,7 +422,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 	}
 }
 
-func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS, serverIns *server.LoopServer, requireStaticIP bool, requireLogVolume bool) {
+func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, dnsIns dns.DNS, serverIns *server.LoopServer, requireStaticIP bool, requireJournalVolume bool) {
 	cluster := "cluster1"
 	az := "az-west"
 	servicePrefix := "service-"
@@ -468,8 +468,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		RequireStaticIP: requireStaticIP,
 		ReplicaConfigs:  replicaCfgs,
 	}
-	if requireLogVolume {
-		req.LogVolume = &common.ServiceVolume{
+	if requireJournalVolume {
+		req.JournalVolume = &common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: volSize,
 			Iops:         1,
@@ -495,13 +495,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if sattr.Volumes.PrimaryDeviceName != "/dev/loop1" {
 		t.Fatalf("expect primary device for service %s, service volumes %s", service, sattr.Volumes)
 	}
-	if requireLogVolume {
-		if sattr.Volumes.LogDeviceName != "/dev/loop2" {
-			t.Fatalf("expect log device for service %s, service volumes %s", service, sattr.Volumes)
+	if requireJournalVolume {
+		if sattr.Volumes.JournalDeviceName != "/dev/loop2" {
+			t.Fatalf("expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 		}
 	} else {
-		if len(sattr.Volumes.LogDeviceName) != 0 {
-			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		if len(sattr.Volumes.JournalDeviceName) != 0 {
+			t.Fatalf("not expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 		}
 	}
 	// list service members to verify
@@ -531,15 +531,15 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 				t.Fatalf("expect ip %s for member %s", ip, member)
 			}
 		}
-		if requireLogVolume {
+		if requireJournalVolume {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
-				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) == 0 || len(member.Volumes.JournalDeviceName) == 0 {
+				t.Fatalf("expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		} else {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
-				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) != 0 || len(member.Volumes.JournalDeviceName) != 0 {
+				t.Fatalf("not expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		}
 	}
@@ -551,7 +551,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev := "/dev/loop2"
-	if requireLogVolume {
+	if requireJournalVolume {
 		expectDev = "/dev/loop3"
 	}
 	if err != nil || dev != expectDev {
@@ -580,14 +580,14 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if sattr.Volumes.PrimaryDeviceName != expectDev {
 		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 	}
-	if requireLogVolume {
+	if requireJournalVolume {
 		expectDev = "/dev/loop4"
-		if sattr.Volumes.LogDeviceName != expectDev {
-			t.Fatalf("expect log device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+		if sattr.Volumes.JournalDeviceName != expectDev {
+			t.Fatalf("expect journal device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 		}
 	} else {
-		if len(sattr.Volumes.LogDeviceName) != 0 {
-			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		if len(sattr.Volumes.JournalDeviceName) != 0 {
+			t.Fatalf("not expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 		}
 	}
 	// list service members to verify
@@ -617,15 +617,15 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 				t.Fatalf("expect ip %s for member %s", ip, member)
 			}
 		}
-		if requireLogVolume {
+		if requireJournalVolume {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
-				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) == 0 || len(member.Volumes.JournalDeviceName) == 0 {
+				t.Fatalf("expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		} else {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
-				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) != 0 || len(member.Volumes.JournalDeviceName) != 0 {
+				t.Fatalf("not expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		}
 	}
@@ -637,7 +637,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev = "/dev/loop3"
-	if requireLogVolume {
+	if requireJournalVolume {
 		expectDev = "/dev/loop5"
 	}
 	if err != nil || dev != expectDev {
@@ -664,8 +664,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if svols.PrimaryDeviceName != expectDev {
 		t.Fatalf("expect device %s got %s", expectDev, svols.PrimaryDeviceName)
 	}
-	if requireLogVolume && svols.LogDeviceName != "/dev/loop6" {
-		t.Fatalf("expect log device /dev/loop6, get %s", svols.LogDeviceName)
+	if requireJournalVolume && svols.JournalDeviceName != "/dev/loop6" {
+		t.Fatalf("expect journal device /dev/loop6, get %s", svols.JournalDeviceName)
 	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
 		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP)
@@ -715,7 +715,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	service = servicePrefix + strconv.Itoa(idx)
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev = "/dev/loop4"
-	if requireLogVolume {
+	if requireJournalVolume {
 		expectDev = "/dev/loop7"
 	}
 	if err != nil || dev != expectDev {
@@ -735,13 +735,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			VolumeSizeGB: volSize,
 		},
 	}
-	if requireLogVolume {
-		logDev, err := s.createDevice(ctx, cluster, service, expectDev, "requuid")
-		if err != nil || logDev != "/dev/loop8" {
-			t.Fatalf("create log device error %s, expectDev /dev/loop8, got %s", err, logDev)
+	if requireJournalVolume {
+		journalDev, err := s.createDevice(ctx, cluster, service, expectDev, "requuid")
+		if err != nil || journalDev != "/dev/loop8" {
+			t.Fatalf("create journal device error %s, expectDev /dev/loop8, got %s", err, journalDev)
 		}
-		vols.LogDeviceName = logDev
-		vols.LogVolume = common.ServiceVolume{
+		vols.JournalDeviceName = journalDev
+		vols.JournalVolume = common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: volSize,
 			Iops:         1,
@@ -815,14 +815,14 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if sattr.Volumes.PrimaryDeviceName != expectDev {
 		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 	}
-	if requireLogVolume {
+	if requireJournalVolume {
 		expectDev = "/dev/loop8"
-		if sattr.Volumes.LogDeviceName != expectDev {
-			t.Fatalf("expect log device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
+		if sattr.Volumes.JournalDeviceName != expectDev {
+			t.Fatalf("expect journal device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 		}
 	} else {
-		if len(sattr.Volumes.LogDeviceName) != 0 {
-			t.Fatalf("not expect log device for service %s, service volumes %s", service, sattr.Volumes)
+		if len(sattr.Volumes.JournalDeviceName) != 0 {
+			t.Fatalf("not expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 		}
 	}
 	// list service members to verify
@@ -852,15 +852,15 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 				t.Fatalf("expect ip %s for member %s", ip, member)
 			}
 		}
-		if requireLogVolume {
+		if requireJournalVolume {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) == 0 || len(member.Volumes.LogDeviceName) == 0 {
-				t.Fatalf("expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) == 0 || len(member.Volumes.JournalDeviceName) == 0 {
+				t.Fatalf("expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		} else {
 			if len(member.Volumes.PrimaryVolumeID) == 0 || len(member.Volumes.PrimaryDeviceName) == 0 ||
-				len(member.Volumes.LogVolumeID) != 0 || len(member.Volumes.LogDeviceName) != 0 {
-				t.Fatalf("not expect log device for service %s, service volumes %s", service, member.Volumes)
+				len(member.Volumes.JournalVolumeID) != 0 || len(member.Volumes.JournalDeviceName) != 0 {
+				t.Fatalf("not expect journal device for service %s, service volumes %s", service, member.Volumes)
 			}
 		}
 	}

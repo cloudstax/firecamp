@@ -285,8 +285,8 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(i),
 			},
-			LogDeviceName: devNamePrefix + "log" + str,
-			LogVolume: common.ServiceVolume{
+			JournalDeviceName: devNamePrefix + "log" + str,
+			JournalVolume: common.ServiceVolume{
 				VolumeType:   common.VolumeTypeIOPSSSD,
 				VolumeSizeGB: int64(i),
 			},

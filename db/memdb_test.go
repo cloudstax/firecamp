@@ -180,8 +180,8 @@ func TestServiceAttr(t *testing.T) {
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(volSize + i),
 			},
-			LogDeviceName: devPrefix + "log" + c,
-			LogVolume: common.ServiceVolume{
+			JournalDeviceName: devPrefix + "journal" + c,
+			JournalVolume: common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: int64(volSize + i),
 			},

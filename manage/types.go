@@ -80,11 +80,11 @@ type CreateServiceRequest struct {
 	Replicas       int64
 	// The primary volume for the service data
 	Volume *common.ServiceVolume
-	// The log volume for the service journal
-	LogVolume *common.ServiceVolume
+	// The journal volume for the service journal
+	JournalVolume *common.ServiceVolume
 	// TODO remove ContainerPath, as the docker entrypoint script simply uses the default path
 	ContainerPath    string // The mount path inside container for the primary volume
-	LogContainerPath string // The mount path inside container for the log volume
+	JournalContainerPath string // The mount path inside container for the journal volume
 	PortMappings     []common.PortMapping
 	Envkvs           []*common.EnvKeyValuePair
 
@@ -192,7 +192,7 @@ type DeleteTaskRequest struct {
 type CatalogMongoDBOptions struct {
 	Replicas  int64
 	Volume    *common.ServiceVolume
-	LogVolume *common.ServiceVolume
+	JournalVolume *common.ServiceVolume
 
 	Admin       string
 	AdminPasswd string
@@ -209,7 +209,7 @@ type CatalogCreateMongoDBRequest struct {
 type CatalogPostgreSQLOptions struct {
 	Replicas  int64
 	Volume    *common.ServiceVolume
-	LogVolume *common.ServiceVolume
+	JournalVolume *common.ServiceVolume
 
 	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
 	ContainerImage string
@@ -231,7 +231,7 @@ type CatalogCreatePostgreSQLRequest struct {
 type CatalogCassandraOptions struct {
 	Replicas  int64
 	Volume    *common.ServiceVolume
-	LogVolume *common.ServiceVolume
+	JournalVolume *common.ServiceVolume
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.

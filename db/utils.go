@@ -108,8 +108,8 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 func EqualServiceVolumes(v1 *common.ServiceVolumes, v2 *common.ServiceVolumes) bool {
 	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
 		EqualServiceVolume(&(v1.PrimaryVolume), &(v2.PrimaryVolume)) &&
-		v1.LogDeviceName == v2.LogDeviceName &&
-		EqualServiceVolume(&(v1.LogVolume), &(v2.LogVolume)) {
+		v1.JournalDeviceName == v2.JournalDeviceName &&
+		EqualServiceVolume(&(v1.JournalVolume), &(v2.JournalVolume)) {
 		return true
 	}
 	return false
@@ -192,8 +192,8 @@ func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skip
 func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool {
 	if v1.PrimaryVolumeID == v2.PrimaryVolumeID &&
 		v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
-		v1.LogVolumeID == v2.LogVolumeID &&
-		v1.LogDeviceName == v2.LogDeviceName {
+		v1.JournalVolumeID == v2.JournalVolumeID &&
+		v1.JournalDeviceName == v2.JournalDeviceName {
 		return true
 	}
 	return false

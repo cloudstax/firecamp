@@ -71,8 +71,8 @@ func GenCallerID() string {
 	return uuid
 }
 
-func GetServiceLogVolumeName(serviceUUID string) string {
-	return common.LogVolumeNamePrefix + common.NameSeparator + serviceUUID
+func GetServiceJournalVolumeName(serviceUUID string) string {
+	return common.JournalVolumeNamePrefix + common.NameSeparator + serviceUUID
 }
 
 func GenServiceMemberName(serviceName string, index int64) string {

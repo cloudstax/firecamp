@@ -202,8 +202,8 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 		name := containersvc.GenVolumeSourceName(svcuuid, memberIndex)
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
-		if len(v.member.Volumes.LogVolumeID) != 0 {
-			logvolpath := utils.GetServiceLogVolumeName(svcuuid)
+		if len(v.member.Volumes.JournalVolumeID) != 0 {
+			logvolpath := utils.GetServiceJournalVolumeName(svcuuid)
 			name = containersvc.GenVolumeSourceName(logvolpath, memberIndex)
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
 		}
@@ -245,7 +245,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	ctx = utils.NewRequestContext(ctx, requuid)
 
 	// simply hold lock to avoid the possible concurrent mount.
-	// one service could have 2 volumes, one for data, the other for log.
+	// one service could have 2 volumes, one for data, the other for journal.
 	// one mount will mount both volumes, the other mount will increase the ref and return success.
 	d.volumesLock.Lock()
 	defer d.volumesLock.Unlock()
@@ -457,8 +457,8 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 	}
 
 	if len(strs) == 2 {
-		if strs[0] == common.LogVolumeNamePrefix {
-			// log-serviceuuid
+		if strs[0] == common.JournalVolumeNamePrefix {
+			// journal-serviceuuid
 			return strs[1], name, -1, nil
 		}
 
@@ -470,12 +470,12 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 	}
 
 	if len(strs) == 3 {
-		if strs[0] == common.LogVolumeNamePrefix {
-			// log-serviceuuid-1
+		if strs[0] == common.JournalVolumeNamePrefix {
+			// journal-serviceuuid-1
 			memberIndex, err = strconv.ParseInt(strs[2], 10, 64)
 			// docker swarm task slot starts with 1, 2, ...
 			memberIndex--
-			return strs[1], utils.GetServiceLogVolumeName(strs[1]), memberIndex, err
+			return strs[1], utils.GetServiceJournalVolumeName(strs[1]), memberIndex, err
 		}
 	}
 
@@ -834,10 +834,10 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 	}
 
 	// detach volume from the last owner
-	if len(member.Volumes.LogVolumeID) != 0 {
-		err = d.detachVolumeFromLastOwner(ctx, member.Volumes.LogVolumeID, member.ServerInstanceID, member.Volumes.LogDeviceName, requuid)
+	if len(member.Volumes.JournalVolumeID) != 0 {
+		err = d.detachVolumeFromLastOwner(ctx, member.Volumes.JournalVolumeID, member.ServerInstanceID, member.Volumes.JournalDeviceName, requuid)
 		if err != nil {
-			glog.Errorln("detach log volume from last owner error", err, "requuid", requuid, member.Volumes, member)
+			glog.Errorln("detach journal volume from last owner error", err, "requuid", requuid, member.Volumes, member)
 			return nil, err
 		}
 	}
@@ -1074,10 +1074,10 @@ func (d *FireCampVolumeDriver) attachVolumes(ctx context.Context, member *common
 		return err
 	}
 
-	if len(vols.LogVolumeID) != 0 {
-		err := d.serverIns.AttachVolume(ctx, vols.LogVolumeID, member.ServerInstanceID, vols.LogDeviceName)
+	if len(vols.JournalVolumeID) != 0 {
+		err := d.serverIns.AttachVolume(ctx, vols.JournalVolumeID, member.ServerInstanceID, vols.JournalDeviceName)
 		if err != nil {
-			glog.Errorln("attach the log volume error", err, "requuid", requuid, member.Volumes, member)
+			glog.Errorln("attach the journal volume error", err, "requuid", requuid, member.Volumes, member)
 			d.serverIns.DetachVolume(ctx, vols.PrimaryVolumeID, member.ServerInstanceID, vols.PrimaryDeviceName)
 			return err
 		}
@@ -1096,10 +1096,10 @@ func (d *FireCampVolumeDriver) attachVolumes(ctx context.Context, member *common
 		return err
 	}
 
-	if len(vols.LogVolumeID) != 0 {
-		err = d.serverIns.WaitVolumeAttached(ctx, vols.LogVolumeID)
+	if len(vols.JournalVolumeID) != 0 {
+		err = d.serverIns.WaitVolumeAttached(ctx, vols.JournalVolumeID)
 		if err != nil {
-			glog.Errorln("the log volume is still not attached, requuid", requuid, vols, member)
+			glog.Errorln("the journal volume is still not attached, requuid", requuid, vols, member)
 			// send request to detach the volume
 			d.detachVolumes(ctx, member, requuid)
 			return err
@@ -1118,10 +1118,10 @@ func (d *FireCampVolumeDriver) detachVolumes(ctx context.Context, member *common
 		glog.Errorln("detach the primary volume error", err, "requuid", requuid, vols, member)
 	}
 
-	if len(member.Volumes.LogVolumeID) != 0 {
-		err = d.serverIns.DetachVolume(ctx, vols.LogVolumeID, d.serverInfo.GetLocalInstanceID(), vols.LogDeviceName)
+	if len(member.Volumes.JournalVolumeID) != 0 {
+		err = d.serverIns.DetachVolume(ctx, vols.JournalVolumeID, d.serverInfo.GetLocalInstanceID(), vols.JournalDeviceName)
 		if err != nil {
-			glog.Errorln("detach the log volume error", err, "requuid", requuid, vols, member)
+			glog.Errorln("detach the journal volume error", err, "requuid", requuid, vols, member)
 		}
 	}
 }
@@ -1137,12 +1137,12 @@ func (d *FireCampVolumeDriver) formatVolumes(ctx context.Context, member *common
 		}
 	}
 
-	if len(member.Volumes.LogVolumeID) != 0 {
-		formatted := d.isFormatted(member.Volumes.LogDeviceName)
+	if len(member.Volumes.JournalVolumeID) != 0 {
+		formatted := d.isFormatted(member.Volumes.JournalDeviceName)
 		if !formatted {
-			err := d.formatFS(member.Volumes.LogDeviceName)
+			err := d.formatFS(member.Volumes.JournalDeviceName)
 			if err != nil {
-				glog.Errorln("format the log device error", err, "requuid", requuid, member.Volumes)
+				glog.Errorln("format the journal device error", err, "requuid", requuid, member.Volumes)
 				return err
 			}
 		}
@@ -1161,17 +1161,17 @@ func (d *FireCampVolumeDriver) mountVolumes(ctx context.Context, member *common.
 	}
 	glog.Infoln("mount primary device to", primaryMountPath, "requuid", requuid, member.Volumes)
 
-	// mount the log volume
-	if len(member.Volumes.LogVolumeID) != 0 {
-		mpath := d.mountpoint(utils.GetServiceLogVolumeName(member.ServiceUUID))
-		err := d.mountFS(member.Volumes.LogDeviceName, mpath)
+	// mount the journal volume
+	if len(member.Volumes.JournalVolumeID) != 0 {
+		mpath := d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
+		err := d.mountFS(member.Volumes.JournalDeviceName, mpath)
 		if err != nil {
-			glog.Errorln("mount log device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
+			glog.Errorln("mount journal device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
 			// unmount the primary device. TODO if the unmount fails, manual retry may be required.
 			d.unmountFS(primaryMountPath)
 			return err
 		}
-		glog.Infoln("mount log device to", mpath, "requuid", requuid, member.Volumes)
+		glog.Infoln("mount journal device to", mpath, "requuid", requuid, member.Volumes)
 	}
 
 	return nil
@@ -1187,15 +1187,15 @@ func (d *FireCampVolumeDriver) umountVolumes(ctx context.Context, member *common
 		glog.Infoln("umount primary device from", mpath, "requuid", requuid, member.Volumes)
 	}
 
-	// umount the log volume
-	if len(member.Volumes.LogVolumeID) != 0 {
-		mpath = d.mountpoint(utils.GetServiceLogVolumeName(member.ServiceUUID))
+	// umount the journal volume
+	if len(member.Volumes.JournalVolumeID) != 0 {
+		mpath = d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
 		err1 := d.unmountFS(mpath)
 		if err1 != nil {
-			glog.Errorln("umount log device error", err1, "requuid", requuid, "mount path", mpath, member.Volumes)
+			glog.Errorln("umount journal device error", err1, "requuid", requuid, "mount path", mpath, member.Volumes)
 			return err1
 		}
-		glog.Infoln("umount log device from", mpath, "requuid", requuid, member.Volumes)
+		glog.Infoln("umount journal device from", mpath, "requuid", requuid, member.Volumes)
 	}
 
 	return err

@@ -33,23 +33,23 @@ import (
 // The catalog service command tool to create/query the catalog service.
 
 var (
-	op              = flag.String("op", "", "The operation type, such as create-service")
-	serviceType     = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
-	cluster         = flag.String("cluster", "default", "The ECS cluster")
-	serverURL       = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
-	region          = flag.String("region", "", "The target AWS region")
-	service         = flag.String("service-name", "", "The target service name in ECS")
-	replicas        = flag.Int64("replicas", 3, "The number of replicas for the service")
-	volType         = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
-	volIops         = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
-	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	logVolType      = flag.String("log-volume-type", "", "The service journal EBS volume type: gp2|io1|st1")
-	logVolIops      = flag.Int64("log-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
-	logVolSizeGB    = flag.Int64("log-volume-size", 0, "The service journal EBS volume size, unit: GB")
-	maxCPUUnits     = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
-	reserveCPUUnits = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
-	maxMemMB        = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
-	reserveMemMB    = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
+	op               = flag.String("op", "", "The operation type, such as create-service")
+	serviceType      = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
+	cluster          = flag.String("cluster", "default", "The ECS cluster")
+	serverURL        = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
+	region           = flag.String("region", "", "The target AWS region")
+	service          = flag.String("service-name", "", "The target service name in ECS")
+	replicas         = flag.Int64("replicas", 3, "The number of replicas for the service")
+	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
+	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
+	volSizeGB        = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
+	journalVolType   = flag.String("journal-volume-type", "", "The service journal EBS volume type: gp2|io1|st1")
+	journalVolIops   = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
+	journalVolSizeGB = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
+	maxCPUUnits      = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
+	reserveCPUUnits  = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
+	maxMemMB         = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
+	reserveMemMB     = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
 	admin       = flag.String("admin", "admin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
@@ -220,21 +220,21 @@ func main() {
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
 	case opCreate:
-		var logVol *common.ServiceVolume
-		if len(*logVolType) != 0 {
-			logVol = &common.ServiceVolume{
-				VolumeType:   *logVolType,
-				VolumeSizeGB: *logVolSizeGB,
-				Iops:         *logVolIops,
+		var journalVol *common.ServiceVolume
+		if len(*journalVolType) != 0 {
+			journalVol = &common.ServiceVolume{
+				VolumeType:   *journalVolType,
+				VolumeSizeGB: *journalVolSizeGB,
+				Iops:         *journalVolIops,
 			}
 		}
 		switch *serviceType {
 		case catalog.CatalogService_MongoDB:
-			createMongoDBService(ctx, cli, logVol)
+			createMongoDBService(ctx, cli, journalVol)
 		case catalog.CatalogService_PostgreSQL:
-			createPostgreSQLService(ctx, cli, logVol)
+			createPostgreSQLService(ctx, cli, journalVol)
 		case catalog.CatalogService_Cassandra:
-			createCassandraService(ctx, cli, logVol)
+			createCassandraService(ctx, cli, journalVol)
 		case catalog.CatalogService_ZooKeeper:
 			createZkService(ctx, cli)
 		case catalog.CatalogService_Kafka:
@@ -296,7 +296,7 @@ func main() {
 	}
 }
 
-func createMongoDBService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
+func createMongoDBService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -325,9 +325,9 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, logVol 
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
-			LogVolume:   logVol,
-			Admin:       *admin,
-			AdminPasswd: *adminPasswd,
+			JournalVolume: journalVol,
+			Admin:         *admin,
+			AdminPasswd:   *adminPasswd,
 		},
 	}
 
@@ -349,7 +349,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, logVol 
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createCassandraService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
+func createCassandraService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -378,7 +378,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, logVo
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
-			LogVolume: logVol,
+			JournalVolume: journalVol,
 		},
 	}
 
@@ -939,7 +939,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, logVol *common.ServiceVolume) {
+func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -968,7 +968,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, logV
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
-			LogVolume:      logVol,
+			JournalVolume:  journalVol,
 			ContainerImage: *pgContainerImage,
 			AdminPasswd:    *adminPasswd,
 			ReplUser:       *pgReplUser,

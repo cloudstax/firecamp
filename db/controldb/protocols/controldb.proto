@@ -114,8 +114,8 @@ message ServiceAttr {
 message ServiceVolumes {
   string primaryDeviceName = 1;
   ServiceVolume primaryVolume = 2;
-  string logDeviceName = 3;
-  ServiceVolume logVolume = 4;
+  string journalDeviceName = 3;
+  ServiceVolume journalVolume = 4;
 }
 
 message ServiceVolume {
@@ -179,8 +179,8 @@ message UpdateServiceMemberResponse {
 message MemberVolumes {
   string primaryVolumeID = 1;
   string primaryDeviceName = 2;
-  string logVolumeID = 3;
-  string logDeviceName = 4;
+  string journalVolumeID = 3;
+  string journalDeviceName = 4;
 }
 
 message MemberConfig {

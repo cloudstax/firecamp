@@ -608,22 +608,22 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 		}
 	}
 
-	if len(opts.LogContainerPath) != 0 {
-		// create the log volume for service journal
-		logVolumeName := utils.GetServiceLogVolumeName(opts.Common.ServiceUUID)
-		logVolume := &ecs.Volume{
+	if len(opts.JournalContainerPath) != 0 {
+		// create the journal volume for service journal
+		journalVolumeName := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
+		journalVolume := &ecs.Volume{
 			Host: &ecs.HostVolumeProperties{
-				SourcePath: aws.String(logVolumeName),
+				SourcePath: aws.String(journalVolumeName),
 			},
-			Name: aws.String(logVolumeName),
+			Name: aws.String(journalVolumeName),
 		}
-		params.Volumes = append(params.Volumes, logVolume)
+		params.Volumes = append(params.Volumes, journalVolume)
 
-		logMountPoint := &ecs.MountPoint{
-			ContainerPath: aws.String(opts.LogContainerPath),
-			SourceVolume:  aws.String(logVolumeName),
+		journalMountPoint := &ecs.MountPoint{
+			ContainerPath: aws.String(opts.JournalContainerPath),
+			SourceVolume:  aws.String(journalVolumeName),
 		}
-		params.ContainerDefinitions[0].MountPoints = append(params.ContainerDefinitions[0].MountPoints, logMountPoint)
+		params.ContainerDefinitions[0].MountPoints = append(params.ContainerDefinitions[0].MountPoints, journalMountPoint)
 	}
 
 	if len(opts.PortMappings) != 0 {
