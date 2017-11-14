@@ -68,6 +68,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 	}
+	if opts.LogVolume != nil {
+		req.LogVolume = opts.LogVolume
+		req.LogContainerPath = common.DefaultLogVolumeContainerMountPath
+	}
 	return req, nil
 }
 

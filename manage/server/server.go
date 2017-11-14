@@ -271,6 +271,9 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		PortMappings:  req.PortMappings,
 		Replicas:      req.Replicas,
 	}
+	if req.LogVolume != nil {
+		createOpts.LogContainerPath = req.LogContainerPath
+	}
 
 	zones := make(map[string]bool)
 	for _, replCfg := range req.ReplicaConfigs {

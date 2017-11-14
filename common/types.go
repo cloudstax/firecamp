@@ -53,10 +53,11 @@ const (
 
 	ContainerNameSuffix = "container"
 
-	DefaultContainerMountPath = "/data"
-	DefaultConfigDir          = "/conf"
-	DefaultConfigPath         = DefaultContainerMountPath + DefaultConfigDir
-	DefaultConfigFileMode     = 0600
+	DefaultContainerMountPath          = "/data"
+	DefaultLogVolumeContainerMountPath = "/log"
+	DefaultConfigDir                   = "/conf"
+	DefaultConfigPath                  = DefaultContainerMountPath + DefaultConfigDir
+	DefaultConfigFileMode              = 0600
 
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB

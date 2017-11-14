@@ -83,9 +83,10 @@ type CreateServiceRequest struct {
 	// The log volume for the service journal
 	LogVolume *common.ServiceVolume
 	// TODO remove ContainerPath, as the docker entrypoint script simply uses the default path
-	ContainerPath string // The mount path inside container
-	PortMappings  []common.PortMapping
-	Envkvs        []*common.EnvKeyValuePair
+	ContainerPath    string // The mount path inside container for the primary volume
+	LogContainerPath string // The mount path inside container for the log volume
+	PortMappings     []common.PortMapping
+	Envkvs           []*common.EnvKeyValuePair
 
 	RegisterDNS     bool
 	RequireStaticIP bool

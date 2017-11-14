@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -588,6 +589,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 	params := s.createRegisterTaskDefinitionInput(taskDefFamily, opts.Common)
 
 	if len(opts.ContainerPath) != 0 {
+		// create the primary volume for service data
 		params.Volumes = []*ecs.Volume{
 			{
 				Host: &ecs.HostVolumeProperties{
@@ -604,6 +606,24 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 				//ReadOnly:      aws.Bool(true),
 			},
 		}
+	}
+
+	if len(opts.LogContainerPath) != 0 {
+		// create the log volume for service journal
+		logVolumeName := utils.GetServiceLogVolumeName(opts.Common.ServiceUUID)
+		logVolume := &ecs.Volume{
+			Host: &ecs.HostVolumeProperties{
+				SourcePath: aws.String(logVolumeName),
+			},
+			Name: aws.String(logVolumeName),
+		}
+		params.Volumes = append(params.Volumes, logVolume)
+
+		logMountPoint := &ecs.MountPoint{
+			ContainerPath: aws.String(opts.LogContainerPath),
+			SourceVolume:  aws.String(logVolumeName),
+		}
+		params.ContainerDefinitions[0].MountPoints = append(params.ContainerDefinitions[0].MountPoints, logMountPoint)
 	}
 
 	if len(opts.PortMappings) != 0 {

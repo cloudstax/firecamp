@@ -35,10 +35,11 @@ type Placement struct {
 }
 
 type CreateServiceOptions struct {
-	Common        *CommonOptions
-	ContainerPath string // The mount path inside container
-	PortMappings  []common.PortMapping
-	Replicas      int64
+	Common           *CommonOptions
+	ContainerPath    string // The mount path inside container for the service data
+	LogContainerPath string // The mount path inside container for the service journal
+	PortMappings     []common.PortMapping
+	Replicas         int64
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
