@@ -281,16 +281,16 @@ func (s *AWSEcs) IsServiceExist(ctx context.Context, cluster string, service str
 	if len(resp.Services) == 1 && *(resp.Services[0].ServiceName) == service {
 		status := *(resp.Services[0].Status)
 		if status == serviceStatusActive || status == serviceStatusDraining {
-			glog.Infoln("service exists", service, "cluster", cluster, "resp", resp)
+			glog.Infoln("service exists", service, "cluster", cluster)
 			return true, nil
 		}
 		if status == serviceStatusInactive {
-			glog.Infoln("service is inactive", service, "cluster", cluster, "resp", resp)
+			glog.Infoln("service is inactive", service, "cluster", cluster)
 			return false, nil
 		}
 	}
 
-	glog.Errorln("internal error, service", service, "cluster", cluster, "resp", resp)
+	glog.Errorln("internal error, service", service, "cluster", cluster)
 	return false, common.ErrInternal
 }
 
@@ -413,13 +413,13 @@ func (s *AWSEcs) CreateCluster(ctx context.Context, cluster string) error {
 	}
 
 	svc := ecs.New(s.sess)
-	resp, err := svc.CreateCluster(params)
+	_, err := svc.CreateCluster(params)
 	if err != nil {
 		glog.Errorln("CreateCluster error", err, cluster)
 		return err
 	}
 
-	glog.Infoln("create cluster done", cluster, "resp", resp)
+	glog.Infoln("create cluster done", cluster)
 	return nil
 }
 
@@ -495,7 +495,7 @@ func (s *AWSEcs) CreateService(ctx context.Context, opts *containersvc.CreateSer
 		return common.ErrInternal
 	}
 
-	glog.Infoln("create service done, taskDef", taskDef, "resp", resp, "options", opts.Common, opts.Replicas)
+	glog.Infoln("create service done, taskDef", taskDef, "options", opts.Common, opts.Replicas)
 	return nil
 }
 
@@ -648,7 +648,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 
 	revision := *(resp.TaskDefinition.Revision)
 	taskDef = taskDefFamily + taskFamilyRevisionSep + strconv.FormatInt(revision, 10)
-	glog.Infoln("create TaskDefinition done", taskDef, "resp", resp)
+	glog.Infoln("create TaskDefinition done", taskDef)
 	return taskDef, nil
 }
 
@@ -690,7 +690,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForTask(ctx context.Context, taskDefFami
 
 	revision := *(resp.TaskDefinition.Revision)
 	taskDef = taskDefFamily + taskFamilyRevisionSep + strconv.FormatInt(revision, 10)
-	glog.Infoln("create TaskDefinition done", taskDef, "resp", resp)
+	glog.Infoln("create TaskDefinition done", taskDef)
 	return taskDef, false, nil
 }
 
@@ -869,13 +869,13 @@ func (s *AWSEcs) DeleteCluster(ctx context.Context, cluster string) error {
 	}
 
 	svc := ecs.New(s.sess)
-	resp, err := svc.DeleteCluster(params)
+	_, err := svc.DeleteCluster(params)
 	if err != nil {
 		glog.Errorln("DeleteCluster error", err, cluster)
 		return err
 	}
 
-	glog.Infoln("delete cluster done", cluster, "resp", resp)
+	glog.Infoln("delete cluster done", cluster)
 	return nil
 }
 
@@ -936,13 +936,13 @@ func (s *AWSEcs) deregisterTaskDefinition(ctx context.Context, taskDef string) e
 	}
 
 	svc := ecs.New(s.sess)
-	resp, err := svc.DeregisterTaskDefinition(params)
+	_, err := svc.DeregisterTaskDefinition(params)
 	if err != nil {
 		glog.Errorln("DeregisterTaskDefinition error", err, taskDef)
 		return err
 	}
 
-	glog.Infoln("deregister task definition done", taskDef, "resp", resp)
+	glog.Infoln("deregister task definition done", taskDef)
 	return nil
 }
 
@@ -1195,7 +1195,7 @@ func (s *AWSEcs) describeTasks(ctx context.Context, cluster string, taskArn stri
 	}
 
 	task = resp.Tasks[0]
-	glog.Infoln("DescribeTasks succeeds, cluster", cluster, "task", task)
+	glog.Infoln("DescribeTasks succeeds, cluster", cluster, "taskArn", taskArn)
 	return task, nil
 }
 

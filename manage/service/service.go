@@ -929,7 +929,7 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{
 				Key:   "Name",
-				Value: common.SystemName + common.NameSeparator + sattr.ClusterName + common.NameSeparator + memberName,
+				Value: sattr.ClusterName + common.NameSeparator + memberName,
 			},
 		},
 	}

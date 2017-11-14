@@ -34,14 +34,14 @@ func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error
 		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create service", svc, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created service", svc, "requuid", requuid, "resp", resp)
+	glog.Infoln("created service", svc, "requuid", requuid)
 	return nil
 }
 
@@ -116,7 +116,7 @@ func (d *DynamoDB) DeleteService(ctx context.Context, clusterName string, servic
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted service", serviceName, "cluster", clusterName, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted service", serviceName, "cluster", clusterName, "requuid", requuid)
 	return nil
 }
 

@@ -101,12 +101,11 @@ func (s *AWSEc2) DetachVolume(ctx context.Context, volID string, instanceID stri
 			return server.ErrVolumeIncorrectState
 		}
 		glog.Errorln("failed to DetachVolume", volID, "instance", instanceID,
-			"device", devName, "error", err, "requuid", requuid)
+			"device", devName, "error", err, "requuid", requuid, "resp", resp)
 		return err
 	}
 
-	glog.Infoln("DetachVolume success", volID, "instance", instanceID,
-		"device", devName, "requuid", requuid, "resp", resp)
+	glog.Infoln("DetachVolume success", volID, "instance", instanceID, "device", devName, "requuid", requuid)
 	return nil
 }
 
@@ -227,7 +226,7 @@ func (s *AWSEc2) describeVolumes(ctx context.Context, volID string) (*ec2.Descri
 		return nil, common.ErrInternal
 	}
 
-	glog.Infoln("describe volume", volID, "requuid", requuid, "resp", resp)
+	glog.Infoln("describe volume", volID, "state", resp.Volumes[0].State, "requuid", requuid)
 	return resp, nil
 }
 
@@ -255,8 +254,7 @@ func (s *AWSEc2) AttachVolume(ctx context.Context, volID string, instanceID stri
 		return err
 	}
 
-	glog.Infoln("AttachVolume success", volID, "instance", instanceID,
-		"device", devName, "requuid", requuid, "resp", resp)
+	glog.Infoln("AttachVolume success", volID, "instance", instanceID, "device", devName, "requuid", requuid)
 	return nil
 }
 
@@ -342,7 +340,7 @@ func (s *AWSEc2) CreateVolume(ctx context.Context, opts *server.CreateVolumeOpti
 
 	volID = *(resp.VolumeId)
 
-	glog.Infoln("created volume", volID, "requuid", requuid, "resp", resp)
+	glog.Infoln("created volume", volID, "requuid", requuid)
 	return volID, nil
 }
 

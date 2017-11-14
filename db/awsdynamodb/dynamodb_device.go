@@ -33,14 +33,14 @@ func (d *DynamoDB) CreateDevice(ctx context.Context, dev *common.Device) error {
 		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create device", dev, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created device", dev, "requuid", requuid, "resp", resp)
+	glog.Infoln("created device", dev, "requuid", requuid)
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (d *DynamoDB) GetDevice(ctx context.Context, clusterName string, deviceName
 
 	dev = db.CreateDevice(clusterName, deviceName, *(resp.Item[ServiceName].S))
 
-	glog.Infoln("get device", dev, "requuid", requuid, "resp", resp)
+	glog.Infoln("get device", dev, "requuid", requuid)
 	return dev, nil
 }
 
@@ -113,7 +113,7 @@ func (d *DynamoDB) DeleteDevice(ctx context.Context, clusterName string, deviceN
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted device", deviceName, "cluster", clusterName, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted device", deviceName, "cluster", clusterName, "requuid", requuid)
 	return nil
 }
 

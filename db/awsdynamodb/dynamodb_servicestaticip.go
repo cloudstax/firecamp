@@ -43,14 +43,14 @@ func (d *DynamoDB) CreateServiceStaticIP(ctx context.Context, serviceip *common.
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create service static ip", serviceip, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created service static ip", serviceip, "requuid", requuid, "resp", resp)
+	glog.Infoln("created service static ip", serviceip, "requuid", requuid)
 	return nil
 }
 
@@ -100,14 +100,14 @@ func (d *DynamoDB) UpdateServiceStaticIP(ctx context.Context, oldIP *common.Serv
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	resp, err := dbsvc.UpdateItem(params)
+	_, err := dbsvc.UpdateItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to update service static ip", oldIP, "to", newIP, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("updated service static ip", oldIP, "to", newIP, "requuid", requuid, "resp", resp)
+	glog.Infoln("updated service static ip", oldIP, "to", newIP, "requuid", requuid)
 	return nil
 }
 
@@ -183,6 +183,6 @@ func (d *DynamoDB) DeleteServiceStaticIP(ctx context.Context, staticIP string) e
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted service static ip", staticIP, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted service static ip", staticIP, "requuid", requuid)
 	return nil
 }

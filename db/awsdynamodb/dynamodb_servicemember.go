@@ -70,14 +70,14 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 		ConditionExpression:    aws.String(tableSortKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err = dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create serviceMember", member, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created serviceMember", member, "requuid", requuid, "resp", resp)
+	glog.Infoln("created serviceMember", member, "requuid", requuid)
 	return nil
 }
 
@@ -165,14 +165,14 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	resp, err := dbsvc.UpdateItem(params)
+	_, err = dbsvc.UpdateItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to update serviceMember", oldMember, "to", newMember, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("updated serviceMember", oldMember, "to", newMember, "requuid", requuid, "resp", resp)
+	glog.Infoln("updated serviceMember", oldMember, "to", newMember, "requuid", requuid)
 	return nil
 }
 
@@ -330,7 +330,7 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted serviceMember", memberName, "serviceUUID", serviceUUID, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted serviceMember", memberName, "serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
 }
 

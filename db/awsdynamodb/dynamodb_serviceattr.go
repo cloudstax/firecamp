@@ -73,14 +73,14 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err = dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to create service attr", attr, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created service attr", attr, "requuid", requuid, "resp", resp)
+	glog.Infoln("created service attr", attr, "requuid", requuid)
 	return nil
 }
 
@@ -120,14 +120,14 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
-	resp, err := dbsvc.UpdateItem(params)
+	_, err := dbsvc.UpdateItem(params)
 
 	if err != nil {
 		glog.Errorln("failed to update service attr", oldAttr, "to", newAttr, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("updated service attr", oldAttr, "to", newAttr, "requuid", requuid, "resp", resp)
+	glog.Infoln("updated service attr", oldAttr, "to", newAttr, "requuid", requuid)
 	return nil
 }
 
@@ -228,6 +228,6 @@ func (d *DynamoDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) er
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted service attr", serviceUUID, "requuid", requuid, "resp", resp)
+	glog.Infoln("deleted service attr", serviceUUID, "requuid", requuid)
 	return nil
 }

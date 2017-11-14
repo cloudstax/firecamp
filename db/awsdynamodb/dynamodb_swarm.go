@@ -49,14 +49,14 @@ func (d *DynamoDB) TakeInitManager(ctx context.Context, clusterName string, addr
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("take init manager error", err, "cluster", clusterName, "addr", addr, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("take the init manager, cluster", clusterName, "addr", addr, "requuid", requuid, "resp", resp)
+	glog.Infoln("take the init manager, cluster", clusterName, "addr", addr, "requuid", requuid)
 	return nil
 }
 
@@ -122,14 +122,14 @@ func (d *DynamoDB) CreateJoinToken(ctx context.Context, clusterName string, toke
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-	resp, err := dbsvc.PutItem(params)
+	_, err := dbsvc.PutItem(params)
 
 	if err != nil {
 		glog.Errorln("create swarm token error", err, "role", role, "cluster", clusterName, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created swarm token, role", role, "requuid", requuid, "resp", resp)
+	glog.Infoln("created swarm token, role", role, "requuid", requuid)
 	return nil
 }
 
