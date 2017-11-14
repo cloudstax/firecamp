@@ -203,7 +203,7 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
 		if len(v.member.Volumes.LogVolumeID) != 0 {
-			logvolpath := svcuuid + common.NameSeparator + common.LogDevicePathSuffix
+			logvolpath := common.LogDevicePathPrefix + common.NameSeparator + svcuuid
 			name = containersvc.GenVolumeSourceName(logvolpath, memberIndex)
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
 		}
@@ -457,9 +457,9 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 	}
 
 	if len(strs) == 2 {
-		if strs[1] == common.LogDevicePathSuffix {
-			// serviceuuid-log
-			return strs[0], name, -1, nil
+		if strs[0] == common.LogDevicePathPrefix {
+			// log-serviceuuid
+			return strs[1], name, -1, nil
 		}
 
 		// serviceuuid-1
@@ -470,12 +470,12 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 	}
 
 	if len(strs) == 3 {
-		if strs[1] == common.LogDevicePathSuffix {
-			// serviceuuid-log-1
+		if strs[0] == common.LogDevicePathPrefix {
+			// log-serviceuuid-1
 			memberIndex, err = strconv.ParseInt(strs[2], 10, 64)
 			// docker swarm task slot starts with 1, 2, ...
 			memberIndex--
-			return strs[0], strs[0] + common.NameSeparator + common.LogDevicePathSuffix, memberIndex, err
+			return strs[1], common.LogDevicePathPrefix + common.NameSeparator + strs[1], memberIndex, err
 		}
 	}
 
@@ -1163,7 +1163,7 @@ func (d *FireCampVolumeDriver) mountVolumes(ctx context.Context, member *common.
 
 	// mount the log volume
 	if len(member.Volumes.LogVolumeID) != 0 {
-		mpath := d.mountpoint(member.ServiceUUID + common.NameSeparator + common.LogDevicePathSuffix)
+		mpath := d.mountpoint(common.LogDevicePathPrefix + common.NameSeparator + member.ServiceUUID)
 		err := d.mountFS(member.Volumes.LogDeviceName, mpath)
 		if err != nil {
 			glog.Errorln("mount log device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
@@ -1189,7 +1189,7 @@ func (d *FireCampVolumeDriver) umountVolumes(ctx context.Context, member *common
 
 	// umount the log volume
 	if len(member.Volumes.LogVolumeID) != 0 {
-		mpath = d.mountpoint(member.ServiceUUID + common.NameSeparator + common.LogDevicePathSuffix)
+		mpath = d.mountpoint(common.LogDevicePathPrefix + common.NameSeparator + member.ServiceUUID)
 		err1 := d.unmountFS(mpath)
 		if err1 != nil {
 			glog.Errorln("umount log device error", err1, "requuid", requuid, "mount path", mpath, member.Volumes)
