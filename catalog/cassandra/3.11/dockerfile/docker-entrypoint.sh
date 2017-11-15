@@ -2,6 +2,7 @@
 set -e
 
 DATA_DIR=/data
+COMMITLOG_DIR=/journal
 CONFIG_DIR=$DATA_DIR/conf
 CASSANDRA_YAML_FILE=$CONFIG_DIR/cassandra.yaml
 CASSANDRA_RACKDC_FILE=$CONFIG_DIR/cassandra-rackdc.properties
@@ -18,6 +19,11 @@ if [ ! -d "$CONFIG_DIR" ]; then
   echo "error: $CONFIG_DIR not exist." >&2
   exit 1
 fi
+if [ ! -d "$COMMITLOG_DIR" ]; then
+  echo "error: $COMMITLOG_DIR not exist." >&2
+  exit 1
+fi
+
 if [ ! -f "$CASSANDRA_YAML_FILE" ]; then
   echo "error: $CASSANDRA_YAML_FILE not exist." >&2
   exit 1
@@ -45,6 +51,10 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
+  commitlogdiruser=$(stat -c "%U" $COMMITLOG_DIR)
+  if [ "$commitlogdiruser" != "cassandra" ]; then
+	  chown -R cassandra $COMMITLOG_DIR
+  fi
   datadiruser=$(stat -c "%U" $DATA_DIR)
   if [ "$datadiruser" != "cassandra" ]; then
 	  chown -R cassandra $DATA_DIR

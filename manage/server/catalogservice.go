@@ -196,6 +196,12 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	err = mongodbcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.Options)
+		return err.Error(), http.StatusBadRequest
+	}
+
 	// create the service in the control plane and the container platform
 	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource)
@@ -682,6 +688,12 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 		glog.Errorln("CatalogCreateCassandraRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = cascatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.Options)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform

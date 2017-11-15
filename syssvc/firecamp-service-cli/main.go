@@ -305,6 +305,10 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 		fmt.Println("please specify the valid replica number and volume size")
 		os.Exit(-1)
 	}
+	if journalVol == nil {
+		fmt.Println("please specify the separate journal volume for MongoDB")
+		os.Exit(-1)
+	}
 
 	req := &manage.CatalogCreateMongoDBRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -356,6 +360,10 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
+		os.Exit(-1)
+	}
+	if journalVol == nil {
+		fmt.Println("please specify the separate journal volume for Cassandra")
 		os.Exit(-1)
 	}
 
@@ -946,6 +954,10 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 	}
 	if *replicas == 0 || *volSizeGB == 0 {
 		fmt.Println("please specify the valid replica number and volume size")
+		os.Exit(-1)
+	}
+	if journalVol == nil {
+		fmt.Println("please specify the separate journal volume for PostgreSQL")
 		os.Exit(-1)
 	}
 

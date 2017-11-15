@@ -3,6 +3,7 @@ package mongodbcatalog
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,15 @@ const (
 // 1) One MongoDB ReplicaSet has 1 primary and 2 secondary replicas across 3 availability zones.
 // 2) Listen on the standard port, 27017.
 // 3) The ReplicaSetName is the service name.
+
+// ValidateRequest checks if the request is valid
+func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
+	if req.Options.JournalVolume == nil {
+		return errors.New("mongodb should have separate volume for journal")
+	}
+
+	return nil
+}
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,

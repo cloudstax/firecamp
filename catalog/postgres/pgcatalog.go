@@ -38,6 +38,23 @@ func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
 	if len(req.Options.ContainerImage) != 0 && req.Options.ContainerImage != ContainerImage && req.Options.ContainerImage != PostGISContainerImage {
 		return errors.New("only postgres and postgres-postgis images are supported")
 	}
+	// use the dedicated volume for the WAL logs could help on performance.
+	// But it introduces the potential data consistency risks.
+	// When the server crashes, it might happen that some pages in the data
+	// files are written only partially (because most disks have a much smaller
+	// blocksize than the PostgreSQL page size (which is 8k by default)).
+	// If the WAL volume happens to crash, server cannot reply the WAL log,
+	// those half-written pages will not be repaired. Would need to restore database
+	// from the backups.
+	// While, this is probably ok. If WAL log is on the same volume with data, the volume
+	// is possible to crash as well. Then we will have to recover database from the backups.
+	// https://www.postgresql.org/docs/9.6/static/wal-internals.html
+	// https://wiki.postgresql.org/wiki/Installation_and_Administration_Best_practices#WAL_Directory
+	// https://www.postgresql.org/message-id/4573FEE0.2010406@logix-tt.com
+	if req.Options.JournalVolume == nil {
+		return errors.New("postgres should have separate volume for journal")
+	}
+
 	return nil
 }
 

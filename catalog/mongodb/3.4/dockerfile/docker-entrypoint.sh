@@ -3,6 +3,8 @@ set -e
 
 datadir=/data
 dbdir=$datadir/db
+dbjournallinkdir=$datadir/db/journal
+journaldir=/journal
 configdbdir=$datadir/configdb
 confdir=$datadir/conf
 cfgfile=$confdir/mongod.conf
@@ -15,6 +17,10 @@ if [ ! -d "$datadir" ]; then
 fi
 if [ ! -d "$confdir" ]; then
   echo "error: $confdir not exist." >&2
+  exit 1
+fi
+if [ ! -d "$journaldir" ]; then
+  echo "error: $journaldir not exist." >&2
   exit 1
 fi
 
@@ -41,6 +47,10 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
+  journaldiruser=$(stat -c "%U" $journaldir)
+  if [ "$journaldiruser" != "mongodb" ]; then
+    chown -R mongodb $journaldir
+  fi
   datadiruser=$(stat -c "%U" $datadir)
   if [ "$datadiruser" != "mongodb" ]; then
     chown -R mongodb $datadir
@@ -52,7 +62,11 @@ if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
 
-#echo "$dbdir $configdbdir and $cfgfile exist"
+# symlink mongodb journal directory
+# https://docs.mongodb.com/manual/core/journaling/#journal-directory
+if [ ! -L $dbjournallinkdir ]; then
+  ln -s $journaldir $dbjournallinkdir
+fi
 
 # load the sys config file
 . $syscfgfile

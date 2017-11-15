@@ -5,6 +5,7 @@ set -e
 PGDIR=/data
 # the db data dir
 export PGDATA=$PGDIR/db
+PGJournalDir=/journal
 # the target configs, these files will be copied to $PGDATA after initdb at primary or basebackup at standby
 PGConfDIR=$PGDIR/conf
 PGConf=$PGConfDIR/postgresql.conf
@@ -19,9 +20,13 @@ ROLE_STANDBY="standby"
 syscfgfile=$PGConfDIR/sys.conf
 
 SanityCheck() {
-  # sanity check to make sure the volume is mounted to $PGDATA.
+  # sanity check to make sure the volume is mounted to $PGDIR.
   if [ ! -d "$PGDIR" ]; then
     echo "error: $PGDIR not exist. Please make sure the volume is mounted to $PGDIR." >&2
+    exit 1
+  fi
+  if [ ! -d "$PGJournalDir" ]; then
+    echo "error: $PGJournalDir not exist. Please make sure the volume is mounted to $PGJournalDir." >&2
     exit 1
   fi
 
@@ -36,12 +41,6 @@ SanityCheck() {
   if [ ! -f "$syscfgfile" ]; then
     echo "error: $syscfgfile not exist." >&2
     exit 1
-  fi
-
-  # create the db data dir if not exist
-  if [ ! -d "$PGDATA" ]; then
-    mkdir $PGDATA
-    chmod 700 $PGDATA
   fi
 }
 
@@ -106,10 +105,15 @@ SanityCheck
 
 # allow the container to be started with `--user`
 if [ "$(id -u)" = '0' ]; then
+  journaldiruser=$(stat -c "%U" $PGJournalDir)
+  if [ "$journaldiruser" != "$PGUSER" ]; then
+    echo "chown -R $PGUSER $PGJournalDir"
+    chown -R $PGUSER "$PGJournalDir"
+  fi
   pgdiruser=$(stat -c "%U" $PGDIR)
   if [ "$pgdiruser" != "$PGUSER" ]; then
-  	echo "chown -R $PGUSER $PGDIR"
-  	chown -R $PGUSER "$PGDIR"
+    echo "chown -R $PGUSER $PGDIR"
+    chown -R $PGUSER "$PGDIR"
   fi
   chown -R $PGUSER "$PGConfDIR"
 
@@ -156,6 +160,14 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
     InitStandbyDB
   fi
 fi
+
+if [ ! -L $PGDATA/pg_xlog ]; then
+  # use separate disk for PG WAL logs.
+  mv $PGDATA/pg_xlog/* $PGJournalDir
+  rm -fr $PGDATA/pg_xlog
+  ln -s $PGJournalDir $PGDATA/pg_xlog
+fi
+
 
 # Currently the PG conf files will not be changed once created.
 # So no need to copy over the conf files to $PGDATA

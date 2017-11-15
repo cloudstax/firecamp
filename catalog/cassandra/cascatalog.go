@@ -1,6 +1,7 @@
 package cascatalog
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -32,6 +33,15 @@ const (
 // The default Cassandra catalog service. By default,
 // 1) Have equal number of nodes on 3 availability zones.
 // 2) Listen on the standard ports, 7000 7001 7199 9042 9160.
+
+// ValidateRequest checks if the request is valid
+func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
+	if req.Options.JournalVolume == nil {
+		return errors.New("cassandra should have separate volume for journal")
+	}
+
+	return nil
+}
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
@@ -201,7 +211,7 @@ cluster_name: '%s'
 hints_directory: /data/hints
 data_file_directories:
     - /data/data
-commitlog_directory: /data/commitlog
+commitlog_directory: /journal
 saved_caches_directory: /data/saved_caches
 
 seed_provider:
