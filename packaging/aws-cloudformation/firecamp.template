@@ -70,6 +70,11 @@
       "Default":"3",
       "Description":"Number of instances to launch."
     },
+    "NodeAMIOS": {
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
+    },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
@@ -242,6 +247,9 @@
           "CFS3KeyPrefix": {
             "Ref": "CFS3KeyPrefix"
           },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
+          },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"
           }
@@ -317,6 +325,9 @@
           },
           "CFS3KeyPrefix": {
             "Ref": "CFS3KeyPrefix"
+          },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
           },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"

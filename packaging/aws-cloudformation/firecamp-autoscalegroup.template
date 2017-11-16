@@ -59,6 +59,11 @@
       "Default": "",
       "Description": "ID of the instance IAM Profile"
     },
+    "NodeAMIOS": {
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
+    },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
@@ -67,51 +72,56 @@
     }
   },
   "Mappings": {
+    "LinuxAMINameMap": {
+      "Amazon-Linux-HVM": {
+        "Code": "AMZNLINUXHVM"
+      }
+    },
     "AWSAMIRegionMap": {
       "AMI": {
-        "AMIID": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
+        "AMZNLINUXHVM": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
       },
       "ap-northeast-1": {
-        "AMIID": "ami-923d12f5"
+        "AMZNLINUXHVM": "ami-923d12f5"
       },
       "ap-northeast-2": {
-        "AMIID": "ami-9d15c7f3"
+        "AMZNLINUXHVM": "ami-9d15c7f3"
       },
       "ap-south-1": {
-        "AMIID": "ami-52c7b43d"
+        "AMZNLINUXHVM": "ami-52c7b43d"
       },
       "ap-southeast-1": {
-        "AMIID": "ami-fc5ae39f"
+        "AMZNLINUXHVM": "ami-fc5ae39f"
       },
       "ap-southeast-2": {
-        "AMIID": "ami-162c2575"
+        "AMZNLINUXHVM": "ami-162c2575"
       },
       "ca-central-1": {
-        "AMIID": "ami-0bd66a6f"
+        "AMZNLINUXHVM": "ami-0bd66a6f"
       },
       "eu-central-1": {
-        "AMIID": "ami-b968bad6"
+        "AMZNLINUXHVM": "ami-b968bad6"
       },
       "eu-west-1": {
-        "AMIID": "ami-01ccc867"
+        "AMZNLINUXHVM": "ami-01ccc867"
       },
       "eu-west-2": {
-        "AMIID": "ami-b6daced2"
+        "AMZNLINUXHVM": "ami-b6daced2"
       },
       "sa-east-1": {
-        "AMIID": "ami-37cfad5b"
+        "AMZNLINUXHVM": "ami-37cfad5b"
       },
       "us-east-1": {
-        "AMIID": "ami-c58c1dd3"
+        "AMZNLINUXHVM": "ami-c58c1dd3"
       },
       "us-east-2": {
-        "AMIID": "ami-4191b524"
+        "AMZNLINUXHVM": "ami-4191b524"
       },
       "us-west-1": {
-        "AMIID": "ami-7a85a01a"
+        "AMZNLINUXHVM": "ami-7a85a01a"
       },
       "us-west-2": {
-        "AMIID": "ami-4836a428"
+        "AMZNLINUXHVM": "ami-4836a428"
       }
     }
   },
@@ -190,7 +200,15 @@
             {
               "Ref":"AWS::Region"
             },
-            "AMIID"
+            {
+              "Fn::FindInMap": [
+                "LinuxAMINameMap",
+                {
+                  "Ref": "NodeAMIOS"
+                },
+                "Code"
+              ]
+            }
           ]
         },
         "SecurityGroups":[

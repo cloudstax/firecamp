@@ -51,6 +51,7 @@
             "CFS3KeyPrefix",
             "NumberOfManagers",
             "NumberOfNodes",
+            "NodeAMIOS",
             "NodeInstanceType"
           ]
         },
@@ -131,6 +132,9 @@
         },
         "NumberOfNodes": {
           "default": "Number of Container Worker Nodes"
+        },
+        "NodeAMIOS": {
+          "default": "Node AMI Type"
         },
         "NodeInstanceType": {
           "default": "Node Instance Type"
@@ -307,6 +311,14 @@
       "Type":"Number",
       "Default":"3",
       "Description":"Number of container instances to launch in the cluster."
+    },
+    "NodeAMIOS": {
+      "AllowedValues": [
+        "Amazon-Linux-HVM"
+      ],
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -797,6 +809,9 @@
           },
           "NumberOfNodes": {
             "Ref": "NumberOfNodes"
+          },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
           },
           "NodeInstanceType": {
             "Ref": "NodeInstanceType"

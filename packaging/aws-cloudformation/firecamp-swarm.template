@@ -72,6 +72,11 @@
         "Default": "firecamp/releases/latest/cf-templates",
         "Description": "The S3 key prefix"
     },
+    "NodeAMIOS": {
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
+    },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
@@ -165,6 +170,9 @@
           "NodeInstanceProfileID": {
             "Ref": "NodeInstanceProfileID"
           },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
+          },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"
           }
@@ -228,6 +236,9 @@
           },
           "NodeInstanceProfileID": {
             "Ref": "NodeInstanceProfileID"
+          },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
           },
           "NodeInstanceType":{
             "Ref": "NodeInstanceType"
