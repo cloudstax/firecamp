@@ -227,7 +227,7 @@ BuildCatalogImages() {
   echo
   target=$system"-consul"
   image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/consul/0.9.3/dockerfile/"
+  path="${TOPWD}/catalog/consul/1.0.0/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 

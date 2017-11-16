@@ -1,7 +1,7 @@
 FROM alpine:3.6
 
 # This is the release of Consul to pull in.
-ENV CONSUL_VERSION=0.9.3
+ENV CONSUL_VERSION=1.0.0
 
 # This is the release of https://github.com/hashicorp/docker-base to pull in order
 # to provide HashiCorp-built versions of basic utilities like dumb-init and gosu.
