@@ -13,8 +13,9 @@ import (
 )
 
 const (
+	defaultVersion = "1.0"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "consul:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "consul:" + defaultVersion
 
 	rpcPort      = 8300
 	serfLanPort  = 8301

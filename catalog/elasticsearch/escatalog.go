@@ -12,8 +12,9 @@ import (
 )
 
 const (
+	defaultVersion = "5.6"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "elasticsearch:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "elasticsearch:" + defaultVersion
 
 	// DefaultHeapMB is the default elasticsearch java heap size
 	DefaultHeapMB = 2048

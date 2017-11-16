@@ -16,10 +16,11 @@ import (
 )
 
 const (
+	defaultVersion = "4.0"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "redis:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "redis:" + defaultVersion
 	// InitContainerImage initializes the Redis cluster.
-	InitContainerImage = common.ContainerNamePrefix + "redis-init:" + common.Version
+	InitContainerImage = common.ContainerNamePrefix + "redis-init:" + defaultVersion
 
 	listenPort  = 6379
 	clusterPort = 16379

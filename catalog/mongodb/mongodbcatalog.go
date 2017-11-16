@@ -18,10 +18,11 @@ import (
 )
 
 const (
+	defaultVersion = "3.4"
 	// ContainerImage is the main MongoDB running container.
-	ContainerImage = common.ContainerNamePrefix + "mongodb:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "mongodb:" + defaultVersion
 	// InitContainerImage initializes the MongoDB ReplicaSet.
-	InitContainerImage = common.ContainerNamePrefix + "mongodb-init:" + common.Version
+	InitContainerImage = common.ContainerNamePrefix + "mongodb-init:" + defaultVersion
 
 	envReplicaSetName = "REPLICA_SET_NAME"
 	defaultPort       = int64(27017)

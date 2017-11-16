@@ -12,10 +12,11 @@ import (
 )
 
 const (
+	defaultVersion = "9.6"
 	// ContainerImage is the main PostgreSQL running container.
-	ContainerImage = common.ContainerNamePrefix + "postgres:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "postgres:" + defaultVersion
 	// PostGISContainerImage is the container image for PostgreSQL with PostGIS.
-	PostGISContainerImage = common.ContainerNamePrefix + "postgres-postgis:" + common.Version
+	PostGISContainerImage = common.ContainerNamePrefix + "postgres-postgis:" + defaultVersion
 
 	defaultPort = 5432
 

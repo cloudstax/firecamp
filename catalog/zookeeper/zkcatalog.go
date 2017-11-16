@@ -11,8 +11,9 @@ import (
 )
 
 const (
+	defaultVersion = "3.4"
 	// ContainerImage is the main ZooKeeper running container.
-	ContainerImage = common.ContainerNamePrefix + "zookeeper:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "zookeeper:" + defaultVersion
 
 	// ClientPort is the port at which the clients will connect
 	ClientPort      = 2181

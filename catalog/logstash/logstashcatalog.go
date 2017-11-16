@@ -12,10 +12,11 @@ import (
 )
 
 const (
+	defaultVersion = "5.6"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "logstash:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "logstash:" + defaultVersion
 	// InputCouchDBContainerImage is the container image for Logstash with the couchdb input plugin
-	InputCouchDBContainerImage = common.ContainerNamePrefix + "logstash-input-couchdb:" + common.Version
+	InputCouchDBContainerImage = common.ContainerNamePrefix + "logstash-input-couchdb:" + defaultVersion
 
 	// DefaultHeapMB is the default reserved memory size for Logstash
 	DefaultHeapMB = 2048

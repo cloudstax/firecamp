@@ -13,8 +13,9 @@ import (
 )
 
 const (
+	defaultVersion = "5.6"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "kibana:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "kibana:" + defaultVersion
 
 	// DefaultReserveMemoryMB is the default reserved memory size for Kibana
 	DefaultReserveMemoryMB = 2048

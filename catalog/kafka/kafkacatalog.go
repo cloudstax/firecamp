@@ -12,8 +12,9 @@ import (
 )
 
 const (
+	defaultVersion = "1.0"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "kafka:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "kafka:" + defaultVersion
 
 	listenPort = 9092
 

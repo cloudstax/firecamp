@@ -19,10 +19,11 @@ import (
 )
 
 const (
+	defaultVersion = "2.1"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "couchdb:" + common.Version
+	ContainerImage = common.ContainerNamePrefix + "couchdb:" + defaultVersion
 	// InitContainerImage initializes the couchdb cluster.
-	InitContainerImage = common.ContainerNamePrefix + "couchdb-init:" + common.Version
+	InitContainerImage = common.ContainerNamePrefix + "couchdb-init:" + defaultVersion
 
 	// the application access port
 	httpPort = 5984

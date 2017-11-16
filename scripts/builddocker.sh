@@ -108,14 +108,14 @@ BuildCatalogImages() {
 
   # build mongodb docker image
   target=$system"-mongodb"
-  image="${org}${target}:${version}"
+  image="${org}${target}:3.4"
   path="${TOPWD}/catalog/mongodb/3.4/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-mongodb-init"
-  image="${org}${target}:${version}"
+  image="${org}${target}:3.4"
   path="${TOPWD}/catalog/mongodb/3.4/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
@@ -126,7 +126,7 @@ BuildCatalogImages() {
   # build postgres docker image
   echo
   target=$system"-postgres"
-  image="${org}${target}:${version}"
+  image="${org}${target}:9.6"
   path="${TOPWD}/catalog/postgres/9.6/dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
@@ -140,7 +140,7 @@ BuildCatalogImages() {
     sed -i "s/latest/$version/g" Dockerfile
   fi
   target=$system"-postgres-postgis"
-  image="${org}${target}:${version}"
+  image="${org}${target}:9.6"
   docker build -q -t $image .
   docker push $image
   if [ "$version" != "latest" ]; then
@@ -152,14 +152,14 @@ BuildCatalogImages() {
   # build cassandra docker image
   echo
   target=$system"-cassandra"
-  image="${org}${target}:${version}"
+  image="${org}${target}:3.11"
   path="${TOPWD}/catalog/cassandra/3.11/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-cassandra-init"
-  image="${org}${target}:${version}"
+  image="${org}${target}:3.11"
   path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
@@ -170,8 +170,8 @@ BuildCatalogImages() {
   # build zookeeper docker image
   echo
   target=$system"-zookeeper"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/zookeeper/3.4.10/dockerfile/"
+  image="${org}${target}:3.4"
+  path="${TOPWD}/catalog/zookeeper/3.4/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -179,7 +179,7 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:${version}"
+  image="${org}${target}:1.0"
   path="${TOPWD}/catalog/kafka/1.0/dockerfile/"
   docker build -q -t $image $path
   docker push $image
@@ -188,7 +188,7 @@ BuildCatalogImages() {
   # build redis docker image
   echo
   target=$system"-redis"
-  image="${org}${target}:${version}"
+  image="${org}${target}:4.0"
   path="${TOPWD}/catalog/redis/4.0/dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
@@ -197,7 +197,7 @@ BuildCatalogImages() {
 
   echo
   target=$system"-redis-init"
-  image="${org}${target}:${version}"
+  image="${org}${target}:4.0"
   path="${TOPWD}/catalog/redis/4.0/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
@@ -208,15 +208,15 @@ BuildCatalogImages() {
   # build couchdb docker image
   echo
   target=$system"-couchdb"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/couchdb/2.1.0/dockerfile/"
+  image="${org}${target}:2.1"
+  path="${TOPWD}/catalog/couchdb/2.1/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-couchdb-init"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/couchdb/2.1.0/init-task-dockerfile/"
+  image="${org}${target}:2.1"
+  path="${TOPWD}/catalog/couchdb/2.1/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
@@ -226,8 +226,8 @@ BuildCatalogImages() {
   # build consul docker image
   echo
   target=$system"-consul"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/consul/1.0.0/dockerfile/"
+  image="${org}${target}:1.0"
+  path="${TOPWD}/catalog/consul/1.0/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -235,8 +235,8 @@ BuildCatalogImages() {
   # build elasticsearch docker image
   echo
   target=$system"-elasticsearch"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/elasticsearch/5.6.3/dockerfile/"
+  image="${org}${target}:5.6"
+  path="${TOPWD}/catalog/elasticsearch/5.6/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -244,8 +244,8 @@ BuildCatalogImages() {
   # build kibana docker image
   echo
   target=$system"-kibana"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/kibana/5.6.3/dockerfile/"
+  image="${org}${target}:5.6"
+  path="${TOPWD}/catalog/kibana/5.6/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -253,19 +253,19 @@ BuildCatalogImages() {
   # build logstash docker image
   echo
   target=$system"-logstash"
-  image="${org}${target}:${version}"
-  path="${TOPWD}/catalog/logstash/5.6.3/dockerfile/"
+  image="${org}${target}:5.6"
+  path="${TOPWD}/catalog/logstash/5.6/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   # build logstash docker image with couchdb input plugin
   echo
-  cd ${TOPWD}/catalog/logstash/5.6.3/dockerfile-input-couchdb/
+  cd ${TOPWD}/catalog/logstash/5.6/dockerfile-input-couchdb/
   if [ "$version" != "latest" ]; then
     sed -i "s/latest/$version/g" Dockerfile
   fi
   target=$system"-logstash-input-couchdb"
-  image="${org}${target}:${version}"
+  image="${org}${target}:5.6"
   docker build -q -t $image .
   docker push $image
   if [ "$version" != "latest" ]; then
