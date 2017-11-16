@@ -29,22 +29,24 @@
       "Type":"AWS::EC2::KeyPair::KeyName",
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
     },
-    "CFS3BucketName": {
+    "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax",
-      "Type": "String",
-      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Default": "quickstart-reference",
+      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Type": "String"
+    },
+    "QSCloudStaxS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/latest/",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Type": "String"
     },
     "Release": {
       "Type": "String",
       "Default": "latest",
       "Description": "The FireCamp release version"
-    },
-    "CFS3KeyPrefix": {
-      "Type": "String",
-      "Default": "firecamp/releases/latest/cf-templates",
-      "Description": "The S3 key prefix"
     },
     "VPCID": {
       "Type": "AWS::EC2::VPC::Id",
@@ -114,7 +116,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-dynamodb.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-dynamodb.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -139,7 +141,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-iamprofile.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-iamprofile.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -188,7 +190,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-ecs.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-ecs.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -238,14 +240,14 @@
               "Outputs.NodeInstanceProfile"
             ]
           },
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
-          },
           "Release": {
             "Ref": "Release"
           },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSCloudStaxS3KeyPrefix": {
+            "Ref": "QSCloudStaxS3KeyPrefix"
           },
           "NodeAMIOS": {
             "Ref": "NodeAMIOS"
@@ -264,7 +266,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-swarm.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-swarm.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -317,14 +319,14 @@
               "Outputs.NodeInstanceProfile"
             ]
           },
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
-          },
           "Release": {
             "Ref": "Release"
           },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSCloudStaxS3KeyPrefix": {
+            "Ref": "QSCloudStaxS3KeyPrefix"
           },
           "NodeAMIOS": {
             "Ref": "NodeAMIOS"

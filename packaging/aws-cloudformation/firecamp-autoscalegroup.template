@@ -69,6 +69,20 @@
       "Type":"String",
       "Default":"t2.micro",
       "ConstraintDescription":"Please choose a valid instance type."
+    },
+    "QSS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "quickstart-reference",
+      "Type": "String",
+      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "QSCloudStaxS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/latest/",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Type": "String"
     }
   },
   "Mappings": {
@@ -243,7 +257,15 @@
                 "\n",
 
                 "# get and run the node init script\n",
-                "wget -O /tmp/init.sh https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/cf-templates/init.sh\n",
+                "aws s3 cp s3://",
+                {
+                  "Ref": "QSS3BucketName"
+                },
+                "/",
+                {
+                  "Ref": "QSCloudStaxS3KeyPrefix"
+                },
+                "scripts/init.sh /tmp/init.sh\n",
                 "chmod +x /tmp/init.sh\n",
                 "/tmp/init.sh $version ",
                 {
