@@ -30,17 +30,16 @@ const (
 	minReplTimeoutSecs = 60
 	shardName          = "shard"
 
-	redisConfFileName        = "redis.conf"
-	redisClusterInfoFileName = "cluster.info"
+	redisConfFileName = "redis.conf"
 
-	maxMemPolicyVolatileLRU    = "volatile-lru"
-	maxMemPolicyAllKeysLRU     = "allkeys-lru"
-	maxMemPolicyVolatileLFU    = "volatile-lfu"
-	maxMemPolicyAllKeysLFU     = "allkeys-lfu"
-	maxMemPolicyVolatileRandom = "volatile-random"
-	maxMemPolicyAllKeysRandom  = "allkeys-random"
-	maxMemPolicyVolatileTTL    = "volatile-ttl"
-	maxMemPolicyNoEviction     = "noeviction"
+	MaxMemPolicyVolatileLRU    = "volatile-lru"
+	MaxMemPolicyAllKeysLRU     = "allkeys-lru"
+	MaxMemPolicyVolatileLFU    = "volatile-lfu"
+	MaxMemPolicyAllKeysLFU     = "allkeys-lfu"
+	MaxMemPolicyVolatileRandom = "volatile-random"
+	MaxMemPolicyAllKeysRandom  = "allkeys-random"
+	MaxMemPolicyVolatileTTL    = "volatile-ttl"
+	MaxMemPolicyNoEviction     = "noeviction"
 
 	envShards           = "SHARDS"
 	envReplicasPerShard = "REPLICAS_PERSHARD"
@@ -71,21 +70,21 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 	switch r.Options.MaxMemPolicy {
 	case "":
 		return nil
-	case maxMemPolicyAllKeysLRU:
+	case MaxMemPolicyAllKeysLRU:
 		return nil
-	case maxMemPolicyAllKeysLFU:
+	case MaxMemPolicyAllKeysLFU:
 		return nil
-	case maxMemPolicyAllKeysRandom:
+	case MaxMemPolicyAllKeysRandom:
 		return nil
-	case maxMemPolicyVolatileLRU:
+	case MaxMemPolicyVolatileLRU:
 		return nil
-	case maxMemPolicyVolatileLFU:
+	case MaxMemPolicyVolatileLFU:
 		return nil
-	case maxMemPolicyVolatileRandom:
+	case MaxMemPolicyVolatileRandom:
 		return nil
-	case maxMemPolicyVolatileTTL:
+	case MaxMemPolicyVolatileTTL:
 		return nil
-	case maxMemPolicyNoEviction:
+	case MaxMemPolicyNoEviction:
 		return nil
 	default:
 		return errors.New("Invalid Redis max memory policy")
@@ -142,7 +141,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	}
 	maxMemPolicy := opts.MaxMemPolicy
 	if len(maxMemPolicy) == 0 {
-		maxMemPolicy = maxMemPolicyNoEviction
+		maxMemPolicy = MaxMemPolicyNoEviction
 	}
 
 	memBytes := catalog.MBToBytes(opts.MemoryCacheSizeMB)
@@ -212,11 +211,6 @@ func genServiceShardMemberName(serviceName string, shard int64, replicasInShard 
 	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
 }
 
-// IsClusterInfoFile checks if the file is the cluster info file
-func IsClusterInfoFile(filename string) bool {
-	return filename == redisClusterInfoFileName
-}
-
 // IsClusterMode checks if the service is created with the cluster mode.
 func IsClusterMode(shards int64) bool {
 	return shards >= minClusterShards
@@ -230,7 +224,6 @@ func IsRedisConfFile(filename string) bool {
 // NeedToEnableAuth checks whether needs to enable auth in redis.conf
 func NeedToEnableAuth(content string) bool {
 	// Currently if auth pass is not required, redis.conf will not have #requirepass
-	// TODO avoid this implicit usage
 	disabledIdx := strings.Index(content, "#requirepass")
 	if disabledIdx != -1 {
 		return true
@@ -248,7 +241,6 @@ func EnableRedisAuth(content string) string {
 // NeedToSetClusterAnnounceIP checks whether needs to set the cluster-announce-ip in redis.conf
 func NeedToSetClusterAnnounceIP(content string) bool {
 	// Currently if not cluster mode, redis.conf will not have #cluster-announce-ip
-	// TODO avoid this implicit usage
 	disabledIdx := strings.Index(content, "#cluster-announce-ip")
 	if disabledIdx != -1 {
 		return true
@@ -345,19 +337,6 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
 		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
 	return envkvs
-}
-
-// CreateClusterInfoFile returns the ReplicaConfigFile for the cluster.info file.
-func CreateClusterInfoFile(nodeIDs []string) *manage.ReplicaConfigFile {
-	content := ""
-	for _, node := range nodeIDs {
-		content += fmt.Sprintf("%s\n", node)
-	}
-	return &manage.ReplicaConfigFile{
-		FileName: redisClusterInfoFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
 }
 
 const (

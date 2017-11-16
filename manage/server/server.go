@@ -47,6 +47,8 @@ type ManageHTTPServer struct {
 	cluster   string
 	manageurl string
 	azs       []string
+	domain    string
+	vpcID     string
 
 	dbIns           db.DB
 	serverInfo      server.Info
@@ -67,6 +69,8 @@ func NewManageHTTPServer(platform string, cluster string, azs []string, managedn
 		cluster:         cluster,
 		manageurl:       dns.GetManageServiceURL(managedns, false),
 		azs:             azs,
+		domain:          dns.GenDefaultDomainName(cluster),
+		vpcID:           serverInfo.GetLocalVpcID(),
 		dbIns:           dbIns,
 		logIns:          logIns,
 		serverInfo:      serverInfo,
@@ -213,10 +217,7 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 func (s *ManageHTTPServer) createCommonService(ctx context.Context,
 	req *manage.CreateServiceRequest, requuid string) (serviceUUID string, err error) {
 	// create the service in the control plane
-	domain := dns.GenDefaultDomainName(s.cluster)
-	vpcID := s.serverInfo.GetLocalVpcID()
-
-	serviceUUID, err = s.svc.CreateService(ctx, req, domain, vpcID)
+	serviceUUID, err = s.svc.CreateService(ctx, req, s.domain, s.vpcID)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
 		return "", err

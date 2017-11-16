@@ -9,50 +9,41 @@ import (
 	"github.com/cloudstax/firecamp/manage"
 )
 
-func TestRedisFuncs(t *testing.T) {
-	nodeIDs := []string{"1 id-1 master", "2 id-2 master", "3 id-3 master"}
-	content := `1 id-1 master
-2 id-2 master
-3 id-3 master
-`
-	//	ioutil.WriteFile("/tmp/1", []byte(content), 0644)
-
-	cfg := CreateClusterInfoFile(nodeIDs)
-	if cfg.Content != content {
-		t.Fatalf("content mismatch, expect\n %s\n get\n %s", content, cfg.Content)
-	}
-}
-
 func TestRedisConfigs(t *testing.T) {
 	platform := common.ContainerPlatformECS
 	cluster := "c1"
 	service := "service1"
 	azs := []string{"az1", "az2", "az3"}
-	maxMemMB := int64(1024)
 	opts := &manage.CatalogRedisOptions{
-		Shards:           int64(3),
-		ReplicasPerShard: int64(2),
-		VolumeSizeGB:     int64(1),
-		DisableAOF:       false,
-		AuthPass:         "pass",
-		ReplTimeoutSecs:  int64(30),
-		MaxMemPolicy:     "",
-		ConfigCmdName:    "",
+		Shards:            int64(3),
+		ReplicasPerShard:  int64(2),
+		MemoryCacheSizeMB: 256,
+		Volume: &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: int64(1),
+		},
+		DisableAOF:      false,
+		AuthPass:        "pass",
+		ReplTimeoutSecs: int64(30),
+		MaxMemPolicy:    "",
+		ConfigCmdName:   "",
 	}
 
 	// test 3 shards and 2 replicas each shard
-	replcfgs := GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
+	replcfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 	if len(replcfgs) != 6 {
 		t.Fatalf("expect 6 replica configs, get %d", len(replcfgs))
 	}
 
 	if replcfgs[0].Zone != azs[0] || replcfgs[1].Zone != azs[1] ||
-		replcfgs[2].Zone != azs[0] || replcfgs[3].Zone != azs[1] ||
-		replcfgs[4].Zone != azs[0] || replcfgs[5].Zone != azs[1] {
+		replcfgs[2].Zone != azs[1] || replcfgs[3].Zone != azs[2] ||
+		replcfgs[4].Zone != azs[2] || replcfgs[5].Zone != azs[0] {
 		t.Fatalf("replica configs zone mismatch, %s", replcfgs)
 	}
 
 	content := strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
+	content = EnableRedisAuth(content)
+	content = SetClusterAnnounceIP(content, "ip1")
 	//content1 := fmt.Sprintf(redisConfigs1, "service1-shard0-0.c1-firecamp.com")
 	content1 := fmt.Sprintf(redisConfigs1, "service1-0.c1-firecamp.com")
 	if content != content1 {
@@ -62,25 +53,29 @@ func TestRedisConfigs(t *testing.T) {
 	// test 4 shards and 3 replicas each shard
 	opts.Shards = 4
 	opts.ReplicasPerShard = 3
-	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, opts)
 	if len(replcfgs) != 12 {
 		t.Fatalf("expect 12 replica configs, get %d", len(replcfgs))
 	}
 
 	if replcfgs[0].Zone != azs[0] || replcfgs[1].Zone != azs[1] || replcfgs[2].Zone != azs[2] ||
-		replcfgs[3].Zone != azs[0] || replcfgs[4].Zone != azs[1] || replcfgs[5].Zone != azs[2] ||
-		replcfgs[6].Zone != azs[0] || replcfgs[7].Zone != azs[1] || replcfgs[8].Zone != azs[2] ||
+		replcfgs[3].Zone != azs[1] || replcfgs[4].Zone != azs[2] || replcfgs[5].Zone != azs[0] ||
+		replcfgs[6].Zone != azs[2] || replcfgs[7].Zone != azs[0] || replcfgs[8].Zone != azs[1] ||
 		replcfgs[9].Zone != azs[0] || replcfgs[10].Zone != azs[1] || replcfgs[11].Zone != azs[2] {
 		t.Fatalf("replica configs zone mismatch, %s", replcfgs)
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
+	content = EnableRedisAuth(content)
+	content = SetClusterAnnounceIP(content, "ip1")
 	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard0-1.c1-firecamp.com")
 	content1 = fmt.Sprintf(redisConfigs1, "service1-1.c1-firecamp.com")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
 	content = strings.TrimSuffix(replcfgs[4].Configs[1].Content, defaultConfigs)
+	content = EnableRedisAuth(content)
+	content = SetClusterAnnounceIP(content, "ip1")
 	//content1 = fmt.Sprintf(redisConfigs1, "service1-shard1-1.c1-firecamp.com")
 	content1 = fmt.Sprintf(redisConfigs1, "service1-4.c1-firecamp.com")
 	if content != content1 {
@@ -90,7 +85,7 @@ func TestRedisConfigs(t *testing.T) {
 	// test 1 shards and 3 replicas each shard
 	opts.Shards = 1
 	opts.ReplicasPerShard = 3
-	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, opts)
 	if len(replcfgs) != 3 {
 		t.Fatalf("expect 3 replica configs, get %d", len(replcfgs))
 	}
@@ -100,8 +95,9 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[1].Configs[1].Content, defaultConfigs)
-	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-firecamp.com", 536870912)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-1.c1-firecamp.com", 536870912, "\nslaveof service1-0.c1-firecamp.com 6379")
+	content = EnableRedisAuth(content)
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-1.c1-firecamp.com", 268435456)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-1.c1-firecamp.com", 268435456, "\nslaveof service1-0.c1-firecamp.com 6379")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
@@ -109,7 +105,7 @@ func TestRedisConfigs(t *testing.T) {
 	// test 1 shards and 1 replicas each shard
 	opts.Shards = 1
 	opts.ReplicasPerShard = 1
-	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, maxMemMB, opts)
+	replcfgs = GenReplicaConfigs(platform, cluster, service, azs, opts)
 	if len(replcfgs) != 1 {
 		t.Fatalf("expect 1 replica configs, get %d", len(replcfgs))
 	}
@@ -119,9 +115,10 @@ func TestRedisConfigs(t *testing.T) {
 	}
 
 	content = strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
+	content = EnableRedisAuth(content)
 	content += "\n"
-	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-firecamp.com", 1073741824)
-	content1 = fmt.Sprintf(redisConfigs2, "service1-0.c1-firecamp.com", 1073741824, "")
+	//content1 = fmt.Sprintf(redisConfigs2, "service1-shard0-0.c1-firecamp.com", 268435456)
+	content1 = fmt.Sprintf(redisConfigs2, "service1-0.c1-firecamp.com", 268435456, "")
 	if content != content1 {
 		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
 	}
@@ -133,7 +130,7 @@ bind %s
 port 6379
 
 # Redis memory cache size in bytes. The total memory will be like maxmemory + slave output buffer.
-maxmemory 536870912
+maxmemory 268435456
 maxmemory-policy noeviction
 
 # The filename where to dump the DB
@@ -171,6 +168,9 @@ appendfsync everysec
 
 cluster-enabled yes
 cluster-config-file /data/redis-node.conf
+
+cluster-announce-ip ip1
+
 cluster-node-timeout 15000
 cluster-slave-validity-factor 10
 cluster-migration-barrier 1

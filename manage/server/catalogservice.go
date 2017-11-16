@@ -377,11 +377,29 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	// create the service in the control plane and the container platform
 	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+
+	// create the service in the control plane
+	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
+		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
+
+	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
+
+	err = s.updateRedisStaticIPs(ctx, serviceUUID, requuid)
+	if err != nil {
+		glog.Errorln("updateRedisStaticIPs error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
+	if err != nil {
+		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created Redis service", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
 	if rediscatalog.IsClusterMode(req.Options.Shards) {
 		glog.Infoln("The cluster mode Redis is created, add the init task, requuid", requuid, req.Service, req.Options)
@@ -505,10 +523,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 		req.Service.ServiceName, req.Resource, req.Options)
 
 	// create the service in the control plane
-	domain := dns.GenDefaultDomainName(s.cluster)
-	vpcID := s.serverInfo.GetLocalVpcID()
-
-	serviceUUID, err := s.svc.CreateService(ctx, crReq, domain, vpcID)
+	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -516,7 +531,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 
 	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
-	serverips, err := s.updateConsulConfigs(ctx, serviceUUID, domain, requuid)
+	serverips, err := s.updateConsulConfigs(ctx, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("updateConsulConfigs error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -884,48 +899,13 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// list all serviceMembers
-	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", service.ServiceUUID, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	glog.Infoln("get service", service, "has", len(members), "replicas, requuid", requuid)
-
-	// update the init task status message
-	statusMsg := "create the member to Redis nodeID mapping for the Redis cluster"
+	// enable redis auth
+	statusMsg := "enable redis auth"
 	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
-
-	// gengerate cluster info config file
-	clusterInfoCfg := rediscatalog.CreateClusterInfoFile(req.NodeIds)
-
-	for _, member := range members {
-		// create the cluster.info file for every member
-		newMember, err := s.createRedisClusterFile(ctx, member, clusterInfoCfg, requuid)
-		if err != nil {
-			glog.Errorln("createRedisClusterFile error", err, "requuid", requuid, member)
-			return manage.ConvertToHTTPError(err)
-		}
-
-		// update the redis.conf file
-		for i, cfg := range newMember.Configs {
-			if !rediscatalog.IsRedisConfFile(cfg.FileName) {
-				glog.V(5).Infoln("not redis.conf file, skip the config, requuid", requuid, cfg)
-				continue
-			}
-
-			glog.Infoln("enable auth on redis.conf, requuid", requuid, cfg, newMember)
-
-			err = s.updateRedisConfigs(ctx, cfg, i, newMember, requuid)
-			if err != nil {
-				glog.Errorln("updateRedisConfigs error", err, "requuid", requuid, cfg, newMember)
-				return manage.ConvertToHTTPError(err)
-			}
-
-			glog.Infoln("updated redis.conf for member, requuid", requuid, newMember)
-			break
-		}
+	err = s.enableRedisAuth(ctx, service.ServiceUUID, requuid)
+	if err != nil {
+		glog.Errorln("enableRedisAuth error", err, "requuid", requuid, service)
+		return manage.ConvertToHTTPError(err)
 	}
 
 	// the config files of all replicas are updated, restart all containers
@@ -947,59 +927,86 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 }
 
-func (s *ManageHTTPServer) createRedisClusterFile(ctx context.Context, member *common.ServiceMember,
-	cfg *manage.ReplicaConfigFile, requuid string) (newMember *common.ServiceMember, err error) {
+func (s *ManageHTTPServer) updateRedisStaticIPs(ctx context.Context, serviceUUID string, requuid string) error {
+	// update the redis member's cluster-announce-ip to the assigned static ip in redis.conf
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
 
-	// check if member has the cluster info file, as failure could happen at any time and init task will be retried.
-	for _, c := range member.Configs {
-		if rediscatalog.IsClusterInfoFile(c.FileName) {
-			chksum := utils.GenMD5(cfg.Content)
-			if c.FileMD5 != chksum {
-				// this is an unknown internal error. the cluster info content should be the same between retries.
-				glog.Errorln("Redis cluster file exist but content not match, new content", cfg.Content, chksum,
-					"existing config", c, "requuid", requuid, member)
-				return nil, common.ErrConfigMismatch
-			}
-
-			glog.Infoln("Redis cluster file is already created for member", member.MemberName,
-				"service", member.ServiceUUID, "requuid", requuid)
-			return member, nil
+	for _, m := range members {
+		err = s.updateRedisMemberStaticIP(ctx, m, requuid)
+		if err != nil {
+			return err
 		}
 	}
 
-	// the cluster info file not exist, create it
-	version := int64(0)
-	fileID := utils.GenMemberConfigFileID(member.MemberName, cfg.FileName, version)
-	initcfgfile := db.CreateInitialConfigFile(member.ServiceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
-	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
-	if err != nil {
-		glog.Errorln("createConfigFile error", err, "fileID", fileID,
-			"service", member.ServiceUUID, "member", member.MemberName, "requuid", requuid)
-		return nil, err
-	}
-
-	glog.Infoln("created the Redis cluster config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-
-	// add the new config file to ServiceMember
-	config := &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
-
-	newConfigs := db.CopyMemberConfigs(member.Configs)
-	newConfigs = append(newConfigs, config)
-
-	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
-	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-	if err != nil {
-		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return nil, err
-	}
-
-	glog.Infoln("added the cluster config to service member", member.MemberName, member.ServiceUUID, "requuid", requuid)
-	return newMember, nil
+	glog.Infoln("updated redis cluster-announce-ip to the static ip", serviceUUID, "requuid", requuid)
+	return nil
 }
 
-// TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.
-func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context,
-	cfg *common.MemberConfig, cfgIndex int, member *common.ServiceMember, requuid string) error {
+func (s *ManageHTTPServer) updateRedisMemberStaticIP(ctx context.Context, member *common.ServiceMember, requuid string) error {
+	var cfg *common.MemberConfig
+	cfgIndex := -1
+	for i, c := range member.Configs {
+		if rediscatalog.IsRedisConfFile(c.FileName) {
+			cfg = c
+			cfgIndex = i
+			break
+		}
+	}
+
+	// fetch the config file
+	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+		return err
+	}
+
+	// if static ip is already set, return
+	setIP := rediscatalog.NeedToSetClusterAnnounceIP(cfgfile.Content)
+	if !setIP {
+		glog.Infoln("cluster-announce-ip is already set in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+		return nil
+	}
+
+	// cluster-announce-ip not set, set it
+	newContent := rediscatalog.SetClusterAnnounceIP(cfgfile.Content, member.StaticIP)
+
+	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+}
+
+func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID string, requuid string) error {
+	// enable auth in redis.conf
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
+
+	for _, m := range members {
+		err = s.enableRedisMemberAuth(ctx, m, requuid)
+		if err != nil {
+			return err
+		}
+	}
+
+	glog.Infoln("updated redis cluster-announce-ip to the static ip", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) enableRedisMemberAuth(ctx context.Context, member *common.ServiceMember, requuid string) error {
+	var cfg *common.MemberConfig
+	cfgIndex := -1
+	for i, c := range member.Configs {
+		if rediscatalog.IsRedisConfFile(c.FileName) {
+			cfg = c
+			cfgIndex = i
+			break
+		}
+	}
+
 	// fetch the config file
 	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 	if err != nil {
@@ -1009,27 +1016,18 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context,
 
 	// if auth is enabled, return
 	enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Content)
-	setIP := rediscatalog.NeedToSetClusterAnnounceIP(cfgfile.Content)
-
-	if !enableAuth && !setIP {
-		glog.Infoln("auth and cluster-announce-ip are already set in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+	if !enableAuth {
+		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
 		return nil
 	}
 
-	newContent := cfgfile.Content
-	if enableAuth {
-		// auth is not enabled, enable it
-		newContent = rediscatalog.EnableRedisAuth(newContent)
-	}
-	if setIP {
-		// cluster-announce-ip not set, set it
-		newContent = rediscatalog.SetClusterAnnounceIP(newContent, member.StaticIP)
-	}
+	// auth is not enabled, enable it
+	newContent := rediscatalog.EnableRedisAuth(cfgfile.Content)
 
 	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 }
 
-func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, domain string, requuid string) (serverips []string, err error) {
+func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, requuid string) (serverips []string, err error) {
 	// update the consul member address to the assigned static ip in the basic_config.json file
 	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
@@ -1040,7 +1038,7 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
 	for i, m := range members {
-		memberdns := dns.GenDNSName(m.MemberName, domain)
+		memberdns := dns.GenDNSName(m.MemberName, s.domain)
 		memberips[memberdns] = m.StaticIP
 		serverips[i] = m.StaticIP
 	}
@@ -1056,7 +1054,6 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 	return serverips, nil
 }
 
-// TODO most code is the same with enableMongoDBAuth, unify it to avoid duplicate code.
 func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member *common.ServiceMember, memberips map[string]string, requuid string) error {
 	var cfg *common.MemberConfig
 	cfgIndex := -1

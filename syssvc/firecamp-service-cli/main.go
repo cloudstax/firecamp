@@ -80,7 +80,7 @@ var (
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
-	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", "noeviction", "The Redis eviction policy when the memory limit is reached")
+	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached, default: allkeys-lru")
 	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
 
 	// The couchdb service creation specific parameters.
@@ -530,8 +530,12 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
-	if *maxMemMB == common.DefaultMaxMemoryMB || *volSizeGB == 0 {
+	if *redisMemSizeMB <= 0 || *volSizeGB <= 0 {
 		fmt.Println("please specify the valid max memory and volume size")
+		os.Exit(-1)
+	}
+	if *maxMemMB != common.DefaultMaxMemoryMB && *maxMemMB <= *redisMemSizeMB {
+		fmt.Println("the container max memory should be larger than Redis memory cache size")
 		os.Exit(-1)
 	}
 
