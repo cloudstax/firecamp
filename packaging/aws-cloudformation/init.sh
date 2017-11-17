@@ -52,19 +52,8 @@ sysctl -w vm.overcommit_memory=1
 
 
 # 2. install docker.
-# [ec2-user@ip-172-31-69-166 ~]$ sudo yum list docker --showduplicates
-# Loaded plugins: priorities, update-motd, upgrade-helper
-# Available Packages
-# docker.x86_64                 1.12.6-2.19.amzn1                      amzn-main
-# docker.x86_64                 17.03.1ce-1.50.amzn1                   amzn-updates
-# docker.x86_64                 17.03.2ce-1.59.amzn1                   amzn-updates
-if [ "$containerPlatform" = "ecs" ]; then
-  # ecs-init-1.14.5-1 only requires docker >= 17.03.2ce
-  # yum install -y docker-17.03.2ce-1.59.amzn1
-  yum install -y docker
-else
-  yum install -y docker
-fi
+yum install -y docker
+
 
 # 3. Container platform specific initialization.
 if [ "$containerPlatform" = "ecs" ]; then
@@ -77,24 +66,35 @@ if [ "$containerPlatform" = "ecs" ]; then
 
   service docker start
 
-  # install cloudstax ecs init
-  for i in `seq 1 3`
-  do
-    wget -O /tmp/cloudstax-ecs-init-1.15.1-1.amzn1.x86_64.rpm https://s3.amazonaws.com/cloudstax/firecamp/packages/$version/cloudstax-ecs-init-1.15.1-1.amzn1.x86_64.rpm
-    if [ "$?" = "0" ]; then
-      break
-    elif [ "$i" = "3" ]; then
-      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/packages/$version/cloudstax-ecs-init-1.15.1-1.amzn1.x86_64.rpm"
-      exit 2
-    else
-      # wget fail, sleep and retry
-      sleep 3
-    fi
-  done
+  # follow https://github.com/aws/amazon-ecs-agent#usage to set up ecs agent
+  # Set up directories the agent uses
+  mkdir -p /var/log/ecs /etc/ecs /var/lib/ecs/data
+  touch /etc/ecs/ecs.config
 
-  rpm -ivh /tmp/cloudstax-ecs-init-1.15.1-1.amzn1.x86_64.rpm
+  # starting at 1.15, ecs agent requires to have the logging driver configured in ecs.config, or else ecs agent will fail.
+  echo "ECS_AVAILABLE_LOGGING_DRIVERS=[\"json-file\",\"awslogs\"]" >> /etc/ecs/ecs.config
   echo "ECS_CLUSTER=$clusterName" >> /etc/ecs/ecs.config
-  start ecs
+
+  # Set up necessary rules to enable IAM roles for tasks
+  sysctl -w net.ipv4.conf.all.route_localnet=1
+  iptables -t nat -A PREROUTING -p tcp -d 169.254.170.2 --dport 80 -j DNAT --to-destination 127.0.0.1:51679
+  iptables -t nat -A OUTPUT -d 169.254.170.2 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 51679
+
+  # Run the agent
+  docker run --name ecs-agent \
+    --detach=true \
+    --restart=always -d \
+    --volume=/var/run/docker.sock:/var/run/docker.sock \
+    --volume=/var/log/ecs:/log \
+    --volume=/var/lib/ecs/data:/data \
+    --net=host \
+    --env-file=/etc/ecs/ecs.config \
+    --env=ECS_LOGFILE=/log/ecs-agent.log \
+    --env=ECS_DATADIR=/data/ \
+    --env=ECS_ENABLE_TASK_IAM_ROLE=true \
+    --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
+    cloudstax/firecamp-amazon-ecs-agent:latest
+
 
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp
