@@ -22,7 +22,7 @@ When the standby container starts at the first time, the standby will use pg_bas
 
 **Custom Plugins**
 
-The PostGIS is supported as the example for how to customize your PostgreSQL, catalog/postgres/9.6/postgis-dockerfile. To create a PostgreSQL cluster with PostGIS, specify -pg-image=cloudstax/firecamp-postgres-postgis:latest at the service creation.
+The PostGIS is supported as the example for how to customize your PostgreSQL, catalog/postgres/9.6/postgis-dockerfile. To create a PostgreSQL cluster with PostGIS, specify -pg-image=cloudstax/firecamp-postgres-postgis:9.6 at the service creation.
 
 If the additional custom plugin is required, we could follow the same way to create a new docker image and specify it when creating the service. Note, this is currently disabled until we hear the actual requirement.
 

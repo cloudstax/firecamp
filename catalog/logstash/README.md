@@ -24,7 +24,7 @@ FireCamp Logstash uses the default Pipeline parameters. If you want to tune the 
 
 **Custom Plugins**
 
-The CouchDB input plugin is supported as the example for how to support the custom plugin, catalog/logstash/5.6.3/dockerfile-input-couchdb. To use the CouchDB input plugin, specify -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:latest at the service creation.
+The CouchDB input plugin is supported as the example for how to support the custom plugin, catalog/logstash/5.6.3/dockerfile-input-couchdb. To use the CouchDB input plugin, specify -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6 at the service creation.
 
 If the additional custom plugin is required, we could follow the same way to create a new docker image and specify it when creating the service. Note, this is currently disabled until we hear the actual requirement.
 
