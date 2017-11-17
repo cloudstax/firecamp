@@ -883,7 +883,7 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	glog.Infoln("setRedisInit", req.ServiceName, "first node id mapping", req.NodeIds[0], "total", len(req.NodeIds), "requuid", requuid)
+	glog.Infoln("setRedisInit", req.ServiceName, "requuid", requuid)
 
 	// get service uuid
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
@@ -992,7 +992,7 @@ func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID stri
 		}
 	}
 
-	glog.Infoln("updated redis cluster-announce-ip to the static ip", serviceUUID, "requuid", requuid)
+	glog.Infoln("enabled redis auth, serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
 }
 

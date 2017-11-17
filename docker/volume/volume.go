@@ -503,6 +503,16 @@ func (d *FireCampVolumeDriver) updateDNS(ctx context.Context, serviceAttr *commo
 		return errmsg
 	}
 
+	errmsg = d.waitDNSLookup(ctx, dnsName, privateIP, requuid)
+	if len(errmsg) != 0 {
+		errmsg = fmt.Sprintf("waitDNSLookup error %s, service %s member %s", errmsg, serviceAttr, member)
+		glog.Errorln(errmsg)
+		return errmsg
+	}
+	return ""
+}
+
+func (d *FireCampVolumeDriver) waitDNSLookup(ctx context.Context, dnsName string, ip string, requuid string) (errmsg string) {
 	// wait till the DNS record lookup on the node returns the updated ip.
 	// This is to make sure DB doesn't get the invalid old host at the replication initialization.
 	//
@@ -514,16 +524,15 @@ func (d *FireCampVolumeDriver) updateDNS(ctx context.Context, serviceAttr *commo
 	sleepSeconds := time.Duration(3) * time.Second
 	for t := time.Duration(0); t < maxWaitSeconds; t += sleepSeconds {
 		addr, err := d.dnsIns.LookupLocalDNS(ctx, dnsName)
-		if err == nil && addr == privateIP {
-			glog.Infoln("LookupLocalDNS", dnsName, "gets the local privateIP", privateIP, "requuid", requuid)
+		if err == nil && addr == ip {
+			glog.Infoln("LookupLocalDNS", dnsName, "gets the expected ip", ip, "requuid", requuid)
 			return ""
 		}
 		glog.Infoln("LookupLocalDNS", dnsName, "error", err, "get ip", addr, "requuid", requuid)
 		time.Sleep(sleepSeconds)
 	}
 
-	errmsg = fmt.Sprintf("local host waits the dns refreshes timed out, dnsname %s privateIP %s, requuid %s, service %s member %s",
-		dnsName, privateIP, requuid, serviceAttr, member)
+	errmsg = fmt.Sprintf("local host waits the dns refreshes timed out, dnsname %s expect ip %s, requuid %s", dnsName, ip, requuid)
 	glog.Errorln(errmsg)
 	return errmsg
 }
@@ -662,6 +671,16 @@ func (d *FireCampVolumeDriver) updateStaticIP(ctx context.Context, serviceAttr *
 
 		glog.Infoln("updated static ip to local node", newip, "member", member, "requuid", requuid)
 	}
+
+	// wait the DNS is updated to the static ip, this will only happen after service is created and DNS is not updated yet.
+	dnsName := dns.GenDNSName(member.MemberName, serviceAttr.DomainName)
+	errmsg = d.waitDNSLookup(ctx, dnsName, memberStaticIP.StaticIP, requuid)
+	if len(errmsg) != 0 {
+		errmsg = fmt.Sprintf("waitDNSLookup error %s, service %s member %s", errmsg, serviceAttr, member)
+		glog.Errorln(errmsg)
+		return errmsg
+	}
+
 	return ""
 }
 

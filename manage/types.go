@@ -83,10 +83,10 @@ type CreateServiceRequest struct {
 	// The journal volume for the service journal
 	JournalVolume *common.ServiceVolume
 	// TODO remove ContainerPath, as the docker entrypoint script simply uses the default path
-	ContainerPath    string // The mount path inside container for the primary volume
+	ContainerPath        string // The mount path inside container for the primary volume
 	JournalContainerPath string // The mount path inside container for the journal volume
-	PortMappings     []common.PortMapping
-	Envkvs           []*common.EnvKeyValuePair
+	PortMappings         []common.PortMapping
+	Envkvs               []*common.EnvKeyValuePair
 
 	RegisterDNS     bool
 	RequireStaticIP bool
@@ -190,8 +190,8 @@ type DeleteTaskRequest struct {
 
 // CatalogMongoDBOptions includes the config options for MongoDB.
 type CatalogMongoDBOptions struct {
-	Replicas  int64
-	Volume    *common.ServiceVolume
+	Replicas      int64
+	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
 
 	Admin       string
@@ -207,8 +207,8 @@ type CatalogCreateMongoDBRequest struct {
 
 // CatalogPostgreSQLOptions includes the config options for PostgreSQL.
 type CatalogPostgreSQLOptions struct {
-	Replicas  int64
-	Volume    *common.ServiceVolume
+	Replicas      int64
+	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
 
 	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
@@ -229,8 +229,8 @@ type CatalogCreatePostgreSQLRequest struct {
 
 // CatalogCassandraOptions includes the config options for Cassandra.
 type CatalogCassandraOptions struct {
-	Replicas  int64
-	Volume    *common.ServiceVolume
+	Replicas      int64
+	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
 }
 
@@ -498,8 +498,6 @@ type CatalogSetRedisInitRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
-	// The Redis node ids, format: "MemberName RedisNodeID Role(master/slave)"
-	NodeIds []string
 }
 
 // The internal requests from the plugin to the manage server.

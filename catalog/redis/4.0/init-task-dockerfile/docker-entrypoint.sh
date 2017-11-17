@@ -98,46 +98,6 @@ AddSlaveNodes() {
   done
 }
 
-SetServiceInit() {
-  # get the node to redis id mapping
-  nodeids=""
-  for m in "${masters[@]}"
-  do
-    id=$(/redis-cli -h $m cluster nodes | grep "myself" | awk '{ print $1 }')
-    if [ "$nodeids" = "" ]; then
-      nodeids="\"$m $id master\""
-    else
-      nodeids="$nodeids, \"$m $id master\""
-    fi
-  done
-
-  for m in "${slaves[@]}"
-  do
-    myrole=$(/redis-cli -h $m cluster nodes | grep "myself")
-    id=$(echo "$myrole" | awk '{ print $1 }')
-    master=$(echo "$myrole" | awk '{ print $4 }')
-    nodeids="$nodeids, \"$m $id slave $master\""
-  done
-
-  echo "$nodeids"
-
-  # set service initialized
-
-curl -X PUT "$MANAGE_SERVER_URL/$OP" \
-  -H "Content-Type: application/json" \
-  -d @- <<EOF
-{
-  "Region": "$REGION",
-  "Cluster": "$CLUSTER",
-  "ServiceName": "$SERVICE_NAME",
-  "NodeIds": [$nodeids]
-}
-EOF
-
-  # sleep some time for the server to restart all containers
-  sleep 20
-}
-
 # wait till all nodes' DNS are ready
 masterips=""
 for m in "${masters[@]}"
@@ -197,5 +157,15 @@ fi
 AddSlaveNodes
 
 # set service initialized
-SetServiceInit
+curl -X PUT "$MANAGE_SERVER_URL/$OP" \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF
+{
+  "Region": "$REGION",
+  "Cluster": "$CLUSTER",
+  "ServiceName": "$SERVICE_NAME"
+}
+EOF
 
+# sleep some time for the server to restart all containers
+sleep 20
