@@ -62,18 +62,8 @@ func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogElasticSearchOptions) *manage.CreateServiceRequest {
-	// adjust the parameters
-	masterNodeNumber := int64(0)
-	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
-		if opts.DedicatedMasters < DefaultMasterNumber {
-			masterNodeNumber = DefaultMasterNumber
-		} else {
-			masterNodeNumber = opts.DedicatedMasters
-		}
-	}
-
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, masterNodeNumber, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: HTTPPort, HostPort: HTTPPort},
@@ -100,7 +90,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		},
 
 		ContainerImage: ContainerImage,
-		Replicas:       opts.Replicas + masterNodeNumber,
+		Replicas:       int64(len(replicaCfgs)),
 		Volume:         opts.Volume,
 		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
@@ -111,21 +101,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, masterNodeNumber int64,
-	opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
+	unicastHosts, masterNodeNumber, addMasterNodes := getUnicastHostsAndMasterNodes(domain, service, opts)
 
-	unicastHosts := ""
-	minMasterNodes := int64(0)
-	if masterNodeNumber == 0 {
-		// if the dedicated master is disabled, all data nodes are possible to become master.
-		// https://www.elastic.co/guide/en/elasticsearch/guide/1.x/_important_configuration_changes.html
-		unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, opts.Replicas)
-	} else {
-		unicastHosts, minMasterNodes = GetUnicastHostsAndMinMasterNodes(domain, service, masterNodeNumber)
-	}
-
-	replicas := opts.Replicas + masterNodeNumber
+	replicas := opts.Replicas + addMasterNodes
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := int64(0); i < replicas; i++ {
 		// create the sys.conf file
@@ -141,7 +121,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		if platform == common.ContainerPlatformSwarm {
 			bind = catalog.BindAllIP
 		}
-		content := fmt.Sprintf(esConfigs, service, member, az, bind, memberHost, unicastHosts, minMasterNodes)
+		content := fmt.Sprintf(esConfigs, service, member, az, bind, memberHost, unicastHosts, masterNodeNumber/2+1)
 
 		if masterNodeNumber > 0 {
 			if i < masterNodeNumber {
@@ -186,8 +166,18 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
-// GetUnicastHostsAndMinMasterNodes returns the unicast hosts and minMasterNodes
-func GetUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeNumber int64) (unicastHosts string, minMasterNodes int64) {
+// getUnicastHostsAndMasterNodes returns the unicast hosts, the targe master node number and how many master nodes will be added.
+func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, masterNodeNumber int64, addMasterNodes int64) {
+	masterNodeNumber = opts.Replicas/2 + 1
+	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
+		if opts.DedicatedMasters < DefaultMasterNumber {
+			masterNodeNumber = DefaultMasterNumber
+		} else {
+			masterNodeNumber = opts.DedicatedMasters
+		}
+		addMasterNodes = masterNodeNumber
+	}
+
 	for i := int64(0); i < masterNodeNumber; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
@@ -197,7 +187,7 @@ func GetUnicastHostsAndMinMasterNodes(domain string, service string, masterNodeN
 			unicastHosts += esSep + memberHost
 		}
 	}
-	return unicastHosts, (masterNodeNumber / 2) + 1
+	return unicastHosts, masterNodeNumber, addMasterNodes
 }
 
 // GetFirstMemberHost returns the first member's dns name

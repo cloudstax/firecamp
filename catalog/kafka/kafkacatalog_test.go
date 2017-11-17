@@ -7,6 +7,7 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
 )
 
 func TestKafkaCatalog(t *testing.T) {
@@ -22,15 +23,30 @@ func TestKafkaCatalog(t *testing.T) {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	zkservice := "zk1"
+	vols := common.ServiceVolumes{
+		PrimaryDeviceName: "/dev/xvdh",
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: volSizeGB,
+		},
+	}
 	zkattr := db.CreateServiceAttr("zkuuid", common.ServiceStatusActive, time.Now().UnixNano(),
-		replicas, volSizeGB, cluster, zkservice, "/dev/xvdh", true, domain, "hostedzone")
+		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false)
 	zkservers := genZkServerList(zkattr)
 	expectZkServers := "zk1-0.c1-firecamp.com:2181,zk1-1.c1-firecamp.com:2181,zk1-2.c1-firecamp.com:2181"
 	if zkservers != expectZkServers {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)
 	}
 
-	cfgs := GenReplicaConfigs(platform, cluster, kafkaservice, azs, replicas, maxMemMB, allowTopicDel, retentionHours, zkservers)
+	opts := &manage.CatalogKafkaOptions{
+		Replicas:       replicas,
+		Volume:         &vols.PrimaryVolume,
+		HeapSizeMB:     maxMemMB,
+		AllowTopicDel:  allowTopicDel,
+		RetentionHours: retentionHours,
+		ZkServiceName:  zkservice,
+	}
+	cfgs := GenReplicaConfigs(platform, cluster, kafkaservice, azs, opts, zkservers)
 	if len(cfgs) != int(replicas) {
 		t.Fatalf("expect %d replica configs, get %d", replicas, len(cfgs))
 	}

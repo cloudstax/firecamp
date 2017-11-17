@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
@@ -16,8 +17,11 @@ func TestConsulCatalog(t *testing.T) {
 	service := "consul1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
 	opts := &manage.CatalogConsulOptions{
-		Replicas:     1,
-		VolumeSizeGB: 1,
+		Replicas: 1,
+		Volume: &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
 	}
 
 	replCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
