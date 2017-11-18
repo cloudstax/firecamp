@@ -1,23 +1,31 @@
 
-To build a new release, 3 steps are required. This will be enhanced in the future.
+To build a new release, a few steps are required. This will be enhanced in the future.
 
-1. Update the version information
-Currently need to update multiple files.
-1) The version in Makefile
-2) Version in common/types.go
-3) Update the "Release" and "CFS3KeyPrefix" in firecamp-master.template and firecamp-existingvpc.template
+1. Update FireCamp software release version
+1) Change the version in Makefile from "latest" to the release version such as "1.0".
+2) Chagne the version in common/types.go from "latest" to the release version such as "1.0".
+3) Update the "Release" to such as "1.0" in firecamp-master.template and firecamp-existingvpc.template
 
-2. Docker Images
-make docker to build the docker images for this release.
 
-3. Create packages in cloudstax S3 bucket
-1) Create the release "cf-templates" folder in the cloudstax S3 bucket, and upload all files in packaging/aws-cloudformation.
-2) Create the release "packages" folder in the cloudstax S3 bucket,
+2. Upload the new template files
+Update the "QSCloudStaxS3KeyPrefix" from "master" to "latest" in firecamp-master.template and firecamp-existingvpc.template. Uploads the templates to cloudstax/latest/templates in the "cloudstax" bucket. And upload the init.sh script to cloudstax/latest/scripts.
+
+AWS QuickStart always points to the latest version, such as aws/vpc/latest for QSAWSVPCS3KeyPrefix. '.' is not allowed in the key prefix. So we use "master" version to point to the templates of the master branch for development, and "latest" to point to the templates of the last release.
+
+
+3. Docker Images
+make docker to build the docker images for this release, and upload to docker hub. If Amazon ECS agent git creates a new version, update cloudstax/amazon-ecs-agent, build a new container and push to docker hub.
+
+
+4. Create release packages
+Currently FireCamp requires 2 packages: firecamp service cli and firecamp swarminit command. The swarminit command is used by packaging/aws-cloudformation/init.sh to initialize the Docker Swarm cluster. Every release will have its own packages. The packages are put under firecamp/packages/release in the "cloudstax" bucket.
+
+Create the release packages folder, such as firecamp/packages/1.0, in the "cloudstax" bucket.
 - upload $GOPATH/bin/firecamp-service-cli.tgz
 - upload $GOPATH/bin/firecamp-swarminit.tgz
-- if the ECS init branch is updated, create an EC2 Amazon Linux on AWS, build the ECS init rpm at cloudstax/amazon-ecs-init and upload the rpm. If the branch has no change, simply upload the same rpm in the previous release.
 
-4. The plugin log file rotates
+
+5. The plugin log file rotates
 If vendor is updated, check to make sure the glog log file size is adjusted.
 
 glog rotates the log file at MaxSize, glog_file.go, which is 1024*1024*1800 by default. Change to 64MB. So we could keep 20 log files for troubleshooting.
