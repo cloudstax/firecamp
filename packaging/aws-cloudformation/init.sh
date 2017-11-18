@@ -66,6 +66,8 @@ if [ "$containerPlatform" = "ecs" ]; then
 
   service docker start
 
+  sleep 3
+
   # follow https://github.com/aws/amazon-ecs-agent#usage to set up ecs agent
   # Set up directories the agent uses
   mkdir -p /var/log/ecs /etc/ecs /var/lib/ecs/data
@@ -95,6 +97,7 @@ if [ "$containerPlatform" = "ecs" ]; then
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
     cloudstax/firecamp-amazon-ecs-agent:latest
 
+  sleep 6
 
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp

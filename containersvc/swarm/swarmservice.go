@@ -22,6 +22,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	managecli "github.com/cloudstax/firecamp/manage/client"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -148,6 +149,28 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 			},
 		}
 		mounts = []mounttypes.Mount{mount}
+	}
+
+	if len(opts.JournalContainerPath) != 0 {
+		// The Task.Slot in the volume name does not work on the multiple zones cluster,
+		// as task slot is not aware of zone.
+		source := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
+		if len(s.azs) == 1 {
+			// enable Task.Slot for the single zone cluster.
+			// TODO revisit it when support adding a new zone.
+			source = containersvc.GenVolumeSourceForSwarm(source)
+		}
+
+		mount := mounttypes.Mount{
+			Type:     mounttypes.TypeVolume,
+			Source:   source,
+			Target:   opts.JournalContainerPath,
+			ReadOnly: false,
+			VolumeOptions: &mounttypes.VolumeOptions{
+				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},
+			},
+		}
+		mounts = append(mounts, mount)
 	}
 
 	taskTemplate := swarm.TaskSpec{
