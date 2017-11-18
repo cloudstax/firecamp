@@ -282,8 +282,8 @@
     },
     "Release": {
       "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
+      "Default": "0.9",
+      "AllowedValues": [ "latest", "0.9", "0.8.1" ],
       "Description": "The FireCamp release version"
     },
     "NumberOfManagers":{

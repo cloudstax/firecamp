@@ -1,7 +1,7 @@
 package common
 
 const (
-	Version = "latest"
+	Version = "0.9"
 
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
@@ -53,11 +53,11 @@ const (
 
 	ContainerNameSuffix = "container"
 
-	DefaultContainerMountPath          = "/data"
+	DefaultContainerMountPath              = "/data"
 	DefaultJournalVolumeContainerMountPath = "/journal"
-	DefaultConfigDir                   = "/conf"
-	DefaultConfigPath                  = DefaultContainerMountPath + DefaultConfigDir
-	DefaultConfigFileMode              = 0600
+	DefaultConfigDir                       = "/conf"
+	DefaultConfigPath                      = DefaultContainerMountPath + DefaultConfigDir
+	DefaultConfigFileMode                  = 0600
 
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
