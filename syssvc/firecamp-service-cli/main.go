@@ -43,7 +43,7 @@ var (
 	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
 	volSizeGB        = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	journalVolType   = flag.String("journal-volume-type", "", "The service journal EBS volume type: gp2|io1|st1")
+	journalVolType   = flag.String("journal-volume-type", common.VolumeTypeGPSSD, "The service journal EBS volume type: gp2|io1|st1")
 	journalVolIops   = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
 	journalVolSizeGB = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
 	maxCPUUnits      = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
@@ -221,7 +221,7 @@ func main() {
 	switch *op {
 	case opCreate:
 		var journalVol *common.ServiceVolume
-		if len(*journalVolType) != 0 {
+		if *journalVolSizeGB != 0 {
 			journalVol = &common.ServiceVolume{
 				VolumeType:   *journalVolType,
 				VolumeSizeGB: *journalVolSizeGB,
