@@ -260,7 +260,7 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		s1[i] = CreateServiceMember(service1, utils.GenServiceMemberName(service1, int64(i)),
+		s1[i] = CreateServiceMember(service1, int64(i), utils.GenServiceMemberName(service1, int64(i)),
 			az, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
@@ -281,7 +281,7 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		s2[i] = CreateServiceMember(service2, utils.GenServiceMemberName(service2, int64(i)),
+		s2[i] = CreateServiceMember(service2, int64(i), utils.GenServiceMemberName(service2, int64(i)),
 			az, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
@@ -291,7 +291,7 @@ func TestServiceMembers(t *testing.T) {
 	}
 
 	// get service member to verify
-	item, err := dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberName)
+	item, err := dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
 	if err != nil || !EqualServiceMember(item, s1[1], false) {
 		t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s1[1], item)
 	}
@@ -311,7 +311,7 @@ func TestServiceMembers(t *testing.T) {
 	s1[1].ServerInstanceID = item.ServerInstanceID
 
 	// get serviceMember again to verify the update
-	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberName)
+	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
 	if err != nil || !EqualServiceMember(item, s1[1], false) {
 		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[1], item)
 	}
@@ -349,7 +349,7 @@ func TestServiceMembers(t *testing.T) {
 	}
 
 	// delete serviceMember
-	err = dbIns.DeleteServiceMember(ctx, s1[len(s1)-1].ServiceUUID, s1[len(s1)-1].MemberName)
+	err = dbIns.DeleteServiceMember(ctx, s1[len(s1)-1].ServiceUUID, s1[len(s1)-1].MemberIndex)
 	if err != nil {
 		t.Fatalf("failed to delete serviceMember %s error %s", s1[len(s1)-1], err)
 	}
@@ -371,7 +371,7 @@ func TestServiceMembers(t *testing.T) {
 	}
 
 	// delete one unexist serviceMember
-	err = dbIns.DeleteServiceMember(ctx, s1[0].ServiceUUID, "mem")
+	err = dbIns.DeleteServiceMember(ctx, s1[0].ServiceUUID, 100)
 	if err == nil || err != ErrDBRecordNotFound {
 		t.Fatalf("delete unexist serviceMember, expect ErrDBRecordNotFound, got error %s", err)
 	}

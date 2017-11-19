@@ -381,7 +381,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	// delete all serviceMember records in DB
 	glog.Infoln("deleting serviceMembers from DB, service attr", sattr, "serviceMembers", len(members), "requuid", requuid)
 	for _, m := range members {
-		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberName)
+		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberIndex)
 		if err != nil && err != db.ErrDBRecordNotFound {
 			glog.Errorln("DeleteServiceMember error", err, "requuid", requuid, m)
 			return volIDs, err
@@ -860,7 +860,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 			return err
 		}
 
-		member, err := s.createServiceMember(ctx, sattr, req.ReplicaConfigs[i].Zone, memberName, hostIP, cfgs)
+		member, err := s.createServiceMember(ctx, sattr, req.ReplicaConfigs[i].Zone, int64(i), memberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
 				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
@@ -918,7 +918,7 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
-	az string, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+	az string, memberIndex int64, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	volOpts := &server.CreateVolumeOptions{
@@ -952,6 +952,12 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		volOpts.VolumeType = sattr.Volumes.JournalVolume.VolumeType
 		volOpts.VolumeSizeGB = sattr.Volumes.JournalVolume.VolumeSizeGB
 		volOpts.Iops = sattr.Volumes.JournalVolume.Iops
+		volOpts.TagSpecs = []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: sattr.ClusterName + common.NameSeparator + memberName + common.NameSeparator + common.JournalVolumeNamePrefix,
+			},
+		}
 
 		// create the journal device
 		volID, err = s.serverIns.CreateVolume(ctx, volOpts)
@@ -966,7 +972,7 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		mvols.JournalDeviceName = sattr.Volumes.JournalDeviceName
 	}
 
-	member = db.CreateInitialServiceMember(sattr.ServiceUUID, memberName, az, mvols, staticIP, cfgs)
+	member = db.CreateInitialServiceMember(sattr.ServiceUUID, memberIndex, memberName, az, mvols, staticIP, cfgs)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)

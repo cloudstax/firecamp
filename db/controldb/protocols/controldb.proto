@@ -147,22 +147,23 @@ message UpdateServiceAttrResponse {
 
 message ServiceMemberKey {
   string serviceUUID = 1;
-  string memberName = 2;
+  int64 memberIndex = 2;
 }
 
 message ServiceMember {
   string serviceUUID = 1;
-  string memberName = 2;
+  int64 memberIndex = 2;
 
-  string availableZone = 3;
-  string taskID = 4;
-  string containerInstanceID = 5;
-  string serverInstanceID = 6;
-  int64 lastModified = 7;
+  string memberName = 3;
+  string availableZone = 4;
+  string taskID = 5;
+  string containerInstanceID = 6;
+  string serverInstanceID = 7;
+  int64 lastModified = 8;
 
-  MemberVolumes volumes = 8;
-  string staticIP = 9;
-  repeated MemberConfig configs = 10;
+  MemberVolumes volumes = 9;
+  string staticIP = 10;
+  repeated MemberConfig configs = 11;
 }
 
 message CreateServiceMemberResponse {

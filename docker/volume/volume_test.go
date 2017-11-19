@@ -339,7 +339,7 @@ func TestFindIdleVolume(t *testing.T) {
 			PrimaryVolumeID:   volIDPrefix + str,
 			PrimaryDeviceName: "/dev/xvdf",
 		}
-		m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
+		m := db.CreateServiceMember(serviceUUID, int64(i), utils.GenServiceMemberName(service, int64(i)),
 			mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
 			serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 		err := dbIns.CreateServiceMember(ctx, m)
@@ -354,7 +354,7 @@ func TestFindIdleVolume(t *testing.T) {
 		PrimaryVolumeID:   volIDPrefix + str,
 		PrimaryDeviceName: "/dev/xvdf",
 	}
-	m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(memNumber+1)),
+	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), utils.GenServiceMemberName(service, int64(memNumber+1)),
 		mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(),
 		serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 	err := dbIns.CreateServiceMember(ctx, m)
@@ -369,7 +369,7 @@ func TestFindIdleVolume(t *testing.T) {
 		t.Fatal("expect member %s, get %s", m, m1)
 	}
 
-	err = dbIns.DeleteServiceMember(ctx, serviceUUID, utils.GenServiceMemberName(service, int64(memNumber+1)))
+	err = dbIns.DeleteServiceMember(ctx, serviceUUID, int64(memNumber+1))
 	if err != nil {
 		t.Fatalf("DeleteServiceMember error %s", err)
 	}
@@ -388,7 +388,7 @@ func TestFindIdleVolume(t *testing.T) {
 				PrimaryVolumeID:   volIDPrefix + str,
 				PrimaryDeviceName: "/dev/xvdf",
 			}
-			m := db.CreateServiceMember(serviceUUID, utils.GenServiceMemberName(service, int64(i)),
+			m := db.CreateServiceMember(serviceUUID, int64(i), utils.GenServiceMemberName(service, int64(i)),
 				mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
 				serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 			if db.EqualServiceMember(m, m1, false) {

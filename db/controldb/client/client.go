@@ -567,12 +567,12 @@ func (c *ControlDBCli) UpdateServiceMember(ctx context.Context, oldMember *commo
 	return err
 }
 
-func (c *ControlDBCli) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
+func (c *ControlDBCli) GetServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberName,
+		MemberIndex: memberIndex,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
@@ -593,13 +593,13 @@ func (c *ControlDBCli) GetServiceMember(ctx context.Context, serviceUUID string,
 	return nil, err
 }
 
-func (c *ControlDBCli) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
+func (c *ControlDBCli) DeleteServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	var err error
 	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberName,
+		MemberIndex: memberIndex,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()

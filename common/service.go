@@ -143,8 +143,10 @@ type ServiceVolume struct {
 
 // ServiceMember represents the attributes of one service member.
 type ServiceMember struct {
-	ServiceUUID         string // partition key
-	MemberName          string // sort key
+	ServiceUUID string // partition key
+	MemberIndex int64  // sort key
+	// The service member name, such as mypg-0, myredis-shard0-0
+	MemberName          string
 	AvailableZone       string
 	TaskID              string
 	ContainerInstanceID string

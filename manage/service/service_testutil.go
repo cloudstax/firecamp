@@ -777,7 +777,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 
-	_, err = s.createServiceMember(ctx, serviceAttr, az, memberName, ip, cfgs)
+	_, err = s.createServiceMember(ctx, serviceAttr, az, 0, memberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}

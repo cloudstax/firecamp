@@ -40,6 +40,9 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 				S: aws.String(serviceMemberPartitionKeyPrefix + member.ServiceUUID),
 			},
 			tableSortKey: {
+				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
+			},
+			MemberName: {
 				S: aws.String(member.MemberName),
 			},
 			LastModified: {
@@ -89,6 +92,7 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 	if oldMember.ServiceUUID != newMember.ServiceUUID ||
 		!db.EqualMemberVolumes(&(oldMember.Volumes), &(newMember.Volumes)) ||
 		oldMember.AvailableZone != newMember.AvailableZone ||
+		oldMember.MemberIndex != newMember.MemberIndex ||
 		oldMember.MemberName != newMember.MemberName ||
 		oldMember.StaticIP != newMember.StaticIP {
 		glog.Errorln("immutable attributes are updated, oldMember", oldMember, "newMember", newMember, "requuid", requuid)
@@ -128,7 +132,7 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 				S: aws.String(serviceMemberPartitionKeyPrefix + oldMember.ServiceUUID),
 			},
 			tableSortKey: {
-				S: aws.String(oldMember.MemberName),
+				S: aws.String(strconv.FormatInt(oldMember.MemberIndex, 10)),
 			},
 		},
 		UpdateExpression:    aws.String(updateExpr),
@@ -177,7 +181,7 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 }
 
 // GetServiceMember gets the serviceMemberItem from DB
-func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
+func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
@@ -188,7 +192,7 @@ func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, mem
 				S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 			},
 			tableSortKey: {
-				S: aws.String(memberName),
+				S: aws.String(strconv.FormatInt(memberIndex, 10)),
 			},
 		},
 		ConsistentRead:         aws.Bool(true),
@@ -197,12 +201,12 @@ func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, mem
 	resp, err := dbsvc.GetItem(params)
 
 	if err != nil {
-		glog.Errorln("failed to get serviceMember", memberName, "serviceUUID", serviceUUID, "error", err, "requuid", requuid)
+		glog.Errorln("failed to get serviceMember", memberIndex, "serviceUUID", serviceUUID, "error", err, "requuid", requuid)
 		return nil, d.convertError(err)
 	}
 
 	if len(resp.Item) == 0 {
-		glog.Infoln("serviceMember", memberName, "not found, serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Infoln("serviceMember", memberIndex, "not found, serviceUUID", serviceUUID, "requuid", requuid)
 		return nil, db.ErrDBRecordNotFound
 	}
 
@@ -298,7 +302,7 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 }
 
 // DeleteServiceMember deletes the serviceMember from DB
-func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
+func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
@@ -311,7 +315,7 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 				S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 			},
 			tableSortKey: {
-				S: aws.String(memberName),
+				S: aws.String(strconv.FormatInt(memberIndex, 10)),
 			},
 		},
 		ConditionExpression:    aws.String(tableSortKeyDelCondition),
@@ -322,15 +326,15 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 
 	if err != nil {
 		if err.(awserr.Error).Code() == ConditionalCheckFailedException {
-			glog.Infoln("serviceMember not found", memberName, "serviceUUID", serviceUUID, "requuid", requuid, "resp", resp)
+			glog.Infoln("serviceMember not found", memberIndex, "serviceUUID", serviceUUID, "requuid", requuid, "resp", resp)
 			return db.ErrDBRecordNotFound
 		}
-		glog.Errorln("failed to delete serviceMember", memberName,
+		glog.Errorln("failed to delete serviceMember", memberIndex,
 			"serviceUUID", serviceUUID, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("deleted serviceMember", memberName, "serviceUUID", serviceUUID, "requuid", requuid)
+	glog.Infoln("deleted serviceMember", memberIndex, "serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
 }
 
@@ -355,8 +359,15 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		return nil, db.ErrDBInternal
 	}
 
+	memberIndex, err := strconv.ParseInt(*(item[tableSortKey].S), 10, 64)
+	if err != nil {
+		glog.Errorln("parse MemberIndex error", err, item)
+		return nil, db.ErrDBInternal
+	}
+
 	member := db.CreateServiceMember(serviceUUID,
-		*(item[tableSortKey].S),
+		memberIndex,
+		*(item[MemberName].S),
 		*(item[AvailableZone].S),
 		*(item[TaskID].S),
 		*(item[ContainerInstanceID].S),

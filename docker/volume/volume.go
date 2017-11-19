@@ -837,10 +837,9 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 	if memberIndex != int64(-1) {
 		glog.Infoln("member index is passed in", memberIndex, "requuid", requuid, serviceAttr)
 
-		memberName := utils.GenServiceMemberName(serviceAttr.ServiceName, memberIndex)
-		member, err = d.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberName)
+		member, err = d.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberIndex)
 		if err != nil {
-			glog.Errorln("GetServiceMember error", err, "memberName", memberName, "requuid", requuid, "service", serviceAttr)
+			glog.Errorln("GetServiceMember error", err, "memberIndex", memberIndex, "requuid", requuid, "service", serviceAttr)
 			return nil, err
 		}
 	} else {
@@ -940,6 +939,7 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 		PrimaryDeviceName: d.serverIns.GetControlDBDeviceName(),
 	}
 	member := db.CreateServiceMember(serviceUUID,
+		0, // member index
 		common.ControlDBServiceName,
 		d.serverInfo.GetLocalAvailabilityZone(),
 		taskID,

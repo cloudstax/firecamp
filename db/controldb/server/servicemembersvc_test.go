@@ -58,6 +58,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		}
 		member := &pb.ServiceMember{
 			ServiceUUID:         serviceUUID,
+			MemberIndex:         int64(i),
 			MemberName:          memberName,
 			AvailableZone:       az,
 			TaskID:              taskID,
@@ -97,7 +98,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		// negative: get non-exist member
 		key := &pb.ServiceMemberKey{
 			ServiceUUID: serviceUUID,
-			MemberName:  memberName + "xxx",
+			MemberIndex: 100,
 		}
 		member1, err = s.getServiceMember(ctx, key)
 		if err != db.ErrDBRecordNotFound {
@@ -106,7 +107,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		// get member
 		key = &pb.ServiceMemberKey{
 			ServiceUUID: serviceUUID,
-			MemberName:  memberName,
+			MemberIndex: int64(i),
 		}
 		member1, err = s.getServiceMember(ctx, key)
 		if err != nil {
@@ -119,7 +120,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		// test update member
 		// copy serviceMember as s.getServiceMember returns the pointer, member and member1 point to the same pb.ServiceMember
 		member2 := controldb.CopyServiceMember(member1)
-		member2.MemberName = memberName + "xxxx"
+		member2.MemberIndex = 1000
 		// negative case: OldMember non-exist serviceMember
 		req := &pb.UpdateServiceMemberRequest{
 			OldMember: member2,
@@ -130,7 +131,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 			t.Fatalf("update non-exist serviceMember, expect db.ErrDBRecordNotFound, got %s, rootdir %s", err, rootdir)
 		}
 		// negative case: OldMember mismatch
-		member2.MemberName = member.MemberName
+		member2.MemberIndex = member.MemberIndex
 		member2.ContainerInstanceID = member.ContainerInstanceID + updateSuffix
 		member2.ServerInstanceID = member.ServerInstanceID + updateSuffix
 		member2.TaskID = member.TaskID + updateSuffix
@@ -170,13 +171,11 @@ func TestServiceMemberReadWriter(t *testing.T) {
 	idx := 0
 	for i := 0; i < 6; i++ {
 		idx += 2
-		str := strconv.Itoa(idx)
-		memberName := memberNamePrefix + str
 
 		// negative case: delete non-exist serviceMember
 		key := &pb.ServiceMemberKey{
 			ServiceUUID: serviceUUID,
-			MemberName:  memberName + "xxx",
+			MemberIndex: 100,
 		}
 		err = s.deleteServiceMember(ctx, key)
 		if err != db.ErrDBRecordNotFound {
@@ -186,7 +185,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		// delete serviceMember
 		key = &pb.ServiceMemberKey{
 			ServiceUUID: serviceUUID,
-			MemberName:  memberName,
+			MemberIndex: int64(idx),
 		}
 		err = s.deleteServiceMember(ctx, key)
 		if err != nil {
@@ -243,6 +242,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	}
 	member := &pb.ServiceMember{
 		ServiceUUID:         serviceUUID,
+		MemberIndex:         int64(i),
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              taskID,
@@ -276,7 +276,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	// negative: get non-exist member
 	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberName + "xxx",
+		MemberIndex: 100,
 	}
 	_, err = s.GetServiceMember(ctx, key)
 	if err != db.ErrDBRecordNotFound {
@@ -285,7 +285,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	// get member
 	key = &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberName,
+		MemberIndex: int64(i),
 	}
 	member1, err = s.GetServiceMember(ctx, key)
 	if err != nil {
@@ -298,7 +298,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	// test update member
 	// copy serviceMember as s.getServiceMember returns the pointer, member and member1 point to the same pb.ServiceMember
 	member2 := controldb.CopyServiceMember(member1)
-	member2.MemberName = memberName + "xxxx"
+	member2.MemberIndex = 1000
 	// negative case: OldMember non-exist serviceMember
 	req := &pb.UpdateServiceMemberRequest{
 		OldMember: member2,
@@ -309,7 +309,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 		t.Fatalf("update non-exist serviceMember, expect db.ErrDBRecordNotFound, got %s, rootdir %s", err, rootdir)
 	}
 	// negative case: OldMember mismatch
-	member2.MemberName = member.MemberName
+	member2.MemberIndex = member.MemberIndex
 	member2.ContainerInstanceID = member.ContainerInstanceID + updateSuffix
 	member2.ServerInstanceID = member.ServerInstanceID + updateSuffix
 	member2.TaskID = member.TaskID + updateSuffix
@@ -359,7 +359,6 @@ func TestServiceMemberSvc(t *testing.T) {
 	ctx := context.Background()
 
 	serviceUUIDPrefix := "serviceuuid-"
-	memberNamePrefix := "member-"
 	for i := 0; i < maxCacheSize; i++ {
 		serviceUUID := serviceUUIDPrefix + strconv.Itoa(i)
 		testServiceMemberOp(t, s, serviceUUID, i, rootdir)
@@ -394,7 +393,7 @@ func TestServiceMemberSvc(t *testing.T) {
 	serviceUUID = serviceUUIDPrefix + strconv.Itoa(2)
 	key := &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberNamePrefix + strconv.Itoa(2),
+		MemberIndex: 2,
 	}
 	_, err := s.GetServiceMember(ctx, key)
 	if err != nil {
@@ -419,7 +418,7 @@ func TestServiceMemberSvc(t *testing.T) {
 	serviceUUID = serviceUUIDPrefix + strconv.Itoa(0)
 	key = &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberNamePrefix + strconv.Itoa(0),
+		MemberIndex: 0,
 	}
 	_, err = s.GetServiceMember(ctx, key)
 	if err != nil {
@@ -441,7 +440,7 @@ func TestServiceMemberSvc(t *testing.T) {
 	serviceUUID = serviceUUIDPrefix + strconv.Itoa(1)
 	key = &pb.ServiceMemberKey{
 		ServiceUUID: serviceUUID,
-		MemberName:  memberNamePrefix + strconv.Itoa(1),
+		MemberIndex: 1,
 	}
 	err = s.DeleteServiceMember(ctx, key)
 	if err != nil {

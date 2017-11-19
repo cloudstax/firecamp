@@ -145,10 +145,11 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 	}
 }
 
-func CreateInitialServiceMember(serviceUUID string, memberName string, az string,
+func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberName string, az string,
 	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
+		MemberIndex:         memberIndex,
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              DefaultTaskID,
@@ -161,11 +162,12 @@ func CreateInitialServiceMember(serviceUUID string, memberName string, az string
 	}
 }
 
-func CreateServiceMember(serviceUUID string, memberName string,
+func CreateServiceMember(serviceUUID string, memberIndex int64, memberName string,
 	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
 	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
+		MemberIndex:         memberIndex,
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              taskID,
@@ -180,6 +182,7 @@ func CreateServiceMember(serviceUUID string, memberName string,
 
 func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
 	if t1.ServiceUUID == t2.ServiceUUID &&
+		t1.MemberIndex == t2.MemberIndex &&
 		t1.MemberName == t2.MemberName &&
 		t1.AvailableZone == t2.AvailableZone &&
 		t1.TaskID == t2.TaskID &&

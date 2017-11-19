@@ -48,9 +48,9 @@ type DB interface {
 
 	CreateServiceMember(ctx context.Context, member *common.ServiceMember) error
 	UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error
-	GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error)
+	GetServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) (member *common.ServiceMember, err error)
 	ListServiceMembers(ctx context.Context, serviceUUID string) (members []*common.ServiceMember, err error)
-	DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error
+	DeleteServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) error
 
 	CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error
 	GetConfigFile(ctx context.Context, serviceUUID string, fileID string) (cfg *common.ConfigFile, err error)

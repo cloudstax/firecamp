@@ -3,6 +3,7 @@ package controldbserver
 import (
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -269,8 +270,8 @@ type serviceMemberReadWriter struct {
 	rootDir     string
 	serviceUUID string
 	memberDir   string
-	// all serviceMembers of the service, key: MemberName
-	members map[string]*pb.ServiceMember
+	// all serviceMembers of the service, key: MemberIndex
+	members map[int64]*pb.ServiceMember
 }
 
 func newServiceMemberReadWriter(ctx context.Context, rootDir string, serviceUUID string) (*serviceMemberReadWriter, error) {
@@ -280,7 +281,7 @@ func newServiceMemberReadWriter(ctx context.Context, rootDir string, serviceUUID
 		rootDir:     rootDir,
 		serviceUUID: serviceUUID,
 		memberDir:   path.Join(rootDir, serviceUUID, serviceMemberDirName),
-		members:     make(map[string]*pb.ServiceMember),
+		members:     make(map[int64]*pb.ServiceMember),
 	}
 
 	// list all serviceMembers
@@ -329,7 +330,7 @@ func newServiceMemberReadWriter(ctx context.Context, rootDir string, serviceUUID
 			return nil, db.ErrDBInternal
 		}
 
-		r.members[member.MemberName] = member
+		r.members[member.MemberIndex] = member
 	}
 
 	glog.Infoln("newServiceMemberReadWriter done for service", serviceUUID, "serviceMembers",
@@ -349,7 +350,7 @@ func (r *serviceMemberReadWriter) createServiceMember(ctx context.Context, membe
 		return db.ErrDBInvalidRequest
 	}
 
-	currmember, ok := r.members[member.MemberName]
+	currmember, ok := r.members[member.MemberIndex]
 	if ok {
 		// serviceMember member exists, check whether the creating member is the same with the current member
 		skipMtime := true
@@ -369,7 +370,7 @@ func (r *serviceMemberReadWriter) createServiceMember(ctx context.Context, membe
 	}
 
 	// successfully created the member file, cache it
-	r.members[member.MemberName] = member
+	r.members[member.MemberIndex] = member
 
 	glog.Infoln("createServiceMember done", member, "requuid", requuid)
 	return nil
@@ -383,7 +384,7 @@ func (r *serviceMemberReadWriter) createServiceMemberFile(member *pb.ServiceMemb
 	}
 
 	// write data and checksum to the tmp file
-	tmpfilepath := path.Join(r.memberDir, member.MemberName) + tmpFileSuffix
+	tmpfilepath := path.Join(r.memberDir, strconv.FormatInt(member.MemberIndex, 10)) + tmpFileSuffix
 	err = createFile(tmpfilepath, data, op, requuid)
 	if err != nil {
 		glog.Errorln(op, "create tmp file", tmpfilepath, "error", err, "requuid", requuid)
@@ -392,7 +393,7 @@ func (r *serviceMemberReadWriter) createServiceMemberFile(member *pb.ServiceMemb
 	}
 
 	// rename tmpfile to the serviceMember file
-	filepath := path.Join(r.memberDir, member.MemberName)
+	filepath := path.Join(r.memberDir, strconv.FormatInt(member.MemberIndex, 10))
 	err = os.Rename(tmpfilepath, filepath)
 	if err != nil {
 		glog.Errorln(op, "rename tmpfile", tmpfilepath, "to", filepath, "error", err, "requuid", requuid)
@@ -410,7 +411,7 @@ func (r *serviceMemberReadWriter) getServiceMember(ctx context.Context, key *pb.
 		glog.Errorln("getServiceMember", key, "not belong to service", r.serviceUUID)
 		return nil, db.ErrDBInvalidRequest
 	}
-	currmember, ok := r.members[key.MemberName]
+	currmember, ok := r.members[key.MemberIndex]
 	if !ok {
 		glog.Errorln("getServiceMember member not exist", key, "requuid", requuid)
 		return nil, db.ErrDBRecordNotFound
@@ -427,6 +428,7 @@ func (r *serviceMemberReadWriter) updateServiceMember(ctx context.Context, req *
 	if req.NewMember.ServiceUUID != req.OldMember.ServiceUUID ||
 		!controldb.EqualsMemberVolumes(req.NewMember.Volumes, req.OldMember.Volumes) ||
 		req.NewMember.AvailableZone != req.OldMember.AvailableZone ||
+		req.NewMember.MemberIndex != req.OldMember.MemberIndex ||
 		req.NewMember.MemberName != req.OldMember.MemberName ||
 		req.NewMember.StaticIP != req.OldMember.StaticIP {
 		glog.Errorln("updateServiceMember, the immutable serviceMember attributes are updated", req.OldMember, req.NewMember, "requuid", requuid)
@@ -438,7 +440,7 @@ func (r *serviceMemberReadWriter) updateServiceMember(ctx context.Context, req *
 	}
 
 	// get the current serviceMember
-	currmember, ok := r.members[req.OldMember.MemberName]
+	currmember, ok := r.members[req.OldMember.MemberIndex]
 	if !ok {
 		glog.Errorln("updateServiceMember, no member", req.OldMember.MemberName, "requuid", requuid)
 		return db.ErrDBRecordNotFound
@@ -457,7 +459,7 @@ func (r *serviceMemberReadWriter) updateServiceMember(ctx context.Context, req *
 		return err
 	}
 
-	r.members[req.OldMember.MemberName] = req.NewMember
+	r.members[req.OldMember.MemberIndex] = req.NewMember
 
 	glog.Infoln("updateServiceMember done", req.NewMember, "requuid", requuid)
 	return nil
@@ -471,20 +473,20 @@ func (r *serviceMemberReadWriter) deleteServiceMember(ctx context.Context, key *
 		return db.ErrDBInvalidRequest
 	}
 
-	currmember, ok := r.members[key.MemberName]
+	currmember, ok := r.members[key.MemberIndex]
 	if !ok {
 		glog.Errorln("deleteServiceMember member not exist", key, "requuid", requuid)
 		return db.ErrDBRecordNotFound
 	}
 
-	filepath := path.Join(r.memberDir, key.MemberName)
+	filepath := path.Join(r.memberDir, strconv.FormatInt(key.MemberIndex, 10))
 	err := os.Remove(filepath)
 	if err != nil {
 		glog.Errorln("delete serviceMember file error", err, filepath, "requuid", requuid)
 		return db.ErrDBInternal
 	}
 
-	delete(r.members, key.MemberName)
+	delete(r.members, key.MemberIndex)
 
 	glog.Infoln("deleteServiceMember done", currmember, "requuid", requuid)
 	return nil

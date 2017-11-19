@@ -49,6 +49,7 @@ const (
 	TaskID              = "TaskID"
 	ContainerInstanceID = "ContainerInstanceID"
 	ServerInstanceID    = "ServerInstanceID"
+	MemberIndex         = "MemberIndex"
 	MemberName          = "MemberName"
 	MemberVolumes       = "MemberVolumes"
 	MemberConfigs       = "MemberConfigs"

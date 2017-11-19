@@ -49,6 +49,7 @@ func TestDBUtils(t *testing.T) {
 
 	volID := "vol-1"
 	az := "az-1"
+	memberIndex := int64(1)
 	memberName := "member-1"
 	staticIP := "10.0.0.1"
 	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
@@ -57,8 +58,8 @@ func TestDBUtils(t *testing.T) {
 		PrimaryVolumeID:   volID,
 		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
-	member1 := CreateInitialServiceMember(serviceUUID, memberName, az, mvols, staticIP, cfgs)
-	member2 := CreateServiceMember(serviceUUID, memberName,
+	member1 := CreateInitialServiceMember(serviceUUID, memberIndex, memberName, az, mvols, staticIP, cfgs)
+	member2 := CreateServiceMember(serviceUUID, memberIndex, memberName,
 		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
 		mvols, staticIP, cfgs)
 	if !EqualServiceMember(member1, member2, true) {

@@ -433,6 +433,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 			PrimaryDeviceName: devNamePrefix + str,
 		}
 		member := db.CreateServiceMember(serviceUUID,
+			int64(i),
 			memberName,
 			az,
 			taskIDPrefix+str,
@@ -457,6 +458,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 
 		// negative case: create the serviceMember again with different field
 		member1 := db.CreateServiceMember(serviceUUID,
+			int64(i),
 			memberName,
 			az,
 			taskIDPrefix+str+updateSuffix,
@@ -473,7 +475,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		}
 
 		// get serviceMember
-		member2, err := dbcli.GetServiceMember(ctx, serviceUUID, memberName)
+		member2, err := dbcli.GetServiceMember(ctx, serviceUUID, int64(i))
 		if err != nil {
 			glog.Errorln("get serviceMember, expect success, got", err, "memberName", memberName)
 			return err
@@ -484,7 +486,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		}
 
 		// negative case: get non-exist serviceMember
-		_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberNamePrefix+"xxx")
+		_, err = dbcli.GetServiceMember(ctx, serviceUUID, 1000)
 		if err != db.ErrDBRecordNotFound {
 			glog.Errorln("get non-exist serviceMember, expect db.ErrDBRecordNotFound, got error", err)
 			return db.ErrDBInternal
@@ -492,6 +494,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 
 		// update serviceMember
 		member1 = db.CreateServiceMember(serviceUUID,
+			int64(i),
 			memberName,
 			az,
 			taskIDPrefix+str+updateSuffix,
@@ -529,35 +532,35 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 	}
 
 	// delete 3 serviceMembers
-	memberName := memberNamePrefix + fmt.Sprintf("%08x", 2)
-	err := dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
+	memberIndex := int64(2)
+	err := dbcli.DeleteServiceMember(ctx, serviceUUID, 2)
 	if err != nil {
-		glog.Errorln("DeleteServiceMember error", err, memberName)
+		glog.Errorln("DeleteServiceMember error", err, memberIndex)
 		return err
 	}
-	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberIndex)
 	if err != db.ErrDBRecordNotFound {
 		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
-	memberName = memberNamePrefix + fmt.Sprintf("%08x", 9)
-	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
+	memberIndex = int64(9)
+	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberIndex)
 	if err != nil {
-		glog.Errorln("DeleteServiceMember error", err, memberName)
+		glog.Errorln("DeleteServiceMember error", err, memberIndex)
 		return err
 	}
-	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberIndex)
 	if err != db.ErrDBRecordNotFound {
 		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
 	}
-	memberName = memberNamePrefix + fmt.Sprintf("%08x", maxCounts-5)
-	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberName)
+	memberIndex = int64(maxCounts - 5)
+	err = dbcli.DeleteServiceMember(ctx, serviceUUID, memberIndex)
 	if err != nil {
-		glog.Errorln("DeleteServiceMember error", err, memberName)
+		glog.Errorln("DeleteServiceMember error", err, memberIndex)
 		return err
 	}
-	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberName)
+	_, err = dbcli.GetServiceMember(ctx, serviceUUID, memberIndex)
 	if err != db.ErrDBRecordNotFound {
 		glog.Errorln("get deleted serviceMember, expect db.ErrDBRecordNotFound, got", err)
 		return err
