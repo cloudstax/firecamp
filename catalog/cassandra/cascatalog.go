@@ -131,7 +131,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, logCfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs

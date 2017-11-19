@@ -323,12 +323,8 @@ func TestServiceMembers(t *testing.T) {
 			len(s1), s1[0].ServiceUUID, items, err)
 	}
 	for _, item := range items {
-		i, err := utils.GetServiceMemberIndex(item.MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, MemberName %s", err, item.MemberName)
-		}
-		if !EqualServiceMember(item, s1[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s1[i], item, i)
+		if !EqualServiceMember(item, s1[item.MemberIndex], false) {
+			t.Fatalf("expected %s, got %s, index %d", s1[item.MemberIndex], item, item.MemberIndex)
 		}
 	}
 
@@ -339,12 +335,8 @@ func TestServiceMembers(t *testing.T) {
 			len(s2), s2[0].ServiceUUID, items, err)
 	}
 	for _, item := range items {
-		i, err := utils.GetServiceMemberIndex(item.MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, MemberName %s", err, item.MemberName)
-		}
-		if !EqualServiceMember(item, s2[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s2[i], item, i)
+		if !EqualServiceMember(item, s2[item.MemberIndex], false) {
+			t.Fatalf("expected %s, got %s, index %d", s2[item.MemberIndex], item, item.MemberIndex)
 		}
 	}
 
@@ -361,12 +353,8 @@ func TestServiceMembers(t *testing.T) {
 			len(s1)-1, s1[0].ServiceUUID, items, err)
 	}
 	for _, item := range items {
-		i, err := utils.GetServiceMemberIndex(item.MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, MemberName %s", err, item.MemberName)
-		}
-		if !EqualServiceMember(item, s1[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s1[i], item, i)
+		if !EqualServiceMember(item, s1[item.MemberIndex], false) {
+			t.Fatalf("expected %s, got %s, index %d", s1[item.MemberIndex], item, item.MemberIndex)
 		}
 	}
 

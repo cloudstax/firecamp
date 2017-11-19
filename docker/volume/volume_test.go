@@ -98,9 +98,10 @@ func TestVolumeFunctions(t *testing.T) {
 	// create the config files for replicas
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
+		memberName := utils.GenServiceMemberName(service1, int64(i))
 		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 
@@ -192,9 +193,10 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	// create the config files for replicas
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
+		memberName := utils.GenServiceMemberName(service1, int64(i))
 		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 
@@ -443,9 +445,10 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	// create the config files for replicas
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
+		memberName := utils.GenServiceMemberName(service1, int64(i))
 		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 

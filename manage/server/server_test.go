@@ -293,9 +293,10 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
+		memberName := utils.GenServiceMemberName(service, int64(i))
 		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: "west-az-1", Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: "west-az-1", MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 

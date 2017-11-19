@@ -52,9 +52,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		// create the config files for replicas
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount1)
 		for i := 0; i < taskCount1; i++ {
+			memberName := utils.GenServiceMemberName(service, int64(i))
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
@@ -116,15 +117,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount1, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-			}
-			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-			}
-			return idx1 < idx2
+			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
@@ -188,9 +181,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		// create the config files for replicas
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount2)
 		for i := 0; i < taskCount2; i++ {
+			memberName := utils.GenServiceMemberName(service, int64(i))
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
@@ -252,15 +246,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount2, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-			}
-			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-			}
-			return idx1 < idx2
+			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
@@ -342,9 +328,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		// create the config files for replicas
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount3)
 		for i := 0; i < taskCount3; i++ {
+			memberName := utils.GenServiceMemberName(service, int64(i))
 			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 			configs := []*manage.ReplicaConfigFile{cfg}
-			replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
 
@@ -379,15 +366,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount3, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-			}
-			idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-			if err != nil {
-				t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-			}
-			return idx1 < idx2
+			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
@@ -450,9 +429,10 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// create the config files for replicas
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
+		memberName := utils.GenServiceMemberName(service, int64(i))
 		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
 		configs := []*manage.ReplicaConfigFile{cfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 
@@ -510,15 +490,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-		}
-		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-		}
-		return idx1 < idx2
+		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
@@ -549,6 +521,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 2. device and service item exist
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
+	// update the ServiceName in CreateServiceRequest
+	req.Service.ServiceName = service
+	for i, cfg := range replicaCfgs {
+		memberName := utils.GenServiceMemberName(service, int64(i))
+		cfg.MemberName = memberName
+	}
+
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev := "/dev/loop2"
 	if requireJournalVolume {
@@ -563,9 +542,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if err != nil {
 		t.Fatalf("CreateService error %s, serviceItem %s", err, serviceItem)
 	}
-
-	// update the ServiceName in CreateServiceRequest
-	req.Service.ServiceName = service
 
 	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
@@ -596,15 +572,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-		}
-		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-		}
-		return idx1 < idx2
+		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
@@ -635,6 +603,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 3. device and service item exist, the 3rd device, service attr is at creating
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
+	// update the ServiceName in CreateServiceRequest
+	req.Service.ServiceName = service
+	for i, cfg := range replicaCfgs {
+		memberName := utils.GenServiceMemberName(service, int64(i))
+		cfg.MemberName = memberName
+	}
+
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev = "/dev/loop3"
 	if requireJournalVolume {
@@ -655,8 +630,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("GetOrCreateHostedZoneIDByName error %s, domain %s, vpc %s %s", err, domain, vpcID, region)
 	}
 
-	// update the ServiceName in CreateServiceRequest
-	req.Service.ServiceName = service
 	svols, err := s.createServiceVolumes(ctx, req)
 	if err != nil {
 		t.Fatalf("createServiceVolumes error %s", err)
@@ -685,15 +658,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-		}
-		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-		}
-		return idx1 < idx2
+		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
@@ -713,6 +678,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// 4. device and service item exist, the 4th device, service attr is at creating, and one serviceMember created
 	idx++
 	service = servicePrefix + strconv.Itoa(idx)
+	// update the ServiceName in CreateServiceRequest
+	req.Service.ServiceName = service
+	for i, cfg := range replicaCfgs {
+		memberName := utils.GenServiceMemberName(service, int64(i))
+		cfg.MemberName = memberName
+	}
+
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
 	expectDev = "/dev/loop4"
 	if requireJournalVolume {
@@ -754,8 +726,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
 	}
 
-	memberName := utils.GenServiceMemberName(service, 0)
-	cfgs, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, memberName, replicaCfgs[0])
+	cfgs, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, replicaCfgs[0])
 	if err != nil {
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}
@@ -777,7 +748,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 
-	_, err = s.createServiceMember(ctx, serviceAttr, az, 0, memberName, ip, cfgs)
+	_, err = s.createServiceMember(ctx, serviceAttr, az, 0, replicaCfgs[0].MemberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}
@@ -785,7 +756,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if requireStaticIP {
 		// create the next ip and not assign to member
 		assignedIPs := make(map[string]string)
-		assignedIPs[ip] = memberName
+		assignedIPs[ip] = replicaCfgs[0].MemberName
 		serviceip, err := s.createStaticIPsForZone(ctx, serviceAttr, assignedIPs, 1, az)
 		if err != nil {
 			t.Fatalf("createStaticIPsForZone error %s", err)
@@ -798,9 +769,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			t.Fatalf("expect ip %s, get %s", ip, serviceip[0])
 		}
 	}
-
-	// update the ServiceName in CreateServiceRequest
-	req.Service.ServiceName = service
 
 	svcUUID, err = s.CreateService(ctx, req, domain, vpcID)
 	if err != nil || svcUUID != "uuid"+service {
@@ -831,15 +799,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		idx1, err := utils.GetServiceMemberIndex(memberItems[i].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[i])
-		}
-		idx2, err := utils.GetServiceMemberIndex(memberItems[j].MemberName)
-		if err != nil {
-			t.Fatalf("GetServiceMemberIndex error %s, %s", err, memberItems[j])
-		}
-		return idx1 < idx2
+		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))

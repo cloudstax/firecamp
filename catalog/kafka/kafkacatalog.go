@@ -139,7 +139,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, logCfg}
 
-		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], Configs: configs}
+		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs

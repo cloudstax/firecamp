@@ -811,11 +811,11 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 	copy(allMembers, members)
 
 	for i := len(members); i < int(req.Replicas); i++ {
-		memberName := utils.GenServiceMemberName(req.Service.ServiceName, int64(i))
+		replicaCfg := req.ReplicaConfigs[i]
 
 		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
-		dnsname := dns.GenDNSName(memberName, sattr.DomainName)
+		dnsname := dns.GenDNSName(replicaCfg.MemberName, sattr.DomainName)
 
 		// faked host ip for DNS update
 		// TODO could get all server instance IDs and ips, assign the member to one instance.
@@ -823,25 +823,25 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 		hostIP := common.DefaultHostIP
 		if sattr.RequireStaticIP {
 			// get one static ip
-			ips, ok := staticIPs[req.ReplicaConfigs[i].Zone]
+			ips, ok := staticIPs[replicaCfg.Zone]
 			if !ok {
-				glog.Errorln("internal error, not find static ip for zone", req.ReplicaConfigs[i].Zone,
+				glog.Errorln("internal error, not find static ip for zone", replicaCfg.Zone,
 					"serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 				return common.ErrInternal
 			}
 			if len(ips) == 0 {
-				glog.Errorln("internal error, not more static ip for zone", req.ReplicaConfigs[i].Zone,
+				glog.Errorln("internal error, not more static ip for zone", replicaCfg.Zone,
 					"serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 				return common.ErrInternal
 			}
 
 			hostIP = ips[0].StaticIP
 
-			glog.Infoln("get static ip for member", memberName, "requuid", requuid, ips[0])
+			glog.Infoln("get static ip for member", replicaCfg.MemberName, "requuid", requuid, ips[0])
 
 			// remove the assigned static ip
 			ips = ips[1:]
-			staticIPs[req.ReplicaConfigs[i].Zone] = ips
+			staticIPs[replicaCfg.Zone] = ips
 		}
 
 		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.HostedZoneID)
@@ -852,18 +852,17 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 		glog.Infoln("updated member dns", dnsname, "to", hostIP, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 
 		// check and create the config file first
-		replicaCfg := req.ReplicaConfigs[i]
-		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, memberName, replicaCfg)
+		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, replicaCfg)
 		if err != nil {
 			glog.Errorln("checkAndCreateConfigFile error", err, "service", sattr.ServiceUUID,
-				"member", memberName, "requuid", requuid)
+				"member", replicaCfg.MemberName, "requuid", requuid)
 			return err
 		}
 
-		member, err := s.createServiceMember(ctx, sattr, req.ReplicaConfigs[i].Zone, int64(i), memberName, hostIP, cfgs)
+		member, err := s.createServiceMember(ctx, sattr, replicaCfg.Zone, int64(i), replicaCfg.MemberName, hostIP, cfgs)
 		if err != nil {
-			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", memberName,
-				"az", req.ReplicaConfigs[i].Zone, "error", err, "requuid", requuid)
+			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", replicaCfg.MemberName,
+				"az", replicaCfg.Zone, "error", err, "requuid", requuid)
 			return err
 		}
 		allMembers[i] = member
@@ -896,7 +895,7 @@ func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr 
 	return nil
 }
 
-func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string, memberName string,
+func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string,
 	replicaCfg *manage.ReplicaConfig) ([]*common.MemberConfig, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -905,7 +904,7 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 
 	configs := make([]*common.MemberConfig, len(replicaCfg.Configs))
 	for i, cfg := range replicaCfg.Configs {
-		fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
+		fileID := utils.GenMemberConfigFileID(replicaCfg.MemberName, cfg.FileName, version)
 		initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 		cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 		if err != nil {

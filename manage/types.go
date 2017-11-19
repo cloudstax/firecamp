@@ -44,10 +44,12 @@ const (
 	JsonContentType = "application/json"
 )
 
-// ReplicaConfig contains the required config files for one replica.
+// ReplicaConfig contains the required config files for one replica (member).
 type ReplicaConfig struct {
 	// The availability zone this replica should run.
 	Zone string
+	// The replica's member name.
+	MemberName string
 	// The detail config files for this replica.
 	Configs []*ReplicaConfigFile
 }

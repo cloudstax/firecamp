@@ -213,7 +213,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			// distribute the masters to different availability zones and
 			// distribute the slaves of one master to different availability zones
 			azIndex := int(shard+i) % len(azs)
-			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], Configs: configs}
+			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], MemberName: member, Configs: configs}
 
 			replicaCfgs[opts.ReplicasPerShard*shard+i] = replicaCfg
 		}

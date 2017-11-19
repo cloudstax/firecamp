@@ -110,7 +110,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryMember, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
 
 	// generate the standby configs.
 	// TODO support cascading replication, specially for cross-region replication.
@@ -118,14 +118,14 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		index := int(i) % len(azs)
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		replicaCfgs[i] = genStandbyConfig(platform, azs[index], memberHost, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+		replicaCfgs[i] = genStandbyConfig(platform, azs[index], member, memberHost, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(platform string, az string, primaryHost string, port int64,
-	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
+func genPrimaryConfig(platform string, az string, member string, primaryHost string,
+	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
 	cfg0 := catalog.CreateSysConfigFile(platform, primaryHost)
 
@@ -153,11 +153,11 @@ func genPrimaryConfig(platform string, az string, primaryHost string, port int64
 	}
 
 	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3}
-	return &manage.ReplicaConfig{Zone: az, Configs: configs}
+	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 
-func genStandbyConfig(platform, az string, memberHost string, primaryHost string, port int64,
-	adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
+func genStandbyConfig(platform, az string, member string, memberHost string, primaryHost string,
+	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
 	cfg0 := catalog.CreateSysConfigFile(platform, memberHost)
 
@@ -193,7 +193,7 @@ func genStandbyConfig(platform, az string, memberHost string, primaryHost string
 	}
 
 	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3, cfg4}
-	return &manage.ReplicaConfig{Zone: az, Configs: configs}
+	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 
 const (

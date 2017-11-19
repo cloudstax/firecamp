@@ -192,19 +192,12 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 	var vols []*volume.Volume
 	for _, v := range d.volumes {
 		svcuuid := v.member.ServiceUUID
-		memberIndex, err := utils.GetServiceMemberIndex(v.member.MemberName)
-		if err != nil {
-			errmsg := fmt.Sprintf("invalid service member name %s, error %s", v.member, err)
-			glog.Errorln(errmsg)
-			return volume.Response{Err: errmsg}
-		}
-
-		name := containersvc.GenVolumeSourceName(svcuuid, memberIndex)
+		name := containersvc.GenVolumeSourceName(svcuuid, v.member.MemberIndex)
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
 		if len(v.member.Volumes.JournalVolumeID) != 0 {
 			logvolpath := utils.GetServiceJournalVolumeName(svcuuid)
-			name = containersvc.GenVolumeSourceName(logvolpath, memberIndex)
+			name = containersvc.GenVolumeSourceName(logvolpath, v.member.MemberIndex)
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
 		}
 	}

@@ -79,12 +79,6 @@ func GenServiceMemberName(serviceName string, index int64) string {
 	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }
 
-func GetServiceMemberIndex(memberName string) (int64, error) {
-	fields := strings.Split(memberName, common.NameSeparator)
-	indexStr := fields[len(fields)-1]
-	return strconv.ParseInt(indexStr, 10, 64)
-}
-
 func GenMemberConfigFileID(memberName string, configFileName string, version int64) string {
 	return memberName + common.NameSeparator + configFileName + common.NameSeparator + strconv.FormatInt(version, 10)
 }
