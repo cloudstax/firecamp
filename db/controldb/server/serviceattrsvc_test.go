@@ -1,6 +1,7 @@
 package controldbserver
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"path"
@@ -50,6 +51,15 @@ func TestAttrReadWriter(t *testing.T) {
 	hostedZone := "zone1"
 	requireStaticIP := false
 
+	redisUserAttr := &common.RedisUserAttr{
+		Shards:           1,
+		ReplicasPerShard: 1,
+	}
+	b, err := json.Marshal(redisUserAttr)
+	if err != nil {
+		t.Fatalf("Marshal userattr error %s", err)
+	}
+
 	attr := &pb.ServiceAttr{
 		ServiceUUID:   serviceUUID,
 		ServiceStatus: serviceStatus,
@@ -72,6 +82,7 @@ func TestAttrReadWriter(t *testing.T) {
 		DomainName:      domain,
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
+		UserAttr:        b,
 	}
 	err = s.createAttr(ctx, attr)
 	if err != nil {
@@ -397,6 +408,7 @@ func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
 		DomainName:      a1.DomainName,
 		HostedZoneID:    a1.HostedZoneID,
 		RequireStaticIP: a1.RequireStaticIP,
+		UserAttr:        a1.UserAttr,
 	}
 	return a2
 }

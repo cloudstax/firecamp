@@ -1,10 +1,13 @@
 package rediscatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/golang/glog"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -93,7 +96,7 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogRedisOptions) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
@@ -105,7 +108,17 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		portMappings = append(portMappings, m)
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.RedisUserAttr{
+		Shards:           opts.Shards,
+		ReplicasPerShard: opts.ReplicasPerShard,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal RedisUserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -129,7 +142,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		// require to assign a static ip for each member
 		RequireStaticIP: true,
 		ReplicaConfigs:  replicaCfgs,
+
+		UserAttr: b,
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

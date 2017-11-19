@@ -375,8 +375,12 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("create redis service request error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 
 	// create the service in the control plane
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)

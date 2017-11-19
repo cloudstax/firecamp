@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -54,7 +55,7 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64,
 	cluster string, service string, vols common.ServiceVolumes,
-	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool, userAttr []byte) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
@@ -67,12 +68,13 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
+		UserAttr:        userAttr,
 	}
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
 	cluster string, service string, vols common.ServiceVolumes,
-	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool) *common.ServiceAttr {
+	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool, userAttr []byte) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
@@ -85,6 +87,7 @@ func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas 
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
+		UserAttr:        userAttr,
 	}
 }
 
@@ -99,7 +102,8 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.RegisterDNS == t2.RegisterDNS &&
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID &&
-		t1.RequireStaticIP == t2.RequireStaticIP {
+		t1.RequireStaticIP == t2.RequireStaticIP &&
+		bytes.Equal(t1.UserAttr, t2.UserAttr) {
 		return true
 	}
 	return false
@@ -137,6 +141,7 @@ func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAtt
 		DomainName:      t1.DomainName,
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
+		UserAttr:        t1.UserAttr,
 	}
 }
 

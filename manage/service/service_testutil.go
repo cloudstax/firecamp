@@ -75,7 +75,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount1),
 			Volume:          servicevol,
-			JournalVolume:       journalVol,
+			JournalVolume:   journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -211,7 +211,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			},
 			Replicas:        int64(taskCount2),
 			Volume:          servicevol,
-			JournalVolume:       journalVol,
+			JournalVolume:   journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
 			ReplicaConfigs:  replicaCfgs,
@@ -668,7 +668,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("expect journal device /dev/loop6, get %s", svols.JournalDeviceName)
 	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -748,7 +748,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)

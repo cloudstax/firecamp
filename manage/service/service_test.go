@@ -1,6 +1,7 @@
 package manageservice
 
 import (
+	"encoding/json"
 	"net"
 	"os"
 	"strconv"
@@ -148,7 +149,15 @@ func TestUnassignedIPs(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
+	redisUserAttr := &common.RedisUserAttr{
+		Shards:           1,
+		ReplicasPerShard: 1,
+	}
+	b, err := json.Marshal(redisUserAttr)
+	if err != nil {
+		t.Fatalf("Marshal RedisUserAttr error %s", err)
+	}
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, b)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	// case: 1 network interface with 0 private ip
@@ -351,7 +360,7 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)
@@ -429,7 +438,7 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true)
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)

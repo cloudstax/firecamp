@@ -1,6 +1,7 @@
 package controldb
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/common"
@@ -77,8 +78,8 @@ func GenPbServiceVolumes(svol *common.ServiceVolumes) *pb.ServiceVolumes {
 	return &pb.ServiceVolumes{
 		PrimaryDeviceName: svol.PrimaryDeviceName,
 		PrimaryVolume:     GenPbServiceVolume(&(svol.PrimaryVolume)),
-		JournalDeviceName:     svol.JournalDeviceName,
-		JournalVolume:         GenPbServiceVolume(&(svol.JournalVolume)),
+		JournalDeviceName: svol.JournalDeviceName,
+		JournalVolume:     GenPbServiceVolume(&(svol.JournalVolume)),
 	}
 }
 
@@ -95,6 +96,7 @@ func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
 		RequireStaticIP: attr.RequireStaticIP,
+		UserAttr:        attr.UserAttr,
 	}
 	return pbAttr
 }
@@ -111,8 +113,8 @@ func GenDbServiceVolumes(svol *pb.ServiceVolumes) *common.ServiceVolumes {
 	return &common.ServiceVolumes{
 		PrimaryDeviceName: svol.PrimaryDeviceName,
 		PrimaryVolume:     *GenDbServiceVolume(svol.PrimaryVolume),
-		JournalDeviceName:     svol.JournalDeviceName,
-		JournalVolume:         *GenDbServiceVolume(svol.JournalVolume),
+		JournalDeviceName: svol.JournalDeviceName,
+		JournalVolume:     *GenDbServiceVolume(svol.JournalVolume),
 	}
 }
 
@@ -127,7 +129,8 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 		attr.RegisterDNS,
 		attr.DomainName,
 		attr.HostedZoneID,
-		attr.RequireStaticIP)
+		attr.RequireStaticIP,
+		attr.UserAttr)
 	return dbAttr
 }
 
@@ -178,7 +181,8 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&
-		a1.RequireStaticIP == a2.RequireStaticIP {
+		a1.RequireStaticIP == a2.RequireStaticIP &&
+		bytes.Equal(a1.UserAttr, a2.UserAttr) {
 		return true
 	}
 	return false
@@ -204,8 +208,8 @@ func GenPbMemberVolumes(vols *common.MemberVolumes) *pb.MemberVolumes {
 	return &pb.MemberVolumes{
 		PrimaryVolumeID:   vols.PrimaryVolumeID,
 		PrimaryDeviceName: vols.PrimaryDeviceName,
-		JournalVolumeID:       vols.JournalVolumeID,
-		JournalDeviceName:     vols.JournalDeviceName,
+		JournalVolumeID:   vols.JournalVolumeID,
+		JournalDeviceName: vols.JournalDeviceName,
 	}
 }
 
@@ -245,8 +249,8 @@ func GenDbMemberVolumes(vols *pb.MemberVolumes) common.MemberVolumes {
 	return common.MemberVolumes{
 		PrimaryVolumeID:   vols.PrimaryVolumeID,
 		PrimaryDeviceName: vols.PrimaryDeviceName,
-		JournalVolumeID:       vols.JournalVolumeID,
-		JournalDeviceName:     vols.JournalDeviceName,
+		JournalVolumeID:   vols.JournalVolumeID,
+		JournalDeviceName: vols.JournalDeviceName,
 	}
 }
 
@@ -358,8 +362,8 @@ func CopyMemberVolumes(v1 *pb.MemberVolumes) *pb.MemberVolumes {
 	return &pb.MemberVolumes{
 		PrimaryVolumeID:   v1.PrimaryVolumeID,
 		PrimaryDeviceName: v1.PrimaryDeviceName,
-		JournalVolumeID:       v1.JournalVolumeID,
-		JournalDeviceName:     v1.JournalDeviceName,
+		JournalVolumeID:   v1.JournalVolumeID,
+		JournalDeviceName: v1.JournalDeviceName,
 	}
 }
 

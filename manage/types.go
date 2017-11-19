@@ -91,6 +91,9 @@ type CreateServiceRequest struct {
 	RegisterDNS     bool
 	RequireStaticIP bool
 	ReplicaConfigs  []*ReplicaConfig
+
+	// The service's custom attributes
+	UserAttr []byte
 }
 
 // GetServiceAttributesResponse returns the service's attributes.

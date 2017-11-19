@@ -320,7 +320,7 @@ func TestFindIdleVolume(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false)
+	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil)
 
 	// add 2 service tasks
 	for i := 0; i < 2; i++ {

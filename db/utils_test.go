@@ -32,10 +32,10 @@ func TestDBUtils(t *testing.T) {
 
 	mtime := time.Now().UnixNano()
 	attr1 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}

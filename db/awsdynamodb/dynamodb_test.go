@@ -1,6 +1,7 @@
 package awsdynamodb
 
 import (
+	"encoding/json"
 	"flag"
 	"testing"
 	"time"
@@ -210,6 +211,7 @@ func TestServiceAttrs(t *testing.T) {
 	ctx := context.Background()
 
 	// create 5 services
+	var err error
 	var s [5]*common.ServiceAttr
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
@@ -225,11 +227,28 @@ func TestServiceAttrs(t *testing.T) {
 				VolumeSizeGB: 1,
 			},
 		}
+
+		var userAttr []byte
+		if i%2 == 0 {
+			rattr := &common.RedisUserAttr{
+				Shards:           1,
+				ReplicasPerShard: 1,
+			}
+			userAttr, err = json.Marshal(rattr)
+			if err != nil {
+				t.Fatalf("Marshal RedisUserAttr error %s", err)
+			}
+		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create service attr %s, err %s", s[i], err)
+		}
+
+		item, err := dbIns.GetServiceAttr(ctx, s[i].ServiceUUID)
+		if err != nil || !db.EqualServiceAttr(item, s[i], false) {
+			t.Fatalf("get service attr failed, error %s, expected %s get %s", err, s[i], item)
 		}
 	}
 

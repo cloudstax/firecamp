@@ -73,6 +73,13 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
+
+	if len(attr.UserAttr) != 0 {
+		params.Item[UserAttr] = &dynamodb.AttributeValue{
+			B: attr.UserAttr,
+		}
+	}
+
 	_, err = dbsvc.PutItem(params)
 
 	if err != nil {
@@ -177,6 +184,10 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		glog.Errorln("Unmarshal ServiceVolumes error", err, "requuid", requuid, resp)
 		return nil, db.ErrDBInternal
 	}
+	var userAttrBytes []byte
+	if userAttr, ok := resp.Item[UserAttr]; ok {
+		userAttrBytes = userAttr.B
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -189,7 +200,8 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[RegisterDNS].BOOL),
 		*(resp.Item[DomainName].S),
 		*(resp.Item[HostedZoneID].S),
-		*(resp.Item[RequireStaticIP].BOOL))
+		*(resp.Item[RequireStaticIP].BOOL),
+		userAttrBytes)
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil

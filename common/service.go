@@ -109,9 +109,18 @@ type ServiceAttr struct {
 	// Whether the service member needs the static ip. This is only required by Redis.
 	RequireStaticIP bool
 
+	// The custom service attributes
+	UserAttr []byte
+
 	// The service admin and password. The password will be deleted once the service is initialized.
 	//Admin       string
 	//AdminPasswd string
+}
+
+// RedisUserAttr represents the custom Redis service attributes.
+type RedisUserAttr struct {
+	Shards           int64
+	ReplicasPerShard int64
 }
 
 // ServiceVolumes represent the volumes of one service.

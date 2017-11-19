@@ -39,6 +39,7 @@ const (
 	HostedZoneID    = "HostedZoneID"
 	RequireStaticIP = "RequireStaticIP"
 	LastModified    = "LastModified"
+	UserAttr        = "UserAttr"
 
 	VolumeID            = "VolumeID"
 	VolumeSizeGB        = "VolumeSizeGB"

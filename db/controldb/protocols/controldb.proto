@@ -109,6 +109,13 @@ message ServiceAttr {
   string domainName = 9;
   string hostedZoneID = 10;
   bool requireStaticIP = 11;
+
+  bytes userAttr = 12;
+}
+
+message RedisUserAttr {
+  int64 shards = 1;
+  int64 replicasPerShard = 2;
 }
 
 message ServiceVolumes {
