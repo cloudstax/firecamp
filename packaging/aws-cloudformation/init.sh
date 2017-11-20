@@ -145,11 +145,11 @@ if [ "$containerPlatform" = "swarm" ]; then
   # get swarminit command to init swarm
   for i in `seq 1 3`
   do
-    wget -O /tmp/firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/packages/$version/firecamp-swarminit.tgz
+    wget -O /tmp/firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
     if [ "$?" = "0" ]; then
       break
     elif [ "$i" = "3" ]; then
-      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/packages/$version/firecamp-swarminit.tgz"
+      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz"
       exit 2
     else
       # wget fail, sleep and retry
