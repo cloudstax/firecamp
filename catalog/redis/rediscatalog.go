@@ -15,7 +15,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -166,14 +165,12 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
 	for shard := int64(0); shard < opts.Shards; shard++ {
-		masterMember := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard)
+		masterMember := genServiceShardMemberName(service, shard, 0)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
 
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			// create the sys.conf file
-			// TODO enable custom shard member name
-			//member := genServiceShardMemberName(service, shard, i)
-			member := utils.GenServiceMemberName(service, shard*opts.ReplicasPerShard+i)
+			member := genServiceShardMemberName(service, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
 			sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
@@ -223,8 +220,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 // shard member dns name example: service-shard0-0
 func genServiceShardMemberName(serviceName string, shard int64, replicasInShard int64) string {
-	shardMemberName := serviceName + common.NameSeparator + shardName + strconv.FormatInt(shard, 10)
-	return utils.GenServiceMemberName(shardMemberName, replicasInShard)
+	return serviceName + common.NameSeparator + shardName + strconv.FormatInt(shard, 10) + common.NameSeparator + strconv.FormatInt(replicasInShard, 10)
 }
 
 // IsClusterMode checks if the service is created with the cluster mode.
@@ -323,8 +319,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	slaves := ""
 	for shard := int64(0); shard < shards; shard++ {
 		for i := int64(0); i < replicasPerShard; i++ {
-			//member := genServiceShardMemberName(service, shard, i)
-			member := utils.GenServiceMemberName(service, shard*replicasPerShard+i)
+			member := genServiceShardMemberName(service, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
 
 			if i == int64(0) {
