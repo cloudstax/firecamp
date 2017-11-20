@@ -25,10 +25,8 @@
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
-#export REDIS_MASTERS="myredis-0.c1-firecamp.com,myredis-1.c1-firecamp.com,myredis-2.c1-firecamp.com"
-#export REDIS_SLAVES="myredis-3.c1-firecamp.com,myredis-4.c1-firecamp.com,myredis-5.c1-firecamp.com"
-# The service masters should be myredis-shard0-0.c1-firecamp.com,myredis-shard1-0.c1-firecamp.com,myredis-shard2-0.c1-firecamp.com
-# The service slaves should be myredis-shard0-1.c1-penmanage.com,myredis-shard1-1.c1-firecamp.com,myredis-shard2-1.c1-firecamp.com
+#export REDIS_MASTERS="myredis-shard0-0.c1-firecamp.com,myredis-shard1-0.c1-firecamp.com,myredis-shard2-0.c1-firecamp.com"
+#export REDIS_SLAVES="myredis-shard0-1.c1-firecamp.com,myredis-shard1-1.c1-firecamp.com,myredis-shard2-1.c1-firecamp.com"
 
 # check the environment parameters
 if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$MANAGE_SERVER_URL" -o -z "$SERVICE_NAME" -o -z "$SERVICE_TYPE" -o -z "$SERVICE_PORT" -o -z "$OP" ]
@@ -54,6 +52,7 @@ totalnodes=$(( ${#masters[@]} + ${#slaves[@]} ))
 
 AddSlaveNodes() {
   # add slave into cluster
+  slavesPerShard=$(( $REPLICAS_PERSHARD - 1 ))
   i=0
   for s in "${slaves[@]}"
   do
@@ -73,7 +72,7 @@ AddSlaveNodes() {
     fi
 
     # get master id and ip
-    midx=`expr $i / $REPLICAS_PERSHARD`
+    midx=`expr $i / $slavesPerShard`
     m=${masters[$midx]}
     res=$(host $m)
     mip=$(echo $res | awk '{ print $4 }')
