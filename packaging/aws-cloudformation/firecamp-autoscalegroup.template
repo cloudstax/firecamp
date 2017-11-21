@@ -254,7 +254,7 @@
                 "\n",
 
                 "# get and run the node init script\n",
-                "aws s3 cp s3://",
+                "wget -O /tmp/init.sh https://s3.amazonaws.com/",
                 {
                   "Ref": "QSS3BucketName"
                 },
@@ -262,7 +262,7 @@
                 {
                   "Ref": "QSCloudStaxS3KeyPrefix"
                 },
-                "scripts/init.sh /tmp/init.sh\n",
+                "scripts/init.sh\n",
                 "chmod +x /tmp/init.sh\n",
                 "/tmp/init.sh $version ",
                 {
