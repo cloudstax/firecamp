@@ -50,7 +50,10 @@ def lambda_handler(event, context):
                     "Shards": shards,
                     "ReplicasPerShard": int(properties['ReplicasPerShard']),
                     "MemoryCacheSizeMB": int(properties['MemoryCacheSizeMB']),
-                    "VolumeSizeGB": int(properties['VolumeSizeGB']),
+                    "Volume": {
+                        "VolumeType": "gp2",
+                        "VolumeSizeGB": int(properties['VolumeSizeGB']),
+                    },
                     "DisableAOF": disableAOF,
                     "AuthPass": properties['AuthPass'],
                     "ReplTimeoutSecs": int(properties['ReplTimeoutSecs']),
