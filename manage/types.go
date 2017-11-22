@@ -473,11 +473,6 @@ type CatalogCheckServiceInitRequest struct {
 
 	Admin       string
 	AdminPasswd string
-
-	// Redis specific fields.
-	// TODO they should be moved to ServiceAttr.UserData.
-	Shards           int64
-	ReplicasPerShard int64
 }
 
 // CatalogCheckServiceInitResponse returns the service init status

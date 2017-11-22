@@ -145,7 +145,13 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				initialized = true
 
 			case catalog.CatalogService_Redis:
-				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, req.Shards, req.ReplicasPerShard, requuid)
+				redisUserAttr := &common.RedisUserAttr{}
+				err = json.Unmarshal(attr.UserAttr, redisUserAttr)
+				if err != nil {
+					glog.Errorln("Unmarshal redis user attr error", err, "requuid", requuid, attr)
+					return manage.ConvertToHTTPError(err)
+				}
+				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, redisUserAttr.Shards, redisUserAttr.ReplicasPerShard, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 					return manage.ConvertToHTTPError(err)

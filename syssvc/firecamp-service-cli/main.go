@@ -580,10 +580,8 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
-			ServiceType:      catalog.CatalogService_Redis,
-			Service:          req.Service,
-			Shards:           *redisShards,
-			ReplicasPerShard: *redisReplicasPerShard,
+			ServiceType: catalog.CatalogService_Redis,
+			Service:     req.Service,
 		}
 
 		waitServiceInit(ctx, cli, initReq)

@@ -104,8 +104,6 @@ def lambda_handler(event, context):
                     "Cluster": properties['Cluster'],
                     "ServiceName": properties['ServiceName']
                 },
-                "Shards": int(properties['Shards']),
-                "ReplicasPerShard": int(properties['ReplicasPerShard'])
             }
 
             print(time.strftime('%Y-%m-%d %H:%M:%S'), "wait redis service initialized", initdata)
