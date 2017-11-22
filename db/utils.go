@@ -236,6 +236,7 @@ func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
 func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
+		MemberIndex:         t1.MemberIndex,
 		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              t1.TaskID,
@@ -251,6 +252,7 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConf
 func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, containerInstanceID string, ec2InstanceID string) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
+		MemberIndex:         t1.MemberIndex,
 		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              taskID,
