@@ -254,7 +254,9 @@
                 "\n",
 
                 "# get and run the node init script\n",
-                "wget -O /tmp/init.sh https://s3.amazonaws.com/",
+                "for i in 1 2 3\n",
+                "do\n"
+                "  wget -O /tmp/init.sh https://s3.amazonaws.com/",
                 {
                   "Ref": "QSS3BucketName"
                 },
@@ -263,6 +265,15 @@
                   "Ref": "QSCloudStaxS3KeyPrefix"
                 },
                 "scripts/init.sh\n",
+                "  if [ \"$?\" = \"0\" ]; then\n",
+                "    break\n",
+                "  elif [ \"$i\" = \"3\" ]; then\n",
+                "    echo \"failed to get init.sh\"\n",
+                "    exit 2\n",
+                "  else\n",
+                "    sleep 2\n",
+                "  fi\n",
+                "done\n",
                 "chmod +x /tmp/init.sh\n",
                 "/tmp/init.sh $version ",
                 {

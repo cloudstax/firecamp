@@ -97,11 +97,20 @@ if [ "$containerPlatform" = "ecs" ]; then
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
     cloudstax/firecamp-amazon-ecs-agent:latest
 
+  # wait for ecs agent to be ready
   sleep 6
 
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp
   docker plugin install --grant-all-permissions cloudstax/firecamp-volume:$version
+
+  # check if volume plugin is enabled
+  enabled=$(docker plugin inspect cloudstax/firecamp-volume:$version | grep Enabled | grep true)
+  if [ -z "$enabled" ]; then
+    # volume plugin not enabled. this may happen if ecs agent is not ready. wait some time and try to enable it again.
+    sleep 10
+    docker plugin enable cloudstax/firecamp-volume:$version
+  fi
 
   # TODO enable log driver after upgrade to 17.05/06
   # install firecamp docker log driver
