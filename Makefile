@@ -1,5 +1,5 @@
 
-.PHONY: build docker test sources rpm
+.PHONY: install docker test lambda
 
 version=latest
 

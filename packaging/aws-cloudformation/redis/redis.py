@@ -51,7 +51,8 @@ def lambda_handler(event, context):
                     "ReplicasPerShard": int(properties['ReplicasPerShard']),
                     "MemoryCacheSizeMB": int(properties['MemoryCacheSizeMB']),
                     "Volume": {
-                        "VolumeType": "gp2",
+                        "VolumeType": properties['VolumeType'],
+                        "Iops": int(properties['Iops']),
                         "VolumeSizeGB": int(properties['VolumeSizeGB']),
                     },
                     "DisableAOF": disableAOF,

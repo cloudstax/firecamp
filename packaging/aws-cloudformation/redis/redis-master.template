@@ -61,6 +61,8 @@
             "Shards",
             "ReplicasPerShard",
             "MemoryCacheSizeMB",
+            "VolumeType",
+            "Iops",
             "VolumeSizeGB",
             "DisableAOF",
             "AuthPass",
@@ -158,8 +160,14 @@
         "MemoryCacheSizeMB": {
           "default": "Redis Node Memory Cache Size MB"
         },
+        "VolumeType": {
+          "default": "Redis Volume Type"
+        },
+        "Iops": {
+          "default": "Redis Volume Iops"
+        },
         "VolumeSizeGB": {
-          "default": "Redis Node Volume Size GB"
+          "default": "Redis Volume Size GB"
         },
         "DisableAOF": {
           "default": "Disable Append Only File"
@@ -403,10 +411,25 @@
       "Default": "256",
       "Description": "The memory cache size of one Redis node"
     },
+    "VolumeType": {
+      "Type": "String",
+      "Default": "gp2",
+      "AllowedValues": [
+        "gp2",
+        "io1",
+        "st1"
+      ],
+      "Description": "The Redis volume type"
+    },
+    "Iops": {
+      "Type": "Number",
+      "Default": 100,
+      "Description": "The iops of the volume, valid for io1 type volume only."
+    },
     "VolumeSizeGB": {
       "Type": "Number",
       "Default": "1",
-      "Description": "The Redis node volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
+      "Description": "The Redis volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
     },
     "DisableAOF": {
       "Type": "String",
@@ -849,6 +872,12 @@
           },
           "MemoryCacheSizeMB": {
             "Ref": "MemoryCacheSizeMB"
+          },
+          "VolumeType": {
+            "Ref": "VolumeType"
+          },
+          "Iops": {
+            "Ref": "Iops"
           },
           "VolumeSizeGB": {
             "Ref": "VolumeSizeGB"
