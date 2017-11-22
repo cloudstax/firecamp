@@ -505,7 +505,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/firecamp-redis-subnet.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/redis-subnet.template",
             {
               "QSS3Region": {
                 "Fn::If": [

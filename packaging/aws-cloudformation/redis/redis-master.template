@@ -822,7 +822,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/firecamp-lambda-redis.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/redis-lambda.template",
             {
               "QSS3Region": {
                 "Fn::If": [
