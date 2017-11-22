@@ -1,7 +1,244 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
   "Description": "This template creates the Lambda Role, and the destroy function that cleans up the Lambda ENI.",
+  "Parameters":{
+    "QSS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "cloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "QSS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). Example: cloudstax/redis/latest/",
+      "Type": "String"
+    },
+    "S3ObjectLambdaZip": {
+      "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
+      "ConstraintDescription": "Lambda zip can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+      "Description": "S3 key for the Lambda function zip object. Example: scripts/redis-lambda.zip",
+      "Type": "String",
+    }
+  },
   "Resources":{
+    "LambdaZipsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "Tags": []
+      }
+    },
+    "CopyZips": {
+      "Type": "AWS::CloudFormation::CustomResource",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CopyZipsFunction",
+            "Arn"
+          ]
+        },
+        "DestBucket": {
+          "Ref": "LambdaZipsBucket"
+        },
+        "SourceBucket": {
+          "Ref": "QSS3BucketName"
+        },
+        "Prefix": {
+          "Ref": "QSS3KeyPrefix"
+        },
+        "Objects": [
+          {
+            "Ref": "S3ObjectLambdaZip"
+          }
+        ]
+      }
+    },
+    "CopyZipsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "CopyZipsPolicy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetObject"
+                ],
+                "Resource": [
+                  {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "QSS3BucketName"
+                        },
+                        "/*"
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetBucketLocation"
+                ],
+                "Resource": [
+                  {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "QSS3BucketName"
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:PutObject",
+                  "s3:DeleteObject"
+                ],
+                "Resource": [
+                  {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "LambdaZipsBucket"
+                        },
+                        "/*"
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": [
+                  "arn:aws:logs:*:*:*"
+                ]
+              }
+            ]
+          }
+        }]
+      }
+    },
+    "CopyZipsFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Description": "Copies objects from a source S3 bucket to a destination, as Lambda function could only get function zip from the bucket in the same region",
+        "Handler": "index.handler",
+        "Runtime": "python2.7",
+        "Role": {
+          "Fn::GetAtt": [
+            "CopyZipsRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 240,
+        "Code": {
+          "ZipFile": {
+            "Fn::Join": [
+              "\n",
+              [
+                "import json",
+                "import logging",
+                "import threading",
+                "",
+                "import boto3",
+                "",
+                "import cfnresponse",
+                "",
+                "",
+                "def copy_objects(source_bucket, dest_bucket, prefix, objects):",
+                "    s3 = boto3.client('s3')",
+                "    for o in objects:",
+                "        key = prefix + o",
+                "        copy_source = {",
+                "            'Bucket': source_bucket,",
+                "            'Key': key",
+                "        }",
+                "        s3.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=key)",
+                "",
+                "",
+                "def delete_objects(bucket, prefix, objects):",
+                "    s3 = boto3.client('s3')",
+                "    objects = {'Objects': [{'Key': prefix + o} for o in objects]}",
+                "    s3.delete_objects(Bucket=bucket, Delete=objects)",
+                "",
+                "",
+                "def timeout(event, context):",
+                "    logging.error('Execution is about to time out, sending failure response to CloudFormation')",
+                "    cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)",
+                "",
+                "",
+                "def handler(event, context):",
+                "    # make sure we send a failure to CloudFormation if the function is going to timeout",
+                "    timer = threading.Timer((context.get_remaining_time_in_millis() / 1000.00) - 0.5, timeout, args=[event, context])",
+                "    timer.start()",
+                "",
+                "    print('Received event: %s' % json.dumps(event))",
+                "    status = cfnresponse.SUCCESS",
+                "    try:",
+                "        source_bucket = event['ResourceProperties']['SourceBucket']",
+                "        dest_bucket = event['ResourceProperties']['DestBucket']",
+                "        prefix = event['ResourceProperties']['Prefix']",
+                "        objects = event['ResourceProperties']['Objects']",
+                "        if event['RequestType'] == 'Delete':",
+                "            delete_objects(dest_bucket, prefix, objects)",
+                "        else:",
+                "            copy_objects(source_bucket, dest_bucket, prefix, objects)",
+                "    except Exception as e:",
+                "        logging.error('Exception: %s' % e, exc_info=True)",
+                "        status = cfnresponse.FAILED",
+                "    finally:",
+                "        timer.cancel()",
+                "        cfnresponse.send(event, context, status, {}, None)",
+                ""
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "CopyZipsFunctionLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DependsOn": "CopyZipsFunction",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "CopyZipsFunction"}]]},
+        "RetentionInDays": 1
+      }
+    },
+
     "LambdaExecutionRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -17,6 +254,7 @@
         },
         "Path": "/",
         "Policies": [{
+          "PolicyName": "root",
           "PolicyDocument": {
             "Statement": [
               {
@@ -40,8 +278,7 @@
               }
             ],
             "Version": "2012-10-17"
-          },
-          "PolicyName": "root"
+          }
         }]
       }
     },
@@ -127,6 +364,22 @@
     }
   },
   "Outputs": {
+    "DestBucket": {
+      "Value": {
+        "Ref": "LambdaZipsBucket"
+      }
+    },
+    "LambdaDestObject": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            { "Ref": "QSS3KeyPrefix" },
+            { "Ref": "S3ObjectLambdaZip" }
+          ]
+        ]
+      }
+    },
     "LambdaExecutionRoleArn": {
       "Value": {
         "Fn::GetAtt" : [

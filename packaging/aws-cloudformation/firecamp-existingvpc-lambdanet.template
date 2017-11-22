@@ -22,13 +22,12 @@
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
       "Description": "The Subnet CIDR to run the service creation Lambda function."
     },
-    "ClusterName":{
+    "NameTag":{
       "Type":"String",
-      "Description":"Name of the cluster.",
+      "Description":"Resource name tag",
       "MinLength": "1",
       "MaxLength": "255",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*"
     }
   },
   "Resources":{
@@ -53,15 +52,7 @@
           {
             "Key": "Name",
             "Value": {
-              "Fn::Join": [
-                "-",
-                [
-                  "firecamp-lambda-redis",
-                  {
-                    "Ref": "ClusterName"
-                  }
-                ]
-              ]
+              "Ref": "NameTag"
             }
           }
         ]
@@ -88,15 +79,7 @@
           {
             "Key": "Name",
             "Value": {
-              "Fn::Join": [
-                "-",
-                [
-                  "firecamp-lambda-redis",
-                  {
-                    "Ref": "ClusterName"
-                  }
-                ]
-              ]
+              "Ref": "NameTag"
             }
           }
         ]
@@ -120,15 +103,7 @@
           {
             "Key": "Name",
             "Value": {
-              "Fn::Join": [
-                "-",
-                [
-                  "firecamp-lambda-redis",
-                  {
-                    "Ref": "ClusterName"
-                  }
-                ]
-              ]
+              "Ref": "NameTag"
             }
           }
         ]
