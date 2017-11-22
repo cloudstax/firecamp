@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates an AWS ECS cluster and the Redis Cluster Service in an existing VPC. The application runs on RedisAccessSecurityGroup and VPC to access Redis.",
+  "Description": "This template creates an AWS ECS cluster and the Redis Cluster Service in an existing VPC. The application runs on RedisAccessSecurityGroup and the same VPC to access Redis.",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -31,10 +31,19 @@
           "Parameters": [
             "ClusterName",
             "FireCampRelease",
-            "CFS3BucketName",
-            "CFS3KeyPrefix",
+            "NodeAMIOS",
             "NumberOfNodes",
             "NodeInstanceType"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Quick Start Configuration"
+          },
+          "Parameters": [
+            "QSS3BucketName",
+            "QSFireCampS3KeyPrefix",
+            "QSRedisS3KeyPrefix"
           ]
         },
         {
@@ -82,17 +91,24 @@
         "FireCampRelease": {
           "default": "CloudStax FireCamp Release Version"
         },
-        "CFS3BucketName": {
-          "default": "CloudStax FireCamp S3 Bucket Name"
-        },
-        "CFS3KeyPrefix": {
-          "default": "CloudStax FireCamp S3 Key Prefix"
+        "NodeAMIOS": {
+          "default": "Node AMI Type"
         },
         "NumberOfNodes": {
           "default": "Number of Container Worker Nodes"
         },
         "NodeInstanceType": {
           "default": "Node Instance Type"
+        },
+
+        "QSS3BucketName": {
+          "default": "Quick Start S3 Bucket Name"
+        },
+        "QSRedisS3KeyPrefix": {
+          "default": "CloudStax Redis Quick Start S3 Key Prefix"
+        },
+        "QSFireCampS3KeyPrefix": {
+          "default": "CloudSatx FireCamp Quick Start S3 Key Prefix"
         },
 
         "RedisRelease": {
@@ -161,6 +177,34 @@
       "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
     },
 
+    "QSS3BucketName": {
+      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+      "Default": "qscloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the Quick Start. The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "QSFireCampS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/firecamp/latest/",
+      "Type": "String"
+    },
+    "QSRedisS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/redis/latest/",
+      "Type": "String"
+    },
+
+    "FireCampRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.9", "0.8.1" ],
+      "Description": "The FireCamp release version"
+    },
     "ClusterName":{
       "Type":"String",
       "Description":"Name of the cluster.",
@@ -169,23 +213,13 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-    "FireCampRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
-      "Description": "The FireCamp release version"
-    },
-    "CFS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax",
-      "Type": "String",
-      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    },
-    "CFS3KeyPrefix": {
-        "Type": "String",
-        "Default": "firecamp/releases/latest/cf-templates",
-        "Description": "The S3 key prefix"
+    "NodeAMIOS": {
+      "AllowedValues": [
+        "Amazon-Linux-HVM"
+      ],
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
     },
     "NumberOfNodes":{
       "Type":"Number",
@@ -288,7 +322,7 @@
     },
     "MaxMemoryPolicy": {
       "Type": "String",
-      "Default": "noeviction",
+      "Default": "allkeys-lru",
       "AllowedValues": [
         "noeviction",
         "volatile-lru",
@@ -311,55 +345,6 @@
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
     }
   },
-  "Mappings": {
-    "AWSAMIRegionMap": {
-      "AMI": {
-        "AMIID": "amzn-ami-hvm-2017.03.0.20170417-x86_64-gp2"
-      },
-      "ap-northeast-1": {
-        "AMIID": "ami-923d12f5"
-      },
-      "ap-northeast-2": {
-        "AMIID": "ami-9d15c7f3"
-      },
-      "ap-south-1": {
-        "AMIID": "ami-52c7b43d"
-      },
-      "ap-southeast-1": {
-        "AMIID": "ami-fc5ae39f"
-      },
-      "ap-southeast-2": {
-        "AMIID": "ami-162c2575"
-      },
-      "ca-central-1": {
-        "AMIID": "ami-0bd66a6f"
-      },
-      "eu-central-1": {
-        "AMIID": "ami-b968bad6"
-      },
-      "eu-west-1": {
-        "AMIID": "ami-01ccc867"
-      },
-      "eu-west-2": {
-        "AMIID": "ami-b6daced2"
-      },
-      "sa-east-1": {
-        "AMIID": "ami-37cfad5b"
-      },
-      "us-east-1": {
-        "AMIID": "ami-c58c1dd3"
-      },
-      "us-east-2": {
-        "AMIID": "ami-4191b524"
-      },
-      "us-west-1": {
-        "AMIID": "ami-7a85a01a"
-      },
-      "us-west-2": {
-        "AMIID": "ami-4836a428"
-      }
-    }
-  },
   "Conditions": {
     "GovCloudCondition": {
       "Fn::Equals": [
@@ -371,53 +356,6 @@
     }
   },
   "Resources":{
-    "RedisLambdaSubnet": {
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp-existingvpc-lambdanet.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "VPCID": {
-            "Ref": "VPCID"
-          },
-          "SubnetIDs": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "SubnetIDs"
-              }
-            ]
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          },
-          "LambdaSubnetCIDR": {
-            "Ref": "LambdaSubnetCIDR"
-          },
-          "ClusterName": {
-            "Ref": "ClusterName"
-          }
-        }
-      }
-    },
-
     "RedisAccessSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -495,7 +433,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -511,14 +449,14 @@
           "ClusterName": {
             "Ref": "ClusterName"
           },
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
-          },
           "Release": {
             "Ref": "FireCampRelease"
           },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSCloudStaxS3KeyPrefix": {
+            "Ref": "QSFireCampS3KeyPrefix"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"
@@ -551,6 +489,9 @@
           "NumberOfNodes": {
             "Ref": "NumberOfNodes"
           },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
+          },
           "NodeInstanceType": {
             "Ref": "NodeInstanceType"
           }
@@ -564,7 +505,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/redis/firecamp-lambda-redis.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/firecamp-redis-subnet.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -577,6 +518,40 @@
           ]
         },
         "Parameters": {
+          "ServiceSecurityGroupID": {
+            "Ref": "ServiceSecurityGroup"
+          },
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "LambdaSubnetCIDR": {
+            "Ref": "LambdaSubnetCIDR"
+          },
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSFireCampS3KeyPrefix": {
+            "Ref": "QSFireCampS3KeyPrefix"
+          },
+          "QSRedisS3KeyPrefix": {
+            "Ref": "QSRedisS3KeyPrefix"
+          },
           "ClusterName": {
             "Ref": "ClusterName"
           },
@@ -606,21 +581,6 @@
           },
           "ConfigCommandName": {
             "Ref": "ConfigCommandName"
-          },
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
-          },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroup"
-          },
-          "SubnetIDs": {
-            "Fn::GetAtt": [
-              "RedisLambdaSubnet",
-              "Outputs.LambdaSubnet"
-            ]
           }
         }
       }

@@ -46,9 +46,8 @@
           "Parameters": [
             "ClusterName",
             "FireCampRelease",
-            "CFS3BucketName",
-            "CFS3KeyPrefix",
             "NumberOfNodes",
+            "NodeAMIOS",
             "NodeInstanceType"
           ]
         },
@@ -75,6 +74,8 @@
           },
           "Parameters": [
             "QSS3BucketName",
+            "QSRedisS3KeyPrefix",
+            "QSFireCampS3KeyPrefix",
             "QSAWSVPCS3KeyPrefix",
             "QSBastionS3KeyPrefix"
           ]
@@ -132,14 +133,11 @@
         "FireCampRelease": {
           "default": "CloudStax FireCamp Release Version"
         },
-        "CFS3BucketName": {
-          "default": "CloudStax FireCamp S3 Bucket Name"
-        },
-        "CFS3KeyPrefix": {
-          "default": "CloudStax FireCamp S3 Key Prefix"
-        },
         "NumberOfNodes": {
           "default": "Number of Container Worker Nodes"
+        },
+        "NodeAMIOS": {
+          "default": "Node AMI Type"
         },
         "NodeInstanceType": {
           "default": "Node Instance Type"
@@ -178,6 +176,12 @@
 
         "QSS3BucketName": {
           "default": "Quick Start S3 Bucket Name"
+        },
+        "QSRedisS3KeyPrefix": {
+          "default": "CloudStax Redis Quick Start S3 Key Prefix"
+        },
+        "QSFireCampS3KeyPrefix": {
+          "default": "CloudSatx FireCamp Quick Start S3 Key Prefix"
         },
         "QSAWSVPCS3KeyPrefix": {
           "default": "AWS VPC Quick Start S3 Key Prefix"
@@ -314,28 +318,18 @@
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
-    "FireCampRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.8.1", "0.8.0" ],
-      "Description": "The FireCamp release version"
-    },
-    "CFS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "cloudstax",
-      "Type": "String",
-      "ConstraintDescription": "The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    },
-    "CFS3KeyPrefix": {
-        "Type": "String",
-        "Default": "firecamp/releases/latest/cf-templates",
-        "Description": "The S3 key prefix"
-    },
     "NumberOfNodes":{
       "Type":"Number",
       "Default":"6",
       "Description":"Number of Nodes. This MUST match the total number of Redis nodes, Shards * ReplicasPerShard."
+    },
+    "NodeAMIOS": {
+      "AllowedValues": [
+        "Amazon-Linux-HVM"
+      ],
+      "Default": "Amazon-Linux-HVM",
+      "Description": "The Linux distribution for the AMI to be used for the service instances",
+      "Type": "String"
     },
     "NodeInstanceType":{
       "Description":"EC2 instance type",
@@ -456,11 +450,31 @@
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
     },
 
+    "FireCampRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest", "0.9", "0.8.1" ],
+      "Description": "The FireCamp release version"
+    },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Default": "quickstart-reference",
-      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Default": "qscloudstax",
+      "Type": "String",
+      "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Description": "S3 bucket name for the Quick Start assets. The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    },
+    "QSFireCampS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+      "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/firecamp/latest/",
+      "Type": "String"
+    },
+    "QSRedisS3KeyPrefix": {
+      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+      "Default": "cloudstax/redis/latest/",
       "Type": "String"
     },
     "QSAWSVPCS3KeyPrefix": {
@@ -706,7 +720,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/firecamp.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -722,14 +736,14 @@
           "ClusterName": {
             "Ref": "ClusterName"
           },
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
-          },
           "Release": {
             "Ref": "FireCampRelease"
           },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
+          },
+          "QSCloudStaxS3KeyPrefix": {
+            "Ref": "QSFireCampS3KeyPrefix"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"
@@ -792,6 +806,9 @@
           "NumberOfNodes": {
             "Ref": "NumberOfNodes"
           },
+          "NodeAMIOS": {
+            "Ref": "NodeAMIOS"
+          },
           "NodeInstanceType": {
             "Ref": "NodeInstanceType"
           }
@@ -805,7 +822,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${CFS3BucketName}.${QSS3Region}.amazonaws.com/${CFS3KeyPrefix}/redis/firecamp-lambda-redis.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/firecamp-lambda-redis.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -849,11 +866,14 @@
             "Ref": "ConfigCommandName"
           },
 
-          "CFS3BucketName": {
-            "Ref": "CFS3BucketName"
+          "QSS3BucketName": {
+            "Ref": "QSS3BucketName"
           },
-          "CFS3KeyPrefix": {
-            "Ref": "CFS3KeyPrefix"
+          "QSFireCampS3KeyPrefix": {
+            "Ref": "QSFireCampS3KeyPrefix"
+          },
+          "QSRedisS3KeyPrefix": {
+            "Ref": "QSRedisS3KeyPrefix"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"

@@ -1,26 +1,41 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates the Lambda function that creates and deletes the Redis service.",
+  "Description": "This template creates an AWS ECS cluster and the Redis Cluster Service in an existing VPC. The application runs on RedisAccessSecurityGroup and the same VPC to access Redis.",
   "Parameters":{
     "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",
       "Description": "The SecurityGroup to access the cluster nodes."
     },
+    "VPCID":{
+      "Type":"AWS::EC2::VPC::Id",
+      "Description":"Select a VPC that allows instances to access the Internet."
+    },
     "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "The existing subnet to run Lambda function. This should be the subnet in the VPC where the Redis nodes are deployed.",
+      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
+    "AvailabilityZones": {
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
+    },
+    "LambdaSubnetCIDR": {
+      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+      "Type": "String",
+      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+      "Description": "The Subnet CIDR to run the Redis creation Lambda function."
+    },
+
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "Default": "qscloudstax",
       "Type": "String",
       "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+      "Description": "S3 bucket name for the Quick Start. The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
     "QSFireCampS3KeyPrefix": {
       "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-      "ConstraintDescription": "QuickStart key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
+      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
       "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
       "Default": "cloudstax/firecamp/latest/",
       "Type": "String"
@@ -32,17 +47,9 @@
       "Default": "cloudstax/redis/latest/",
       "Type": "String"
     },
-    "S3ObjectLambdaZip": {
-      "Type": "String",
-      "Default": "scripts/redis-lambda.zip",
-      "AllowedValues": [
-        "scripts/redis-lambda.zip"
-      ],
-      "Description": "The Redis lambda zip object"
-    },
     "ClusterName":{
       "Type":"String",
-      "Description":"The Cluster Name",
+      "Description":"Name of the cluster.",
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
@@ -93,11 +100,6 @@
       "Description": "Enter your Redis AUTH Password",
       "ConstraintDescription": "Input your Redis AUTH password"
     },
-    "ReplTimeoutSecs": {
-      "Type": "Number",
-      "Default": "60",
-      "Description": "The Redis replication timeout seconds"
-    },
     "MaxMemoryPolicy": {
       "Type": "String",
       "Default": "allkeys-lru",
@@ -134,12 +136,12 @@
     }
   },
   "Resources":{
-    "CommonLambdaStack": {
+    "RedisLambdaSubnet": {
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp-lambda-common.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp-existingvpc-lambdanet.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -152,128 +154,109 @@
           ]
         },
         "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "SubnetIDs": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "SubnetIDs"
+              }
+            ]
+          },
+          "AvailabilityZones": {
+            "Fn::Join": [
+              ",",
+              {
+                "Ref": "AvailabilityZones"
+              }
+            ]
+          },
+          "LambdaSubnetCIDR": {
+            "Ref": "LambdaSubnetCIDR"
+          },
+          "NameTag": {
+            "Fn::Join": [
+              "-",
+              [
+                {
+                  "Ref": "ClusterName"
+                },
+                "redis-lambda"
+              ]
+            ]
+          }
+        }
+      }
+    },
+
+    "RedisLambda": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/firecamp-lambda-redis.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "ClusterName": {
+            "Ref": "ClusterName"
+          },
+          "ServiceName": {
+            "Ref": "ServiceName"
+          },
+          "Shards": {
+            "Ref": "Shards"
+          },
+          "ReplicasPerShard": {
+            "Ref": "ReplicasPerShard"
+          },
+          "MemoryCacheSizeMB": {
+            "Ref": "MemoryCacheSizeMB"
+          },
+          "VolumeSizeGB": {
+            "Ref": "VolumeSizeGB"
+          },
+          "DisableAOF": {
+            "Ref": "DisableAOF"
+          },
+          "AuthPass": {
+            "Ref": "AuthPass"
+          },
+          "MaxMemoryPolicy": {
+            "Ref": "MaxMemoryPolicy"
+          },
+          "ConfigCommandName": {
+            "Ref": "ConfigCommandName"
+          },
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSS3KeyPrefix": {
+          "QSFireCampS3KeyPrefix": {
+            "Ref": "QSFireCampS3KeyPrefix"
+          },
+          "QSRedisS3KeyPrefix": {
             "Ref": "QSRedisS3KeyPrefix"
           },
-          "S3ObjectLambdaZip": {
-            "Ref": "S3ObjectLambdaZip"
-          }
-        }
-      }
-    },
-    "VPCDestroyENI": {
-      "Type": "Custom::VPCDestroyENI",
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CommonLambdaStack",
-            "Outputs.VPCDestroyENIFunctionArn"
-          ]
-        },
-        "SecurityGroups": [
-          {
+          "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroupID"
-          }
-        ]
-      }
-    },
-
-    "LambdaFunction" : {
-      "Type" : "AWS::Lambda::Function",
-      "Properties" : {
-        "Code": {
-          "S3Bucket": {
-            "Fn::GetAtt": [
-              "CommonLambdaStack",
-              "Outputs.DestBucket"
-            ]
           },
-          "S3Key": {
+          "SubnetIDs": {
             "Fn::GetAtt": [
-              "CommonLambdaStack",
-              "Outputs.LambdaDestObject"
+              "RedisLambdaSubnet",
+              "Outputs.LambdaSubnet"
             ]
           }
-        },
-        "Runtime" : "python3.6",
-        "Role" : {
-          "Fn::GetAtt" : [
-            "CommonLambdaStack",
-            "Outputs.LambdaExecutionRoleArn"
-          ]
-        },
-        "Timeout" : "300",
-        "Handler" : "redis.lambda_handler",
-        "VpcConfig": {
-          "SecurityGroupIds": [
-            {
-              "Ref": "ServiceSecurityGroupID"
-            }
-          ],
-          "SubnetIds": {
-            "Ref": "SubnetIDs"
-          }
-        }
-      }
-    },
-    "LambdaFunctionLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "DependsOn": "LambdaFunction",
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "LambdaFunction"}]]},
-        "RetentionInDays": 1
-      }
-    },
-
-    "LambdaCustomResource" : {
-      "Type" : "Custom::RedisLambdaCustomResource",
-      "DependsOn": "VPCDestroyENI",
-      "Properties" : {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "LambdaFunction",
-            "Arn"
-          ]
-        },
-        "Region": {
-          "Ref": "AWS::Region"
-        },
-        "Cluster":{
-          "Ref": "ClusterName"
-        },
-        "ServiceName": {
-          "Ref": "ServiceName"
-        },
-        "Shards": {
-          "Ref": "Shards"
-        },
-        "ReplicasPerShard": {
-          "Ref": "ReplicasPerShard"
-        },
-        "MemoryCacheSizeMB": {
-          "Ref": "MemoryCacheSizeMB"
-        },
-        "VolumeSizeGB": {
-          "Ref": "VolumeSizeGB"
-        },
-        "DisableAOF": {
-          "Ref": "DisableAOF"
-        },
-        "AuthPass": {
-          "Ref": "AuthPass"
-        },
-        "ReplTimeoutSecs": {
-          "Ref": "ReplTimeoutSecs"
-        },
-        "MaxMemPolicy": {
-          "Ref": "MaxMemoryPolicy"
-        },
-        "ConfigCmdName": {
-          "Ref": "ConfigCommandName"
         }
       }
     }
