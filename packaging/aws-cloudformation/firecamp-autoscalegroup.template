@@ -255,7 +255,7 @@
 
                 "# get and run the node init script\n",
                 "for i in 1 2 3\n",
-                "do\n"
+                "do\n",
                 "  wget -O /tmp/init.sh https://s3.amazonaws.com/",
                 {
                   "Ref": "QSS3BucketName"
