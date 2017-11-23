@@ -2,13 +2,16 @@ The FireCamp Redis container is based on the [official Redis image](https://hub.
 
 ## Redis Mode
 
-**Single Instance Mode**: a single node Redis service. This may be useful for developing and testing. Simply create a Redis service with 1 replica.
+### Single Instance Mode
+A single node Redis service. This may be useful for developing and testing. Simply create a Redis service with 1 replica.
 
-**Master-Slave Mode**: 1 master with multiple read-only slaves. For example, to create a 1 master and 2 slaves Redis service, specify 1 shard with 3 replicas per shard. If the cluster has multiple zones, the master and slaves will be distributed to different availability zones.
+### Master-Slave Mode
+One master with multiple read-only slaves. For example, to create a 1 master and 2 slaves Redis service, specify 1 shard with 3 replicas per shard. If the cluster has multiple zones, the master and slaves will be distributed to different availability zones.
 
 Currently the slaves are read-only. If the master goes down, Redis will become read-only. The [Redis Sentinel](https://redis.io/topics/sentinel) will be supported in the coming release to enable the automatic failover, e.g. automatically promote a slave to master when the current master is down.
 
-**Cluster Mode**: the minimal Redis cluster should have [at least 3 shards](https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster). Each shard could be single instance mode or master-slave mode. For example, in a 3 availability zones environment, create a 3 shards Redis cluster and each shard has 3 replicas, then each shard will have 1 master and 2 slaves. All masters will be put in one availability zone for low latency, and the slaves will be distributed to the other two availability zones for HA.
+### Cluster Mode
+The minimal Redis cluster should have [at least 3 shards](https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster). Each shard could be single instance mode or master-slave mode. For example, in a 3 availability zones environment, create a 3 shards Redis cluster and each shard has 3 replicas, then each shard will have 1 master and 2 slaves. All masters will be put in one availability zone for low latency, and the slaves will be distributed to the other two availability zones for HA.
 
 Redis cluster could handle the node failure when "[there are at least the majority of masters and a slave for every unreachable master](https://redis.io/topics/cluster-spec)". If the majority of masters are down, the slaves will not become master automatically. Need to manually run [cluster failover takeover](https://redis.io/commands/cluster-failover) to promote the slave to become the new master.
 
@@ -16,10 +19,20 @@ By default, FireCamp distributes the masters to all availability zones. So when 
 
 Currently Redis will not fail back automatically. See [Re-adding a failed over node](https://github.com/antirez/redis/issues/2462). For example, a Redis cluster has 3 shards, each shard has 1 master and 2 slaves on 3 availability zones. When master on zone1 goes down for a while, say the slave on zone2 becomes the new master. When the down node joins back, it will serve as slave. Then zone2 owns 2 masters. At this time, if zone2 goes down, 2 masters (majority) go down at the same time. Redis cluster will be down. This will be further enhanced in the future with the manual cluster takeover.
 
+#### Concurrent Failure
+Redis is possible to reassign the slave internally, because of new failovers, new manual reshardings, and things like that. For example, one Redis cluster has 3 shards and each shard has 1 master and 2 slaves. If 2 slaves of shard1 go down at the same time, the shard1's master becomes the orphaned master, and Redis will migrate the slave of another shard to cover this orphaned master. This aims to provide more failure resistance in the future failure events. When the failed slaves come back, they will usually join back as the slaves of shard1. While, they may get reassigned to be the slave of another maser. See Redis issue [2462](https://github.com/antirez/redis/issues/2462).
+
+Currently Redis is not aware of the availability zones. After a few rounds of concurrent slave failures, the master and slaves of one shard may be at the same availability zone. This will be further enhanced in the future releases.
+
+This will not happen if not all slaves of one shard fail at the same time. The concurrent failure window is small. When one node goes down, FireCamp will start a new node at the same availability zone and join back the shard. The availability zone failure is also ok, as FireCamp initially distributes the members of one shard to all availability zones.
+
+Note: [Redis Pack is rack-zone aware](https://redislabs.com/redis-enterprise-documentation/concepts-architecture/high-availability/rack-zone-awareness/). We will explore the opportunity to integrate with Redis Pack.
+
+#### Additional Topology
 The network inside one availability zone is faster than cross availability zones. Running all masters on a single availability zone would be useful for some cases. For example, Redis is used for cache. The application also runs in a single availability zone. Only when the availability zone fails, the application and Redis will run in another availability zone. We will support it in the future. When the master availability zone goes down, FireCamp will automatically run `cluster failover takeover` to promote the slave to master.
 
 
-### Redis Static IP address
+## Redis Static IP address
 Both Redis Sentinel and Cluster require to use a static IP address to represent a Redis member, the hostname is not allowed. See Redis issues [2706](https://github.com/antirez/redis/issues/2410), [2410](https://github.com/antirez/redis/issues/2410), [2565](https://github.com/antirez/redis/issues/2565), [2323](https://github.com/antirez/redis/pull/2323).
 
 If the containers fail over to other nodes, the containers' IPs will change. Redis is not able to handle it and will mark the cluster fail. For example, a 3 shards Redis cluster, each shard has 1 master and 2 slaves. If we stop all 9 containers around the same time, container framework will rescheudle all containers. Some containers may run on a different node and have a different ip, which could be used by another container before restart. Redis will be confused about the master-slave relationship and mark the cluster fail.

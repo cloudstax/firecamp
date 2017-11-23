@@ -25,8 +25,8 @@
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
-#export REDIS_MASTERS="myredis-shard0-0.c1-firecamp.com,myredis-shard1-0.c1-firecamp.com,myredis-shard2-0.c1-firecamp.com"
-#export REDIS_SLAVES="myredis-shard0-1.c1-firecamp.com,myredis-shard1-1.c1-firecamp.com,myredis-shard2-1.c1-firecamp.com"
+#export REDIS_MASTERS="myredis-0.c1-firecamp.com,myredis-2.c1-firecamp.com,myredis-4.c1-firecamp.com"
+#export REDIS_SLAVES="myredis-1.c1-firecamp.com,myredis-3.c1-firecamp.com,myredis-5.c1-firecamp.com"
 
 # check the environment parameters
 if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$MANAGE_SERVER_URL" -o -z "$SERVICE_NAME" -o -z "$SERVICE_TYPE" -o -z "$SERVICE_PORT" -o -z "$OP" ]
@@ -50,50 +50,77 @@ IFS=$OIFS
 
 totalnodes=$(( ${#masters[@]} + ${#slaves[@]} ))
 
+masternodes=${#masters[@]}
+slavenodes=${#slaves[@]}
+expectslavenodes=$(( $SHARDS * ($REPLICAS_PERSHARD - 1) ))
+
+echo "master $masternodes, slave $slavenodes expect $expectslavenodes"
+
+if [ "$masternodes" != "$SHARDS" ]; then
+  echo "shards $SHARDS, masters $masternodes"
+  exit 1
+fi
+
+if [ "$expectslavenodes" != "$slavenodes" ]; then
+  echo "shards $SHARDS replicas per shard $REPLICAS_PERSHARD, slave nodes $expectslavenodes expect $expectslavenodes"
+  exit 1
+fi
+
+
 AddSlaveNodes() {
-  # add slave into cluster
+  # add slave to cluster. has to add slaves to masters round-robin.
+  # could not add multiple slaves to one master first, as Redis may reassign the slave to other orphan master.
+  # for example, a Redis cluster has 3 shards, and each shard has 3 replicas (1 master, 2 slaves).
+  # at the initialization, if add 2 slaves of the first shard, Redis might reassign the second slave to the second shard.
   slavesPerShard=$(( $REPLICAS_PERSHARD - 1 ))
-  i=0
-  for s in "${slaves[@]}"
+  round=0
+  while [ $round -lt $slavesPerShard ]
   do
-    # check if the slave is already added
-    nodes=$(/redis-cli -h $s cluster nodes | wc -l)
-    if [ "$nodes" = "$totalnodes" ]; then
-      echo "node $s is already added, check next node"
-      continue
-    fi
+    midx=0
+    while [ $midx -lt $masternodes ]
+    do
+      # get slave ip
+      sidx=$(( $midx * $slavesPerShard + $round ))
+      s=${slaves[sidx]}
+      res=$(host $s)
+      sip=$(echo $res | awk '{ print $4 }')
+      if [ $sip = "" ]; then
+        echo "failed to resolve slave ip for $s"
+        exit 2
+      fi
 
-    # get slave ip
-    res=$(host $s)
-    ip=$(echo $res | awk '{ print $4 }')
-    if [ $ip = "" ]; then
-      echo "failed to resolve slave ip for $s"
-      exit 2
-    fi
+      # get master id and ip
+      m=${masters[$midx]}
+      res=$(host $m)
+      mip=$(echo $res | awk '{ print $4 }')
+      if [ $mip = "" ]; then
+        echo "failed to resolve master ip for $m"
+        exit 2
+      fi
 
-    # get master id and ip
-    midx=`expr $i / $slavesPerShard`
-    m=${masters[$midx]}
-    res=$(host $m)
-    mip=$(echo $res | awk '{ print $4 }')
-    if [ $mip = "" ]; then
-      echo "failed to resolve master ip for $m"
-      exit 2
-    fi
+      masterid=$(/redis-cli -h $mip cluster nodes | grep "myself" | awk '{ print $1 }')
 
-    echo "add slave $s $ip to master $m $mip"
-    masterid=$(/redis-cli -h $mip cluster nodes | grep "myself" | awk '{ print $1 }')
+      # check if the slave is already added to master
+      slaveadded=$(/redis-cli -h $s cluster nodes | grep $masterid)
+      if [ "$slaveadded" != "" ]; then
+        echo "slave $s is already added to master $m, check next node"
+        continue
+      fi
 
-    # add slave to cluster
-    echo "/redis-trib.rb add-node --slave --master-id $masterid $ip:$SERVICE_PORT $mip:$SERVICE_PORT"
-    /redis-trib.rb add-node --slave --master-id $masterid $ip:$SERVICE_PORT $mip:$SERVICE_PORT
 
-    if [ "$?" != "0" ]; then
-      echo "add $s $ip to cluster failed"
-      exit 2
-    fi
+      # add slave to cluster
+      echo "add slave $s $sip to master $m $mip $masterid"
+      /redis-trib.rb add-node --slave --master-id $masterid $sip:$SERVICE_PORT $mip:$SERVICE_PORT
 
-    i=$(( $i + 1 ))
+      if [ "$?" != "0" ]; then
+        echo "add $s $sip to cluster failed"
+        exit 2
+      fi
+
+      midx=$(( $midx + 1 ))
+    done
+
+    round=$(( $round + 1 ))
   done
 }
 
