@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -165,12 +166,12 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
 	for shard := int64(0); shard < opts.Shards; shard++ {
-		masterMember := genServiceShardMemberName(service, shard, 0)
+		masterMember := genServiceShardMemberName(service, opts.ReplicasPerShard, shard, 0)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
 
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			// create the sys.conf file
-			member := genServiceShardMemberName(service, shard, i)
+			member := genServiceShardMemberName(service, opts.ReplicasPerShard, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
 			sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
@@ -218,9 +219,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
-// shard member dns name example: service-shard0-0
-func genServiceShardMemberName(serviceName string, shard int64, replicasInShard int64) string {
-	return serviceName + common.NameSeparator + shardName + strconv.FormatInt(shard, 10) + common.NameSeparator + strconv.FormatInt(replicasInShard, 10)
+// shard member name, currently simply service-index, such as service-0.
+// ideally the member name would be service-shard0-0. while, currently Redis may adjust the
+// master/slaves relationship internally, and assign the shard0's slave to shard1's master.
+// see catalog/redis/README.md, redis issue https://github.com/antirez/redis/issues/2462
+func genServiceShardMemberName(serviceName string, replicasPerShard int64, shard int64, replicasInShard int64) string {
+	return utils.GenServiceMemberName(serviceName, shard*replicasPerShard+replicasInShard)
+	//return serviceName + common.NameSeparator + shardName + strconv.FormatInt(shard, 10) + common.NameSeparator + strconv.FormatInt(replicasInShard, 10)
 }
 
 // IsClusterMode checks if the service is created with the cluster mode.
@@ -319,7 +324,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	slaves := ""
 	for shard := int64(0); shard < shards; shard++ {
 		for i := int64(0); i < replicasPerShard; i++ {
-			member := genServiceShardMemberName(service, shard, i)
+			member := genServiceShardMemberName(service, replicasPerShard, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
 
 			if i == int64(0) {
