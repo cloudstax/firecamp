@@ -26,6 +26,7 @@ const (
 	errVolumeIncorrectState  = "IncorrectState"
 	errVolumeInUse           = "VolumeInUse"
 	errVolumeNotFound        = "InvalidVolume.NotFound"
+	errENINotFound           = "InvalidNetworkInterfaceID.NotFound"
 	errInvalidParameterValue = "InvalidParameterValue"
 
 	// max retry count for volume state
@@ -616,6 +617,13 @@ func (s *AWSEc2) UnassignStaticIP(ctx context.Context, networkInterfaceID string
 	if err != nil {
 		if err.(awserr.Error).Code() == errInvalidParameterValue {
 			glog.Errorln("network interface", networkInterfaceID, "does not own ip", staticIP, "requuid", requuid, "error", err)
+			return nil
+		}
+		if err.(awserr.Error).Code() == errENINotFound {
+			// this could happen when the EC2 node gets terminated, return success.
+			// TODO there is a window between the old EC2 node down and the new node up.
+			//      what if AWS happens to assign the static ip to others?
+			glog.Errorln("network interface", networkInterfaceID, "not found, static ip", staticIP, "requuid", requuid, "error", err)
 			return nil
 		}
 
