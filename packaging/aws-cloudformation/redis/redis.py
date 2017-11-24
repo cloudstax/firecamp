@@ -146,7 +146,7 @@ def lambda_handler(event, context):
             reason = 'delete redis time out'
             for i in range(3):
                 try:
-                    rsp = requests.delete(url, data=json.dumps(data), headers=headers, timeout=120)
+                    rsp = requests.delete(url, data=json.dumps(data), headers=headers, timeout=160)
                     if rsp.status_code == 200:
                         respdata = json.loads(rsp.content)
                         print(time.strftime('%Y-%m-%d %H:%M:%S'), "redis service deleted, please manually delete the volumes", respdata)

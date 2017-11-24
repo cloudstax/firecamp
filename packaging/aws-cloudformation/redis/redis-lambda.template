@@ -240,7 +240,7 @@
       "DeletionPolicy": "Retain",
       "Properties": {
         "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "LambdaFunction"}]]},
-        "RetentionInDays": 1
+        "RetentionInDays": 30
       }
     },
 

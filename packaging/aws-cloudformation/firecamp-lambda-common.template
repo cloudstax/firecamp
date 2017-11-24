@@ -235,7 +235,7 @@
       "DeletionPolicy": "Retain",
       "Properties": {
         "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "CopyZipsFunction"}]]},
-        "RetentionInDays": 30
+        "RetentionInDays": 1
       }
     },
 
