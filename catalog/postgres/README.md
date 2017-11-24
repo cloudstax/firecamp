@@ -1,4 +1,4 @@
-The FireCamp PostgreSQL container is based on the [official PostgreSQL Debian image](https://hub.docker.com/_/postgres/). The data volume will be mounted to the /data directory inside container. The PostgreSQL data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
+The FireCamp PostgreSQL container is based on the [official PostgreSQL Debian image](https://hub.docker.com/_/postgres/). Two volumes will be created, one for PostgreSQL WAL log, the other for all other data. The WAL log volume will be mounted to the /journal directory inside container. The data volume will be mounted to the /data directory inside container. The PostgreSQL data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
 
 ## PostgreSQL Cluster
 
