@@ -14,10 +14,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
+	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -335,7 +338,13 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 		},
 	}
 
-	err := cli.CatalogCreateMongoDBService(ctx, req)
+	err := mongodbcatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateMongoDBService(ctx, req)
 	if err != nil {
 		fmt.Println("create catalog mongodb service error", err)
 		os.Exit(-1)
@@ -390,7 +399,13 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		},
 	}
 
-	err := cli.CatalogCreateCassandraService(ctx, req)
+	err := cascatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateCassandraService(ctx, req)
 	if err != nil {
 		fmt.Println("create cassandra service error", err)
 		os.Exit(-1)
@@ -534,10 +549,6 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid max memory and volume size")
 		os.Exit(-1)
 	}
-	if *maxMemMB != common.DefaultMaxMemoryMB && *maxMemMB <= *redisMemSizeMB {
-		fmt.Println("the container max memory should be larger than Redis memory cache size")
-		os.Exit(-1)
-	}
 
 	req := &manage.CatalogCreateRedisRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -570,7 +581,13 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
-	err := cli.CatalogCreateRedisService(ctx, req)
+	err := rediscatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid request", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateRedisService(ctx, req)
 	if err != nil {
 		fmt.Println("create redis service error", err)
 		os.Exit(-1)
@@ -745,6 +762,12 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		req.Options.HTTPSPort = *consulHTTPSPort
 	}
 
+	err := consulcatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
 	serverips, err := cli.CatalogCreateConsulService(ctx, req)
 	if err != nil {
 		fmt.Println("create consul service error", err)
@@ -797,7 +820,13 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
-	err := cli.CatalogCreateElasticSearchService(ctx, req)
+	err := escatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateElasticSearchService(ctx, req)
 	if err != nil {
 		fmt.Println("create service error", err)
 		os.Exit(-1)
@@ -871,7 +900,13 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 		req.Options.SSLCert = string(certBytes)
 	}
 
-	err := cli.CatalogCreateKibanaService(ctx, req)
+	err := kibanacatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateKibanaService(ctx, req)
 	if err != nil {
 		fmt.Println("create kibana service error", err)
 		os.Exit(-1)
@@ -938,6 +973,12 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
+	err = logstashcatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
 	err = cli.CatalogCreateLogstashService(ctx, req)
 	if err != nil {
 		fmt.Println("create logstash service error", err)
@@ -990,7 +1031,13 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 		},
 	}
 
-	err := cli.CatalogCreatePostgreSQLService(ctx, req)
+	err := pgcatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreatePostgreSQLService(ctx, req)
 	if err != nil {
 		fmt.Println("create postgresql service error", err)
 		os.Exit(-1)

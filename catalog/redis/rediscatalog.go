@@ -58,7 +58,7 @@ const (
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 	if r.Options.ReplicasPerShard < 1 {
-		return common.ErrInvalidArgs
+		return errors.New("The replicas pershard should not be less than 1")
 	}
 	if r.Options.Shards == invalidShards {
 		return errors.New("Redis cluster mode requires at least 3 shards")
