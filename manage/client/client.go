@@ -57,7 +57,7 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // GetServiceAttr gets the service details information
@@ -78,7 +78,7 @@ func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceComm
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -106,7 +106,7 @@ func (c *ManageClient) GetServiceStatus(ctx context.Context, r *manage.ServiceCo
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -148,7 +148,7 @@ func (c *ManageClient) SetServiceInitialized(ctx context.Context, r *manage.Serv
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return manage.ConvertHTTPError(resp.StatusCode)
+		return manage.ConvertHTTPError(resp)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ func (c *ManageClient) ListServiceMember(ctx context.Context, r *manage.ListServ
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -199,7 +199,7 @@ func (c *ManageClient) ListService(ctx context.Context, r *manage.ListServiceReq
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -227,7 +227,7 @@ func (c *ManageClient) DeleteService(ctx context.Context, r *manage.DeleteServic
 		return volIDs, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return volIDs, manage.ConvertHTTPError(resp.StatusCode)
+		return volIDs, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -255,7 +255,7 @@ func (c *ManageClient) GetConfigFile(ctx context.Context, r *manage.GetConfigFil
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -283,7 +283,7 @@ func (c *ManageClient) RunTask(ctx context.Context, r *manage.RunTaskRequest) (t
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", manage.ConvertHTTPError(resp.StatusCode)
+		return "", manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -311,7 +311,7 @@ func (c *ManageClient) GetTaskStatus(ctx context.Context, r *manage.GetTaskStatu
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -339,7 +339,7 @@ func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskReque
 		return err
 	}
 
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateMongoDBService creates a new catalog MongoDB ReplicaSet service.
@@ -359,7 +359,7 @@ func (c *ManageClient) CatalogCreateMongoDBService(ctx context.Context, r *manag
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreatePostgreSQLService creates a new catalog PostgreSQL service.
@@ -379,7 +379,8 @@ func (c *ManageClient) CatalogCreatePostgreSQLService(ctx context.Context, r *ma
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateCassandraService creates a new catalog Cassandra service.
@@ -399,7 +400,7 @@ func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *man
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateZooKeeperService creates a new catalog ZooKeeper service.
@@ -419,7 +420,7 @@ func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *man
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateKafkaService creates a new catalog Kafka service.
@@ -439,7 +440,7 @@ func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateRedisService creates a new catalog Redis service.
@@ -459,7 +460,7 @@ func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateCouchDBService creates a new catalog CouchDB service.
@@ -479,7 +480,7 @@ func (c *ManageClient) CatalogCreateCouchDBService(ctx context.Context, r *manag
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateConsulService creates a new catalog Consul service.
@@ -501,7 +502,7 @@ func (c *ManageClient) CatalogCreateConsulService(ctx context.Context, r *manage
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -528,7 +529,7 @@ func (c *ManageClient) CatalogCreateElasticSearchService(ctx context.Context, r 
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateKibanaService creates a new catalog Kibana service.
@@ -548,7 +549,7 @@ func (c *ManageClient) CatalogCreateKibanaService(ctx context.Context, r *manage
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateLogstashService creates a new catalog Logstash service.
@@ -568,7 +569,7 @@ func (c *ManageClient) CatalogCreateLogstashService(ctx context.Context, r *mana
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp.StatusCode)
+	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCheckServiceInit checks if a catalog service is initialized.
@@ -589,7 +590,7 @@ func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.Ca
 		return false, "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return false, "", manage.ConvertHTTPError(resp.StatusCode)
+		return false, "", manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -617,7 +618,7 @@ func (c *ManageClient) InternalGetServiceTask(ctx context.Context, r *manage.Int
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", manage.ConvertHTTPError(resp.StatusCode)
+		return "", manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -645,7 +646,7 @@ func (c *ManageClient) InternalListActiveServiceTasks(ctx context.Context, r *ma
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp.StatusCode)
+		return nil, manage.ConvertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)

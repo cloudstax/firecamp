@@ -1,6 +1,8 @@
 package manage
 
 import (
+	"errors"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -28,22 +30,27 @@ func ConvertToHTTPError(err error) (errmsg string, errcode int) {
 	return err.Error(), http.StatusInternalServerError
 }
 
-func ConvertHTTPError(httperrcode int) error {
-	switch httperrcode {
-	case http.StatusOK:
+func ConvertHTTPError(resp *http.Response) error {
+	if resp.StatusCode == http.StatusOK {
 		return nil
+	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	switch resp.StatusCode {
 	case http.StatusConflict:
-		return common.ErrServiceExist
+		return errors.New("ServiceExist: " + string(body))
 	case http.StatusRequestTimeout:
-		return common.ErrTimeout
+		return errors.New("Timeout: " + string(body))
 	case http.StatusBadRequest:
-		return common.ErrInvalidArgs
+		return errors.New("InvalidArgs: " + string(body))
 	case http.StatusNotFound:
-		return common.ErrNotFound
+		return errors.New("NotFound: " + string(body))
 	case http.StatusPreconditionFailed:
-		return common.ErrConditionalCheckFailed
+		return errors.New("ConditionalCheckFailed: " + string(body))
 	default:
-		return common.ErrInternal
+		return errors.New("InternalError: " + string(body))
 	}
 }
 
