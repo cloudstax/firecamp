@@ -125,8 +125,8 @@
       "Description":"Name of the cluster.",
       "MinLength": "1",
       "MaxLength": "255",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+      "AllowedPattern": "[a-z][a-z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain lowercase letters, numbers, or hyphens. The uppercase letters are not allowed, as dns service such as AWS Route53 does not distinguish the uppercase and lowercase. If two ClusterNames have the same letters (one is lowercase, the other is uppercase), they will have the same dns name and mess up the services."
     },
     "Release": {
       "Type": "String",

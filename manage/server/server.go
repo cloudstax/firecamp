@@ -2,9 +2,11 @@ package manageserver
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -50,6 +52,8 @@ type ManageHTTPServer struct {
 	domain    string
 	vpcID     string
 
+	validName *regexp.Regexp
+
 	dbIns           db.DB
 	serverInfo      server.Info
 	logIns          cloudlog.CloudLog
@@ -71,6 +75,7 @@ func NewManageHTTPServer(platform string, cluster string, azs []string, managedn
 		azs:             azs,
 		domain:          dns.GenDefaultDomainName(cluster),
 		vpcID:           serverInfo.GetLocalVpcID(),
+		validName:       regexp.MustCompile(common.ServiceNamePattern),
 		dbIns:           dbIns,
 		logIns:          logIns,
 		serverInfo:      serverInfo,
@@ -153,7 +158,7 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	// the common service creation request.
-	return s.createService(ctx, w, r, trimURL, requuid)
+	return s.createService(ctx, w, r, requuid)
 }
 
 func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -169,6 +174,9 @@ func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.Res
 		glog.Errorln("putServiceInitialized decode request error", err, "requuid", requuid, string(b[:]))
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Cluster = strings.ToLower(req.Cluster)
+	req.ServiceName = strings.ToLower(req.ServiceName)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("putServiceInitialized invalid request, local cluster", s.cluster,
@@ -190,8 +198,21 @@ func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service st
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWriter,
-	r *http.Request, servicename string, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonRequest) error {
+	service.Cluster = strings.ToLower(service.Cluster)
+	service.ServiceName = strings.ToLower(service.ServiceName)
+	if !s.validName.MatchString(service.Cluster) || !s.validName.MatchString(service.ServiceName) {
+		return errors.New("invalid request, cluster or service name is not valid")
+	}
+
+	if service.Cluster != s.cluster || service.Region != s.region {
+		return errors.New("invalid request, cluster or region not match")
+	}
+
+	return nil
+}
+
+func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CreateServiceRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -200,11 +221,11 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region ||
-		req.Service.ServiceName != servicename {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("createService invalid request, local cluster", s.cluster, "region",
-			s.region, "service", servicename, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	_, err = s.createCommonService(ctx, req, requuid)
@@ -334,7 +355,7 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 		}
 	} else {
 		// get the detail of one service
-		return s.getServiceAttr(ctx, w, r, trimURL, requuid)
+		return s.getServiceAttr(ctx, w, r, requuid)
 	}
 }
 
@@ -357,10 +378,11 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("deleteService invalid request, local cluster", s.cluster, "region",
-			s.region, "requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// delete the service on the container platform
@@ -423,6 +445,9 @@ func (s *ManageHTTPServer) listServices(ctx context.Context, w http.ResponseWrit
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	req.Cluster = strings.ToLower(req.Cluster)
+	req.Prefix = strings.ToLower(req.Prefix)
+
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("listServices invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
@@ -477,10 +502,11 @@ func (s *ManageHTTPServer) listServiceMembers(ctx context.Context, w http.Respon
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("listServiceMembers invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	glog.Infoln("listServiceMembers", req.Service, "requuid", requuid)
@@ -512,8 +538,7 @@ func (s *ManageHTTPServer) listServiceMembers(ctx context.Context, w http.Respon
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) getServiceAttr(ctx context.Context, w http.ResponseWriter,
-	r *http.Request, servicename string, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) getServiceAttr(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// no need to support token and MaxKeys, simply returns all serviceMembers. Assume one serviceMember
 	// attribute is 1KB. If the service has 1000 serviceMembers, the whole list would be 1MB.
 	req := &manage.ServiceCommonRequest{}
@@ -523,15 +548,16 @@ func (s *ManageHTTPServer) getServiceAttr(ctx context.Context, w http.ResponseWr
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Cluster != s.cluster || req.Region != s.region || req.ServiceName != servicename {
+	err = s.checkCommonRequest(req)
+	if err != nil {
 		glog.Errorln("getServiceAttr invalid request, local cluster", s.cluster, "region",
-			s.region, "service", servicename, "requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
-	service, err := s.dbIns.GetService(ctx, s.cluster, servicename)
+	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
-		glog.Errorln("GetService error", err, servicename, "requuid", requuid)
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -563,6 +589,9 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 		glog.Errorln("getServiceStatus decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Cluster = strings.ToLower(req.Cluster)
+	req.ServiceName = strings.ToLower(req.ServiceName)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
@@ -602,6 +631,8 @@ func (s *ManageHTTPServer) getConfigFile(ctx context.Context,
 		glog.Errorln("getConfigFile decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Cluster = strings.ToLower(req.Cluster)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
@@ -646,6 +677,9 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		glog.Errorln("runTask decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
+	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
 
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region",
@@ -709,6 +743,9 @@ func (s *ManageHTTPServer) getTaskStatus(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
+	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
+
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region || len(req.TaskID) == 0 {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, "taskID", req.TaskID, req.Service)
@@ -747,6 +784,9 @@ func (s *ManageHTTPServer) deleteTask(ctx context.Context, w http.ResponseWriter
 		glog.Errorln("decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
+	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
 
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region ||
 		len(req.Service.ServiceName) == 0 || len(req.TaskType) == 0 {

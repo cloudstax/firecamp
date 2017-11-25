@@ -52,8 +52,8 @@
       "Description":"Name of the cluster.",
       "MinLength": "1",
       "MaxLength": "255",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+      "AllowedPattern": "[a-z][a-z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain lowercase letters, numbers, or hyphens."
     },
     "ServiceName": {
       "Type": "String",
@@ -61,7 +61,7 @@
       "MinLength": "1",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+      "ConstraintDescription": "Service name must start with a letter and can only contain letters, numbers, or hyphens."
     },
     "Shards": {
       "Type": "Number",
@@ -137,7 +137,7 @@
       "MinLength": "0",
       "MaxLength": "255",
       "AllowedPattern": "[a-zA-Z]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters."
+      "ConstraintDescription": "ConfigCommand name must start with a letter and can only contain letters."
     }
   },
   "Conditions": {

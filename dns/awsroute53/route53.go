@@ -124,6 +124,7 @@ func (r *AWSRoute53) GetHostedZoneIDByName(ctx context.Context, domainName strin
 
 		if len(resp.HostedZones) != 0 {
 			// not sure why, but route53 automatically append char '.' to the domainName
+			// note: route53 automatically converts the name to lower case
 			internalDomainName := domainName + "."
 
 			for _, zone := range resp.HostedZones {

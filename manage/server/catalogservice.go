@@ -3,6 +3,7 @@ package manageserver
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -70,10 +71,11 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCheckServiceInitRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// get service uuid
@@ -196,10 +198,11 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateMongoDBRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = mongodbcatalog.ValidateRequest(req)
@@ -256,10 +259,11 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreatePostgreSQLRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = pgcatalog.ValidateRequest(req)
@@ -291,10 +295,11 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateZooKeeperRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// create the service in the control plane and the container platform
@@ -321,10 +326,11 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateKafkaRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	// get the zk service
@@ -366,10 +372,11 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	glog.Infoln("create redis service", req.Service, req.Options, req.Resource)
@@ -461,10 +468,11 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateCouchDBRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = couchdbcatalog.ValidateRequest(req)
@@ -516,10 +524,11 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateConsulRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = consulcatalog.ValidateRequest(req)
@@ -584,10 +593,11 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateElasticSearchRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = escatalog.ValidateRequest(req)
@@ -620,10 +630,11 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateKibanaRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = kibanacatalog.ValidateRequest(req)
@@ -673,10 +684,11 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateLogstashRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = logstashcatalog.ValidateRequest(req)
@@ -709,10 +721,11 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
 		glog.Errorln("CatalogCreateCassandraRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
 	}
 
 	err = cascatalog.ValidateRequest(req)
@@ -763,6 +776,9 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 		glog.Errorln("CatalogSetServiceInitRequest decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Cluster = strings.ToLower(req.Cluster)
+	req.ServiceName = strings.ToLower(req.ServiceName)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("CatalogSetServiceInitRequest invalid request, local cluster", s.cluster,
@@ -886,6 +902,9 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
+
+	req.Cluster = strings.ToLower(req.Cluster)
+	req.ServiceName = strings.ToLower(req.ServiceName)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -38,10 +39,10 @@ import (
 var (
 	op               = flag.String("op", "", "The operation type, such as create-service")
 	serviceType      = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
-	cluster          = flag.String("cluster", "default", "The ECS cluster")
+	cluster          = flag.String("cluster", "default", "The ECS cluster. Can only contain lowercase letters, numbers, or hyphens.")
 	serverURL        = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	region           = flag.String("region", "", "The target AWS region")
-	service          = flag.String("service-name", "", "The target service name in ECS")
+	service          = flag.String("service-name", "", "The target service name in ECS. Can only contain lowercase letters, numbers, or hyphens.")
 	replicas         = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
@@ -184,6 +185,15 @@ func usage() {
 func main() {
 	usage()
 	flag.Parse()
+
+	*cluster = strings.ToLower(*cluster)
+	*service = strings.ToLower(*service)
+
+	validName := regexp.MustCompile(common.ServiceNamePattern)
+	if !validName.MatchString(*cluster) || !validName.MatchString(*service) {
+		fmt.Println("cluster name and service name must start with a letter and can only contain lowercase letters, numbers, or hyphens.")
+		os.Exit(-1)
+	}
 
 	if *tlsEnabled && (*caFile == "" || *certFile == "" || *keyFile == "") {
 		fmt.Printf("tls enabled without ca file %s cert file %s or key file %s\n", caFile, certFile, keyFile)
