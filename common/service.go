@@ -33,7 +33,7 @@ const (
 	// Throughput Optimized HDD
 	VolumeTypeTPHDD = "st1"
 
-	ServiceNamePattern = "[a-z][a-z0-9-]*"
+	ServiceNamePattern = "[a-zA-Z][a-zA-Z0-9-]*"
 )
 
 // Resources represents the service/task resources, cpu and memory.
@@ -72,13 +72,7 @@ type TaskStatus struct {
 	FinishedAt    string
 }
 
-// The ClusterName and ServiceName must start with a letter and can only contain lowercase letters, numbers, or hyphens.
-//
-// This is becuase the dns service such as AWS Route53 does not distinguish the uppercase and lowercase.
-// If two ServiceNames in the cluster or two ClusterNames have the same letters (one is lowercase,
-// the other is uppercase), they will have the same dns name and mess up with each other.
-//
-// To simplify the handling, the ClusterName and ServiceName are converted to lowercase automatically.
+// The ClusterName and ServiceName must start with a letter and can only contain letters, numbers, or hyphens.
 
 // Device records the assigned device for the service.
 // The DeviceName has to be part of the key, to ensure one device is only assigned to one service.

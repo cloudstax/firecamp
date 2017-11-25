@@ -175,9 +175,6 @@ func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.Res
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	req.Cluster = strings.ToLower(req.Cluster)
-	req.ServiceName = strings.ToLower(req.ServiceName)
-
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("putServiceInitialized invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
@@ -199,10 +196,8 @@ func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service st
 }
 
 func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonRequest) error {
-	service.Cluster = strings.ToLower(service.Cluster)
-	service.ServiceName = strings.ToLower(service.ServiceName)
-	if !s.validName.MatchString(service.Cluster) || !s.validName.MatchString(service.ServiceName) {
-		return errors.New("invalid request, cluster or service name is not valid")
+	if !s.validName.MatchString(service.ServiceName) {
+		return errors.New("invalid request, service name is not valid")
 	}
 
 	if service.Cluster != s.cluster || service.Region != s.region {
@@ -445,9 +440,6 @@ func (s *ManageHTTPServer) listServices(ctx context.Context, w http.ResponseWrit
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	req.Cluster = strings.ToLower(req.Cluster)
-	req.Prefix = strings.ToLower(req.Prefix)
-
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("listServices invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
@@ -590,9 +582,6 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	req.Cluster = strings.ToLower(req.Cluster)
-	req.ServiceName = strings.ToLower(req.ServiceName)
-
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -631,8 +620,6 @@ func (s *ManageHTTPServer) getConfigFile(ctx context.Context,
 		glog.Errorln("getConfigFile decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
-
-	req.Cluster = strings.ToLower(req.Cluster)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
@@ -677,9 +664,6 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		glog.Errorln("runTask decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
-
-	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
-	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
 
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region",
@@ -743,9 +727,6 @@ func (s *ManageHTTPServer) getTaskStatus(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
-	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
-
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region || len(req.TaskID) == 0 {
 		glog.Errorln("invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, "taskID", req.TaskID, req.Service)
@@ -784,9 +765,6 @@ func (s *ManageHTTPServer) deleteTask(ctx context.Context, w http.ResponseWriter
 		glog.Errorln("decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
-
-	req.Service.Cluster = strings.ToLower(req.Service.Cluster)
-	req.Service.ServiceName = strings.ToLower(req.Service.ServiceName)
 
 	if req.Service.Cluster != s.cluster || req.Service.Region != s.region ||
 		len(req.Service.ServiceName) == 0 || len(req.TaskType) == 0 {

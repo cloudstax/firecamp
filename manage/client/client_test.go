@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,7 +151,7 @@ func TestClientMgrOperationsWithDynamoDB(t *testing.T) {
 	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
 	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
 		manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
-	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
+	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+2)
 
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -216,7 +217,8 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 
 		err := cli.CreateService(context.Background(), r)
 		if err != nil {
-			t.Fatalf("create service error")
+			time.Sleep(20 * time.Second)
+			t.Fatalf("create service error %s", err)
 		}
 	}
 
@@ -238,8 +240,8 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 		ServiceName: "xxxx",
 	}
 	_, err := cli.GetServiceAttr(context.Background(), r1)
-	if err != common.ErrNotFound {
-		t.Fatalf("get non-exist service, expect StatusNotFound, got %s, %s", err, r1)
+	if !strings.Contains(err.Error(), "NotFound") {
+		t.Fatalf("get non-exist service, expect NotFound, got %s, %s", err, r1)
 	}
 
 	// set service initialized
@@ -295,7 +297,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	}
 
 	_, err = cli.DeleteService(context.Background(), r2)
-	if err != common.ErrNotFound {
+	if !strings.Contains(err.Error(), "NotFound") {
 		t.Fatalf("delete service error %s, %s", err, r2)
 	}
 }

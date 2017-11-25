@@ -186,12 +186,9 @@ func main() {
 	usage()
 	flag.Parse()
 
-	*cluster = strings.ToLower(*cluster)
-	*service = strings.ToLower(*service)
-
 	validName := regexp.MustCompile(common.ServiceNamePattern)
-	if !validName.MatchString(*cluster) || !validName.MatchString(*service) {
-		fmt.Println("cluster name and service name must start with a letter and can only contain lowercase letters, numbers, or hyphens.")
+	if !validName.MatchString(*service) {
+		fmt.Println("service name must start with a letter and can only contain letters, numbers, or hyphens.")
 		os.Exit(-1)
 	}
 

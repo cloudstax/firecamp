@@ -8,8 +8,8 @@
       "Default":"default",
       "MinLength": "1",
       "MaxLength": "255",
-      "AllowedPattern": "[a-z][a-z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain lowercase letters, numbers, or hyphens."
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
     "KeyPairName":{
       "Type":"AWS::EC2::KeyPair::KeyName",

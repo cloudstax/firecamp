@@ -3,7 +3,6 @@ package manageserver
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -777,9 +776,6 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	req.Cluster = strings.ToLower(req.Cluster)
-	req.ServiceName = strings.ToLower(req.ServiceName)
-
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("CatalogSetServiceInitRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
@@ -902,9 +898,6 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
-
-	req.Cluster = strings.ToLower(req.Cluster)
-	req.ServiceName = strings.ToLower(req.ServiceName)
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,
