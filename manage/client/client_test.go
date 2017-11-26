@@ -217,7 +217,6 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 
 		err := cli.CreateService(context.Background(), r)
 		if err != nil {
-			time.Sleep(20 * time.Second)
 			t.Fatalf("create service error %s", err)
 		}
 	}

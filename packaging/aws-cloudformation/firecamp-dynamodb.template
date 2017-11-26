@@ -13,12 +13,12 @@
     },
     "ReadCapacityUnits":{
       "Type":"Number",
-      "Default":"40",
+      "Default":"25",
       "Description":"The  maximum number of strongly consistent reads consumed per second."
     },
     "WriteCapacityUnits":{
       "Type":"Number",
-      "Default":"30",
+      "Default":"25",
       "Description":"The  maximum number of writes consumed per second."
     }
   },

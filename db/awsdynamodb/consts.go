@@ -25,8 +25,8 @@ const (
 	configPartitionKeyPrefix        = "ConfigKey-"
 	staticIPPartitionKeyPrefix      = "StaticIPKey-"
 
-	defaultReadCapacity  = 40
-	defaultWriteCapacity = 30
+	defaultReadCapacity  = 25
+	defaultWriteCapacity = 25
 
 	ClusterName     = "ClusterName"
 	ServiceName     = "ServiceName"
