@@ -1,6 +1,7 @@
 package awsroute53
 
 import (
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -124,8 +125,8 @@ func (r *AWSRoute53) GetHostedZoneIDByName(ctx context.Context, domainName strin
 
 		if len(resp.HostedZones) != 0 {
 			// not sure why, but route53 automatically append char '.' to the domainName
-			// note: route53 automatically converts the name to lower case
-			internalDomainName := domainName + "."
+			// route53 automatically converts the name to lower case
+			internalDomainName := strings.ToLower(domainName + ".")
 
 			for _, zone := range resp.HostedZones {
 				if *(zone.Name) != internalDomainName {

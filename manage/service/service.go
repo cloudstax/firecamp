@@ -690,6 +690,13 @@ func (s *ManageService) assignDeviceName(ctx context.Context, cluster string, se
 			glog.Infoln("device is already assigned to service", x, "requuid", requuid)
 			return x.DeviceName, errServiceHasDevice
 		}
+		// The different lower/upper case letter service name is not allowed, as the dns service
+		// does not distinguish the uppercase and lowercase.
+		if strings.ToLower(x.ServiceName) == strings.ToLower(service) {
+			glog.Errorln("service exists with different lower/upper case letter, existing name",
+				x.ServiceName, "new service name", service, "requuid", requuid)
+			return "", common.ErrServiceExist
+		}
 
 		dev := x.DeviceName
 
