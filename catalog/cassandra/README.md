@@ -10,7 +10,7 @@ Only one region is supported currently. The multi-regions Cassandra will be supp
 
 The FireCamp Cassandra follows the official [security guide](http://cassandra.apache.org/doc/latest/operating/security.html). The Authentication and Authorization are enabled by default.
 
-The TLS/SSL encryption is not enabled to avoid the possible impact on performance. This would not be a big security risk. The Cassandra cluster on the FireCamp platform could only be accessed by the nodes running on the AppAccessSecurityGroup and the same VPC. And both Authentication and Authorization are enabled. Even if someone hacks to the application node, he/she will need to know the username and password to access the Cassandra cluster.
+The TLS/SSL encryption will be supported in the future. This would not be a big security risk. The Cassandra cluster on the FireCamp platform could only be accessed by the nodes running on the AppAccessSecurityGroup and the same VPC. And both Authentication and Authorization are enabled.
 
 After the Cassandra cluster is initialized, please login to create a new superuser and disable the default "cassandra" superuser. For example, cluster name is t1, cassandra service name is mycas. The steps are:
 

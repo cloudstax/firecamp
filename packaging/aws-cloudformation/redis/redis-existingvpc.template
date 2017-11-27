@@ -262,7 +262,18 @@
         "r4.2xlarge",
         "r4.4xlarge",
         "r4.8xlarge",
-        "r4.16xlarge"
+        "r4.16xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c5.large",
+        "c5.xlarge",
+        "c5.2xlarge",
+        "c5.4xlarge",
+        "c5.9xlarge",
+        "c5.18xlarge"
       ],
       "ConstraintDescription":"Please choose a valid instance type."
     },
