@@ -212,55 +212,6 @@
       "ConstraintDescription":"Please choose a valid instance type."
     }
   },
-  "Mappings": {
-    "AWSAMIRegionMap": {
-      "AMI": {
-        "AMIID": "amzn-ami-hvm-2017.09.1.20171120-x86_64-gp2"
-      },
-      "ap-northeast-1": {
-        "AMIID": "ami-da9e2cbc"
-      },
-      "ap-northeast-2": {
-        "AMIID": "ami-1196317f"
-      },
-      "ap-south-1": {
-        "AMIID": "ami-d5c18eba"
-      },
-      "ap-southeast-1": {
-        "AMIID": "ami-c63d6aa5"
-      },
-      "ap-southeast-2": {
-        "AMIID": "ami-ff4ea59d"
-      },
-      "ca-central-1": {
-        "AMIID": "ami-d29e25b6"
-      },
-      "eu-central-1": {
-        "AMIID": "ami-bf2ba8d0"
-      },
-      "eu-west-1": {
-        "AMIID": "ami-1a962263"
-      },
-      "eu-west-2": {
-        "AMIID": "ami-e7d6c983"
-      },
-      "sa-east-1": {
-        "AMIID": "ami-286f2a44"
-      },
-      "us-east-1": {
-        "AMIID": "ami-55ef662f"
-      },
-      "us-east-2": {
-        "AMIID": "ami-15e9c770"
-      },
-      "us-west-1": {
-        "AMIID": "ami-a51f27c5"
-      },
-      "us-west-2": {
-        "AMIID": "ami-bf4193c7"
-      }
-    }
-  },
   "Conditions": {
     "GovCloudCondition": {
       "Fn::Equals": [
