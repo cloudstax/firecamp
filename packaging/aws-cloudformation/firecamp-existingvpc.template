@@ -218,46 +218,46 @@
         "AMIID": "amzn-ami-hvm-2017.09.1.20171120-x86_64-gp2"
       },
       "ap-northeast-1": {
-        "AMIID": "ami-da9e2cbc"
+        "AMIID": "ami-cb3a8cad"
       },
       "ap-northeast-2": {
-        "AMIID": "ami-1196317f"
+        "AMIID": "ami-88f85fe6"
       },
       "ap-south-1": {
         "AMIID": "ami-d5c18eba"
       },
       "ap-southeast-1": {
-        "AMIID": "ami-c63d6aa5"
+        "AMIID": "ami-ca3762a9"
       },
       "ap-southeast-2": {
-        "AMIID": "ami-ff4ea59d"
+        "AMIID": "ami-a9a14acb"
       },
       "ca-central-1": {
-        "AMIID": "ami-d29e25b6"
+        "AMIID": "ami-cace75ae"
       },
       "eu-central-1": {
-        "AMIID": "ami-bf2ba8d0"
+        "AMIID": "ami-1f9f1f70"
       },
       "eu-west-1": {
-        "AMIID": "ami-1a962263"
+        "AMIID": "ami-faa10a83"
       },
       "eu-west-2": {
-        "AMIID": "ami-e7d6c983"
+        "AMIID": "ami-e36b7487"
       },
       "sa-east-1": {
         "AMIID": "ami-286f2a44"
       },
       "us-east-1": {
-        "AMIID": "ami-55ef662f"
+        "AMIID": "ami-6944c513"
       },
       "us-east-2": {
-        "AMIID": "ami-15e9c770"
+        "AMIID": "ami-6e56780b"
       },
       "us-west-1": {
-        "AMIID": "ami-a51f27c5"
+        "AMIID": "ami-bbe6dfdb"
       },
       "us-west-2": {
-        "AMIID": "ami-bf4193c7"
+        "AMIID": "ami-f5fc2c8d"
       }
     }
   },
