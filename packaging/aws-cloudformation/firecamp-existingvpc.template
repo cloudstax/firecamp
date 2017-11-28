@@ -215,7 +215,7 @@
   "Mappings": {
     "AWSAMIRegionMap": {
       "AMI": {
-        "AMIID": "amzn-ami-hvm-2017.09.1.20171120-x86_64-gp2"
+        "AMIID": "amzn-ami-2017.09.c-amazon-ecs-optimized"
       },
       "ap-northeast-1": {
         "AMIID": "ami-cb3a8cad"
