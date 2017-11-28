@@ -76,10 +76,7 @@
           },
           "Parameters": [
             "QSS3BucketName",
-            "QSRedisS3KeyPrefix",
-            "QSFireCampS3KeyPrefix",
-            "QSAWSVPCS3KeyPrefix",
-            "QSBastionS3KeyPrefix"
+            "QSS3KeyPrefix"
           ]
         }
       ],
@@ -185,17 +182,8 @@
         "QSS3BucketName": {
           "default": "Quick Start S3 Bucket Name"
         },
-        "QSRedisS3KeyPrefix": {
-          "default": "CloudStax Redis Quick Start S3 Key Prefix"
-        },
-        "QSFireCampS3KeyPrefix": {
-          "default": "CloudSatx FireCamp Quick Start S3 Key Prefix"
-        },
-        "QSAWSVPCS3KeyPrefix": {
-          "default": "AWS VPC Quick Start S3 Key Prefix"
-        },
-        "QSBastionS3KeyPrefix": {
-          "default": "AWS Bastion Quick Start S3 Key Prefix"
+        "QSS3KeyPrefix": {
+          "default": "Quick Start S3 Key Prefix"
         }
       }
     }
@@ -489,32 +477,11 @@
       "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the Quick Start assets. The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
-    "QSFireCampS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-      "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Default": "cloudstax/firecamp/latest/",
-      "Type": "String"
-    },
-    "QSRedisS3KeyPrefix": {
+    "QSS3KeyPrefix": {
       "AllowedPattern": "^[0-9a-zA-Z-/]*$",
       "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
       "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
       "Default": "cloudstax/redis/latest/",
-      "Type": "String"
-    },
-    "QSAWSVPCS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-      "Default": "aws/vpc/latest/",
-      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-      "Type": "String"
-    },
-    "QSBastionS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-      "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-      "Default": "linux/bastion/latest/",
-      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
       "Type": "String"
     }
   },
@@ -542,7 +509,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSAWSVPCS3KeyPrefix}templates/aws-vpc.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -599,7 +566,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSBastionS3KeyPrefix}templates/linux-bastion.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -641,7 +608,7 @@
             "Ref": "QSS3BucketName"
           },
           "QSS3KeyPrefix": {
-            "Ref": "QSBastionS3KeyPrefix"
+            "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
           },
           "RemoteAccessCIDR": {
             "Ref": "RemoteAccessCIDR"
@@ -746,7 +713,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-cloudstax-firecamp/templates/firecamp.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -768,8 +735,8 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSCloudStaxS3KeyPrefix": {
-            "Ref": "QSFireCampS3KeyPrefix"
+          "QSS3KeyPrefix": {
+            "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-cloudstax-firecamp/"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"
@@ -848,7 +815,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSRedisS3KeyPrefix}templates/redis-lambda.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/redis-lambda.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -901,11 +868,8 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSFireCampS3KeyPrefix": {
-            "Ref": "QSFireCampS3KeyPrefix"
-          },
-          "QSRedisS3KeyPrefix": {
-            "Ref": "QSRedisS3KeyPrefix"
+          "QSS3KeyPrefix": {
+            "Ref": "QSS3KeyPrefix"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"

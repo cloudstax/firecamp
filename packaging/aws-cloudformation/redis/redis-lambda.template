@@ -18,14 +18,7 @@
       "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
-    "QSFireCampS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/]*$",
-      "ConstraintDescription": "QuickStart key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-      "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
-      "Default": "cloudstax/firecamp/latest/",
-      "Type": "String"
-    },
-    "QSRedisS3KeyPrefix": {
+    "QSS3KeyPrefix": {
       "AllowedPattern": "^[0-9a-zA-Z-/]*$",
       "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
       "Description": "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
@@ -154,7 +147,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSFireCampS3KeyPrefix}templates/firecamp-lambda-common.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-cloudstax-firecamp/templates/firecamp-lambda-common.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -171,7 +164,7 @@
             "Ref": "QSS3BucketName"
           },
           "QSS3KeyPrefix": {
-            "Ref": "QSRedisS3KeyPrefix"
+            "Ref": "QSS3KeyPrefix"
           },
           "S3ObjectLambdaZip": {
             "Ref": "S3ObjectLambdaZip"
