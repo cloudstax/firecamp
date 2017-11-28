@@ -1,5 +1,4 @@
-AWS ECS currently does not support to specify volume driver. Once AWS ECS supports
-the custom volume driver, there is no need to patch ecs-agent.
+AWS ECS currently does not support to specify volume driver. See ECS Open Issue [Volume Driver support](https://github.com/aws/amazon-ecs-agent/issues/236). Once AWS ECS supports the custom volume driver, there is no need to patch ecs-agent.
 
 Apply patch
 1. copy firecamp_task_engine.go to cloudstax/amazon-ecs-agent/agent/engine/

@@ -22,7 +22,7 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 
 **One Click Deploy**: FireCamp's Catalog service integrates the stateful services. The customer could simply call a single command to deploy a stateful service, such as a MongoDB ReplicaSet.
 
-**Fast and Auto Failover**: FireCamp binds the data volume and membership with the container. When a node crashes, the container orchestration frameworks will reschedule the container to another node. FireCamp will automatically move the data volume and the membership. There is no data copy involved during the failover.
+**Fast and Auto Failover**: FireCamp binds the data volumes and membership with the container. When a node crashes, the container orchestration frameworks will reschedule the container to another node. FireCamp will automatically move the data volume and the membership. There is no data copy involved during the failover.
 
 **Security**: FireCamp will enforce the security at both the platform level and the service level.
 * The AppAccessSecurityGroup: FireCamp creates the AppAccessSecurityGroup to restricts the access to the stateful services. Only the EC2 instances in the AppAccessSecurityGroup could access the stateful services. The customer should have the application running on the EC2 of the AppAccessSecurityGroup and the same VPC.
@@ -52,6 +52,16 @@ The FireCamp cluster could be easily installed using AWS CloudFormation for AWS 
 3. Use the firecamp cli to create the stateful service. Refer to [Service Tutorials](https://github.com/cloudstax/firecamp/wiki/Tutorials) for each service.
 
 For the Installation details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
+
+## How do applications access the service?
+
+The applications should run in the same VPC and the AppAccessSecurityGroup, and access the stateful services via the DNS names.
+
+Every service member will get a unique dns name. For example, the cluster is testcluster, Cassandra service name is mycas with 3 replicas. FireCamp will assign the dns name, mycas-0.testcluster-firecamp.com, mycas-1.testcluster-firecamp.com, and mycas-2.testcluster-firecamp.com, to the 3 Cassandra containers. The applications could simply access the Cassandra cluster via these 3 dns names.
+
+When the EC2 instance goes down, let's say the EC2 of mycas-1.testcluster-firecamp.com, AutoScaleGroup will start a new EC2. ECS will schedule the Cassandra container to the new EC2. FireCamp will attach the original EBS volumes that belongs to mycas-1.testcluster-firecamp.com, and update the address of mycas-1.testcluster-firecamp.com to the new EC2's privateIP in Route53.
+
+If the applications use JVM, you will need to set JVM TTL. Please check such as [Cassandra Readme](https://github.com/cloudstax/firecamp/catalog/cassandra/README.md): "By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please set JVM TTL to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address."
 
 ## Catalog Services
 * [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb)
