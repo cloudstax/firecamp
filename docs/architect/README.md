@@ -37,7 +37,7 @@ The following picture illustrates FireCamp's architecture.
 ![Architecture](https://s3.amazonaws.com/cloudstax/firecamp/docs/arch.png)
 
 # Components
-FireCamp has 5 major components. The Catalog service and Container Plugin are 2 key components that work with the orchestration framework and coordinates other components. Please refer to [Work Flows](https://github.com/cloudstax/firecamp/docs/workflows) for how the components work together.
+FireCamp has 5 major components. The Catalog service and Container Plugin are 2 key components that work with the orchestration framework and coordinates other components. Please refer to [Work Flows](https://github.com/cloudstax/firecamp/tree/master/docs/workflows) for how the components work together.
 
 ## The Key-Value Database
 The database is the central place to store all stateful services related metadata. The database keeps the service's attributes, including the service uuid, the service members, member names, data volumes, the service config files, etc.
@@ -52,12 +52,12 @@ If the service requires static IP, every member will also get a static IP. The m
 ## The Container Plugin
 The FireCamp Container plugin is the central coordinator between the container orchestration framework and other FireCamp components.
 
-When the container orchestration framework schedules a service container to a worker node, the plugin will talk with the database to find out which member the container serves, updates the registry service (update the member's DNS record or move the member's static IP), and mounts the member's data volume. By this, the service will recognize the new container as the original member. Please refer to [Service Scheduling Flow](https://github.com/cloudstax/firecamp/docs/workflows#service-scheduling-flow) for more details.
+When the container orchestration framework schedules a service container to a worker node, the plugin will talk with the database to find out which member the container serves, updates the registry service (update the member's DNS record or move the member's static IP), and mounts the member's data volume. By this, the service will recognize the new container as the original member. Please refer to [Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow) for more details.
 
 ## The Catalog Service
 The Catalog service manages the lifecycle of the stateful services, including deployment, upgrade, scaling, data management, etc. The Catalog service understands the differences of each service, and drives the container orchestration framework to work accordingly.
 
-For example, to create a MongoDB ReplicaSet, users simply calls one FireCamp cli command. The Catalog service will deploy a 3 replicas MongoDB ReplicaSet on 3 availability zones of one AWS region. The Catalog service will store the service information in the Key-Value Database and manage the corresponding services/tasks on the underline container orchestration framework. For more details, please refer to [Service Creation Flow](https://github.com/cloudstax/firecamp/docs/workflows#service-creation-flow).
+For example, to create a MongoDB ReplicaSet, users simply calls one FireCamp cli command. The Catalog service will deploy a 3 replicas MongoDB ReplicaSet on 3 availability zones of one AWS region. The Catalog service will store the service information in the Key-Value Database and manage the corresponding services/tasks on the underline container orchestration framework. For more details, please refer to [Service Creation Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-creation-flow).
 
 When users ask to upgrade the stateful service, the Catalog service will perform the service aware upgrade. For example, when upgrade a MongoDB ReplicaSet, the Catalog service will automatically detect who is the primary member, gracefully stop the mongod daemon, upgrade the primary member's container first, and then upgrade other members one by one.
 

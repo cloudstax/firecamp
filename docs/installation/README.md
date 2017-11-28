@@ -113,17 +113,31 @@ After the stack is created, could ssh to the Bastion node, get the FireCamp serv
 ## Create the Stateful Service
 The MongoDB or PostgreSQL cluster could be simply created using the firecamp-service-cli. In case the service creation command fails, could simply retry it. **It is recommended that you should change the root user's password after the service is created.**
 
-For example, the cluster "t1" is created at region us-east-1. To create a 3 replias MongoDB cluster on 3 availability zones, with 100GB volume for every replica. The default DB user/password is dbadmin/changeme. Run:
+For example, the cluster "t1" is created at region us-east-1. To create a 3 replias MongoDB cluster on 3 availability zones, with 100GB data volume and 10GB journal volume for each replica. The default DB user/password is dbadmin/changeme. Run:
 ```
-firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -admin=dbadmin -passwd=changeme
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -journal-volume-size=10 -admin=dbadmin -passwd=changeme
 ```
 
-To create a 3 nodes PostgreSQL cluster on 3 availability zones, with 100GB volume for every replica. The default DB user/password is postgres/changeme, and the PostgreSQL replication user/password is repluser/replpassword. Run:
+To create a 3 nodes PostgreSQL cluster on 3 availability zones, with 100GB data volume and 10GB journal volume for each replica. The default DB user/password is postgres/changeme, and the PostgreSQL replication user/password is repluser/replpassword. Run:
 ```
-firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -volume-size=100 -passwd=changeme -replication-user=repluser -replication-passwd=replpassword
+firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -journal-volume-size=10 -volume-size=100 -passwd=changeme -replication-user=repluser -replication-passwd=replpassword
 ```
 
 For more details, please refer to each service's tutorials in the service's readme, such as [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb).
+
+The general service creation steps:
+1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.
+2. Create the service on the container orchestration framework, such as AWS ECS, and wait for all service containers running. The speed depends on how fast the container orchestration framework could start all containers.
+3. If the service, such as MongoDB, requires the additional initialization work, start the service initialization task. The speed also depends on how fast the container orchestration framework schedules the task.
+4. The initialization task will initialize the service. For example, the MongoDB initialization task does:
+  * Initialize the MongoDB replication.
+  * Wait some time (10 seconds) for MongoDB to stabilize.
+  * Create the admin user.
+  * Notify the manage server to do the post initialization work.
+  * The manage server will do the post initialization works: Update the mongod.conf of every replica to enable MongoDB Authentication and restart all MongoDB containers.
+
+In case the service creation fails, please simply retry it.
+
 
 ## Delete the Stateful Service
 The service could be deleted by one command. For example, to delete the MongoDB or PostgreSQL cluster, run:
@@ -135,3 +149,5 @@ firecamp-service-cli -op=delete-service -service-type=postgresql -region=us-east
 ```
 
 **The service deletion will NOT delete the service volumes. Instead, it returns the volumes. You would need to delete the volumes by yourself.** This is to avoid the potential service deletion by mistake.
+
+The service deletion is usually fast. While, occassionally, some AWS operations such as detaching the EBS volume, deleting Route53 record, may take around 100 seconds.
