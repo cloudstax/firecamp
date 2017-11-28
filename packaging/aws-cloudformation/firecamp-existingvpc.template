@@ -32,7 +32,7 @@
             "ClusterName",
             "Release",
             "QSS3BucketName",
-            "QSCloudStaxS3KeyPrefix",
+            "QSS3KeyPrefix",
             "NumberOfManagers",
             "NumberOfNodes",
             "NodeAMIOS",
@@ -70,7 +70,7 @@
         "QSS3BucketName": {
           "default": "Quick Start S3 Bucket Name"
         },
-        "QSCloudStaxS3KeyPrefix": {
+        "QSS3KeyPrefix": {
           "default": "Quick Start S3 Key Prefix"
         },
         "NumberOfManagers": {
@@ -141,7 +141,7 @@
       "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Type": "String"
     },
-    "QSCloudStaxS3KeyPrefix": {
+    "QSS3KeyPrefix": {
       "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
       "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
       "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
@@ -331,7 +331,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -356,8 +356,8 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSCloudStaxS3KeyPrefix": {
-            "Ref": "QSCloudStaxS3KeyPrefix"
+          "QSS3KeyPrefix": {
+            "Ref": "QSS3KeyPrefix"
           },
           "ServiceSecurityGroupID": {
             "Ref": "ServiceSecurityGroup"

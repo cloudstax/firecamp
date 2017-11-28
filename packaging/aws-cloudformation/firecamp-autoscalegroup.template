@@ -77,8 +77,8 @@
       "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     },
-    "QSCloudStaxS3KeyPrefix": {
-      "Default": "firecamp/releases/latest/",
+    "QSS3KeyPrefix": {
+      "Default": "cloudstax/firecamp/latest/",
       "Type": "String"
     }
   },
@@ -262,7 +262,7 @@
                 },
                 "/",
                 {
-                  "Ref": "QSCloudStaxS3KeyPrefix"
+                  "Ref": "QSS3KeyPrefix"
                 },
                 "scripts/init.sh\n",
                 "  if [ \"$?\" = \"0\" ]; then\n",

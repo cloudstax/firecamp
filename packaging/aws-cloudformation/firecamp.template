@@ -36,8 +36,8 @@
       "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Type": "String"
     },
-    "QSCloudStaxS3KeyPrefix": {
-      "Default": "firecamp/releases/latest/",
+    "QSS3KeyPrefix": {
+      "Default": "cloudstax/firecamp/latest/",
       "Type": "String"
     },
     "Release": {
@@ -113,7 +113,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-dynamodb.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-dynamodb.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -138,7 +138,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-iamprofile.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-iamprofile.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -187,7 +187,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-ecs.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-ecs.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -243,8 +243,8 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSCloudStaxS3KeyPrefix": {
-            "Ref": "QSCloudStaxS3KeyPrefix"
+          "QSS3KeyPrefix": {
+            "Ref": "QSS3KeyPrefix"
           },
           "NodeAMIOS": {
             "Ref": "NodeAMIOS"
@@ -263,7 +263,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSCloudStaxS3KeyPrefix}templates/firecamp-swarm.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-swarm.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -322,8 +322,8 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSCloudStaxS3KeyPrefix": {
-            "Ref": "QSCloudStaxS3KeyPrefix"
+          "QSS3KeyPrefix": {
+            "Ref": "QSS3KeyPrefix"
           },
           "NodeAMIOS": {
             "Ref": "NodeAMIOS"
