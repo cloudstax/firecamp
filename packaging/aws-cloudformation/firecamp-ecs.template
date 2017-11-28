@@ -204,7 +204,7 @@
     },
     "ManageServerECSService":{
       "Type":"AWS::ECS::Service",
-      "DependsOn": "ECSCluster",
+      "DependsOn": "ServiceAutoScalingGroup",
       "Properties":{
         "Cluster":{
           "Ref": "ClusterName"
