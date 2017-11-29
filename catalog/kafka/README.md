@@ -1,3 +1,5 @@
+# FireCamp Kafka Internals
+
 The FireCamp Kafka container is based on openjdk. The data volume will be mounted to the /data directory inside container. The Kafka logs will be stored under /data/kafka.
 
 ## Configs
@@ -41,3 +43,45 @@ The [Kafka Security](http://docs.confluent.io/current/kafka/security.html) will 
 Refs
 
 1. [Design and Deployment Considerations for Deploying Apache Kafka on AWS](https://www.confluent.io/blog/design-and-deployment-considerations-for-deploying-apache-kafka-on-aws/)
+
+
+# Tutorials
+
+This is a simple tutorial about how to create a Kafka service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Kafka service name is "mykafka".
+
+## Create a Kafka ZooKeeper service
+Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
+```
+firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20
+```
+
+This creates a 3 replicas ZooKeeper on 3 availability zones. Each replica has 20GB volume. The DNS names of the replicas would be: myzoo-0.t1-firecamp.com, myzoo-1.t1-firecamp.com, myzoo-2.t1-firecamp.com.
+
+## Create a Kafka service
+Create a Kafka cluster by:
+```
+firecamp-service-cli -op=create-service -service-type=kafka -region=us-east-1 -cluster=t1  -replicas=3 -volume-size=100 -service-name=mykafka -kafka-zk-service=myzoo
+```
+
+This creates a 3 replicas Kafka on 3 availability zones. The default heap size is 6g. If you want to reduce it for test such as 512MB, set -kafka-heap-size=512. Each replica has 100GB volume. The DNS names of the replicas would be: mykafka-0.t1-firecamp.com, mykafka-1.t1-firecamp.com, mykafka-2.t1-firecamp.com.
+
+## Create Topic, Produce and Consume Messages
+1. Create a test topic with 1 partition: `kafka-topics.sh --create --zookeeper myzoo-0.t1-firecamp.com --replication-factor 3 --partitions 1 --topic testtopic`
+2. Describe the topic: `kafka-topics.sh --describe --zookeeper myzoo-0.t1-firecamp.com --topic testtopic`.
+The output shows the partition leader is the first member, mykafka-0.t1-firecamp.com.
+```
+Topic:testtopic PartitionCount:1  ReplicationFactor:3 Configs:
+  Topic: testtopic  Partition: 0  Leader: 0 Replicas: 0,1,2 Isr: 0,1,2
+```
+3. Produce 2 messages to the partition leader.
+```
+kafka-console-producer.sh --broker-list mykafka-0.t1-firecamp.com:9092 --topic testtopic
+>this is message1
+>this is message2
+```
+4. Consume the messages
+```
+kafka-console-consumer.sh --bootstrap-server mykafka-0.t1-firecamp.com:9092 --from-beginning --topic testtopic
+this is message1
+this is message2
+```

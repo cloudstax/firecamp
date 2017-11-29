@@ -1,3 +1,5 @@
+# FireCamp Redis Internals
+
 The FireCamp Redis container is based on the [official Redis image](https://hub.docker.com/_/redis/). The data volume will be mounted to the /data directory inside container. The redis data will be stored under /data/redis.
 
 ## Redis Mode
@@ -89,3 +91,37 @@ Refs:
 [2]. [AWS ElastiCache Best Practices](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/BestPractices.html)
 
 [3]. [Redis Security](https://redis.io/topics/security)
+
+
+# Tutorials
+
+This is a simple tutorial about how to create a Redis service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Redis service name is "myredis".
+
+## Create a Redis service
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Redis cluster:
+```
+firecamp-service-cli -op=create-service -service-type=redis -region=us-east-1 -cluster=t1 -redis-shards=3 -redis-replicas-pershard=2 -volume-size=20 -service-name=myredis -redis-memory-size=4096 -redis-auth-pass=changeme
+```
+
+This creates a 3 shards Redis on 3 availability zones. Each shard has 1 master and 1 slave. The master and slave will be assigned to different availability zone, to tolerate one availability zone failure. Every container has 20GB volume. The DNS names of the members would be:
+* shard 0, master myredis-0.t1-firecamp.com, slave myredis-1.t1-firecamp.com
+* shard 1, master myredis-2.t1-firecamp.com, slave myredis-3.t1-firecamp.com
+* shard 2, master myredis-4.t1-firecamp.com, slave myredis-5.t1-firecamp.com.
+
+## Set and Get Keys
+1. Set Keys
+```
+for i in `seq 1 100`
+do
+  redis-cli -a changeme -h myredis-0.t1-firecamp.com -c set key$i value$i
+done
+```
+
+2. Get Keys
+```
+for i in `seq 1 100`
+do
+  redis-cli -a changeme -h myredis-0.t1-firecamp.com -c get key$i
+done
+```
+

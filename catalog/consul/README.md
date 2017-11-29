@@ -1,3 +1,5 @@
+# FireCamp Consul Internals
+
 The FireCamp Consul container is based on the [offical Consul image](https://hub.docker.com/r/_/consul/). The data volume will be mounted to the /data directory inside container. The Consul data will be stored under /data/consul.
 
 ## Topology
@@ -23,4 +25,33 @@ ACL and TLS will be supported in the later release.
 ## Logging
 
 The Consul logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
+
+
+# Tutorials
+
+This is a simple tutorial about how to create a Consul service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Consul service name is "myconsul".
+
+## Create a Consul service
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Consul cluster:
+```
+firecamp-service-cli -op=create-service -service-type=consul -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myconsul
+```
+Outputs:
+```
+The consul service created, Consul server ips [172.31.64.5 172.31.64.6 172.31.64.4]
+```
+
+This creates a 3 replicas Consul on 3 availability zones. The database replicas will be distributed to different availability zone, to tolerate one availability zone failure. Every replica has 10GB volume. The static ips of the consul servers are: "172.31.64.5 172.31.64.6 172.31.64.4"
+
+## Join a Consul Agent Node
+Launch a EC2 instance in the VPC and AppAccessSecurityGroup, which are in the output of the CloudFormation stack that launches the FireCamp cluster. Install docker on the instance, pull consul image `docker pull consul`, and then run a consul container at the client mode.
+```
+sudo docker run -d --net=host -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "datacenter": "us-east-1"}' consul agent -bind=EC2InstanceAddr -retry-join=172.31.64.4
+```
+
+## Try Consul operations
+Try the consul operations on the launched EC2 instance.
+1. Check Service Health: `curl http://localhost:8500/v1/health/service/consul?pretty`
+2. DNS Lookup: `dig @localhost -p 8600 consul.service.consul`
+3. KV Store: `curl -X PUT http://localhost:8500/v1/kv/key1 -d '{ "a": "a1", "b": "b1" }'`
 

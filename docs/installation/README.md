@@ -128,8 +128,9 @@ For more details, please refer to each service's tutorials in the service's read
 The general service creation steps:
 1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.
 2. Create the service on the container orchestration framework, such as AWS ECS, and wait for all service containers running. The speed depends on how fast the container orchestration framework could start all containers.
-3. If the service, such as MongoDB, requires the additional initialization work, start the service initialization task. The speed also depends on how fast the container orchestration framework schedules the task.
-4. The initialization task will initialize the service. For example, the MongoDB initialization task does:
+3. Wait some time (10 seconds) for the service containers to stabilize.
+4. If the service, such as MongoDB, requires the additional initialization work, start the service initialization task. The speed also depends on how fast the container orchestration framework schedules the task.
+5. The initialization task will initialize the service. For example, the MongoDB initialization task does:
   * Initialize the MongoDB replication.
   * Wait some time (10 seconds) for MongoDB to stabilize.
   * Create the admin user.

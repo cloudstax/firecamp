@@ -1,3 +1,5 @@
+# FireCamp Kibana Internals
+
 The FireCamp Kibana container is based on the offical elastic.co kibana image, docker.elastic.co/kibana/kibana:5.6.3. The data volume will be mounted to the /data directory inside container. The Kibana data will be stored under /data/kibana.
 
 ## Kibana Cluster

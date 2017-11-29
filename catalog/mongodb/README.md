@@ -1,10 +1,12 @@
+# FireCamp MongoDB Internals
+
 The FireCamp MongoDB container is based on the [official MongoDB image](https://hub.docker.com/_/mongo/). Two volumes will be created, one for journal, the other for data. The journal volume will be mounted to the /journal directory inside container. The data volume will be mounted to the /data directory inside container. The MongoDB data will be stored at the /data/db directory, and the config files are at the /data/conf directory.
 
-**Security**
+## Security
 
 The FireCamp MongoDB follows the offical [security checklist](https://docs.mongodb.com/manual/administration/security-checklist). The [Authentication](https://docs.mongodb.com/manual/tutorial/enable-authentication/) is enabled by default. The Admin user is created and the [Keyfile](https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/) is created for the access control between members of a Replica Set.
 
-**Logging**
+## Logging
 
 The MongoDB logs are sent to the Cloud Logs, such as AWS CloudWatch logs. Could easily check what happens to MongoDB through CloudWatch logs.
 
@@ -14,7 +16,107 @@ Every service will have its own log group. For example, create the MongoDB servi
 
 The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI updates to use higher Docker version and supports the custom loggint driver, we will switch to the FireCamp CloudWatch log driver. The FireCamp CloudWatch log driver will send the logs of one service member to one log stream, no matter where the container runs on.
 
-**Cache**
+## Cache
 
 By default, the MongoDB instance inside the container assumes the whole node's memory could be used, and calculate the cache size accordingly. In case you want to limit the memory size, could set the max-memory when creating the service.
+
+
+# Tutorial
+
+This is a simple tutorial about how to create a MongoDB service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the MongoDB service name is "mymongo".
+
+## Create a MongoDB service
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a MongoDB cluster:
+```
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -journal-volume-size=10 -admin=dbadmin -passwd=changeme
+```
+
+This creates a 3 replicas MongoDB ReplicaSet on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The MongoDB admin is "dbadmin", password is "changeme". The DNS names of the replicas would be: mymongo-0.t1-firecamp.com, mymongo-1.t1-firecamp.com, mymongo-2.t1-firecamp.com.
+
+The MongoDB service creation steps:
+1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.
+2. Create the service on the container orchestration framework, such as AWS ECS, and wait for all service containers running. The speed depends on how fast the container orchestration framework could start all containers.
+3. Wait some time (10 seconds) for MongoDB to stabilize.
+4. Start the MongoDB initialization task. The speed also depends on how fast the container orchestration framework schedules the task.
+5. The initialization task does:
+   * Initialize the MongoDB replication.
+   * Wait some time (10 seconds) for MongoDB to stabilize.
+   * Create the admin user.
+   * Notify the manage server to do the post initialization work.
+6. The manage server will do the post initialization works, which includes:
+   * Update the mongod.conf of every replica to enable MongoDB Authentication.
+   * Restart all MongoDB containers.
+
+In case the service creation fails, please simply retry it.
+
+## Find out the current master
+Connect to any replica and run "db.isMaster()": `mongo --host mymongo-0.t1-firecamp.com --eval "db.isMaster()"`
+
+The output is like below. The "primary" is "mymongo-0.t1-firecamp.com".
+```
+MongoDB shell version v3.4.4
+connecting to: mongodb://mymongo-0.t1-firecamp.com:27017/
+MongoDB server version: 3.4.4
+{
+	"hosts" : [
+		"mymongo-0.t1-firecamp.com:27017",
+		"mymongo-1.t1-firecamp.com:27017",
+		"mymongo-2.t1-firecamp.com:27017"
+	],
+	"setName" : "mymongo",
+	"setVersion" : 1,
+	"ismaster" : true,
+	"secondary" : false,
+	"primary" : "mymongo-0.t1-firecamp.com:27017",
+	"me" : "mymongo-0.t1-firecamp.com:27017",
+	"electionId" : ObjectId("7fffffff0000000000000002"),
+	"lastWrite" : {
+		"opTime" : {
+			"ts" : Timestamp(1499295180, 1),
+			"t" : NumberLong(2)
+		},
+		"lastWriteDate" : ISODate("2017-07-05T22:53:00Z")
+	},
+	"maxBsonObjectSize" : 16777216,
+	"maxMessageSizeBytes" : 48000000,
+	"maxWriteBatchSize" : 1000,
+	"localTime" : ISODate("2017-07-05T22:53:01.115Z"),
+	"maxWireVersion" : 5,
+	"minWireVersion" : 0,
+	"readOnly" : false,
+	"ok" : 1
+}
+```
+
+## Create the user and user db
+1. Connect to the Primary from the application node: `mongo --host mymongo-0.t1-firecamp.com -u dbadmin -p changeme --authenticationDatabase admin`
+2. Create a DB: `use memberdb`
+3. Create a user for the memberdb:
+```
+db.createUser(
+  {
+    user: "u1",
+    pwd: "u1",
+    roles: [
+      { role: "readWrite", db: "memberdb" }
+    ]
+  }
+)
+```
+
+## Connect to the user db
+1. Connect to the primary from the application node: `mongo --host mymongo-0.t1-firecamp.com -u u1 -p u1 --authenticationDatabase memberdb`
+2. Switch to memberdb: `use memberdb`
+3. Insert a document:
+```
+db.members.insertOne(
+   {
+      name: "sue",
+      age: 19,
+      status: "P",
+      likes : [ "golf", "football" ]
+   }
+)
+```
+4. Read the document: `db.members.find()`
 

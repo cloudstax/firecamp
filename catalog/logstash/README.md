@@ -1,3 +1,5 @@
+# FireCamp Logstash Internals
+
 The FireCamp Logstash container is based on the offical elastic.co logstash image, docker.elastic.co/logstash/logstash:5.6.3. The data volume will be mounted to the /data directory inside container. The Logstash data will be stored under /data/logstash.
 
 ## Logstash
@@ -47,3 +49,200 @@ Refs:
 
 2. [Tuning and Profiling Logstash Performance](https://www.elastic.co/guide/en/logstash/5.6/tuning-logstash.html)
 
+
+# Tutorials
+
+This is a simple tutorial about how to create a Logstash service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Logstash service name is "myls".
+
+## Create CouchDB, ElasticSearch and Logstash services
+
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
+
+1. Create a CouchDB service and create "fruits" DB.
+```
+firecamp-service-cli -op=create-service -service-type=couchdb -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=mycouch -admin=admin -password=changeme
+curl -X PUT admin:changeme@mycouch-0.t1-firecamp.com:5984/fruits
+```
+2. Create an ElasticSearch service:
+```
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes
+```
+3. Create a Logstash service:
+```
+firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:latest
+```
+The logstash.conf content:
+```
+input {
+  couchdb_changes {
+    db => "fruits"
+    host => "mycouch-0.t1-firecamp.com"
+    port => "5984"
+    username => "admin"
+    password => "changeme"
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["myes-0.t1-firecamp.com:9200"]
+    index => "couch_fruits"
+  }
+}
+```
+
+## Write to CouchDB and Read from ElasticSearch
+Now the whole stack is setup. When the record is put into the "fruits" db in CouchDB, Logstash will read the record and put into the ElasticSearch service.
+
+1. Write 2 records into CouchDB
+```
+curl -X PUT admin:changeme@mycouch-0.t1-firecamp.com:5984/fruits/001 -d '{ "item": "apple", "prices": 1.59 }'
+curl -X PUT admin:changeme@mycouch-0.t1-firecamp.com:5984/fruits/002 -d '{ "item": "orange", "prices": 1.99 }'
+```
+2. Check Logstash pipeline status, `curl myls-0.t1-firecamp.com:9600/_node/stats/pipeline?pretty`
+```
+{
+  "host" : "ip-172-31-66-230",
+  "version" : "5.6.3",
+  "http_address" : "myls-0.t1-firecamp.com:9600",
+  "id" : "2219ec4a-828d-426e-a924-58268f94c3d9",
+  "name" : "myls-0",
+  "pipeline" : {
+    "events" : {
+      "duration_in_millis" : 322,
+      "in" : 2,
+      "out" : 2,
+      "filtered" : 2,
+      "queue_push_duration_in_millis" : 8
+    },
+    "plugins" : {
+      "inputs" : [ {
+        "id" : "34f9a9af49068429bb3ce14acd6ed414dc8ce380-1",
+        "events" : {
+          "out" : 2,
+          "queue_push_duration_in_millis" : 8
+        },
+        "name" : "couchdb_changes"
+      } ],
+      "filters" : [ ],
+      "outputs" : [ {
+        "id" : "34f9a9af49068429bb3ce14acd6ed414dc8ce380-2",
+        "events" : {
+          "duration_in_millis" : 280,
+          "in" : 2,
+          "out" : 2
+        },
+        "name" : "elasticsearch"
+      } ]
+    },
+    "reloads" : {
+      "last_error" : null,
+      "successes" : 0,
+      "last_success_timestamp" : null,
+      "last_failure_timestamp" : null,
+      "failures" : 0
+    },
+    "queue" : {
+      "type" : "memory"
+    },
+    "dead_letter_queue" : {
+      "queue_size_in_bytes" : 2
+    },
+    "id" : "main"
+  }
+}
+```
+3. Query the ElasticSearch service, `curl myes-0.t1-firecamp.com:9200/couch_fruits/_search?pretty=true&q=*:*`
+```
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 5,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "couch_fruits",
+        "_type" : "logs",
+        "_id" : "AV9VvJ8Ey7UIfnP0rnZd",
+        "_score" : 1.0,
+        "_source" : {
+          "@version" : "1",
+          "doc" : {
+            "prices" : 1.59,
+            "item" : "apple"
+          },
+          "@timestamp" : "2017-10-25T22:52:25.470Z",
+          "doc_as_upsert" : true
+        }
+      },
+      {
+        "_index" : "couch_fruits",
+        "_type" : "logs",
+        "_id" : "AV9VvLxxy7UIfnP0rnZo",
+        "_score" : 1.0,
+        "_source" : {
+          "@version" : "1",
+          "doc" : {
+            "prices" : 1.99,
+            "item" : "orange"
+          },
+          "@timestamp" : "2017-10-25T22:52:33.260Z",
+          "doc_as_upsert" : true
+        }
+      },
+      {
+        "_index" : "couch_fruits",
+        "_type" : "logs",
+        "_id" : "AV9VyeX9y7UIfnP0rnnI",
+        "_score" : 1.0,
+        "_source" : {
+          "@version" : "1",
+          "doc" : {
+            "prices" : 3.99,
+            "item" : "pineapple"
+          },
+          "@timestamp" : "2017-10-25T23:06:55.856Z",
+          "doc_as_upsert" : true
+        }
+      },
+      {
+        "_index" : "couch_fruits",
+        "_type" : "logs",
+        "_id" : "AV9VyNeqy7UIfnP0rnmA",
+        "_score" : 1.0,
+        "_source" : {
+          "@version" : "1",
+          "doc" : {
+            "prices" : 1.59,
+            "item" : "apple"
+          },
+          "@timestamp" : "2017-10-25T23:05:46.507Z",
+          "doc_as_upsert" : true
+        }
+      },
+      {
+        "_index" : "couch_fruits",
+        "_type" : "logs",
+        "_id" : "AV9VyNety7UIfnP0rnmB",
+        "_score" : 1.0,
+        "_source" : {
+          "@version" : "1",
+          "doc" : {
+            "prices" : 1.99,
+            "item" : "orange"
+          },
+          "@timestamp" : "2017-10-25T23:05:46.542Z",
+          "doc_as_upsert" : true
+        }
+      }
+    ]
+  }
+}
+```

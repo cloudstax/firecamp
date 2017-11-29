@@ -1,3 +1,5 @@
+# FireCamp ElasticSearch Internals
+
 The FireCamp ElasticSearch container is based on the offical elastic.co image, docker.elastic.co/elasticsearch/elasticsearch:5.6.3. The data volume will be mounted to the /data directory inside container. The ElasticSearch data will be stored under /data/es.
 
 ## ElasticSearch Cluster
@@ -62,3 +64,66 @@ The ElasticSearch logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 Refs:
 
 1. [Install ElasticSearch with Docker](https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html)
+
+
+# Tutorials
+
+This is a simple tutorial about how to create a ElasticSearch service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the ElasticSearch service name is "myes".
+
+## Create an ElasticSearch service
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a ElasticSearch cluster:
+```
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes
+```
+
+This creates a 3 dedicated master nodes and 3 data nodes ElasticSearch cluster on 3 availability zones. The master nodes and data nodes will be evenly distributed to different availability zone. So the ElasticSearch service could tolerate one availability zone failure. The default heap size is 2g. To change the heap size, such as 512MB for test, set -es-heap-size=512. Every node has 10GB volume. The master node DNS names are: myes-0.t1-firecamp.com, myes-1.t1-firecamp.com, myes-2.t1-firecamp.com. The data node DNS names are: myes-3.t1-firecamp.com, myes-4.t1-firecamp.com, myes-5.t1-firecamp.com.
+
+## Check ElasticSearch Cluster
+Launch a EC2 instance in the VPC and AppAccessSecurityGroup, which are in the output of the CloudFormation stack that launches the FireCamp cluster. Use [ElasticSearch Cluster API](https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster.html) to check the cluster. The command could run against any master or data node.
+1. Check cluster health: `curl -XGET 'myes-0.t1-firecamp.com:9200/_cluster/health?pretty'`
+2. Check cluster state: `curl -XGET 'http://myes-3.t1-firecamp.com:9200/_cluster/state'`
+3. Check cluster stats: `curl -XGET 'http://myes-5.t1-firecamp.com:9200/_cluster/stats?human&pretty'`
+
+## Index and Search
+1. Index some tweets:
+```
+curl -XPUT 'http://myes-3.t1-firecamp.com:9200/twitter/doc/1?pretty' -H 'Content-Type: application/json' -d '
+{
+    "user": "kimchy",
+    "post_date": "2009-11-15T13:12:00",
+    "message": "Trying out Elasticsearch, so far so good?"
+}'
+
+curl -XPUT 'http://myes-3.t1-firecamp.com:9200/twitter/doc/2?pretty' -H 'Content-Type: application/json' -d '
+{
+    "user": "kimchy",
+    "post_date": "2009-11-15T14:12:12",
+    "message": "Another tweet, will it be indexed?"
+}'
+
+curl -XPUT 'http://myes-3.t1-firecamp.com:9200/twitter/doc/3?pretty' -H 'Content-Type: application/json' -d '
+{
+    "user": "elastic",
+    "post_date": "2010-01-15T01:46:38",
+    "message": "Building the site, should be kewl"
+}'
+```
+2. Get the tweets:
+```
+curl -XGET 'http://myes-3.t1-firecamp.com:9200/twitter/doc/1?pretty=true'
+curl -XGET 'http://myes-3.t1-firecamp.com:9200/twitter/doc/2?pretty=true'
+curl -XGET 'http://myes-3.t1-firecamp.com:9200/twitter/doc/3?pretty=true'
+```
+3. Find all the tweets that kimchy posted.
+
+Using the query string: `curl -XGET 'http://myes-3.t1-firecamp.com:9200/twitter/_search?q=user:kimchy&pretty=true'`
+
+Using the JSON query language Elasticsearch provides:
+```
+curl -XGET 'http://myes-3.t1-firecamp.com:9200/twitter/_search?pretty=true' -H 'Content-Type: application/json' -d '
+{
+    "query" : {
+        "match" : { "user": "kimchy" }
+    }
+}'
+```
