@@ -1,5 +1,5 @@
-[FireCamp Logstash Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#firecamp-logstash-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#tutorials)
+* [FireCamp Logstash Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#firecamp-logstash-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#tutorials)
 
 # FireCamp Logstash Internals
 

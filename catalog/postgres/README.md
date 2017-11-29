@@ -1,5 +1,5 @@
-[FireCamp PostgreSQL Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#firecamp-postgresql-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#tutorials)
+* [FireCamp PostgreSQL Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#firecamp-postgresql-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#tutorials)
 
 # FireCamp PostgreSQL Internals
 

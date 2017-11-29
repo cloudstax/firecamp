@@ -1,5 +1,5 @@
-[FireCamp ZooKeeper Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#firecamp-zookeeper-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#tutorials)
+* [FireCamp ZooKeeper Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#firecamp-zookeeper-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#tutorials)
 
 # FireCamp ZooKeeper Internals
 

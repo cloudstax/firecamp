@@ -1,5 +1,5 @@
-[FireCamp ElasticSearch Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#firecamp-elasticsearch-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#tutorials)
+* [FireCamp ElasticSearch Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#firecamp-elasticsearch-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#tutorials)
 
 # FireCamp ElasticSearch Internals
 

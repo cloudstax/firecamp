@@ -1,5 +1,5 @@
-[FireCamp CouchDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#firecamp-couchdb-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#tutorials)
+* [FireCamp CouchDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#firecamp-couchdb-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#tutorials)
 
 # FireCamp CouchDB Internals
 

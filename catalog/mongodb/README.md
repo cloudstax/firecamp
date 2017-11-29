@@ -1,5 +1,5 @@
-[FireCamp MongoDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#firecamp-mongodb-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb#tutorials)
+* [FireCamp MongoDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#firecamp-mongodb-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb#tutorials)
 
 # FireCamp MongoDB Internals
 

@@ -1,5 +1,5 @@
-[FireCamp Kafka Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#firecamp-kafka-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#tutorials)
+* [FireCamp Kafka Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#firecamp-kafka-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#tutorials)
 
 # FireCamp Kafka Internals
 

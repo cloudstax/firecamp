@@ -1,5 +1,5 @@
-[FireCamp Cassandra Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#firecamp-cassandra-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#tutorials)
+* [FireCamp Cassandra Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#firecamp-cassandra-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#tutorials)
 
 # FireCamp Cassandra Internals
 

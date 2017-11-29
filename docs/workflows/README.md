@@ -1,5 +1,5 @@
-[Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow)
-[Service Creation Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-creation-flow)
+* [Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow)
+* [Service Creation Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-creation-flow)
 
 # Service Scheduling Flow
 When service starts running or service container moves from one node to another, the container orchestration framework will schedule the container to one node. The container will invoke the FireCamp container plugin. The FireCamp container plugin will talk with the FireCamp KeyValue DB to find out which member the container belongs to. Then the container plugin will update the member address to the Registry Service, or reassign the IP from the old node to the current node if the service requires the static IP. And the container plugin will mount the volume to the local worker node.

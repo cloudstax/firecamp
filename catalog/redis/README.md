@@ -1,5 +1,5 @@
-[FireCamp Redis Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/redis#firecamp-redis-internals)
-[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/redis#tutorials)
+* [FireCamp Redis Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/redis#firecamp-redis-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/redis#tutorials)
 
 # FireCamp Redis Internals
 
