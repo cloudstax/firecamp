@@ -1,10 +1,10 @@
-* [Installation on AWS](https://github.com/cloudstax/firecamp/tree/master/docs/installation#installation-on-aws)
-  * [Install the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-firecamp-cluster)
-  * [Install the Application Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-application-cluster)
-  * [Delete the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-firecamp-cluster)
-* [The FireCamp Service CLI](https://github.com/cloudstax/firecamp/tree/master/docs/installation#the-firecamp-service-cli)
-  * [Create the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#create-the-stateful-service)
-  * [Delete the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-stateful-service)
+[Installation on AWS](https://github.com/cloudstax/firecamp/tree/master/docs/installation#installation-on-aws)
+* [Install the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-firecamp-cluster)
+* [Install the Application Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-application-cluster)
+* [Delete the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-firecamp-cluster)
+[The FireCamp Service CLI](https://github.com/cloudstax/firecamp/tree/master/docs/installation#the-firecamp-service-cli)
+* [Create the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#create-the-stateful-service)
+* [Delete the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-stateful-service)
 
 # Installation on AWS
 ## Install the FireCamp Cluster

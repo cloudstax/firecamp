@@ -1,12 +1,12 @@
-* [The Stateful Service Requirements](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-stateful-service-requirements)
-  * [Service Member Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#service-member-static-ip)
-* [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect#architecture)
-* [Components](https://github.com/cloudstax/firecamp/tree/master/docs/architect#components)
-  * [Key-Value Database](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-key-value-database)
-  * [Registry Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-registry-service)
-  * [Container Plugin](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-container-plugin)
-  * [Catalog Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-catalog-service)
-  * [Common Services](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-common-services)
+[The Stateful Service Requirements](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-stateful-service-requirements)
+* [Service Member Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#service-member-static-ip)
+[Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect#architecture)
+[Components](https://github.com/cloudstax/firecamp/tree/master/docs/architect#components)
+* [Key-Value Database](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-key-value-database)
+* [Registry Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-registry-service)
+* [Container Plugin](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-container-plugin)
+* [Catalog Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-catalog-service)
+* [Common Services](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-common-services)
 
 # The Stateful Service Requirements
 **The stateful services have 2 basic requirements: membership and data.**

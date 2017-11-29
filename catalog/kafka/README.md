@@ -1,3 +1,6 @@
+[FireCamp Kafka Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#firecamp-kafka-internals)
+[Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka#tutorials)
+
 # FireCamp Kafka Internals
 
 The FireCamp Kafka container is based on openjdk. The data volume will be mounted to the /data directory inside container. The Kafka logs will be stored under /data/kafka.

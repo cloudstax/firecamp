@@ -43,15 +43,15 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 
 ## How does it work?
 
-Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/firecamp/wiki/Architecture) and [Work Flow](https://github.com/cloudstax/firecamp/wiki/Work-Flows) wiki.
+Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect) and [Work Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows).
 
 ## Installation
 The FireCamp cluster could be easily installed using AWS CloudFormation for AWS ECS and Docker Swarm.
 1. [Create FireCamp cluster](https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9/templates/firecamp-master.template). This will create an ECS or Docker Swarm cluster across 3 availability zones. The cluster only has the private network address and not accessible from the external internet. The Bastion node is also created and is the only node that could SSH to the cluster.
 2. SSH to the Bastion node and wget [firecamp cli](https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9/packages/firecamp-service-cli.tgz).
-3. Use the firecamp cli to create the stateful service. Refer to [Service Tutorials](https://github.com/cloudstax/firecamp/wiki/Tutorials) for each service.
+3. Use the firecamp cli to create the stateful service. Refer to each catalog service for the detail tutorials of the service, such as [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb#tutorials).
 
-For the Installation details, please refer to [Installation](https://github.com/cloudstax/firecamp/wiki/Installation) wiki.
+For the Installation details, please refer to [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation).
 
 ## How do applications access the service?
 
@@ -61,7 +61,7 @@ Every service member will get a unique dns name. For example, the cluster is tes
 
 When the EC2 instance goes down, let's say the EC2 of mycas-1.testcluster-firecamp.com, AutoScaleGroup will start a new EC2. ECS will schedule the Cassandra container to the new EC2. FireCamp will attach the original EBS volumes that belongs to mycas-1.testcluster-firecamp.com, and update the address of mycas-1.testcluster-firecamp.com to the new EC2's privateIP in Route53.
 
-If the applications use JVM, you will need to set JVM TTL. Please check such as [Cassandra Readme](https://github.com/cloudstax/firecamp/catalog/cassandra/README.md): "By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please set JVM TTL to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address."
+If the applications use JVM, you will need to set JVM TTL. Please check such as [Cassandra Readme](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra): "By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please set JVM TTL to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address."
 
 ## Catalog Services
 * [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb)
