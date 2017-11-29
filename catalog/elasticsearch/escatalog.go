@@ -3,6 +3,7 @@ package escatalog
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -103,82 +104,123 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
-	unicastHosts, masterNodeNumber, addMasterNodes := getUnicastHostsAndMasterNodes(domain, service, opts)
+	unicastHosts, masterNodes, dedicateMasterNodes := getUnicastHostsAndMasterNodes(domain, service, opts)
 
-	replicas := opts.Replicas + addMasterNodes
+	minMasterNodes := masterNodes/2 + 1
+	replicas := opts.Replicas + dedicateMasterNodes
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
-	for i := int64(0); i < replicas; i++ {
-		// create the sys.conf file
+
+	// generate the dedicate master node configs
+	dedicateMaster := true
+	masterEligible := true
+	for i := int64(0); i < dedicateMasterNodes; i++ {
+		member := getDedicatedMasterName(service, i)
+		replicaCfgs[i] = genReplicaConfig(platform, service, domain, member, azs,
+			i, unicastHosts, minMasterNodes, dedicateMaster, masterEligible, opts)
+	}
+
+	// generate the data node configs
+	dedicateMaster = false
+	if dedicateMasterNodes > 0 {
+		masterEligible = false
+	}
+	for i := int64(0); i < opts.Replicas; i++ {
 		member := utils.GenServiceMemberName(service, i)
-		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
-
-		azIndex := int(i) % len(azs)
-		az := azs[azIndex]
-
-		// create the elasticsearch.yml file
-		bind := memberHost
-		if platform == common.ContainerPlatformSwarm {
-			bind = catalog.BindAllIP
-		}
-		content := fmt.Sprintf(esConfigs, service, member, az, bind, memberHost, unicastHosts, masterNodeNumber/2+1)
-
-		if masterNodeNumber > 0 {
-			if i < masterNodeNumber {
-				// the first nodes as the dedicated master nodes.
-				content += fmt.Sprintf(nodeConfigs, "true", "false", "false")
-			} else {
-				content += fmt.Sprintf(nodeConfigs, "false", "true", "true")
-			}
-		}
-
-		if !opts.DisableForceAwareness {
-			forceazs := ""
-			for i, az := range azs {
-				if i == 0 {
-					forceazs = az
-				} else {
-					forceazs += esSep + az
-				}
-			}
-			content += fmt.Sprintf(forceZone, forceazs)
-		}
-
-		esCfg := &manage.ReplicaConfigFile{
-			FileName: esConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  content,
-		}
-
-		// create the jvm.options file
-		content = fmt.Sprintf(ESJvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
-		content += ESJvmConfigs
-		jvmCfg := &manage.ReplicaConfigFile{
-			FileName: jvmConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  content,
-		}
-
-		configs := []*manage.ReplicaConfigFile{sysCfg, esCfg, jvmCfg}
-		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
-		replicaCfgs[i] = replicaCfg
+		replicaCfgs[i+dedicateMasterNodes] = genReplicaConfig(platform, service, domain,
+			member, azs, i, unicastHosts, minMasterNodes, dedicateMaster, masterEligible, opts)
 	}
 	return replicaCfgs
 }
 
-// getUnicastHostsAndMasterNodes returns the unicast hosts, the targe master node number and how many master nodes will be added.
-func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, masterNodeNumber int64, addMasterNodes int64) {
-	masterNodeNumber = opts.Replicas/2 + 1
-	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
-		if opts.DedicatedMasters < DefaultMasterNumber {
-			masterNodeNumber = DefaultMasterNumber
+func genReplicaConfig(platform string, service string, domain string, member string, azs []string, idx int64, unicastHosts string,
+	minMasterNodes int64, dedicateMaster bool, masterEligible bool, opts *manage.CatalogElasticSearchOptions) *manage.ReplicaConfig {
+
+	// create the sys.conf file
+	memberHost := dns.GenDNSName(member, domain)
+	sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+
+	azIndex := int(idx) % len(azs)
+	az := azs[azIndex]
+
+	// create the elasticsearch.yml file
+	bind := memberHost
+	if platform == common.ContainerPlatformSwarm {
+		bind = catalog.BindAllIP
+	}
+	content := fmt.Sprintf(esConfigs, service, member, az, bind, memberHost, unicastHosts, minMasterNodes)
+
+	if dedicateMaster {
+		content += fmt.Sprintf(nodeConfigs, "true", "false", "false")
+	} else {
+		if masterEligible {
+			content += fmt.Sprintf(nodeConfigs, "true", "true", "true")
 		} else {
-			masterNodeNumber = opts.DedicatedMasters
+			content += fmt.Sprintf(nodeConfigs, "false", "true", "true")
 		}
-		addMasterNodes = masterNodeNumber
 	}
 
-	for i := int64(0); i < masterNodeNumber; i++ {
+	if !opts.DisableForceAwareness {
+		forceazs := ""
+		for i, az := range azs {
+			if i == 0 {
+				forceazs = az
+			} else {
+				forceazs += esSep + az
+			}
+		}
+		content += fmt.Sprintf(forceZone, forceazs)
+	}
+
+	esCfg := &manage.ReplicaConfigFile{
+		FileName: esConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the jvm.options file
+	content = fmt.Sprintf(ESJvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
+	content += ESJvmConfigs
+	jvmCfg := &manage.ReplicaConfigFile{
+		FileName: jvmConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	configs := []*manage.ReplicaConfigFile{sysCfg, esCfg, jvmCfg}
+	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
+}
+
+// getUnicastHostsAndMasterNodes returns the unicast hosts, the targe master node number and how many master nodes will be added.
+func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, masterNodes int64, dedicateMasterNodes int64) {
+	// check whether adds the dedicate master nodes.
+	// if only has 1 node, no need to add the dedicate master nodes. Assume 1 node is for test only.
+	// if the number of nodes is within threshold, add the dedicate master nodes by default, while, allow to disable it.
+	// enforce to have dedicate master nodes if the number of nodes exceed the threshold,
+	if opts.Replicas > dataNodeThreshold || (!opts.DisableDedicatedMaster && opts.Replicas != 1) {
+		// dedicate master nodes
+		if opts.DedicatedMasters < DefaultMasterNumber {
+			masterNodes = DefaultMasterNumber
+		} else {
+			masterNodes = opts.DedicatedMasters
+		}
+		dedicateMasterNodes = masterNodes
+
+		for i := int64(0); i < masterNodes; i++ {
+			member := getDedicatedMasterName(service, i)
+			memberHost := dns.GenDNSName(member, domain)
+			if i == int64(0) {
+				unicastHosts = memberHost
+			} else {
+				unicastHosts += esSep + memberHost
+			}
+		}
+
+		return unicastHosts, masterNodes, dedicateMasterNodes
+	}
+
+	// no dedicate master nodes, every node is eligible to become master.
+	masterNodes = opts.Replicas/2 + 1
+	for i := int64(0); i < masterNodes; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 		if i == int64(0) {
@@ -187,7 +229,7 @@ func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.C
 			unicastHosts += esSep + memberHost
 		}
 	}
-	return unicastHosts, masterNodeNumber, addMasterNodes
+	return unicastHosts, masterNodes, 0
 }
 
 // GetFirstMemberHost returns the first member's dns name
@@ -195,6 +237,10 @@ func GetFirstMemberHost(domain string, service string) string {
 	member := utils.GenServiceMemberName(service, 0)
 	memberHost := dns.GenDNSName(member, domain)
 	return memberHost
+}
+
+func getDedicatedMasterName(service string, idx int64) string {
+	return service + common.NameSeparator + "master" + common.NameSeparator + strconv.FormatInt(idx, 10)
 }
 
 const (
