@@ -23,6 +23,7 @@ RUN set -x \
     curl \
     dnsutils \
 		${MONGO_PACKAGE}-shell=$MONGO_VERSION \
+		${MONGO_PACKAGE}-mongos=$MONGO_VERSION \
 	&& rm -rf /var/lib/apt/lists/*
 
 COPY waitdns.sh /

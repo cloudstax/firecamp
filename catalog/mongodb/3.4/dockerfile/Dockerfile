@@ -54,4 +54,4 @@ RUN set -x \
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "mongod", "-f", "/data/conf/mongod.conf"]
 
-EXPOSE 27017
+EXPOSE 27017 27018 27019
