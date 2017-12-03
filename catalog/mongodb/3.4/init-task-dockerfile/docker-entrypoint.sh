@@ -208,13 +208,19 @@ CreateReplicaSetAndUser() {
 
 if [ -n "$SERVICE_MASTER" ]; then
   # firecamp release 0.9
-  if [ -z "$REPLICA_SET_NAME" -o -z "$SERVICE_MEMEBERS" ]; then
-    echo "error: please pass the replica set name and slaves"
+  if [ -z "$REPLICA_SET_NAME" ]; then
+    echo "error: please pass the replica set name"
     exit 1
   fi
 
+  echo "initialize $REPLICA_SET_NAME $SERVICE_MASTER $SERVICE_MEMBERS"
+
   # a single replica set
-  replicaSets=$SERVICE_MASTER","$SERVICE_MEMBERS
+  replicaSets=$SERVICE_MASTER
+  if [ -n "$SERVICE_MEMBERS" ]; then
+    replicaSets=$SERVICE_MASTER","$SERVICE_MEMBERS
+  fi
+
   CreateReplicaSetAndUser $REPLICA_SET_NAME $replicaSets 27017
 else
   # firecamp release after 0.9
