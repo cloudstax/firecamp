@@ -195,7 +195,13 @@ type DeleteTaskRequest struct {
 
 // CatalogMongoDBOptions includes the config options for MongoDB.
 type CatalogMongoDBOptions struct {
-	Replicas      int64
+	// if ReplicaSetOnly == true and Shards == 1, create a single replicaset, else create a sharded cluster.
+	Shards           int64
+	ReplicasPerShard int64
+	ReplicaSetOnly   bool
+	// the number of config servers, ignored if ReplicaSetOnly == true and Shards == 1.
+	ConfigServers int64
+
 	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
 

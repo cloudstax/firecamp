@@ -5,7 +5,6 @@ datadir=/data
 dbdir=$datadir/db
 dbjournallinkdir=$datadir/db/journal
 journaldir=/journal
-configdbdir=$datadir/configdb
 confdir=$datadir/conf
 cfgfile=$confdir/mongod.conf
 syscfgfile=$confdir/sys.conf
@@ -39,10 +38,6 @@ fi
 # create the db data and config data dirs.
 if [ ! -d "$dbdir" ]; then
   mkdir $dbdir
-fi
-
-if [ ! -d "$configdbdir" ]; then
-  mkdir $configdbdir
 fi
 
 # allow the container to be started with `--user`

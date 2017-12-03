@@ -121,6 +121,18 @@ type ServiceAttr struct {
 	//AdminPasswd string
 }
 
+// MongoDBUserAttr represents the custom MongoDB service attributes.
+type MongoDBUserAttr struct {
+	// if ReplicaSetOnly == true and Shards == 1, create a single replicaset, else create a sharded cluster.
+	Shards           int64
+	ReplicasPerShard int64
+	ReplicaSetOnly   bool
+	// the number of config servers, ignored if ReplicaSetOnly == true and Shards == 1.
+	ConfigServers int64
+	// the content of the key file.
+	KeyFileContent string
+}
+
 // RedisUserAttr represents the custom Redis service attributes.
 type RedisUserAttr struct {
 	Shards           int64

@@ -116,7 +116,22 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			// trigger the init task.
 			switch req.ServiceType {
 			case catalog.CatalogService_MongoDB:
-				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
+				userAttr := &common.MongoDBUserAttr{}
+				err = json.Unmarshal(attr.UserAttr, userAttr)
+				if err != nil {
+					glog.Errorln("Unmarshal mongodb user attr error", err, "requuid", requuid, attr)
+					return manage.ConvertToHTTPError(err)
+				}
+				opts := &manage.CatalogMongoDBOptions{
+					Shards:           userAttr.Shards,
+					ReplicasPerShard: userAttr.ReplicasPerShard,
+					ReplicaSetOnly:   userAttr.ReplicaSetOnly,
+					ConfigServers:    userAttr.ConfigServers,
+					Admin:            req.Admin,
+					AdminPasswd:      req.AdminPasswd,
+				}
+
+				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
 
 			case catalog.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
@@ -227,15 +242,15 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Options.Admin)
 
 	// run the init task in the background
-	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
+	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options, requuid)
 
 	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, replicas int64, admin string, adminPasswd string, requuid string) {
+	serviceUUID string, opts *manage.CatalogMongoDBOptions, requuid string) {
 	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, replicas, s.manageurl, admin, adminPasswd)
+	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl, opts)
 
 	task := &serviceTask{
 		serviceUUID: serviceUUID,

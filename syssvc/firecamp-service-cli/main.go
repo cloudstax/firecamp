@@ -63,6 +63,12 @@ var (
 	certFile    = flag.String("cert-file", "", "the cert file")
 	keyFile     = flag.String("key-file", "", "the key file")
 
+	// The MongoDB service specific parameters.
+	mongoShards        = flag.Int64("mongo-shards", 1, "The number of MongoDB shards, default: 1")
+	mongoReplPerShard  = flag.Int64("mongo-replicas-pershard", 3, "The number of replicas in one MongoDB shard, default: 3")
+	mongoReplSetOnly   = flag.Bool("mongo-replicaset-only", true, "Create a MongoDB ReplicaSet only, default: true. To create a sharded cluster, set to false")
+	mongoConfigServers = flag.Int64("mongo-configservers", 3, "The number of config servers in the sharded cluster, default: 3")
+
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
 	pgReplUserPasswd = flag.String("pg-replpasswd", "replpassword", "The PostgreSQL password for the standby DB to access the primary")
@@ -79,7 +85,7 @@ var (
 
 	// The redis service creation specific parameters.
 	redisShards           = flag.Int64("redis-shards", 1, "The number of shards for the Redis service")
-	redisReplicasPerShard = flag.Int64("redis-replicas-pershard", 1, "The number of replicas in one Redis shard")
+	redisReplicasPerShard = flag.Int64("redis-replicas-pershard", 3, "The number of replicas in one Redis shard")
 	redisMemSizeMB        = flag.Int64("redis-memory-size", 0, "The Redis memory cache size, unit: MB")
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
@@ -333,7 +339,10 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogMongoDBOptions{
-			Replicas: *replicas,
+			Shards:           *mongoShards,
+			ReplicasPerShard: *mongoReplPerShard,
+			ReplicaSetOnly:   *mongoReplSetOnly,
+			ConfigServers:    *mongoConfigServers,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				Iops:         *volIops,

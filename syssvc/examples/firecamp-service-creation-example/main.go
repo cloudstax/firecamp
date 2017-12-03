@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
@@ -54,17 +53,12 @@ var (
 	admin       = flag.String("admin", "admin", "The DB admin")
 	adminPasswd = flag.String("passwd", "password", "The DB admin password")
 
-	// The mongodb service creation specific parameters.
-	// The mongodb replicaSetName. If not set, use service name
-	replSetName = flag.String("replica-set-name", "", "The replica set name, default: service name")
-
 	// The postgres service creation specific parameters.
 	replUser   = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
 	replPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
 )
 
 const (
-	serviceMongoDB  = "mongodb"
 	servicePostgres = "postgresql"
 )
 
@@ -129,20 +123,6 @@ func main() {
 	ctx := context.Background()
 
 	switch strings.ToLower(*serviceType) {
-	case serviceMongoDB:
-		if *replSetName == "" {
-			*replSetName = *service
-		}
-
-		replicaCfgs, err := mongodbcatalog.GenReplicaConfigs(*platform, zones, *cluster, *service, *replicas, *replSetName, *port, -1)
-		if err != nil {
-			fmt.Println("GenReplicaConfigs error", err)
-			os.Exit(-1)
-		}
-		createAndWaitService(ctx, cli, replicaCfgs, mongodbcatalog.ContainerImage)
-
-		initializeMongodb(ctx, cli)
-
 	case servicePostgres:
 		opts := &manage.CatalogPostgreSQLOptions{
 			Replicas: *replicas,
@@ -210,41 +190,6 @@ func createAndWaitService(ctx context.Context, cli *client.ManageClient, replica
 
 	// wait till all service containers are running
 	waitServiceRunning(ctx, cli, req.Service)
-}
-
-func initializeMongodb(ctx context.Context, cli *client.ManageClient) {
-	// TODO if not waiting enough time, initializeService will get error. Not sure why. wait DNS update?
-	fmt.Println("All service containers are running, wait 10 seconds for service to stabilize")
-	time.Sleep(time.Duration(10) * time.Second)
-
-	fmt.Println("Start initializing the MongoDB ReplicaSet")
-
-	// generate the parameters for the init task
-	envkvs := mongodbcatalog.GenInitTaskEnvKVPairs(*region, *cluster, *service, *replSetName, *replicas, *serverURL, *admin, *adminPasswd)
-
-	initReq := &manage.RunTaskRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
-
-		Resource: &common.Resources{
-			MaxCPUUnits:     *reserveCPUUnits,
-			ReserveCPUUnits: *reserveCPUUnits,
-			MaxMemMB:        *reserveMemMB,
-			ReserveMemMB:    *reserveMemMB,
-		},
-
-		ContainerImage: mongodbcatalog.InitContainerImage,
-		TaskType:       common.TaskTypeInit,
-		Envkvs:         envkvs,
-	}
-
-	// run the init task to initialize the service
-	initializeService(ctx, cli, *region, initReq)
-
-	fmt.Println("The mongodb replicaset are successfully initialized")
 }
 
 func initializePostgreSQL(ctx context.Context, cli *client.ManageClient) {
