@@ -29,7 +29,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	switch trimURL {
 	case manage.CatalogCreateMongoDBOp:
-		return s.createMongoDBService(ctx, r, requuid)
+		return s.createMongoDBService(ctx, w, r, requuid)
 	case manage.CatalogCreatePostgreSQLOp:
 		return s.createPGService(ctx, r, requuid)
 	case manage.CatalogCreateCassandraOp:
@@ -202,7 +202,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateMongoDBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -238,7 +238,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, keyfileContent, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, existingKeyFileContent)
 	if err != nil {
 		glog.Errorln("mongodbcatalog GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
@@ -255,6 +255,17 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 
 	// run the init task in the background
 	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options, requuid)
+
+	// send back the keyfile content
+	resp := &manage.CatalogCreateMongoDBResponse{KeyFileContent: keyfileContent}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal CatalogCreateMongoDBResponse error", err, "requuid", requuid, req.Service, req.Options)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 
 	return "", http.StatusOK
 }

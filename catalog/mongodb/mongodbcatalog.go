@@ -74,15 +74,15 @@ func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources, existingKeyfileContent string) (*manage.CreateServiceRequest, error) {
+	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources,
+	existingKeyfileContent string) (req *manage.CreateServiceRequest, keyfileContent string, err error) {
 	// generate the keyfile for MongoDB internal auth between members of the replica set.
 	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
-	var err error
-	keyfileContent := existingKeyfileContent
+	keyfileContent = existingKeyfileContent
 	if len(existingKeyfileContent) == 0 {
 		keyfileContent, err = genKeyfileContent()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
@@ -109,10 +109,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	b, err := json.Marshal(userAttr)
 	if err != nil {
 		glog.Errorln("Marshal MongoDBUserAttr error", err, opts)
-		return nil, err
+		return nil, "", err
 	}
 
-	req := &manage.CreateServiceRequest{
+	req = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -139,7 +139,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		req.JournalVolume = opts.JournalVolume
 		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
 	}
-	return req, nil
+	return req, keyfileContent, nil
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.

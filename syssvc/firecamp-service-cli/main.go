@@ -359,13 +359,19 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 		os.Exit(-1)
 	}
 
-	err = cli.CatalogCreateMongoDBService(ctx, req)
+	keyfileContent, err := cli.CatalogCreateMongoDBService(ctx, req)
 	if err != nil {
 		fmt.Println("create catalog mongodb service error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println("The catalog service is created, wait till it gets initialized")
+	if req.Options.Shards == 1 && req.Options.ReplicaSetOnly {
+		fmt.Println("The catalog service is created, wait till it gets initialized")
+	} else {
+		// mongodb sharded cluster
+		fmt.Println("The MongoDB Sharded cluster is created, please run the mongos with keyfile content", keyfileContent)
+		fmt.Println("Wait till the sharded cluster gets initialized")
+	}
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: common.CatalogService_MongoDB,

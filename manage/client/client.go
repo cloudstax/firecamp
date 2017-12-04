@@ -343,23 +343,31 @@ func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskReque
 }
 
 // CatalogCreateMongoDBService creates a new catalog MongoDB ReplicaSet service.
-func (c *ManageClient) CatalogCreateMongoDBService(ctx context.Context, r *manage.CatalogCreateMongoDBRequest) error {
+func (c *ManageClient) CatalogCreateMongoDBService(ctx context.Context, r *manage.CatalogCreateMongoDBRequest) (keyfileContent string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateMongoDBOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return manage.ConvertHTTPError(resp)
+	if resp.StatusCode != http.StatusOK {
+		return "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCreateMongoDBResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.KeyFileContent, err
 }
 
 // CatalogCreatePostgreSQLService creates a new catalog PostgreSQL service.

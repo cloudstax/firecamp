@@ -216,6 +216,11 @@ type CatalogCreateMongoDBRequest struct {
 	Options  *CatalogMongoDBOptions
 }
 
+// CatalogCreateMongoDBResponse returns the keyfile content for mongos to access the sharded cluster.
+type CatalogCreateMongoDBResponse struct {
+	KeyFileContent string
+}
+
 // CatalogPostgreSQLOptions includes the config options for PostgreSQL.
 type CatalogPostgreSQLOptions struct {
 	Replicas      int64
