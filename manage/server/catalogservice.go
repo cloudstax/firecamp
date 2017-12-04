@@ -7,7 +7,6 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/couchdb"
@@ -115,9 +114,9 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 			// trigger the init task.
 			switch req.ServiceType {
-			case catalog.CatalogService_MongoDB:
+			case common.CatalogService_MongoDB:
 				userAttr := &common.MongoDBUserAttr{}
-				err = json.Unmarshal(attr.UserAttr, userAttr)
+				err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
 				if err != nil {
 					glog.Errorln("Unmarshal mongodb user attr error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
@@ -133,7 +132,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
 
-			case catalog.CatalogService_PostgreSQL:
+			case common.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
 				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 				if errcode != http.StatusOK {
@@ -141,10 +140,10 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				}
 				initialized = true
 
-			case catalog.CatalogService_Cassandra:
+			case common.CatalogService_Cassandra:
 				s.addCasInitTask(ctx, req.Service, attr.ServiceUUID, requuid)
 
-			case catalog.CatalogService_ZooKeeper:
+			case common.CatalogService_ZooKeeper:
 				// zookeeper does not require additional init work. set initialized
 				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 				if errcode != http.StatusOK {
@@ -152,7 +151,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				}
 				initialized = true
 
-			case catalog.CatalogService_Kafka:
+			case common.CatalogService_Kafka:
 				// Kafka does not require additional init work. set initialized
 				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 				if errcode != http.StatusOK {
@@ -160,9 +159,9 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				}
 				initialized = true
 
-			case catalog.CatalogService_Redis:
+			case common.CatalogService_Redis:
 				redisUserAttr := &common.RedisUserAttr{}
-				err = json.Unmarshal(attr.UserAttr, redisUserAttr)
+				err = json.Unmarshal(attr.UserAttr.AttrBytes, redisUserAttr)
 				if err != nil {
 					glog.Errorln("Unmarshal redis user attr error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
@@ -173,7 +172,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 					return manage.ConvertToHTTPError(err)
 				}
 
-			case catalog.CatalogService_CouchDB:
+			case common.CatalogService_CouchDB:
 				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
 
 			default:
@@ -255,7 +254,7 @@ func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.S
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: catalog.CatalogService_MongoDB,
+		serviceType: common.CatalogService_MongoDB,
 		opts:        taskOpts,
 	}
 
@@ -463,7 +462,7 @@ func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Ser
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: catalog.CatalogService_Redis,
+		serviceType: common.CatalogService_Redis,
 		opts:        taskOpts,
 	}
 
@@ -520,7 +519,7 @@ func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.S
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: catalog.CatalogService_CouchDB,
+		serviceType: common.CatalogService_CouchDB,
 		opts:        taskOpts,
 	}
 
@@ -773,7 +772,7 @@ func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: catalog.CatalogService_Cassandra,
+		serviceType: common.CatalogService_Cassandra,
 		opts:        taskOpts,
 	}
 
@@ -798,14 +797,14 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 	}
 
 	switch req.ServiceType {
-	case catalog.CatalogService_MongoDB:
+	case common.CatalogService_MongoDB:
 		return s.setMongoDBInit(ctx, req, requuid)
 
-	case catalog.CatalogService_Cassandra:
+	case common.CatalogService_Cassandra:
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
-	case catalog.CatalogService_CouchDB:
+	case common.CatalogService_CouchDB:
 		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 

@@ -228,15 +228,19 @@ func TestServiceAttrs(t *testing.T) {
 			},
 		}
 
-		var userAttr []byte
+		var userAttr *common.ServiceUserAttr
 		if i%2 == 0 {
 			rattr := &common.RedisUserAttr{
 				Shards:           1,
 				ReplicasPerShard: 1,
 			}
-			userAttr, err = json.Marshal(rattr)
+			b, err := json.Marshal(rattr)
 			if err != nil {
 				t.Fatalf("Marshal RedisUserAttr error %s", err)
+			}
+			userAttr = &common.ServiceUserAttr{
+				ServiceType: common.CatalogService_Redis,
+				AttrBytes:   b,
 			}
 		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),

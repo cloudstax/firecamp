@@ -110,7 +110,19 @@ message ServiceAttr {
   string hostedZoneID = 10;
   bool requireStaticIP = 11;
 
-  bytes userAttr = 12;
+  ServiceUserAttr userAttr = 12;
+}
+
+message ServiceUserAttr {
+  string serviceType = 1;
+  bytes attrBytes = 2;
+}
+
+message MongoDBUserAttr {
+  int64 shards = 1;
+  int64 replicasPerShard = 2;
+  bool replicaSetOnly = 3;
+  int64 configServers = 4;
 }
 
 message RedisUserAttr {

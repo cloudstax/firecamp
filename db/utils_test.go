@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -45,6 +46,29 @@ func TestDBUtils(t *testing.T) {
 	attr1.LastModified = attr2.LastModified
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
+	}
+
+	mattr := common.MongoDBUserAttr{
+		Shards:           1,
+		ReplicasPerShard: 3,
+		ReplicaSetOnly:   false,
+		ConfigServers:    3,
+	}
+	b, err := json.Marshal(mattr)
+	if err != nil {
+		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
+	}
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: "mongodb",
+		AttrBytes:   b,
+	}
+	attr3 := CreateInitialServiceAttr(serviceUUID, replicas,
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+	attr3.LastModified = mtime
+	attr4 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+	if !EqualServiceAttr(attr3, attr4, false) {
+		t.Fatalf("attr is not the same, %s %s", attr3, attr4)
 	}
 
 	volID := "vol-1"

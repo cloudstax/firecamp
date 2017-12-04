@@ -293,16 +293,20 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 				VolumeSizeGB: int64(i),
 			},
 		}
-		var userAttr []byte
+		var userAttr *common.ServiceUserAttr
 		if i%2 == 0 {
 			rattr := &common.RedisUserAttr{
 				Shards:           1,
 				ReplicasPerShard: 1,
 			}
-			userAttr, err = json.Marshal(rattr)
+			b, err := json.Marshal(rattr)
 			if err != nil {
 				glog.Errorln("Marshal user attr error", err)
 				return err
+			}
+			userAttr = &common.ServiceUserAttr{
+				ServiceType: common.CatalogService_Redis,
+				AttrBytes:   b,
 			}
 		}
 		attr := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), cluster,

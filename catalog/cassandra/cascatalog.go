@@ -190,7 +190,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
 
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
-	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_Cassandra}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_Cassandra}
 
 	domain := dns.GenDefaultDomainName(cluster)
 	dnsname := dns.GenDNSName(utils.GenServiceMemberName(service, 0), domain)

@@ -417,8 +417,11 @@ func (c *ControlDBCli) ListServices(ctx context.Context, clusterName string) (sv
 func (c *ControlDBCli) CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	var err error
-	pbattr := controldb.GenPbServiceAttr(attr)
+	pbattr, err := controldb.GenPbServiceAttr(attr)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
 		_, err = cli.dbcli.CreateServiceAttr(ctx, pbattr)
@@ -441,10 +444,18 @@ func (c *ControlDBCli) CreateServiceAttr(ctx context.Context, attr *common.Servi
 func (c *ControlDBCli) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	var err error
+	pboldAttr, err := controldb.GenPbServiceAttr(oldAttr)
+	if err != nil {
+		return err
+	}
+	pbnewAttr, err := controldb.GenPbServiceAttr(newAttr)
+	if err != nil {
+		return err
+	}
+
 	req := &pb.UpdateServiceAttrRequest{
-		OldAttr: controldb.GenPbServiceAttr(oldAttr),
-		NewAttr: controldb.GenPbServiceAttr(newAttr),
+		OldAttr: pboldAttr,
+		NewAttr: pbnewAttr,
 	}
 	for i := 0; i < maxRetryCount; i++ {
 		cli := c.getCli()
@@ -476,7 +487,7 @@ func (c *ControlDBCli) GetServiceAttr(ctx context.Context, serviceUUID string) (
 		pbAttr, err := cli.dbcli.GetServiceAttr(ctx, key)
 		if err == nil {
 			glog.Infoln("get service attr", pbAttr, "requuid", requuid)
-			return controldb.GenDbServiceAttr(pbAttr), nil
+			return controldb.GenDbServiceAttr(pbAttr)
 		}
 
 		glog.Errorln("GetServiceAttr error", err, "service", serviceUUID, "requuid", requuid)

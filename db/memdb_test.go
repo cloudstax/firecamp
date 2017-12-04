@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"flag"
 	"strings"
 	"testing"
@@ -170,6 +171,21 @@ func TestServiceAttr(t *testing.T) {
 
 	ctx := context.Background()
 
+	mattr := common.MongoDBUserAttr{
+		Shards:           1,
+		ReplicasPerShard: 3,
+		ReplicaSetOnly:   false,
+		ConfigServers:    3,
+	}
+	b, err := json.Marshal(mattr)
+	if err != nil {
+		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
+	}
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: "mongodb",
+		AttrBytes:   b,
+	}
+
 	// create 5 services
 	var s [5]*common.ServiceAttr
 	x := [5]string{"a", "b", "c", "d", "e"}
@@ -186,8 +202,9 @@ func TestServiceAttr(t *testing.T) {
 				VolumeSizeGB: int64(volSize + i),
 			},
 		}
+
 		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {

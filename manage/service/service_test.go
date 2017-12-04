@@ -157,7 +157,11 @@ func TestUnassignedIPs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal RedisUserAttr error %s", err)
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, b)
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_Redis,
+		AttrBytes:   b,
+	}
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, userAttr)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	// case: 1 network interface with 0 private ip

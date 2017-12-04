@@ -14,7 +14,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
@@ -245,35 +244,35 @@ func main() {
 			}
 		}
 		switch *serviceType {
-		case catalog.CatalogService_MongoDB:
+		case common.CatalogService_MongoDB:
 			createMongoDBService(ctx, cli, journalVol)
-		case catalog.CatalogService_PostgreSQL:
+		case common.CatalogService_PostgreSQL:
 			createPostgreSQLService(ctx, cli, journalVol)
-		case catalog.CatalogService_Cassandra:
+		case common.CatalogService_Cassandra:
 			createCassandraService(ctx, cli, journalVol)
-		case catalog.CatalogService_ZooKeeper:
+		case common.CatalogService_ZooKeeper:
 			createZkService(ctx, cli)
-		case catalog.CatalogService_Kafka:
+		case common.CatalogService_Kafka:
 			createKafkaService(ctx, cli)
-		case catalog.CatalogService_Redis:
+		case common.CatalogService_Redis:
 			createRedisService(ctx, cli)
-		case catalog.CatalogService_CouchDB:
+		case common.CatalogService_CouchDB:
 			createCouchDBService(ctx, cli)
-		case catalog.CatalogService_Consul:
+		case common.CatalogService_Consul:
 			createConsulService(ctx, cli)
-		case catalog.CatalogService_ElasticSearch:
+		case common.CatalogService_ElasticSearch:
 			createESService(ctx, cli)
-		case catalog.CatalogService_Kibana:
+		case common.CatalogService_Kibana:
 			createKibanaService(ctx, cli)
-		case catalog.CatalogService_Logstash:
+		case common.CatalogService_Logstash:
 			createLogstashService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
-				catalog.CatalogService_MongoDB, catalog.CatalogService_PostgreSQL,
-				catalog.CatalogService_Cassandra, catalog.CatalogService_ZooKeeper,
-				catalog.CatalogService_Kafka, catalog.CatalogService_Redis,
-				catalog.CatalogService_CouchDB, catalog.CatalogService_Consul,
-				catalog.CatalogService_ElasticSearch, catalog.CatalogService_Kibana)
+				common.CatalogService_MongoDB, common.CatalogService_PostgreSQL,
+				common.CatalogService_Cassandra, common.CatalogService_ZooKeeper,
+				common.CatalogService_Kafka, common.CatalogService_Redis,
+				common.CatalogService_CouchDB, common.CatalogService_Consul,
+				common.CatalogService_ElasticSearch, common.CatalogService_Kibana)
 			os.Exit(-1)
 		}
 
@@ -369,7 +368,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 	fmt.Println("The catalog service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: catalog.CatalogService_MongoDB,
+		ServiceType: common.CatalogService_MongoDB,
 		Service:     req.Service,
 		Admin:       *admin,
 		AdminPasswd: *adminPasswd,
@@ -430,7 +429,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	fmt.Println("The catalog service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: catalog.CatalogService_Cassandra,
+		ServiceType: common.CatalogService_Cassandra,
 		Service:     req.Service,
 	}
 
@@ -613,7 +612,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
-			ServiceType: catalog.CatalogService_Redis,
+			ServiceType: common.CatalogService_Redis,
 			Service:     req.Service,
 		}
 
@@ -704,7 +703,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: catalog.CatalogService_CouchDB,
+		ServiceType: common.CatalogService_CouchDB,
 		Service:     req.Service,
 		Admin:       *admin,
 		AdminPasswd: *adminPasswd,

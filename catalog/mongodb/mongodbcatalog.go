@@ -126,7 +126,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: b,
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_MongoDB,
+			AttrBytes:   b,
+		},
 	}
 	if opts.JournalVolume != nil {
 		req.JournalVolume = opts.JournalVolume
@@ -303,7 +306,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
-	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_MongoDB}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_MongoDB}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
 	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
 

@@ -1,7 +1,6 @@
 package controldbserver
 
 import (
-	"encoding/json"
 	"flag"
 	"os"
 	"path"
@@ -9,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
@@ -51,13 +51,17 @@ func TestAttrReadWriter(t *testing.T) {
 	hostedZone := "zone1"
 	requireStaticIP := false
 
-	redisUserAttr := &common.RedisUserAttr{
+	redisUserAttr := &pb.RedisUserAttr{
 		Shards:           1,
 		ReplicasPerShard: 1,
 	}
-	b, err := json.Marshal(redisUserAttr)
+	b, err := proto.Marshal(redisUserAttr)
 	if err != nil {
 		t.Fatalf("Marshal userattr error %s", err)
+	}
+	userAttr := &pb.ServiceUserAttr{
+		ServiceType: common.CatalogService_Redis,
+		AttrBytes:   b,
 	}
 
 	attr := &pb.ServiceAttr{
@@ -82,7 +86,7 @@ func TestAttrReadWriter(t *testing.T) {
 		DomainName:      domain,
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
-		UserAttr:        b,
+		UserAttr:        userAttr,
 	}
 	err = s.createAttr(ctx, attr)
 	if err != nil {

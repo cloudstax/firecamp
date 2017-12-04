@@ -24,7 +24,7 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 
 	volBytes, err := json.Marshal(attr.Volumes)
 	if err != nil {
-		glog.Errorln("Marshal ServiceDeviceNames error", err, "requuid", requuid, attr)
+		glog.Errorln("Marshal ServiceVolumes error", err, "requuid", requuid, attr)
 		return err
 	}
 
@@ -73,10 +73,14 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
 		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
-
-	if len(attr.UserAttr) != 0 {
+	if attr.UserAttr != nil {
+		userAttrBytes, err := json.Marshal(attr.UserAttr)
+		if err != nil {
+			glog.Errorln("Marshal ServiceUserAttr error", err, "requuid", requuid, attr)
+			return err
+		}
 		params.Item[UserAttr] = &dynamodb.AttributeValue{
-			B: attr.UserAttr,
+			B: userAttrBytes,
 		}
 	}
 
@@ -184,9 +188,13 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		glog.Errorln("Unmarshal ServiceVolumes error", err, "requuid", requuid, resp)
 		return nil, db.ErrDBInternal
 	}
-	var userAttrBytes []byte
-	if userAttr, ok := resp.Item[UserAttr]; ok {
-		userAttrBytes = userAttr.B
+	var userAttr *common.ServiceUserAttr
+	if _, ok := resp.Item[UserAttr]; ok {
+		err = json.Unmarshal(resp.Item[UserAttr].B, userAttr)
+		if err != nil {
+			glog.Errorln("Unmarshal ServiceUserAttr error", err, "requuid", requuid, resp)
+			return nil, db.ErrDBInternal
+		}
 	}
 
 	attr = db.CreateServiceAttr(
@@ -201,7 +209,7 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[DomainName].S),
 		*(resp.Item[HostedZoneID].S),
 		*(resp.Item[RequireStaticIP].BOOL),
-		userAttrBytes)
+		userAttr)
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil

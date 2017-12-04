@@ -452,6 +452,7 @@ func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
 		DomainName:      t.DomainName,
 		HostedZoneID:    t.HostedZoneID,
 		RequireStaticIP: t.RequireStaticIP,
+		UserAttr:        t.UserAttr,
 	}
 }
 

@@ -1,13 +1,14 @@
 package db
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -53,9 +54,9 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 	return false
 }
 
-func CreateInitialServiceAttr(serviceUUID string, replicas int64,
-	cluster string, service string, vols common.ServiceVolumes,
-	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool, userAttr []byte) *common.ServiceAttr {
+func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string,
+	service string, vols common.ServiceVolumes, registerDNS bool, domain string,
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
@@ -73,8 +74,8 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64,
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
-	cluster string, service string, vols common.ServiceVolumes,
-	registerDNS bool, domain string, hostedZoneID string, requireStaticIP bool, userAttr []byte) *common.ServiceAttr {
+	cluster string, service string, vols common.ServiceVolumes, registerDNS bool, domain string,
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
@@ -103,10 +104,68 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID &&
 		t1.RequireStaticIP == t2.RequireStaticIP &&
-		bytes.Equal(t1.UserAttr, t2.UserAttr) {
+		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) {
 		return true
 	}
 	return false
+}
+
+func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr) bool {
+	if u1 == nil || u2 == nil {
+		if u1 == nil && u2 == nil {
+			return true
+		}
+		return false
+	}
+
+	if u1.ServiceType != u2.ServiceType {
+		return false
+	}
+
+	switch u1.ServiceType {
+	case common.CatalogService_MongoDB:
+		userAttr1 := &common.MongoDBUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, userAttr1)
+		if err != nil {
+			glog.Errorln("Unmarshal mongodb user attr error", err, u1)
+			return false
+		}
+		userAttr2 := &common.MongoDBUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, userAttr2)
+		if err != nil {
+			glog.Errorln("Unmarshal mongodb user attr error", err, u2)
+			return false
+		}
+		if userAttr1.Shards == userAttr2.Shards &&
+			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
+			userAttr1.ReplicaSetOnly == userAttr2.ReplicaSetOnly &&
+			userAttr1.ConfigServers == userAttr2.ConfigServers {
+			return true
+		}
+		return false
+
+	case common.CatalogService_Redis:
+		userAttr1 := &common.RedisUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, userAttr1)
+		if err != nil {
+			glog.Errorln("Unmarshal redis user attr error", err, u1)
+			return false
+		}
+		userAttr2 := &common.RedisUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, userAttr2)
+		if err != nil {
+			glog.Errorln("Unmarshal redis user attr error", err, u2)
+			return false
+		}
+		if userAttr1.Shards == userAttr2.Shards &&
+			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard {
+			return true
+		}
+		return false
+
+	default:
+		return true
+	}
 }
 
 func EqualServiceVolumes(v1 *common.ServiceVolumes, v2 *common.ServiceVolumes) bool {

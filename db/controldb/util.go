@@ -1,8 +1,12 @@
 package controldb
 
 import (
-	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
@@ -83,7 +87,59 @@ func GenPbServiceVolumes(svol *common.ServiceVolumes) *pb.ServiceVolumes {
 	}
 }
 
-func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
+func GenPbServiceUserAttr(ua *common.ServiceUserAttr) (*pb.ServiceUserAttr, error) {
+	if ua == nil {
+		return nil, nil
+	}
+
+	var attrBytes []byte
+	switch ua.ServiceType {
+	case common.CatalogService_MongoDB:
+		attr := &common.MongoDBUserAttr{}
+		err := json.Unmarshal(ua.AttrBytes, attr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Unmarshal mongodb user attr error %s", err))
+		}
+		pbattr := &pb.MongoDBUserAttr{
+			Shards:           attr.Shards,
+			ReplicasPerShard: attr.ReplicasPerShard,
+			ReplicaSetOnly:   attr.ReplicaSetOnly,
+			ConfigServers:    attr.ConfigServers,
+		}
+		attrBytes, err = proto.Marshal(pbattr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Marshal pb mongodb user attr error %s", err))
+		}
+
+	case common.CatalogService_Redis:
+		attr := &common.RedisUserAttr{}
+		err := json.Unmarshal(ua.AttrBytes, attr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Unmarshal redis user attr error %s", err))
+		}
+		pbattr := &pb.RedisUserAttr{
+			Shards:           attr.Shards,
+			ReplicasPerShard: attr.ReplicasPerShard,
+		}
+		attrBytes, err = proto.Marshal(pbattr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Marshal pb redis user attr error %s", err))
+		}
+	}
+
+	pbuserAttr := &pb.ServiceUserAttr{
+		ServiceType: ua.ServiceType,
+		AttrBytes:   attrBytes,
+	}
+	return pbuserAttr, nil
+}
+
+func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
+	pbuserAttr, err := GenPbServiceUserAttr(attr.UserAttr)
+	if err != nil {
+		return nil, err
+	}
+
 	pbAttr := &pb.ServiceAttr{
 		ServiceUUID:     attr.ServiceUUID,
 		ServiceStatus:   attr.ServiceStatus,
@@ -96,9 +152,9 @@ func GenPbServiceAttr(attr *common.ServiceAttr) *pb.ServiceAttr {
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
 		RequireStaticIP: attr.RequireStaticIP,
-		UserAttr:        attr.UserAttr,
+		UserAttr:        pbuserAttr,
 	}
-	return pbAttr
+	return pbAttr, nil
 }
 
 func GenDbServiceVolume(vol *pb.ServiceVolume) *common.ServiceVolume {
@@ -118,7 +174,59 @@ func GenDbServiceVolumes(svol *pb.ServiceVolumes) *common.ServiceVolumes {
 	}
 }
 
-func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
+func GenDbServiceUserAttr(ua *pb.ServiceUserAttr) (*common.ServiceUserAttr, error) {
+	if ua == nil {
+		return nil, nil
+	}
+
+	var attrBytes []byte
+	switch ua.ServiceType {
+	case common.CatalogService_MongoDB:
+		pbattr := &pb.MongoDBUserAttr{}
+		err := proto.Unmarshal(ua.AttrBytes, pbattr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Unmarshal pb mongodb user attr error %s", err))
+		}
+		attr := &common.MongoDBUserAttr{
+			Shards:           pbattr.Shards,
+			ReplicasPerShard: pbattr.ReplicasPerShard,
+			ReplicaSetOnly:   pbattr.ReplicaSetOnly,
+			ConfigServers:    pbattr.ConfigServers,
+		}
+		attrBytes, err = json.Marshal(attr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Marshal mongodb user attr error %s", err))
+		}
+
+	case common.CatalogService_Redis:
+		pbattr := &pb.RedisUserAttr{}
+		err := proto.Unmarshal(ua.AttrBytes, pbattr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Unmarshal pb redis user attr error %s", err))
+		}
+		attr := &common.RedisUserAttr{
+			Shards:           pbattr.Shards,
+			ReplicasPerShard: pbattr.ReplicasPerShard,
+		}
+		attrBytes, err = json.Marshal(attr)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Marshal redis user attr error %s", err))
+		}
+	}
+
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: ua.ServiceType,
+		AttrBytes:   attrBytes,
+	}
+	return userAttr, nil
+}
+
+func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
+	userAttr, err := GenDbServiceUserAttr(attr.UserAttr)
+	if err != nil {
+		return nil, err
+	}
+
 	dbAttr := db.CreateServiceAttr(attr.ServiceUUID,
 		attr.ServiceStatus,
 		attr.LastModified,
@@ -130,8 +238,8 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) *common.ServiceAttr {
 		attr.DomainName,
 		attr.HostedZoneID,
 		attr.RequireStaticIP,
-		attr.UserAttr)
-	return dbAttr
+		userAttr)
+	return dbAttr, nil
 }
 
 func EqualServiceVolume(v1 *pb.ServiceVolume, v2 *pb.ServiceVolume) bool {
@@ -182,10 +290,68 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&
 		a1.RequireStaticIP == a2.RequireStaticIP &&
-		bytes.Equal(a1.UserAttr, a2.UserAttr) {
+		EqualUserAttr(a1.UserAttr, a2.UserAttr) {
 		return true
 	}
 	return false
+}
+
+func EqualUserAttr(u1 *pb.ServiceUserAttr, u2 *pb.ServiceUserAttr) bool {
+	if u1 == nil || u2 == nil {
+		if u1 == nil && u2 == nil {
+			return true
+		}
+		return false
+	}
+
+	if u1.ServiceType != u2.ServiceType {
+		return false
+	}
+
+	switch u1.ServiceType {
+	case common.CatalogService_MongoDB:
+		ua1 := &pb.MongoDBUserAttr{}
+		err := proto.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal mongodb user attr error", err)
+			return false
+		}
+		ua2 := &pb.MongoDBUserAttr{}
+		err = proto.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal mongodb user attr error", err)
+			return false
+		}
+		if ua1.Shards == ua2.Shards &&
+			ua1.ReplicasPerShard == ua2.ReplicasPerShard &&
+			ua1.ReplicaSetOnly == ua2.ReplicaSetOnly &&
+			ua1.ConfigServers == ua2.ConfigServers {
+			return true
+		}
+		return false
+
+	case common.CatalogService_Redis:
+		ua1 := &pb.RedisUserAttr{}
+		err := proto.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal redis user attr error", err)
+			return false
+		}
+		ua2 := &pb.RedisUserAttr{}
+		err = proto.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal redis user attr error", err)
+			return false
+		}
+		if ua1.Shards == ua2.Shards &&
+			ua1.ReplicasPerShard == ua2.ReplicasPerShard {
+			return true
+		}
+		return false
+
+	default:
+		return true
+	}
 }
 
 func GenPbMemberConfig(cfgs []*common.MemberConfig) []*pb.MemberConfig {

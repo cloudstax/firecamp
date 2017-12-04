@@ -143,7 +143,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		RequireStaticIP: true,
 		ReplicaConfigs:  replicaCfgs,
 
-		UserAttr: b,
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Redis,
+			AttrBytes:   b,
+		},
 	}
 	return req, nil
 }
@@ -314,7 +317,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
-	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: catalog.CatalogService_Redis}
+	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_Redis}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
 	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetRedisInitOp}
 

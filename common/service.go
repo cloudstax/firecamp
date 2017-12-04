@@ -1,6 +1,19 @@
 package common
 
 const (
+	// The supported catalog services
+	CatalogService_MongoDB       = "mongodb"
+	CatalogService_PostgreSQL    = "postgresql"
+	CatalogService_Cassandra     = "cassandra"
+	CatalogService_ZooKeeper     = "zookeeper"
+	CatalogService_Kafka         = "kafka"
+	CatalogService_Redis         = "redis"
+	CatalogService_CouchDB       = "couchdb"
+	CatalogService_Consul        = "consul"
+	CatalogService_ElasticSearch = "elasticsearch"
+	CatalogService_Kibana        = "kibana"
+	CatalogService_Logstash      = "logstash"
+
 	// The status of one service
 	// ServiceStatusCreating: creating the required resources of the service, such as volumes.
 	ServiceStatusCreating = "CREATING"
@@ -114,11 +127,18 @@ type ServiceAttr struct {
 	RequireStaticIP bool
 
 	// The custom service attributes
-	UserAttr []byte
+	UserAttr *ServiceUserAttr
 
 	// The service admin and password. The password will be deleted once the service is initialized.
 	//Admin       string
 	//AdminPasswd string
+}
+
+// ServiceUserAttr represents the custom service attributes.
+type ServiceUserAttr struct {
+	// "mongodb", "redis"
+	ServiceType string
+	AttrBytes   []byte
 }
 
 // MongoDBUserAttr represents the custom MongoDB service attributes.

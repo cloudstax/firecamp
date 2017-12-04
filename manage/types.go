@@ -95,7 +95,7 @@ type CreateServiceRequest struct {
 	ReplicaConfigs  []*ReplicaConfig
 
 	// The service's custom attributes
-	UserAttr []byte
+	UserAttr *common.ServiceUserAttr
 }
 
 // GetServiceAttributesResponse returns the service's attributes.

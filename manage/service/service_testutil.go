@@ -1,6 +1,7 @@
 package manageservice
 
 import (
+	"encoding/json"
 	"sort"
 	"strconv"
 	"strings"
@@ -436,6 +437,21 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		replicaCfgs[i] = replicaCfg
 	}
 
+	mattr := common.MongoDBUserAttr{
+		Shards:           1,
+		ReplicasPerShard: 3,
+		ReplicaSetOnly:   false,
+		ConfigServers:    3,
+	}
+	b, err := json.Marshal(mattr)
+	if err != nil {
+		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
+	}
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: "mongodb",
+		AttrBytes:   b,
+	}
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -447,6 +463,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		RegisterDNS:     registerDNS,
 		RequireStaticIP: requireStaticIP,
 		ReplicaConfigs:  replicaCfgs,
+		UserAttr:        userAttr,
 	}
 	if requireJournalVolume {
 		req.JournalVolume = &common.ServiceVolume{
@@ -641,7 +658,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("expect journal device /dev/loop6, get %s", svols.JournalDeviceName)
 	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -720,7 +737,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, nil)
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
