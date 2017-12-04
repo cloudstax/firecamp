@@ -12,11 +12,14 @@ lambda:
 docker: install
 	./scripts/builddocker.sh $(version) all
 
-plugin:
-	./scripts/builddocker.sh $(version) plugin
+pluginimages:
+	./scripts/builddocker.sh $(version) pluginimages
 
-catalogs:
-	./scripts/builddocker.sh $(version) catalogs
+manageimages:
+	./scripts/builddocker.sh $(version) manageimages
+
+catalogimages:
+	./scripts/builddocker.sh $(version) catalogimages
 
 test:
 	./scripts/gotest.sh

@@ -70,8 +70,7 @@ BuildPlugin() {
 	docker plugin push ${logPluginImage}:${version}
 }
 
-
-BuildCatalogImages() {
+BuildManageImages() {
   # build test busybox docker image
   echo
   echo "build test busybox image for ecs and swarm unit test"
@@ -105,7 +104,9 @@ BuildCatalogImages() {
   docker push $image
   echo
 
+}
 
+BuildCatalogImages() {
   # build mongodb docker image
   target=$system"-mongodb"
   image="${org}${target}:3.4"
@@ -262,10 +263,13 @@ BuildCatalogImages() {
 
 if [ "$buildtarget" = "all" ]; then
   BuildPlugin
+  BuildManageImages
   BuildCatalogImages
-elif [ "$buildtarget" = "plugin" ]; then
+elif [ "$buildtarget" = "pluginimages" ]; then
   BuildPlugin
-elif [ "$buildtarget" = "catalogs" ]; then
+elif [ "$buildtarget" = "manageimages" ]; then
+  BuildManageImages
+elif [ "$buildtarget" = "catalogimages" ]; then
   BuildCatalogImages
 fi
 
