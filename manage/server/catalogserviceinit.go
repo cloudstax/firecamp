@@ -21,9 +21,10 @@ const (
 	waitSecondsBeforeInit = time.Duration(10) * time.Second
 
 	// Task status messages
-	waitServiceRunningMsg = "wait the service containers running, RunningCount %d"
-	serviceRunningMsg     = "all service containers are running, wait to run the init task"
-	startInitTaskMsg      = "the init task is running"
+	waitServiceRunningInitialMsg = "wait the service containers running"
+	waitServiceRunningMsg        = "wait the service containers running, RunningCount %d"
+	serviceRunningMsg            = "all service containers are running, wait to run the init task"
+	startInitTaskMsg             = "the init task is running"
 )
 
 type serviceTask struct {
@@ -98,7 +99,7 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 		return common.ErrInternal
 	}
 
-	task.statusMessage = fmt.Sprintf(waitServiceRunningMsg, 0)
+	task.statusMessage = waitServiceRunningInitialMsg
 	c.tasks[task.serviceUUID] = task
 	go c.runInitTask(initCtx, task, requuid)
 

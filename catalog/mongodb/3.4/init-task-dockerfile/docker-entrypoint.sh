@@ -123,9 +123,6 @@ InitReplicaSet() {
   fi
 
   echo "MongoDB ReplicaSet $replSetName initialized"
-
-  # wait 10 seconds for MongoDB to stabilize
-  sleep 10
 }
 
 # CreateRootAdminUser creates the root admin user. The function requires 2 parameters.
@@ -174,6 +171,41 @@ CreateRootAdminUser() {
   echo "root admin user created"
 }
 
+# CreateReplicaSetUser initializes the replicaset and create the root admin user.
+# This function requires 2 parameters.
+# 1. replicaSets. example: mymongo-0.t1-firecamp.com,mymongo-1.t1-firecamp.com,mymongo-2.t1-firecamp.com
+# 2. port, 27019 for config server, 27018 for shard server, 27017 for the single replica set
+CreateReplicaSetUser() {
+  replicaSets=$1
+  port=$2
+
+  # get all members
+  OIFS=$IFS
+  IFS=','
+  read -a members <<< "${replicaSets}"
+  IFS=$OIFS
+
+  # get the latest master. If the original master fails, another standby may become the new master.
+  # example output: "primary" : "mymongo-1.t1-firecamp.com:27017",
+  currentMaster=$(mongo --host ${members[0]} --port $port --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }' | awk -F ":" '{ print $1 }')
+  if [ -z "$currentMaster" ]; then
+    # wait some more time for ReplicaSet to stabilize
+    sleep 10
+
+    # retry to get the current master
+    currentMaster=$(mongo --host ${members[0]} --port $port --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }' | awk -F ":" '{ print $1 }')
+
+    if [ -z "$currentMaster" ]; then
+      echo "failed to get the current master"
+      mongo --host ${members[0]} --port $port --eval "db.isMaster()"
+      exit 2
+    fi
+  fi
+  echo "currentMaster: $currentMaster"
+
+  CreateRootAdminUser $currentMaster $port
+}
+
 # CreateReplicaSetAndUser initializes the replicaset and create the root admin user.
 # This function requires 3 parameters.
 # 1. replicaset name.
@@ -184,26 +216,12 @@ CreateReplicaSetAndUser() {
   replicaSets=$2
   port=$3
 
-  # get all members
-  OIFS=$IFS
-  IFS=','
-  read -a members <<< "${replicaSets}"
-  IFS=$OIFS
-
   InitReplicaSet $replSetName $replicaSets $port
 
-  # get the latest master. If the original master fails, another standby may become the new master.
-  # example output: "primary" : "mymongo-1.t1-firecamp.com:27017",
-  currentMaster=$(mongo --host ${members[0]} --port $port --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }' | awk -F ":" '{ print $1 }')
-  if [ -z "$currentMaster" ]
-  then
-    echo "failed to get the current master"
-    mongo --host ${members[0]} --port $port --eval "db.isMaster()"
-    exit 2
-  fi
-  echo "currentMaster: $currentMaster"
+  # wait 10 seconds for MongoDB to stabilize
+  sleep 10
 
-  CreateRootAdminUser $currentMaster $port
+  CreateReplicaSetUser $replicaSets $port
 }
 
 if [ -n "$SERVICE_MASTER" ]; then
@@ -255,16 +273,27 @@ else
     configServerName=$SERVICE_NAME"-config"
     InitReplicaSet $configServerName $CONFIG_SERVER_MEMBERS 27019
 
+
+    # create the shard replicaset and shard local user.
+    # https://docs.mongodb.com/v3.4/tutorial/deploy-sharded-cluster-with-keyfile-access-control/#create-the-shard-replica-sets
+    # https://docs.mongodb.com/v3.4/core/security-users/#shard-local-users
+
     # initialize the replica set of each shard
     shard=0
     for s in "${shards[@]}"; do
       shardName=$SERVICE_NAME"-shard"$shard
-      # create the shard replicaset and shard local user.
-      # https://docs.mongodb.com/v3.4/tutorial/deploy-sharded-cluster-with-keyfile-access-control/#create-the-shard-replica-sets
-      # https://docs.mongodb.com/v3.4/core/security-users/#shard-local-users
-      CreateReplicaSetAndUser $shardName $s 27018
+      InitReplicaSet $shardName $s 27018
       shard=$(( $shard + 1 ))
     done
+
+    # wait 10 seconds for MongoDB to stabilize
+    sleep 10
+
+    # create the local user for each shard
+    for s in "${shards[@]}"; do
+      CreateReplicaSetUser $s 27018
+    done
+
 
     # start mongos
     mongos --configdb $configServerName/$CONFIG_SERVER_MEMBERS &
@@ -295,6 +324,14 @@ else
     done
 
     CreateRootAdminUser "localhost" 27017
+
+    # stop mongos
+    ps ax | grep mongos
+    mongospid=$(pidof mongos)
+    if [ -n "$mongospid" ]; then
+      echo "kill mongos $mongospid"
+      kill $mongospid
+    fi
   fi
 fi
 
