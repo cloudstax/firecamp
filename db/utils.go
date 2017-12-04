@@ -139,7 +139,8 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 		if userAttr1.Shards == userAttr2.Shards &&
 			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
 			userAttr1.ReplicaSetOnly == userAttr2.ReplicaSetOnly &&
-			userAttr1.ConfigServers == userAttr2.ConfigServers {
+			userAttr1.ConfigServers == userAttr2.ConfigServers &&
+			userAttr1.KeyFileContent == userAttr2.KeyFileContent {
 			return true
 		}
 		return false

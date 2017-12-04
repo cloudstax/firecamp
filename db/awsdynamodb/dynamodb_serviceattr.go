@@ -190,11 +190,13 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 	}
 	var userAttr *common.ServiceUserAttr
 	if _, ok := resp.Item[UserAttr]; ok {
-		err = json.Unmarshal(resp.Item[UserAttr].B, userAttr)
+		tmpAttr := &common.ServiceUserAttr{}
+		err = json.Unmarshal(resp.Item[UserAttr].B, tmpAttr)
 		if err != nil {
 			glog.Errorln("Unmarshal ServiceUserAttr error", err, "requuid", requuid, resp)
 			return nil, db.ErrDBInternal
 		}
+		userAttr = tmpAttr
 	}
 
 	attr = db.CreateServiceAttr(

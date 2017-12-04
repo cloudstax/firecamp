@@ -74,12 +74,16 @@ func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
+	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources, existingKeyfileContent string) (*manage.CreateServiceRequest, error) {
 	// generate the keyfile for MongoDB internal auth between members of the replica set.
 	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
-	keyfileContent, err := genKeyfileContent()
-	if err != nil {
-		return nil, err
+	var err error
+	keyfileContent := existingKeyfileContent
+	if len(existingKeyfileContent) == 0 {
+		keyfileContent, err = genKeyfileContent()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	replicaCfgs := GenReplicaConfigs(platform, azs, cluster, service, res.MaxMemMB, keyfileContent, opts)

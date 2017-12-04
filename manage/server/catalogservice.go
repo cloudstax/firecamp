@@ -224,9 +224,22 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 		return err.Error(), http.StatusBadRequest
 	}
 
+	// The keyfile auth is enabled for ReplicaSet. mongodbcatalog GenDefaultCreateServiceRequest
+	// generates the keyfile and sets it for each member. ManageService.CreateService is not aware
+	// of the keyfile and simply creates the records for each member. If the manage server node
+	// happens to crash before the service is created. The ServiceAttr and some members may be created,
+	// while some members not. When the creation is retried, mongodbcatalog will generate a new keyfile.
+	// The members of one ReplicaSet will then have different keyfiles. The service will not work.
+	// Check if service already exists. If so, reuse the existing keyfile.
+	existingKeyFileContent, err := s.getMongoDBExistingKeyFile(ctx, req.Service, requuid)
+	if err != nil {
+		glog.Errorln("getMongoDBExistingKeyFile error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
 	// create the service in the control plane and the container platform
 	crReq, err := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Options, req.Resource)
+		req.Service.ServiceName, req.Options, req.Resource, existingKeyFileContent)
 	if err != nil {
 		glog.Errorln("mongodbcatalog GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -244,6 +257,45 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, r *http.Req
 	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options, requuid)
 
 	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) getMongoDBExistingKeyFile(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (string, error) {
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		if err == db.ErrDBRecordNotFound {
+			glog.Infoln("mongodb service not exist", req, "requuid", requuid)
+			return "", nil
+		}
+		glog.Errorln("get mongodb service error", err, req, "requuid", requuid)
+		return "", err
+	}
+
+	// service exists, get the service attributes
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		if err == db.ErrDBRecordNotFound {
+			glog.Infoln("mongodb service record exists, but service attr record not exists", req, "requuid", requuid)
+			return "", nil
+		}
+		glog.Errorln("get mongodb service attr error", err, req, "requuid", requuid)
+		return "", err
+	}
+
+	glog.Infoln("mongodb service attr exist", attr, "requuid", requuid)
+
+	if attr.UserAttr.ServiceType != common.CatalogService_MongoDB {
+		glog.Errorln("the existing service attr is not for mongodb", attr.UserAttr.ServiceType, attr, "requuid", requuid)
+		return "", common.ErrServiceExist
+	}
+
+	userAttr := &common.MongoDBUserAttr{}
+	err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal mongodb user attr error", err, "requuid", requuid, attr)
+		return "", err
+	}
+
+	return userAttr.KeyFileContent, nil
 }
 
 func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
