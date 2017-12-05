@@ -1,11 +1,21 @@
 # vim:set ft=dockerfile:
 FROM debian:jessie
 
+RUN set -ex; \
+  if ! command -v gpg > /dev/null; then \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      gnupg \
+      dirmngr \
+    ; \
+    rm -rf /var/lib/apt/lists/*; \
+  fi
+
 # explicitly set user/group IDs
 RUN groupadd -r postgres --gid=999 && useradd -m -r -g postgres --uid=999 postgres
 
 # grab gosu for easy step-down from root
-ENV GOSU_VERSION 1.7
+ENV GOSU_VERSION 1.10
 RUN set -x \
 	&& apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/* \
 	&& wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
@@ -18,32 +28,27 @@ RUN set -x \
 	&& gosu nobody true \
 	&& apt-get purge -y --auto-remove ca-certificates wget
 
+
 # make the "en_US.UTF-8" locale so postgres will be utf-8 enabled by default
 RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
 	&& localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 ENV LANG en_US.utf8
 
-# when build docker image, "gpg --keyserver ha.pool.sks-keyservers.net --recv-keys" timed out.
-# but manual run works. switch to use apt-key adv, works well.
-#RUN set -ex; \
+RUN set -ex; \
 # pub   4096R/ACCC4CF8 2011-10-13 [expires: 2019-07-02]
 #       Key fingerprint = B97B 0AFC AA1A 47F0 44F2  44A0 7FCC 7D46 ACCC 4CF8
 # uid                  PostgreSQL Debian Repository
-#	key='B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8'; \
-#	export GNUPGHOME="$(mktemp -d)"; \
-#	gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
-#	gpg --export "$key" > /etc/apt/trusted.gpg.d/postgres.gpg; \
-#	rm -r "$GNUPGHOME"; \
-#	apt-key list
-
-RUN set -ex; \
-	key='B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8'; \
-  apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys "$key";
+  key='B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8'; \
+  export GNUPGHOME="$(mktemp -d)"; \
+  gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+  gpg --export "$key" > /etc/apt/trusted.gpg.d/postgres.gpg; \
+  rm -rf "$GNUPGHOME"; \
+  apt-key list
 
 ENV PG_MAJOR 9.6
-ENV PG_VERSION 9.6.3-1.pgdg80+1
+ENV PG_VERSION 9.6.6-1.pgdg80+1
 
-RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main' $PG_MAJOR > /etc/apt/sources.list.d/pgdg.list
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main $PG_MAJOR" > /etc/apt/sources.list.d/pgdg.list
 
 RUN apt-get update \
 	&& apt-get install -y postgresql-common \
