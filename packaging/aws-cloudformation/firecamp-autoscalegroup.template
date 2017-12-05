@@ -271,7 +271,7 @@
                 "    echo \"failed to get init.sh\"\n",
                 "    exit 2\n",
                 "  else\n",
-                "    sleep 2\n",
+                "    sleep 4\n",
                 "  fi\n",
                 "done\n",
                 "chmod +x /tmp/init.sh\n",

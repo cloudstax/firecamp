@@ -379,7 +379,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/aws/vpc/latest/templates/aws-vpc.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -436,7 +436,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/linux/bastion/latest/templates/linux-bastion.template",
             {
               "QSS3Region": {
                 "Fn::If": [
@@ -477,9 +477,7 @@
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
-          "QSS3KeyPrefix": {
-            "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
-          },
+          "QSS3KeyPrefix": "linux/bastion/latest/",
           "RemoteAccessCIDR": {
             "Ref": "RemoteAccessCIDR"
           },
