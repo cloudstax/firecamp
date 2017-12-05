@@ -1,10 +1,12 @@
-FROM debian:jessie
+FROM debian:jessie-slim
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r mongodb && useradd -r -g mongodb mongodb
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
+    ca-certificates \
+    jq \
 		numactl \
 	&& rm -rf /var/lib/apt/lists/*
 
@@ -28,16 +30,30 @@ RUN set -x \
 # uid                  MongoDB 3.4 Release Signing Key <packaging@mongodb.com>
 ENV GPG_KEYS \
 	0C49F3730359A14518585931BC711F9BA15703C6
-RUN set -ex \
-	&& for key in $GPG_KEYS; do \
-		apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
-	done
+
+# https://docs.mongodb.com/manual/tutorial/verify-mongodb-packages/#download-then-import-the-key-file
+RUN set -ex; \
+  export GNUPGHOME="$(mktemp -d)"; \
+  for key in $GPG_KEYS; do \
+    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+  done; \
+  gpg --export $GPG_KEYS > /etc/apt/trusted.gpg.d/mongodb.gpg; \
+  rm -r "$GNUPGHOME"; \
+  apt-key list
+
+
+# Allow build-time overrides (eg. to build image with MongoDB Enterprise version)
+# Options for MONGO_PACKAGE: mongodb-org OR mongodb-enterprise
+# Options for MONGO_REPO: repo.mongodb.org OR repo.mongodb.com
+# Example: docker build --build-arg MONGO_PACKAGE=mongodb-enterprise --build-arg MONGO_REPO=repo.mongodb.com .
+ARG MONGO_PACKAGE=mongodb-org
+ARG MONGO_REPO=repo.mongodb.org
+ENV MONGO_PACKAGE=${MONGO_PACKAGE} MONGO_REPO=${MONGO_REPO}
 
 ENV MONGO_MAJOR 3.4
-ENV MONGO_VERSION 3.4.4
-ENV MONGO_PACKAGE mongodb-org
+ENV MONGO_VERSION 3.4.10
 
-RUN echo "deb http://repo.mongodb.org/apt/debian jessie/mongodb-org/$MONGO_MAJOR main" > /etc/apt/sources.list.d/mongodb-org.list
+RUN echo "deb http://$MONGO_REPO/apt/debian jessie/${MONGO_PACKAGE}/$MONGO_MAJOR main" | tee "/etc/apt/sources.list.d/${MONGO_PACKAGE}.list"
 
 RUN set -x \
 	&& apt-get update \
