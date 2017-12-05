@@ -55,19 +55,19 @@ This is a simple tutorial about how to create a MongoDB service and how to use i
 ## Create a MongoDB service
 Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 9 nodes cluster across 3 availability zones. Create a 2 shards MongoDB cluster:
 ```
-firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=2 -mongo-replicas-pershard=3 -mongo-replicaset-only=false -mongo-configservers=3 -volume-size=100 -journal-volume-size=10 -admin=admin -passwd=changeme
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=2 -mongo-replicas-pershard=3 -mongo-replicaset-only=false -mongo-configservers=3 -volume-size=100 -journal-volume-size=10 -admin=admin -password=changeme
 ```
 
 This creates a 3 replicas MongoDB ReplicaSet on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The MongoDB admin is "admin", password is "changeme". The Config ReplicaSet member names will be "mymongo-config-0.t1-firecamp.com", "mymongo-config-1.t1-firecamp.com" and "mymongo-config-2.t1-firecamp.com". The first shard ReplicaSet name will be "mymongo-shard0", member names "mymongo-shard0-0.t1-firecamp.com", "mymongo-shard0-1.t1-firecamp.com" and "mymongo-shard0-2.t1-firecamp.com". The second shard ReplicaSet name will be "mymongo-shard1", member names "mymongo-shard1-0.t1-firecamp.com", "mymongo-shard1-1.t1-firecamp.com" and "mymongo-shard1-2.t1-firecamp.com".
 
 To create a single ReplicaSet, could set "mongo-replicaset-only" to true and "mongo-shards" to 1.
 ```
-firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=1 -mongo-replicas-pershard=3 -mongo-replicaset-only=true -volume-size=100 -journal-volume-size=10 -admin=admin -passwd=changeme
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=1 -mongo-replicas-pershard=3 -mongo-replicaset-only=true -volume-size=100 -journal-volume-size=10 -admin=admin -password=changeme
 ```
 
 In release 0.9 and before, only a single ReplicaSet is supported. The parameters to create a MongoDB ReplicaSet is as below:
 ```
-firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -journal-volume-size=10 -admin=admin -passwd=changeme
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -journal-volume-size=10 -admin=admin -password=changeme
 ```
 
 The MongoDB service creation steps:
@@ -89,12 +89,13 @@ In case the service creation fails, please simply retry it.
 
 ## Sharded Cluster
 ### Setup the mongos query router
-Create an EC2 instance in the AppAccessSecurityGroup and the same VPC. Run mongos with the authentication keyfile, `mongos --keyFile <pathToKeyfile> mymongo-config/mymongo-config-0.t1-firecamp.com:27019,mymongo-config-1.t1-firecamp.com:27019,mymongo-config-2.t1-firecamp.com:27019`
+Create an EC2 instance in the AppAccessSecurityGroup and the same VPC. Run mongos with the authentication keyfile, `mongos --keyFile <pathToKeyfile> --configdb mymongo-config/mymongo-config-0.t1-firecamp.com:27019,mymongo-config-1.t1-firecamp.com:27019,mymongo-config-2.t1-firecamp.com:27019`
 
 ### Create the user and user db
 1. Launch the mongo shell on the same node with mongos: `mongo --host localhost -u admin -p changeme --authenticationDatabase admin`
-2. Create a DB: `use memberdb`
-3. Create a user for the memberdb:
+2. Check cluster status: `sh.status()`
+3. Create a DB: `use memberdb`
+4. Create a user for the memberdb:
 ```
 db.createUser(
   {
