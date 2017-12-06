@@ -4,7 +4,7 @@ To build a new release, a few steps are required. This will be enhanced in the f
 1. Update FireCamp software release version
 1) Change the version in Makefile from "latest" to the release version such as "0.9".
 2) Chagne the version in common/types.go from "latest" to the release version such as "0.9".
-3) Update the "Release" to such as "0.9" and "QSCloudStaxS3KeyPrefix" to "firecamp/releases/0.9" in firecamp-master.template and firecamp-existingvpc.template
+3) Update the "Release" to such as "0.9" and "QSS3KeyPrefix" to "firecamp/releases/0.9" in firecamp-master.template and firecamp-existingvpc.template
 
 Check whether need to update AMI ID in firecamp-autoscalegroup.template, https://aws.amazon.com/amazon-linux-ami/
 
@@ -13,7 +13,7 @@ Create the new release folder in the "cloudstax" bucket, such as firecamp/releas
 
 In the "submodules", create "quickstart-aws-vpc", "quickstart-linux-bastion" and upload the AWS QuickStarts.
 
-Note: the default template allows '.' in the QSCloudStaxS3KeyPrefix. AWS QuickStart always points to the latest version, such as aws/vpc/latest for QSAWSVPCS3KeyPrefix. '.' is not allowed in the key prefix. For the new release, when updating the AWS QuickStart git, remove '.' in the QSCloudStaxS3KeyPrefix and point to the latest version in QuickStart.
+Note: the default template allows '.' in the QSS3KeyPrefix. AWS QuickStart always points to the latest version, such as aws/vpc/latest for QSAWSVPCS3KeyPrefix, and '.' is not allowed in the key prefix. For the new release, when updating the AWS QuickStart git, remove '.' in the QSS3KeyPrefix and point to the latest version in QuickStart.
 Also change "QSS3BucketName" from "cloudstax" to "quickstart-reference".
 
 

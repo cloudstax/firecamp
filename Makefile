@@ -1,7 +1,7 @@
 
 .PHONY: install docker test lambda
 
-version=0.9.1
+version=latest
 
 install:
 	./scripts/install.sh
