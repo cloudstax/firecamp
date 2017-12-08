@@ -33,7 +33,8 @@
             "FireCampRelease",
             "NodeAMIOS",
             "NumberOfNodes",
-            "NodeInstanceType"
+            "NodeInstanceType",
+            "DeleteVolume"
           ]
         },
         {
@@ -76,10 +77,10 @@
           "default": "Availability Zones"
         },
         "RemoteAccessCIDR": {
-          "default": "Allowed External Access CIDR"
+          "default": "Allowed External Access CIDR. MUST be in the form x.x.x.x/x"
         },
         "LambdaSubnetCIDR": {
-          "default": "Lambda Subnet CIDR"
+          "default": "Lambda Subnet CIDR. MUST be in the form x.x.x.x/x"
         },
 
         "KeyPairName": {
@@ -96,10 +97,13 @@
           "default": "Node AMI Type"
         },
         "NumberOfNodes": {
-          "default": "Number of Container Worker Nodes"
+          "default": "Number of Container Worker Nodes. This MUST equals (Shards * ReplicasPerShard)"
         },
         "NodeInstanceType": {
           "default": "Node Instance Type"
+        },
+        "DeleteVolume": {
+          "default": "Delete Redis EBS Volumes"
         },
 
         "QSS3BucketName": {
@@ -183,7 +187,7 @@
 
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "qscloudstax",
+      "Default": "quickstart-reference",
       "Type": "String",
       "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the Quick Start. The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
@@ -198,8 +202,8 @@
 
     "FireCampRelease": {
       "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.9", "0.8.1" ],
+      "Default": "0.9.1",
+      "AllowedValues": [ "0.9.1", "0.9" ],
       "Description": "The FireCamp release version"
     },
     "ClusterName":{
@@ -232,6 +236,8 @@
         "t2.small",
         "t2.medium",
         "t2.large",
+        "t2.xlarge",
+        "t2.2xlarge",
         "m3.medium",
         "m3.large",
         "m3.xlarge",
@@ -265,6 +271,15 @@
         "c5.18xlarge"
       ],
       "ConstraintDescription":"Please choose a valid instance type."
+    },
+    "DeleteVolume": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Whether delete Redis EBS volumes when deleting the stack"
     },
 
     "RedisRelease": {
@@ -563,6 +578,9 @@
           },
           "QSS3KeyPrefix": {
             "Ref": "QSS3KeyPrefix"
+          },
+          "DeleteVolume": {
+            "Ref": "DeleteVolume"
           },
           "ClusterName": {
             "Ref": "ClusterName"

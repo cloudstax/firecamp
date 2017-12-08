@@ -4,6 +4,8 @@ import requests
 import time
 import socket
 
+import boto3
+
 # example event
 # event: {'RequestType': 'Create', 'ServiceToken': 'arn:aws:lambda:us-east-1:497621646529:function:lam-LambdaFunction-1T5JR77VYGBTG', 'ResponseURL': 'https://cloudformation-custom-resource-response-useast1.s3.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-east-1%3A497621646529%3Astack/lam/98f74630-c1d0-11e7-84b6-50faeaa96461%7CLambdaCustomResource%7C0b637bff-c8f6-4ace-bb6f-1a6e92f29c8a?AWSAccessKeyId=AKIAJNXHFR7P7YGKLDPQ&Expires=1509855955&Signature=fuzleqrW%2BXFf8ncDFJiEhEVn9d4%3D', 'StackId': 'arn:aws:cloudformation:us-east-1:497621646529:stack/lam/98f74630-c1d0-11e7-84b6-50faeaa96461', 'RequestId': '0b637bff-c8f6-4ace-bb6f-1a6e92f29c8a', 'LogicalResourceId': 'LambdaCustomResource', 'ResourceType': 'Custom::RedisLambdaCustomResource', 'ResourceProperties': {'ServiceToken': 'arn:aws:lambda:us-east-1:497621646529:function:lam-LambdaFunction-1T5JR77VYGBTG', 'ReplTimeoutSecs': '60', 'DisableAOF': 'false', 'VolumeSizeGB': '1', 'ConfigCmdName': '', 'Cluster': 't1', 'ReplicasPerShard': '1', 'MaxMemPolicy': 'noeviction', 'AuthPass': '', 'MemoryCacheSizeMB': '256', 'ServiceName': 'myredis', 'Region': 'us-east-1', 'Shards': '1'}}
 
@@ -150,6 +152,26 @@ def lambda_handler(event, context):
                     if rsp.status_code == 200:
                         respdata = json.loads(rsp.content)
                         print(time.strftime('%Y-%m-%d %H:%M:%S'), "redis service deleted, please manually delete the volumes", respdata)
+
+                        if properties['DeleteVolume'] == 'true':
+                            print("DeleteVolume is set to true")
+                            ec2 = boto3.resource('ec2')
+                            for volid in respdata["VolumeIDs"]:
+                                volume = ec2.Volume(volid)
+                                try:
+                                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "volume", volid, "state", volume.state)
+                                    for waitVolume in range(5):
+                                        if volume.state == "available":
+                                            break
+                                        else:
+                                            time.sleep(5)
+                                            volume.load()
+
+                                    volume.delete()
+                                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "deleted volume", volid, "state", volume.state)
+                                except:
+                                    print(time.strftime('%Y-%m-%d %H:%M:%S'), "delete volume", volid, "state", volume.state, "error:", sys.exc_info())
+
                         sendResponse(event, context, 'SUCCESS', '', respdata)
                         return
                     else:

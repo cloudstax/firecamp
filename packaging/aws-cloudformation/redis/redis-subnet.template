@@ -40,6 +40,15 @@
       "Default": "cloudstax/redis/latest/",
       "Type": "String"
     },
+    "DeleteVolume": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Whether delete Redis EBS volumes when deleting the stack"
+    },
     "ClusterName":{
       "Type":"String",
       "Description":"Name of the cluster.",
@@ -217,6 +226,9 @@
           ]
         },
         "Parameters": {
+          "DeleteVolume": {
+            "Ref": "DeleteVolume"
+          },
           "ClusterName": {
             "Ref": "ClusterName"
           },

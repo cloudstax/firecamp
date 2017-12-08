@@ -13,7 +13,7 @@
     },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "Default": "qscloudstax",
+      "Default": "quickstart-reference",
       "Type": "String",
       "ConstraintDescription": "The Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
       "Description": "S3 bucket name for the CloudFormation templates. The CloudFormation template bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
@@ -32,6 +32,15 @@
         "scripts/redis-lambda.zip"
       ],
       "Description": "The Redis lambda zip object"
+    },
+    "DeleteVolume": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "Whether delete Redis EBS volumes when deleting the stack"
     },
     "ClusterName":{
       "Type":"String",
@@ -249,6 +258,9 @@
         },
         "Region": {
           "Ref": "AWS::Region"
+        },
+        "DeleteVolume": {
+          "Ref": "DeleteVolume"
         },
         "Cluster":{
           "Ref": "ClusterName"
