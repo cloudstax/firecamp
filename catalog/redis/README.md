@@ -8,7 +8,7 @@ The FireCamp Redis container is based on the [official Redis image](https://hub.
 ## Redis Mode
 
 ### Single Instance Mode
-A single node Redis service. This may be useful for developing and testing. Simply create a Redis service with 1 replica.
+A single node Redis service. This may be useful for developing and testing. Simply create a Redis service with 1 shard and 1 replica.
 
 ### Master-Slave Mode
 One master with multiple read-only slaves. For example, to create a 1 master and 2 slaves Redis service, specify 1 shard with 3 replicas per shard. If the cluster has multiple zones, the master and slaves will be distributed to different availability zones.
@@ -16,16 +16,14 @@ One master with multiple read-only slaves. For example, to create a 1 master and
 Currently the slaves are read-only. If the master goes down, Redis will become read-only. The [Redis Sentinel](https://redis.io/topics/sentinel) will be supported in the coming release to enable the automatic failover, e.g. automatically promote a slave to master when the current master is down.
 
 ### Cluster Mode
-The minimal Redis cluster should have [at least 3 shards](https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster). Each shard could be single instance mode or master-slave mode. For example, in a 3 availability zones environment, create a 3 shards Redis cluster and each shard has 3 replicas, then each shard will have 1 master and 2 slaves. All masters will be put in one availability zone for low latency, and the slaves will be distributed to the other two availability zones for HA.
+The minimal Redis cluster should have [at least 3 shards](https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster). Each shard could be single instance mode or master-slave mode. Redis cluster could handle the node failure when "[there are at least the majority of masters and a slave for every unreachable master](https://redis.io/topics/cluster-spec)". If the majority of masters are down, the slaves will not become master automatically. Need to manually run [cluster failover takeover command](https://redis.io/commands/cluster-failover) to promote the slave to become the new master. This will be further automated in the future.
 
-Redis cluster could handle the node failure when "[there are at least the majority of masters and a slave for every unreachable master](https://redis.io/topics/cluster-spec)". If the majority of masters are down, the slaves will not become master automatically. Need to manually run [cluster failover takeover](https://redis.io/commands/cluster-failover) to promote the slave to become the new master.
+By default, FireCamp distributes the masters to all availability zones. So when one availability zone goes down, Redis cluster will still have the majority of masters to promote the slave to master automatically. For example, in a 3 availability zones environment, create a 3 shards Redis cluster and each shard has 1 master and 1 slave. The 3 masters will be distributed to 3 availability zones, and the slave of one master will be distributed to a different availability zone for HA.
 
-By default, FireCamp distributes the masters to all availability zones. So when one availability zone goes down, Redis cluster will still have the majority of masters to promote the slave to master automatically.
-
-Currently Redis will not fail back automatically. See [Re-adding a failed over node](https://github.com/antirez/redis/issues/2462). For example, a Redis cluster has 3 shards, each shard has 1 master and 2 slaves on 3 availability zones. When master on zone1 goes down for a while, say the slave on zone2 becomes the new master. When the down node joins back, it will serve as slave. Then zone2 owns 2 masters. At this time, if zone2 goes down, 2 masters (majority) go down at the same time. Redis cluster will be down. This will be further enhanced in the future with the manual cluster takeover.
+Currently Redis will not fail back automatically. See [Re-adding a failed over node](https://github.com/antirez/redis/issues/2462). For example, a Redis cluster has 3 shards on 3 availability zones, and each shard has 1 master and 1 slave. When master on zone1 goes down for a while, say the slave on zone2 becomes the new master. When the down node joins back, it will serve as slave. Then zone2 owns 2 masters. At this time, if zone2 goes down, 2 masters (majority) go down at the same time. Redis cluster will be down. This will be further enhanced in the future with the manual cluster takeover.
 
 #### Concurrent Failure
-Redis is possible to reassign the slave internally, because of new failovers, new manual reshardings, and things like that. For example, one Redis cluster has 3 shards and each shard has 1 master and 2 slaves. If 2 slaves of shard1 go down at the same time, the shard1's master becomes the orphaned master, and Redis will migrate the slave of another shard to cover this orphaned master. This aims to provide more failure resistance in the future failure events. When the failed slaves come back, they will usually join back as the slaves of shard1. While, they may get reassigned to be the slave of another maser. See Redis issue [2462](https://github.com/antirez/redis/issues/2462).
+Redis cluster is possible to reassign the slave internally, because of new failovers, new manual reshardings, and things like that. For example, one Redis cluster has 3 shards and each shard has 1 master and 2 slaves. If 2 slaves of shard1 go down at the same time, the shard1's master becomes the orphaned master, and Redis will migrate the slave of another shard to cover this orphaned master. This aims to provide more failure resistance in the future failure events. When the failed slaves come back, they will usually join back as the slaves of shard1. While, they may get reassigned to be the slave of another maser. See Redis issue [2462](https://github.com/antirez/redis/issues/2462).
 
 Currently Redis is not aware of the availability zones. After a few rounds of concurrent slave failures, the master and slaves of one shard may be at the same availability zone. This will be further enhanced in the future releases.
 
@@ -46,14 +44,18 @@ Basically this requires the ability to bind the static IP with one container. Th
 
 ## Data Persistence
 
-The Redis data is periodically saved to the disk. The default save configs are used, e.g. DB will be saved:
+Redis periodically saves snapshots of the dataset to the disk. The default save configs are used, e.g. DB will be saved:
 - after 900 sec (15 min) if at least 1 key changed
 - after 300 sec (5 min) if at least 10 keys changed
 - after 60 sec if at least 10000 keys changed
 
-By default, the AOF (append only file) persistence is enabled to minimize the chance of data loss in case Redis stops working. AOF will fsync the writes to the log file only one time every second.
+If AOF (append only file) is enabled, the key change will always be written to the AOF file and Redis fsync the AOF file every second. By default, the AOF (append only file) persistence is enabled to minimize the chance of data loss in case Redis stops working.
 
-If you are using Redis as cache, you could disable AOF when creating the Redis service.
+If you are using Redis as cache, you could disable AOF when creating the Redis service. Each Redis member will still have one volume to store data. In case the node fails, the volume will be attached to a new node. Redis could quickly rebuild the cache by reading from the volume.
+
+## Data Backup
+
+Currently you could run “BGSAVE” for all Redis shards and backup data by taking the snapshot for Redis EBS volumes manually. The policy based auto backup will be supported in the future.
 
 ## Security
 
@@ -68,7 +70,7 @@ The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (r
 
 The max memory size should always be set when creating the Redis service. If not set, Redis will allocate memory as long as OS allows. This may cause memory got swapped and slow down Redis unexpectedly. Please specify Redis memory size at the service creation, -redis-memory-size.
 
-**Storage size**: If AOF is disabled, the storage size could be twice of the memory size. With AOF enabled, much more storage is required. For the [standard usage scenarios](https://redislabs.com/redis-enterprise-documentation/installing-and-upgrading/hardware-software-requirements), Redis enterprise version (Redis Pack) recommends the storage size to be 6x of node's RAM size. And even more storage is required for the [heavy write scenarios](https://redislabs.com/redis-enterprise-documentation/cluster-administration/best-practices/disk-sizing-heavy-write-scenarios/).
+**Storage size**: If AOF is disabled, the storage size could be twice of the memory size. With AOF enabled, much more storage is required. For the [standard usage scenarios](https://redislabs.com/redis-enterprise-documentation/installing-and-upgrading/hardware-software-requirements), Redis enterprise version (Redis Pack) recommends the storage size to be 6x of node's RAM size. And even more storage is required for the heavy write scenarios. See [the detail disk sizing for heavy write scenarios](https://redislabs.com/redis-enterprise-documentation/cluster-administration/best-practices/disk-sizing-heavy-write-scenarios/).
 
 [**Client Output Buffer for the slave clients**](https://redislabs.com/blog/top-redis-headaches-for-devops-replication-buffer): set both hard and soft limits to 512MB.
 

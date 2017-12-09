@@ -181,7 +181,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			// create the redis.conf file
 			bind := memberHost
 			if platform == common.ContainerPlatformSwarm {
-				bind = "0.0.0.0"
+				bind = catalog.BindAllIP
 			}
 			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
