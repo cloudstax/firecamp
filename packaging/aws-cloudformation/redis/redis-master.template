@@ -110,7 +110,7 @@
           "default": "Public Subnet 3 CIDR"
         },
         "RemoteAccessCIDR": {
-          "default": "Allowed Bastion External Access CIDR. MUST be in the form x.x.x.x/x"
+          "default": "Allowed Bastion External Access CIDR"
         },
 
         "KeyPairName": {
@@ -260,7 +260,7 @@
       "Type": "String",
       "Default": "0.0.0.0/0",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes"
+      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes. MUST be in the form x.x.x.x/x"
     },
 
     "KeyPairName":{

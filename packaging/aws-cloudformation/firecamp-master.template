@@ -92,7 +92,7 @@
           "default": "Public Subnet 3 CIDR"
         },
         "RemoteAccessCIDR": {
-          "default": "Allowed Bastion External Access CIDR. MUST be in the form x.x.x.x/x"
+          "default": "Allowed Bastion External Access CIDR"
         },
 
         "KeyPairName": {
@@ -207,7 +207,7 @@
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
       "Type": "String",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes"
+      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes. MUST be in the form x.x.x.x/x"
     },
 
     "KeyPairName":{
