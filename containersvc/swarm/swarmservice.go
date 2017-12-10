@@ -132,12 +132,21 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 	if len(opts.ContainerPath) != 0 {
 		// The Task.Slot in the volume name does not work on the multiple zones cluster,
 		// as task slot is not aware of zone.
+		// Hit one bug: swarm is possible to schedule 2 tasks to one node, even the container exposes
+		// the same ports. using Task.Slot could cause the corner case:
+		// 1. swarm schedules task 1 and 2 on node1 around the same time.
+		// 2. task1 mounts the service volume1, task2 increases the volume refs instead of mounting volume2.
+		// 3. task2 binds the port first, so task1 will fail as service could not bind the same port.
+		// 4. task1 shutdown will decrease the volume refs.
+		// 5. task1 is rescheduled to node2. node2 will try to mount volume1 for task1, which will fail
+		//    as volume1 is still mounted on node1.
+		// don't want to make the volume plugin more complex. simply disable the Task.Slot.
 		source := opts.Common.ServiceUUID
-		if len(s.azs) == 1 {
-			// enable Task.Slot for the single zone cluster.
-			// TODO revisit it when support adding a new zone.
-			source = containersvc.GenVolumeSourceForSwarm(opts.Common.ServiceUUID)
-		}
+		//if len(s.azs) == 1 {
+		// enable Task.Slot for the single zone cluster.
+		// TODO revisit it when support adding a new zone.
+		//source = containersvc.GenVolumeSourceForSwarm(opts.Common.ServiceUUID)
+		//}
 
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
@@ -155,11 +164,11 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		// The Task.Slot in the volume name does not work on the multiple zones cluster,
 		// as task slot is not aware of zone.
 		source := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
-		if len(s.azs) == 1 {
-			// enable Task.Slot for the single zone cluster.
-			// TODO revisit it when support adding a new zone.
-			source = containersvc.GenVolumeSourceForSwarm(source)
-		}
+		//if len(s.azs) == 1 {
+		// enable Task.Slot for the single zone cluster.
+		// TODO revisit it when support adding a new zone.
+		//	source = containersvc.GenVolumeSourceForSwarm(source)
+		//}
 
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
