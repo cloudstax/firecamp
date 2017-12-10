@@ -439,7 +439,9 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		Service:     req.Service,
 	}
 
-	waitServiceInit(ctx, cli, initReq)
+	if req.Options.Replicas > 1 {
+		waitServiceInit(ctx, cli, initReq)
+	}
 	waitServiceRunning(ctx, cli, req.Service)
 }
 

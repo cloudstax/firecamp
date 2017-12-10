@@ -821,6 +821,11 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 
 	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
 
+	if req.Options.Replicas == 1 {
+		glog.Infoln("single node Cassandra, skip the init task, requuid", requuid, req.Service, req.Options)
+		return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	}
+
 	// run the init task in the background
 	s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
 

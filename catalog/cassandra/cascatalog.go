@@ -40,6 +40,9 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 	if req.Options.JournalVolume == nil {
 		return errors.New("cassandra should have separate volume for journal")
 	}
+	if req.Options.Replicas == 2 {
+		return errors.New("2 nodes are not allowed")
+	}
 
 	return nil
 }
@@ -107,7 +110,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			// docker swarm does not allow service to use "host" network. So the container
 			// could not listen on the member's dnsname.
 			// For the blank listen_address, Cassandra will use InetAddress.getLocalHost().
-			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, "", memberHost, "0.0.0.0", memberHost)
+			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, "", memberHost, catalog.BindAllIP, memberHost)
 		}
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,
