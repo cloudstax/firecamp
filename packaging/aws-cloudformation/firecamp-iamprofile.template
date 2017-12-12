@@ -29,7 +29,8 @@
                 {
                   "Effect":"Allow",
                   "Action":[
-                    "ssm:ListAssociations"
+                    "ssm:ListAssociations",
+                    "ec2messages:GetMessages"
                   ],
                   "Resource":"*"
                 },
