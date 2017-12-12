@@ -29,6 +29,13 @@
                 {
                   "Effect":"Allow",
                   "Action":[
+                    "ssm:ListAssociations"
+                  ],
+                  "Resource":"*"
+                },
+                {
+                  "Effect":"Allow",
+                  "Action":[
                     "autoscaling:Describe*",
                     "autoscaling:UpdateAutoScalingGroup",
                   ],
