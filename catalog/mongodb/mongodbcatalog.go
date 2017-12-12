@@ -255,14 +255,19 @@ func genReplicaConfig(platform string, domain string, member string, replSetName
 		content += mongoDBConfStorage + cacheContent
 	}
 
+	bind := memberHost
+	if platform == common.ContainerPlatformSwarm {
+		bind = catalog.BindAllIP
+	}
+
 	switch role {
 	case configRole:
-		content += fmt.Sprintf(mongoDBConfNetwork, configServerPort) + fmt.Sprintf(mongoDBConfSharding, role)
+		content += fmt.Sprintf(mongoDBConfNetwork, bind, configServerPort) + fmt.Sprintf(mongoDBConfSharding, role)
 	case shardRole:
-		content += fmt.Sprintf(mongoDBConfNetwork, shardPort) + fmt.Sprintf(mongoDBConfSharding, role)
+		content += fmt.Sprintf(mongoDBConfNetwork, bind, shardPort) + fmt.Sprintf(mongoDBConfSharding, role)
 	default:
 		// no role, is a single replica set
-		content += fmt.Sprintf(mongoDBConfNetwork, mongoPort)
+		content += fmt.Sprintf(mongoDBConfNetwork, bind, mongoPort)
 	}
 
 	content += fmt.Sprintf(mongoDBConfRepl, replSetName) + mongoDBConfEnd
@@ -405,8 +410,8 @@ storage:
 	//`
 
 	mongoDBConfNetwork = `
-# network interfaces, bind 0.0.0.0
 net:
+  bindIp: %s
   port: %d
 `
 

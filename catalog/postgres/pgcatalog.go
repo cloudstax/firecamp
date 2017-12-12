@@ -138,10 +138,14 @@ func genPrimaryConfig(platform string, az string, member string, primaryHost str
 	}
 
 	// create postgres.conf
+	bind := primaryHost
+	if platform == common.ContainerPlatformSwarm {
+		bind = catalog.BindAllIP
+	}
 	cfg2 := &manage.ReplicaConfigFile{
 		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
-		Content:  primaryPostgresConf,
+		Content:  fmt.Sprintf(listenAddrConf, bind) + primaryPostgresConf,
 	}
 
 	// create pg_hba.conf
@@ -170,10 +174,14 @@ func genStandbyConfig(platform, az string, member string, memberHost string, pri
 	}
 
 	// create postgres.conf
+	bind := memberHost
+	if platform == common.ContainerPlatformSwarm {
+		bind = catalog.BindAllIP
+	}
 	cfg2 := &manage.ReplicaConfigFile{
 		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
-		Content:  standbyPostgresConf,
+		Content:  fmt.Sprintf(listenAddrConf, bind) + standbyPostgresConf,
 	}
 
 	// create pg_hba.conf
@@ -206,8 +214,11 @@ REPLICATION_USER=%s
 REPLICATION_PASSWORD=%s
 `
 
+	listenAddrConf = `
+listen_addresses = '%s'
+`
+
 	primaryPostgresConf = `
-listen_addresses = '*'
 
 # To enable read-only queries on a standby server, wal_level must be set to
 # "hot_standby".
@@ -254,7 +265,6 @@ host   replication      %s                all                    md5
 `
 
 	standbyPostgresConf = `
-listen_addresses = '*'
 
 hot_standby = on
 

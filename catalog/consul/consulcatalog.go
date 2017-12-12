@@ -116,7 +116,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 		bind := memberHost
 		if platform == common.ContainerPlatformSwarm {
-			bind = "0.0.0.0"
+			bind = catalog.BindAllIP
 		}
 
 		dc := region
