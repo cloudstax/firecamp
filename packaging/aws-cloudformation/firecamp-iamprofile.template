@@ -29,6 +29,16 @@
                 {
                   "Effect":"Allow",
                   "Action":[
+                    "ssm:ListAssociations",
+                    "ssm:ListInstanceAssociations",
+                    "ssm:UpdateInstanceInformation",
+                    "ec2messages:GetMessages"
+                  ],
+                  "Resource":"*"
+                },
+                {
+                  "Effect":"Allow",
+                  "Action":[
                     "autoscaling:Describe*",
                     "autoscaling:UpdateAutoScalingGroup",
                   ],
