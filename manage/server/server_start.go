@@ -107,5 +107,9 @@ func StartServer(platform string, cluster string, azs []string, manageDNSName st
 	err = dnsIns.DeleteDNSRecord(ctx, dnsname, privateIP, hostedZoneID)
 	glog.Infoln("DeleteDNSRecord domain", domain, "dnsname", dnsname, "hostedZone", hostedZoneID, "error", err)
 
+	// wait a few seconds, sometimes the CloudFormation stack deletion fails at deleting Route53HostedZone,
+	// while the record is actually deleted when checks manually. Probably, route53 needs some time to actually delete the record.
+	time.Sleep(8 * time.Second)
+
 	return s.Shutdown(ctx)
 }
