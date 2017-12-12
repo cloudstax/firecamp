@@ -30,6 +30,7 @@
                   "Effect":"Allow",
                   "Action":[
                     "ssm:ListAssociations",
+                    "ssm:ListInstanceAssociations",
                     "ec2messages:GetMessages"
                   ],
                   "Resource":"*"
