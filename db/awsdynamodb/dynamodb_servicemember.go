@@ -2,6 +2,7 @@ package awsdynamodb
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -378,4 +379,61 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		configs)
 
 	return member, nil
+}
+
+// UpdateServiceMemberVolume updates the ServiceMember's volume in DB
+func (d *DynamoDB) UpdateServiceMemberVolume(ctx context.Context, member *common.ServiceMember, newVolID string, badVolID string) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	if member.Volumes.JournalVolumeID != badVolID && member.Volumes.PrimaryVolumeID != badVolID {
+		glog.Errorln("the bad volume", badVolID, "does not belong to member", member, member.Volumes)
+		return errors.New("the bad volume does not belong to member")
+	}
+
+	if member.Volumes.JournalVolumeID == badVolID {
+		member.Volumes.JournalVolumeID = newVolID
+		glog.Infoln("replace the journal volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
+	} else {
+		member.Volumes.PrimaryVolumeID = newVolID
+		glog.Infoln("replace the data volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
+	}
+
+	volBytes, err := json.Marshal(member.Volumes)
+	if err != nil {
+		glog.Errorln("Marshal MemberVolumes error", err, member, "requuid", requuid)
+		return err
+	}
+
+	dbsvc := dynamodb.New(d.sess)
+
+	updateExpr := "SET " + MemberVolumes + " = :v1"
+
+	params := &dynamodb.UpdateItemInput{
+		TableName: aws.String(d.tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			tablePartitionKey: {
+				S: aws.String(serviceMemberPartitionKeyPrefix + member.ServiceUUID),
+			},
+			tableSortKey: {
+				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
+			},
+		},
+		UpdateExpression: aws.String(updateExpr),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				B: volBytes,
+			},
+		},
+		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+	}
+
+	_, err = dbsvc.UpdateItem(params)
+
+	if err != nil {
+		glog.Errorln("failed to update serviceMember", member, "error", err, "requuid", requuid)
+		return d.convertError(err)
+	}
+
+	glog.Infoln("updated serviceMember to use new volume", newVolID, "bad volume", badVolID, "requuid", requuid, member)
+	return nil
 }

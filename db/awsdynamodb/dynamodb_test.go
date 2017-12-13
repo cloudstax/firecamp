@@ -397,6 +397,23 @@ func TestServiceMembers(t *testing.T) {
 		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[1], item)
 	}
 
+	// update serviceMember volume
+	badVolID := s1[1].Volumes.PrimaryVolumeID
+	newVolID := "new-" + badVolID
+	err = dbIns.UpdateServiceMemberVolume(ctx, s1[1], newVolID, badVolID)
+	if err != nil {
+		t.Fatalf("update serviceMember volume failed, serviceMember %s error %s", s1[1], err)
+	}
+
+	// serviceMember updated
+	s1[1].Volumes.PrimaryVolumeID = newVolID
+
+	// get serviceMember again to verify the update
+	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
+	if err != nil || !db.EqualServiceMember(item, s1[1], false) {
+		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[1], item)
+	}
+
 	// list serviceMembers of service1
 	items, err := dbIns.ListServiceMembers(ctx, s1[0].ServiceUUID)
 	if err != nil || len(items) != len(s1) {
