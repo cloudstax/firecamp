@@ -42,7 +42,13 @@ Note: the FireCamp Cassandra assumes the whole node is only used by Cassandra. W
 
 The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
-## Set JVM TTL for Java CQL driver
+## Configs
+
+**[JVM Configs](https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_tune_jvm_c.html)**
+
+The default Java heap size, both Xmx and Xms, are set to 8GB. The max heap size is 14GB, as Cassandra recommends. If your wants other memory, you could specify the "cas-heap-size" when creating the Cassandra service by the firecamp-service-cli. Note: if the heap size is less than 1GB and you run some load, JVM may stall long time at GC.
+
+**Set JVM TTL for Java CQL driver**
 
 By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address.
 
@@ -63,7 +69,7 @@ Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs
 firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10
 ```
 
-This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com.
+This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512.
 
 The Cassandra service creation steps:
 1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.

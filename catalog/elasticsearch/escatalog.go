@@ -43,6 +43,9 @@ const (
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
+	if r.Options.HeapSizeMB <= 0 {
+		return errors.New("heap size should be larger than 0")
+	}
 	if r.Options.HeapSizeMB > maxHeapMB {
 		return errors.New("max heap size is 26GB")
 	}

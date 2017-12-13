@@ -68,16 +68,19 @@ var (
 	mongoReplSetOnly   = flag.Bool("mongo-replicaset-only", true, "Create a MongoDB ReplicaSet only, default: true. To create a sharded cluster, set to false")
 	mongoConfigServers = flag.Int64("mongo-configservers", 3, "The number of config servers in the sharded cluster, default: 3")
 
+	// The Cassandra service specific parameters
+	casHeapSizeMB = flag.Int64("cas-heap-size", cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB, default: 8192MB")
+
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
 	pgReplUserPasswd = flag.String("pg-replpasswd", "replpassword", "The PostgreSQL password for the standby DB to access the primary")
 	pgContainerImage = flag.String("pg-image", pgcatalog.ContainerImage, "The PostgreSQL container image, "+pgcatalog.ContainerImage+" or "+pgcatalog.PostGISContainerImage)
 
 	// The ZooKeeper service specific parameters
-	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
+	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB, default: 4096MB")
 
 	// The kafka service creation specific parameters
-	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
+	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB, default: 6144MB")
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion, default: false")
 	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours, default: 168 hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
@@ -114,7 +117,7 @@ var (
 	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
 
 	// The elasticsearch service creation specific parameters.
-	esHeapSizeMB             = flag.Int64("es-heap-size", escatalog.DefaultHeapMB, "The ElasticSearch JVM heap size, unit: MB")
+	esHeapSizeMB             = flag.Int64("es-heap-size", escatalog.DefaultHeapMB, "The ElasticSearch JVM heap size, unit: MB, default: 2048MB")
 	esDedicatedMasters       = flag.Int64("es-dedicated-masters", 3, "The number of dedicated masters for ElasticSearch")
 	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
 	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
@@ -127,7 +130,7 @@ var (
 	kbCertFile      = flag.String("kb-cert-file", "", "The Kibana service certificate file")
 
 	// The logstash service creation specific parameters.
-	lsHeapSizeMB            = flag.Int64("ls-heap-size", logstashcatalog.DefaultHeapMB, "The Logstash JVM heap size, unit: MB")
+	lsHeapSizeMB            = flag.Int64("ls-heap-size", logstashcatalog.DefaultHeapMB, "The Logstash JVM heap size, unit: MB, default: 2048MB")
 	lsContainerImage        = flag.String("ls-container-image", logstashcatalog.ContainerImage, "The Logstash container image: "+logstashcatalog.ContainerImage+" or "+logstashcatalog.InputCouchDBContainerImage)
 	lsQueueType             = flag.String("ls-queue-type", logstashcatalog.QueueTypeMemory, "The Logstash service queue type: memory or persisted")
 	lsEnableDLQ             = flag.Bool("ls-enable-dlq", true, "Whether enables the Dead Letter Queue for Logstash, default: true")
@@ -396,6 +399,12 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		fmt.Println("please specify the separate journal volume for Cassandra")
 		os.Exit(-1)
 	}
+	if *casHeapSizeMB < cascatalog.DefaultHeapMB {
+		fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
+	}
+	if *casHeapSizeMB < cascatalog.MinHeapMB {
+		fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+	}
 
 	req := &manage.CatalogCreateCassandraRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -417,6 +426,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 				VolumeSizeGB: *volSizeGB,
 			},
 			JournalVolume: journalVol,
+			HeapSizeMB:    *casHeapSizeMB,
 		},
 	}
 

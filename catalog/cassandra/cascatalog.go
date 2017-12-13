@@ -20,6 +20,13 @@ const (
 	// InitContainerImage initializes the Cassandra cluster.
 	InitContainerImage = common.ContainerNamePrefix + "cassandra-init:" + defaultVersion
 
+	// https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_tune_jvm_c.html
+	// Cassandra JVM heap size. The default value is 8GB. Cassandra recommends no more than 14GB
+	DefaultHeapMB = 8192
+	MaxHeapMB     = 14 * 1024
+	// if heap < 1024, jvm may stall long time at gc.
+	MinHeapMB = 1024
+
 	intraNodePort    = 7000
 	tlsIntraNodePort = 7001
 	jmxPort          = 7199
@@ -28,6 +35,7 @@ const (
 
 	yamlConfFileName   = "cassandra.yaml"
 	rackdcConfFileName = "cassandra-rackdc.properties"
+	jvmConfFileName    = "jvm.options"
 	logConfFileName    = "logback.xml"
 )
 
@@ -37,6 +45,12 @@ const (
 
 // ValidateRequest checks if the request is valid
 func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
+	if req.Options.HeapSizeMB <= 0 {
+		return errors.New("heap size should be larger than 0")
+	}
+	if req.Options.HeapSizeMB > MaxHeapMB {
+		return errors.New("max heap size is 14GB")
+	}
 	if req.Options.JournalVolume == nil {
 		return errors.New("cassandra should have separate volume for journal")
 	}
@@ -51,7 +65,7 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) *manage.CreateServiceRequest {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts.Replicas)
+	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: intraNodePort, HostPort: intraNodePort},
@@ -61,6 +75,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		{ContainerPort: thriftPort, HostPort: thriftPort},
 	}
 
+	reserveMemMB := res.ReserveMemMB
+	if res.ReserveMemMB < opts.HeapSizeMB {
+		reserveMemMB = opts.HeapSizeMB
+	}
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -68,7 +87,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ServiceName: service,
 		},
 
-		Resource: res,
+		Resource: &common.Resources{
+			MaxCPUUnits:     res.MaxCPUUnits,
+			ReserveCPUUnits: res.ReserveCPUUnits,
+			MaxMemMB:        res.MaxMemMB,
+			ReserveMemMB:    reserveMemMB,
+		},
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
@@ -87,13 +111,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, replicas int64) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogCassandraOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
-	seeds := genSeedHosts(int64(len(azs)), replicas, service, domain)
+	seeds := genSeedHosts(int64(len(azs)), opts.Replicas, service, domain)
 
-	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
-	for i := 0; i < int(replicas); i++ {
-		member := utils.GenServiceMemberName(service, int64(i))
+	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
+	for i := int64(0); i < opts.Replicas; i++ {
+		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 
 		// create the sys.conf file
@@ -118,10 +142,19 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  customContent + yamlSecurityConfigs + yamlDefaultConfigs,
 		}
 
-		index := i % len(azs)
+		index := int(i) % len(azs)
 		content := fmt.Sprintf(rackdcProps, region, azs[index])
 		rackdcCfg := &manage.ReplicaConfigFile{
 			FileName: rackdcConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
+
+		// create the jvm.options file
+		content = fmt.Sprintf(jvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
+		content += jvmConfigs
+		jvmCfg := &manage.ReplicaConfigFile{
+			FileName: jvmConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
@@ -133,7 +166,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  logConfContent,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, logCfg}
+		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -374,5 +407,122 @@ back_pressure_strategy:
   <logger name="org.apache.cassandra" level="INFO"/>
   <logger name="com.thinkaurelius.thrift" level="ERROR"/>
 </configuration>
+`
+
+	jvmHeapConfigs = `
+# HEAP SETTINGS #
+
+# Heap size is automatically calculated by cassandra-env based on this
+# formula: max(min(1/2 ram, 1024MB), min(1/4 ram, 8GB))
+# That is:
+# - calculate 1/2 ram and cap to 1024MB
+# - calculate 1/4 ram and cap to 8192MB
+# - pick the max
+#
+# For production use you may wish to adjust this for your environment.
+# If that's the case, uncomment the -Xmx and Xms options below to override the
+# automatic calculation of JVM heap memory.
+#
+# It is recommended to set min (-Xms) and max (-Xmx) heap sizes to
+# the same value to avoid stop-the-world GC pauses during resize, and
+# so that we can lock the heap in memory on startup to prevent any
+# of it from being swapped out.
+-Xms%dM
+-Xmx%dM
+
+# Young generation size is automatically calculated by cassandra-env
+# based on this formula: min(100 * num_cores, 1/4 * heap size)
+#
+# The main trade-off for the young generation is that the larger it
+# is, the longer GC pause times will be. The shorter it is, the more
+# expensive GC will be (usually).
+#
+# It is not recommended to set the young generation size if using the
+# G1 GC, since that will override the target pause-time goal.
+# More info: http://www.oracle.com/technetwork/articles/java/g1gc-1984535.html
+#
+# The example below assumes a modern 8-core+ machine for decent
+# times. If in doubt, and if you do not particularly want to tweak, go
+# 100 MB per physical CPU core.
+#-Xmn800M
+`
+
+	// jvmConfigs includes other default jvm configs
+	jvmConfigs = `
+# refer to the default jvm setting for the detail comments
+
+# GENERAL JVM SETTINGS #
+
+# enable assertions. highly suggested for correct application functionality.
+-ea
+
+# enable thread priorities, primarily so we can give periodic tasks
+# a lower priority to avoid interfering with client workload
+-XX:+UseThreadPriorities
+
+# allows lowering thread priority without being root on linux - probably
+# not necessary on Windows but doesn't harm anything.
+# see http://tech.stolsvik.com/2010/01/linux-java-thread-priorities-workar
+-XX:ThreadPriorityPolicy=42
+
+# Enable heap-dump if there's an OOM
+-XX:+HeapDumpOnOutOfMemoryError
+
+# Per-thread stack size.
+-Xss256k
+
+# Larger interned string table, for gossip's benefit (CASSANDRA-6410)
+-XX:StringTableSize=1000003
+
+# Make sure all memory is faulted and zeroed on startup.
+# This helps prevent soft faults in containers and makes
+# transparent hugepage allocation more effective.
+-XX:+AlwaysPreTouch
+
+# Disable biased locking as it does not benefit Cassandra.
+-XX:-UseBiasedLocking
+
+# Enable thread-local allocation blocks and allow the JVM to automatically
+# resize them at runtime.
+-XX:+UseTLAB
+-XX:+ResizeTLAB
+-XX:+UseNUMA
+
+# http://www.evanjones.ca/jvm-mmap-pause.html
+-XX:+PerfDisableSharedMem
+-Djava.net.preferIPv4Stack=true
+
+#################
+#  GC SETTINGS  #
+#################
+
+### CMS Settings
+
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:+CMSParallelRemarkEnabled
+-XX:SurvivorRatio=8
+-XX:MaxTenuringThreshold=1
+-XX:CMSInitiatingOccupancyFraction=75
+-XX:+UseCMSInitiatingOccupancyOnly
+-XX:CMSWaitDuration=10000
+-XX:+CMSParallelInitialMarkEnabled
+-XX:+CMSEdenChunksRecordAlways
+# some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
+-XX:+CMSClassUnloadingEnabled
+
+### GC logging options -- uncomment to enable
+
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-XX:+PrintHeapAtGC
+-XX:+PrintTenuringDistribution
+-XX:+PrintGCApplicationStoppedTime
+-XX:+PrintPromotionFailure
+#-XX:PrintFLSStatistics=1
+-Xloggc:/data/gc-%t.log
+-XX:+UseGCLogFileRotation
+-XX:NumberOfGCLogFiles=10
+-XX:GCLogFileSize=10M
 `
 )

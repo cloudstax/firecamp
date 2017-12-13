@@ -7,6 +7,7 @@ CONFIG_DIR=$DATA_DIR/conf
 CASSANDRA_YAML_FILE=$CONFIG_DIR/cassandra.yaml
 CASSANDRA_RACKDC_FILE=$CONFIG_DIR/cassandra-rackdc.properties
 CASSANDRA_LOG_FILE=$CONFIG_DIR/logback.xml
+CASSANDRA_JVM_FILE=$confdir/jvm.options
 syscfgfile=$CONFIG_DIR/sys.conf
 
 # sanity check to make sure the volume is mounted to /data.
@@ -47,6 +48,9 @@ if [ "$(id -u)" = '0' ]; then
   cp $CASSANDRA_YAML_FILE /etc/cassandra/
   cp $CASSANDRA_RACKDC_FILE /etc/cassandra/
   cp $CASSANDRA_LOG_FILE /etc/cassandra/
+  if [ -f "$CASSANDRA_JVM_FILE" ]; then
+    cp $CASSANDRA_JVM_FILE /etc/cassandra/
+  fi
 fi
 
 # allow the container to be started with `--user`

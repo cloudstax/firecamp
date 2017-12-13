@@ -248,6 +248,9 @@ type CatalogCassandraOptions struct {
 	Replicas      int64
 	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
+
+	// Cassandra JVM heap size. The default volue is 8GB.
+	HeapSizeMB int64
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.
