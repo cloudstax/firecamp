@@ -55,7 +55,9 @@ If you are using Redis as cache, you could disable AOF when creating the Redis s
 
 ## Data Backup
 
-Currently you could run “BGSAVE” for all Redis shards and backup data by taking the snapshot for Redis EBS volumes manually. The policy based auto backup will be supported in the future.
+If AOF is disabled, you could connect to the master or slave of all shards, run “BGSAVE”, wait till the bgsaves are done and then backup data by taking the snapshot for Redis EBS volumes manually. If AOF is enabled, you could directly take the snapshot for Redis EBS volumes.
+
+The policy based auto backup will be supported in the future.
 
 ## Security
 
