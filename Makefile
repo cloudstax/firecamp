@@ -3,6 +3,10 @@
 
 version=latest
 
+cli:
+	cd syssvc/firecamp-service-cli; go install; cd -
+	cd $(GOPATH)/bin; tar -zcf firecamp-service-cli.tgz firecamp-service-cli; cd -
+
 install:
 	./scripts/install.sh
 
