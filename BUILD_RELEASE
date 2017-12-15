@@ -6,6 +6,8 @@ To build a new release, a few steps are required. This will be enhanced in the f
 2) Chagne the version in common/types.go from "latest" to the release version such as "0.9".
 3) Update the "Release" to such as "0.9" and "QSS3KeyPrefix" to "firecamp/releases/0.9" in firecamp-master.template and firecamp-existingvpc.template
 
+Update the docs/installation/README.md to the new version as well.
+
 Check whether need to update AMI ID in firecamp-autoscalegroup.template, https://aws.amazon.com/amazon-linux-ami/
 
 2. Upload the new files
