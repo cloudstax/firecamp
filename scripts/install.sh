@@ -16,6 +16,9 @@ cd syssvc/firecamp-swarminit; go install; cd -
 cd $GOPATH/bin; tar -zcf firecamp-service-cli.tgz firecamp-service-cli; cd -
 cd $GOPATH/bin; tar -zcf firecamp-swarminit.tgz firecamp-swarminit; cd -
 
+# tools
+cd syssvc/tools/firecamp-volume-replace; go install; cd -
+
 # these 3 commands are example commands
 cd syssvc/examples/firecamp-init; go install; cd -
 cd syssvc/examples/firecamp-cleanup; go install; cd -
