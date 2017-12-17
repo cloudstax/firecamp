@@ -32,6 +32,7 @@ const (
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
+	CatalogUpdateCassandraOp     = CatalogOpPrefix + "Update-Cassandra"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -258,6 +259,12 @@ type CatalogCreateCassandraRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogCassandraOptions
+}
+
+// CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
+type CatalogUpdateCassandraRequest struct {
+	Service    *ServiceCommonRequest
+	HeapSizeMB int64
 }
 
 // CatalogZooKeeperOptions includes the options for ZooKeeper.

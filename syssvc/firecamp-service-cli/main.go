@@ -154,6 +154,7 @@ const (
 	opCreate      = "create-service"
 	opCheckInit   = "check-service-init"
 	opDelete      = "delete-service"
+	opUpdate      = "update-service"
 	opList        = "list-services"
 	opGet         = "get-service"
 	opListMembers = "list-members"
@@ -167,24 +168,27 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash> [OPTIONS]\n", opCreate)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash> [OPTIONS]\n", opCreate)
+			flag.PrintDefaults()
+		case opUpdate:
+			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opUpdate)
 			flag.PrintDefaults()
 		case opCheckInit:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
 		case opDelete:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opDelete)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opDelete)
 		case opList:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default\n", opList)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default\n", opList)
 		case opGet:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opGet)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opGet)
 		case opListMembers:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opListMembers)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opListMembers)
 		case opGetConfig:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
 		case opCleanDNS:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=%s -region=us-west-1 -cluster=default -vpcid=vpcid\n", opCleanDNS)
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -vpcid=vpcid\n", opCleanDNS)
 		default:
-			fmt.Printf("usage: firecamp-catalogservice-cli -op=<%s|%s|%s|%s|%s|%s|%s|%s> --help\n",
+			fmt.Printf("usage: firecamp-service-cli -op=<%s|%s|%s|%s|%s|%s|%s|%s> --help\n",
 				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
 		}
 	}
@@ -276,6 +280,15 @@ func main() {
 				common.CatalogService_Kafka, common.CatalogService_Redis,
 				common.CatalogService_CouchDB, common.CatalogService_Consul,
 				common.CatalogService_ElasticSearch, common.CatalogService_Kibana)
+			os.Exit(-1)
+		}
+
+	case opUpdate:
+		switch *serviceType {
+		case common.CatalogService_Cassandra:
+			updateCassandraService(ctx, cli)
+		default:
+			fmt.Printf("Invalid service type, update service only support cassandra\n")
 			os.Exit(-1)
 		}
 
@@ -453,6 +466,42 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		waitServiceInit(ctx, cli, initReq)
 	}
 	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *casHeapSizeMB < cascatalog.DefaultHeapMB {
+		fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
+	}
+	if *casHeapSizeMB < cascatalog.MinHeapMB {
+		fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+	}
+
+	req := &manage.CatalogUpdateCassandraRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		HeapSizeMB: *casHeapSizeMB,
+	}
+
+	err := cascatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogUpdateCassandraService(ctx, req)
+	if err != nil {
+		fmt.Println("update cassandra service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is updated. The new configs will be loaded after the service restarts")
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {

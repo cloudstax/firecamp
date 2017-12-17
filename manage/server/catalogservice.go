@@ -54,6 +54,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
 		return s.setRedisInit(ctx, r, requuid)
+	case manage.CatalogUpdateCassandraOp:
+		return s.updateCasService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -847,6 +849,87 @@ func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 	s.catalogSvcInit.addInitTask(ctx, task)
 
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
+}
+
+func (s *ManageHTTPServer) updateCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogUpdateCassandraRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogUpdateCassandraRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("CatalogUpdateCassandraRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	err = cascatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.HeapSizeMB)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("update cassandra service heap size to", req.HeapSizeMB, "requuid", requuid, svc)
+
+	err = s.updateCasConfigs(ctx, svc.ServiceUUID, req.HeapSizeMB, requuid)
+	if err != nil {
+		glog.Errorln("updateCasConfigs error", err, "requuid", requuid, req.Service, req.HeapSizeMB)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID string, heapSizeMB int64, requuid string) error {
+	// update the cassandra heap size in the jvm.options file
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
+
+	for _, member := range members {
+		var cfg *common.MemberConfig
+		cfgIndex := -1
+		for i, c := range member.Configs {
+			if cascatalog.IsJvmConfFile(c.FileName) {
+				cfg = c
+				cfgIndex = i
+				break
+			}
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// replace the original member jvm conf file content
+		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
+		newContent := cascatalog.NewJVMConfContent(heapSizeMB)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("updated cassandra heap size to", heapSizeMB, "for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("updated heap size for cassandra service", serviceUUID, "requuid", requuid)
+	return nil
 }
 
 func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {

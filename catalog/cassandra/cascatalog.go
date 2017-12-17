@@ -43,7 +43,7 @@ const (
 // 1) Have equal number of nodes on 3 availability zones.
 // 2) Listen on the standard ports, 7000 7001 7199 9042 9160.
 
-// ValidateRequest checks if the request is valid
+// ValidateRequest checks if the create request is valid
 func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 	if req.Options.HeapSizeMB <= 0 {
 		return errors.New("heap size should be larger than 0")
@@ -58,6 +58,17 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 		return errors.New("2 nodes are not allowed")
 	}
 
+	return nil
+}
+
+// ValidateUpdateRequest checks if the update request is valid
+func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
+	if req.HeapSizeMB <= 0 {
+		return errors.New("heap size should be larger than 0")
+	}
+	if req.HeapSizeMB > MaxHeapMB {
+		return errors.New("max heap size is 14GB")
+	}
 	return nil
 }
 
@@ -233,6 +244,16 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	kvnode := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NODE, Value: dnsname}
 
 	return []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvnode}
+}
+
+// IsJvmConfFile checks if the file is jvm conf file
+func IsJvmConfFile(filename string) bool {
+	return filename == jvmConfFileName
+}
+
+// NewJVMConfContent returns the new jvm.options file content
+func NewJVMConfContent(heapSizeMB int64) string {
+	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
 }
 
 const (
