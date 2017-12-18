@@ -12,6 +12,8 @@ const (
 	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
 	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
 	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+	StopServiceOp        = SpecialOpPrefix + "Stop-Service"
+	StartServiceOp       = SpecialOpPrefix + "Start-Service"
 	DeleteServiceOp      = SpecialOpPrefix + "Delete-Service"
 	RunTaskOp            = SpecialOpPrefix + "Run-Task"
 	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"

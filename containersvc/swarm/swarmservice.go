@@ -613,25 +613,11 @@ func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service stri
 	return nil
 }
 
-// RestartService stops all service containers and then starts them again.
-func (s *SwarmSvc) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+// StartService starts the service containers.
+func (s *SwarmSvc) StartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	cli, err := s.cli.NewClient()
 	if err != nil {
-		glog.Errorln("RestartService newClient error", err, "service", service)
-		return err
-	}
-
-	// stop service, update service replicas to 0
-	err = s.updateServiceReplicas(ctx, cli, cluster, service, 0)
-	if err != nil {
-		glog.Errorln("stop service error", err)
-		return err
-	}
-
-	// wait all containers stopped
-	err = s.waitServiceRunningTasks(ctx, cli, cluster, service, 0, common.DefaultServiceWaitSeconds)
-	if err != nil {
-		glog.Errorln("waitServiceRunningTasks error", err, service)
+		glog.Errorln("StartService newClient error", err, "service", service)
 		return err
 	}
 
@@ -642,7 +628,7 @@ func (s *SwarmSvc) RestartService(ctx context.Context, cluster string, service s
 		return err
 	}
 
-	glog.Infoln("RestartService complete", service, "desiredCount", desiredCount)
+	glog.Infoln("StartService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 

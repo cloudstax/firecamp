@@ -221,9 +221,14 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 	fmt.Println("\nListTasks, cluster", cluster, "service", service, "taskID", tasks)
 
 	// restart service
-	err = e.RestartService(ctx, cluster, service, replicas)
+	err = e.StopService(ctx, cluster, service)
 	if err != nil {
-		glog.Errorln("RestartService error", err, service)
+		glog.Errorln("StopService error", err, service)
+		return err
+	}
+	err = e.StartService(ctx, cluster, service, replicas)
+	if err != nil {
+		glog.Errorln("StartService error", err, service)
 		return err
 	}
 

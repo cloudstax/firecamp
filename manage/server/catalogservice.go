@@ -1022,9 +1022,15 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 	statusMsg = "restarting all MongoDB containers"
 	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
 
-	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	// restart service containers
+	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
-		glog.Errorln("RestartService error", err, "requuid", requuid, req)
+		glog.Errorln("StopService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	if err != nil {
+		glog.Errorln("StartService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -1102,9 +1108,15 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	statusMsg = "restarting all containers"
 	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
 
-	err = s.containersvcIns.RestartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	// restart service containers
+	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
-		glog.Errorln("RestartService error", err, "requuid", requuid, req)
+		glog.Errorln("StopService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	if err != nil {
+		glog.Errorln("StartService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 

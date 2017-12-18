@@ -35,11 +35,11 @@ type Placement struct {
 }
 
 type CreateServiceOptions struct {
-	Common           *CommonOptions
-	ContainerPath    string // The mount path inside container for the service data
+	Common               *CommonOptions
+	ContainerPath        string // The mount path inside container for the service data
 	JournalContainerPath string // The mount path inside container for the service journal
-	PortMappings     []common.PortMapping
-	Replicas         int64
+	PortMappings         []common.PortMapping
+	Replicas             int64
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
@@ -61,7 +61,8 @@ type ContainerSvc interface {
 	// StopService stops the service on the container platform, and waits till all containers are stopped.
 	// Expect no error (nil) if service is already stopped or does not exist.
 	StopService(ctx context.Context, cluster string, service string) error
-	RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error
+	// StartService starts the service containers. While, it does not wait till all containers are running.
+	StartService(ctx context.Context, cluster string, service string, desiredCount int64) error
 	// DeleteService deletes the service on the container platform.
 	// Expect no error (nil) if service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error

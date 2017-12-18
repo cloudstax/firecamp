@@ -155,6 +155,8 @@ const (
 	opCheckInit   = "check-service-init"
 	opDelete      = "delete-service"
 	opUpdate      = "update-service"
+	opStop        = "stop-service"
+	opStart       = "start-service"
 	opList        = "list-services"
 	opGet         = "get-service"
 	opListMembers = "list-members"
@@ -173,6 +175,10 @@ func usage() {
 		case opUpdate:
 			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opUpdate)
 			flag.PrintDefaults()
+		case opStop:
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opStop)
+		case opStart:
+			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opStart)
 		case opCheckInit:
 			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
 		case opDelete:
@@ -291,6 +297,12 @@ func main() {
 			fmt.Printf("Invalid service type, update service only support cassandra\n")
 			os.Exit(-1)
 		}
+
+	case opStop:
+		stopService(ctx, cli)
+
+	case opStart:
+		startService(ctx, cli)
 
 	case opCheckInit:
 		checkServiceInit(ctx, cli)
@@ -1246,6 +1258,50 @@ func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common
 	}
 
 	return members
+}
+
+func stopService(ctx context.Context, cli *client.ManageClient) {
+	// stop the service containers
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	serviceReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
+
+	err := cli.StopService(ctx, serviceReq)
+	if err != nil {
+		fmt.Println("StopService error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("Service stopped")
+}
+
+func startService(ctx context.Context, cli *client.ManageClient) {
+	// start the service containers
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	serviceReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
+
+	err := cli.StartService(ctx, serviceReq)
+	if err != nil {
+		fmt.Println("StartService error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("Service started")
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {

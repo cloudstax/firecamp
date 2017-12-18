@@ -854,31 +854,16 @@ func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string
 	return nil
 }
 
-// RestartService waits all service containers stopped and then starts the containers again.
-func (s *AWSEcs) RestartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+// StartService starts the service containers.
+func (s *AWSEcs) StartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	ecscli := ecs.New(s.sess)
-
-	// stop service
-	err := s.updateService(ctx, ecscli, cluster, service, 0)
-	if err != nil {
-		glog.Errorln("stopService error", err, "service", service)
-		return err
-	}
-
-	err = s.waitServiceStop(ctx, ecscli, cluster, service, common.DefaultServiceWaitSeconds)
-	if err != nil {
-		glog.Errorln("waitServiceStop error", err, "service", service)
-		return err
-	}
-
-	// start service again
-	err = s.updateService(ctx, ecscli, cluster, service, desiredCount)
+	err := s.updateService(ctx, ecscli, cluster, service, desiredCount)
 	if err != nil {
 		glog.Errorln("start service error", err, "service", service, "desiredCount", desiredCount)
 		return err
 	}
 
-	glog.Infoln("RestartService complete", service, "desiredCount", desiredCount)
+	glog.Infoln("StartService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 

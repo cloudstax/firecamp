@@ -60,6 +60,46 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 	return manage.ConvertHTTPError(resp)
 }
 
+// StopService stops the service containers
+func (c *ManageClient) StopService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.StopServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
+// StartService starts the service containers
+func (c *ManageClient) StartService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.StartServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // GetServiceAttr gets the service details information
 func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
 	b, err := json.Marshal(r)

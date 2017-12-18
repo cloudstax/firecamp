@@ -152,6 +152,10 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 			return s.putServiceInitialized(ctx, w, r, requuid)
 		case manage.RunTaskOp:
 			return s.runTask(ctx, w, r, requuid)
+		case manage.StopServiceOp:
+			return s.stopService(ctx, w, r, requuid)
+		case manage.StartServiceOp:
+			return s.startService(ctx, w, r, requuid)
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
@@ -205,6 +209,70 @@ func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonReque
 	}
 
 	return nil
+}
+
+func (s *ManageHTTPServer) stopService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("stopService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("stopService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("Stop container service error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("stopped container service", req, "requuid", requuid)
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("startService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("startService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	if err != nil {
+		glog.Errorln("start container service error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("started container service", req, "requuid", requuid)
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
