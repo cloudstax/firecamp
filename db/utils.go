@@ -188,12 +188,29 @@ func EqualServiceVolume(v1 *common.ServiceVolume, v2 *common.ServiceVolume) bool
 	return false
 }
 
-func UpdateServiceAttr(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
+func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     t1.ServiceUUID,
 		ServiceStatus:   status,
 		LastModified:    time.Now().UnixNano(),
 		Replicas:        t1.Replicas,
+		ClusterName:     t1.ClusterName,
+		ServiceName:     t1.ServiceName,
+		Volumes:         t1.Volumes,
+		RegisterDNS:     t1.RegisterDNS,
+		DomainName:      t1.DomainName,
+		HostedZoneID:    t1.HostedZoneID,
+		RequireStaticIP: t1.RequireStaticIP,
+		UserAttr:        t1.UserAttr,
+	}
+}
+
+func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.ServiceAttr {
+	return &common.ServiceAttr{
+		ServiceUUID:     t1.ServiceUUID,
+		ServiceStatus:   t1.ServiceStatus,
+		LastModified:    time.Now().UnixNano(),
+		Replicas:        replicas,
 		ClusterName:     t1.ClusterName,
 		ServiceName:     t1.ServiceName,
 		Volumes:         t1.Volumes,

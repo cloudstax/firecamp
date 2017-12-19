@@ -262,20 +262,39 @@ func TestServiceAttrs(t *testing.T) {
 		t.Fatalf("get service attr failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
-	// update service
+	// update service status
 	item.ServiceStatus = "ACTIVE"
 	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
 	if err != nil {
 		t.Fatalf("update service attr failed, service %s error %s", item, err)
 	}
-
 	// service updated
 	s[1].ServiceStatus = "ACTIVE"
-
 	// get service again to verify the update
 	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
 	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
+	}
+
+	// update service replicas
+	item.Replicas = 10
+	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
+	if err != nil {
+		t.Fatalf("update service attr failed, service %s error %s", item, err)
+	}
+	// service updated
+	s[1].Replicas = 10
+	// get service again to verify the update
+	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
+	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
+		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
+	}
+
+	// negative case: update immutable fields
+	item.ServiceName = "new-name"
+	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
+	if err != db.ErrDBInvalidRequest {
+		t.Fatalf("update service attr, expect db.ErrDBInvalidRequest, get error %s, attr %s", err, item)
 	}
 
 	// delete service

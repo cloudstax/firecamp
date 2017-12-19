@@ -102,9 +102,6 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + ServiceStatus + " = :v1, " + LastModified + " = :v2"
-	conditionExpr := ServiceStatus + " = :cv1"
-
 	params := &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -115,9 +112,16 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 				S: aws.String(serviceAttrPartitionKeyPrefix),
 			},
 		},
-		UpdateExpression:    aws.String(updateExpr),
-		ConditionExpression: aws.String(conditionExpr),
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+	}
+
+	if oldAttr.ServiceStatus != newAttr.ServiceStatus {
+		glog.Infoln("update service status from", oldAttr.ServiceStatus, "to", newAttr.ServiceStatus, "requuid", requuid, newAttr)
+
+		updateExpr := "SET " + ServiceStatus + " = :v1, " + LastModified + " = :v2"
+		conditionExpr := ServiceStatus + " = :cv1"
+		params.UpdateExpression = aws.String(updateExpr)
+		params.ConditionExpression = aws.String(conditionExpr)
+		params.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
 			":v1": {
 				S: aws.String(newAttr.ServiceStatus),
 			},
@@ -127,8 +131,28 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 			":cv1": {
 				S: aws.String(oldAttr.ServiceStatus),
 			},
-		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		}
+	} else if oldAttr.Replicas != newAttr.Replicas {
+		glog.Infoln("update service replicas from", oldAttr.Replicas, "to", newAttr.Replicas, "requuid", requuid, newAttr)
+
+		updateExpr := "SET " + Replicas + " = :v1, " + LastModified + " = :v2"
+		conditionExpr := Replicas + " = :cv1"
+		params.UpdateExpression = aws.String(updateExpr)
+		params.ConditionExpression = aws.String(conditionExpr)
+		params.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
+			":v1": {
+				N: aws.String(strconv.FormatInt(newAttr.Replicas, 10)),
+			},
+			":v2": {
+				N: aws.String(strconv.FormatInt(newAttr.LastModified, 10)),
+			},
+			":cv1": {
+				N: aws.String(strconv.FormatInt(oldAttr.Replicas, 10)),
+			},
+		}
+	} else {
+		glog.Errorln("not supported attr update, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
+		return db.ErrDBInvalidRequest
 	}
 
 	_, err := dbsvc.UpdateItem(params)
