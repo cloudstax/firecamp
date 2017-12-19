@@ -151,12 +151,18 @@ var (
 const (
 	defaultPGAdmin = "postgres"
 
-	opCreate      = "create-service"
-	opCheckInit   = "check-service-init"
-	opDelete      = "delete-service"
-	opUpdate      = "update-service"
-	opStop        = "stop-service"
-	opStart       = "start-service"
+	opCreate    = "create-service"
+	opCheckInit = "check-service-init"
+	opDelete    = "delete-service"
+	// update the service configs
+	opUpdate = "update-service"
+	// stop all service containers
+	opStop = "stop-service"
+	// start all service containers
+	opStart = "start-service"
+	// scale the service. scale service up will create new volumes for the new service containers.
+	// TODO scale service down will simply mark the members as inactive and stop the corresponding containers.
+	opScale       = "scale-service"
 	opList        = "list-services"
 	opGet         = "get-service"
 	opListMembers = "list-members"
@@ -170,10 +176,14 @@ func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
+			// TODO separate the usage for different type services.
 			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash> [OPTIONS]\n", opCreate)
 			flag.PrintDefaults()
 		case opUpdate:
 			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opUpdate)
+			flag.PrintDefaults()
+		case opScale:
+			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opScale)
 			flag.PrintDefaults()
 		case opStop:
 			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opStop)
@@ -295,6 +305,15 @@ func main() {
 			updateCassandraService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, update service only support cassandra\n")
+			os.Exit(-1)
+		}
+
+	case opScale:
+		switch *serviceType {
+		case common.CatalogService_Cassandra:
+			scaleCassandraService(ctx, cli)
+		default:
+			fmt.Printf("Invalid service type, scale service only support cassandra\n")
 			os.Exit(-1)
 		}
 
@@ -513,7 +532,31 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The catalog service is updated. The new configs will be loaded after the service restarts")
+	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
+}
+
+func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogScaleCassandraRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Replicas: *replicas,
+	}
+
+	err := cli.CatalogScaleCassandraService(ctx, req)
+	if err != nil {
+		fmt.Println("scale cassandra service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is scaled")
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {

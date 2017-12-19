@@ -226,9 +226,9 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		glog.Errorln("StopService error", err, service)
 		return err
 	}
-	err = e.StartService(ctx, cluster, service, replicas)
+	err = e.ScaleService(ctx, cluster, service, replicas)
 	if err != nil {
-		glog.Errorln("StartService error", err, service)
+		glog.Errorln("ScaleService error", err, service)
 		return err
 	}
 

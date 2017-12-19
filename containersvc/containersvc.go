@@ -61,8 +61,8 @@ type ContainerSvc interface {
 	// StopService stops the service on the container platform, and waits till all containers are stopped.
 	// Expect no error (nil) if service is already stopped or does not exist.
 	StopService(ctx context.Context, cluster string, service string) error
-	// StartService starts the service containers. While, it does not wait till all containers are running.
-	StartService(ctx context.Context, cluster string, service string, desiredCount int64) error
+	// ScaleService scales the service containers up/down to the desiredCount. Note: it does not wait till all containers are started or stopped.
+	ScaleService(ctx context.Context, cluster string, service string, desiredCount int64) error
 	// DeleteService deletes the service on the container platform.
 	// Expect no error (nil) if service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error

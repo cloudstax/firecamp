@@ -854,16 +854,16 @@ func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string
 	return nil
 }
 
-// StartService starts the service containers.
-func (s *AWSEcs) StartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+// ScaleService scales the service containers up/down to the desiredCount.
+func (s *AWSEcs) ScaleService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	ecscli := ecs.New(s.sess)
 	err := s.updateService(ctx, ecscli, cluster, service, desiredCount)
 	if err != nil {
-		glog.Errorln("start service error", err, "service", service, "desiredCount", desiredCount)
+		glog.Errorln("updateService error", err, "service", service, "desiredCount", desiredCount)
 		return err
 	}
 
-	glog.Infoln("StartService complete", service, "desiredCount", desiredCount)
+	glog.Infoln("ScaleService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 

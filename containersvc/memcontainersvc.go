@@ -164,7 +164,7 @@ func (m *MemContainerSvc) StopService(ctx context.Context, cluster string, servi
 	return nil
 }
 
-func (m *MemContainerSvc) StartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+func (m *MemContainerSvc) ScaleService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	return nil
 }
 

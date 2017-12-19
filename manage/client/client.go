@@ -471,6 +471,26 @@ func (c *ManageClient) CatalogUpdateCassandraService(ctx context.Context, r *man
 	return manage.ConvertHTTPError(resp)
 }
 
+// CatalogScaleCassandraService scales the Cassandra service.
+func (c *ManageClient) CatalogScaleCassandraService(ctx context.Context, r *manage.CatalogScaleCassandraRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogScaleCassandraOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // CatalogCreateZooKeeperService creates a new catalog ZooKeeper service.
 func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *manage.CatalogCreateZooKeeperRequest) error {
 	b, err := json.Marshal(r)

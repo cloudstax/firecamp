@@ -613,22 +613,22 @@ func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service stri
 	return nil
 }
 
-// StartService starts the service containers.
-func (s *SwarmSvc) StartService(ctx context.Context, cluster string, service string, desiredCount int64) error {
+// ScaleService scales the service containers up/down to the desiredCount.
+func (s *SwarmSvc) ScaleService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	cli, err := s.cli.NewClient()
 	if err != nil {
-		glog.Errorln("StartService newClient error", err, "service", service)
+		glog.Errorln("ScaleService newClient error", err, "service", service)
 		return err
 	}
 
 	// start service, update service replicas to DesiredCount
 	err = s.updateServiceReplicas(ctx, cli, cluster, service, uint64(desiredCount))
 	if err != nil {
-		glog.Errorln("start service error", err)
+		glog.Errorln("update service error", err)
 		return err
 	}
 
-	glog.Infoln("StartService complete", service, "desiredCount", desiredCount)
+	glog.Infoln("ScaleService complete", service, "desiredCount", desiredCount)
 	return nil
 }
 

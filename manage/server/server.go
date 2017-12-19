@@ -265,7 +265,7 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
 	if err != nil {
 		glog.Errorln("start container service error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)

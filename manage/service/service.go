@@ -143,14 +143,14 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.checkAndCreateServiceMembers(ctx, serviceAttr, req)
+	err = s.CheckAndCreateServiceMembers(ctx, serviceAttr, req)
 	if err != nil {
-		glog.Errorln("checkAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
+		glog.Errorln("CheckAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
 	}
 
 	// update service status to INITIALIZING
-	newAttr := db.UpdateServiceAttr(serviceAttr, common.ServiceStatusInitializing)
+	newAttr := db.UpdateServiceStatus(serviceAttr, common.ServiceStatusInitializing)
 	err = s.dbIns.UpdateServiceAttr(ctx, serviceAttr, newAttr)
 	if err != nil {
 		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, "service", newAttr)
@@ -183,7 +183,7 @@ func (s *ManageService) SetServiceInitialized(ctx context.Context, cluster strin
 		return db.ErrDBConditionalCheckFailed
 
 	case common.ServiceStatusInitializing:
-		newAttr := db.UpdateServiceAttr(sattr, common.ServiceStatusActive)
+		newAttr := db.UpdateServiceStatus(sattr, common.ServiceStatusActive)
 		err = s.dbIns.UpdateServiceAttr(ctx, sattr, newAttr)
 		if err != nil {
 			glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, "service", newAttr)
@@ -307,7 +307,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 	if sattr.ServiceStatus != common.ServiceStatusDeleting {
 		// set service status to deleting
-		newAttr := db.UpdateServiceAttr(sattr, common.ServiceStatusDeleting)
+		newAttr := db.UpdateServiceStatus(sattr, common.ServiceStatusDeleting)
 		err = s.dbIns.UpdateServiceAttr(ctx, sattr, newAttr)
 		if err != nil {
 			glog.Errorln("set service deleting status error", err, "requuid", requuid, "service attr", sattr)
@@ -787,7 +787,8 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	}
 }
 
-func (s *ManageService) checkAndCreateServiceMembers(ctx context.Context, sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
+// CheckAndCreateServiceMembers check and create the service members
+func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list to find out how many serviceMembers were already created

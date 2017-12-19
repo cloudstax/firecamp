@@ -56,6 +56,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.setRedisInit(ctx, r, requuid)
 	case manage.CatalogUpdateCassandraOp:
 		return s.updateCasService(ctx, r, requuid)
+	case manage.CatalogScaleCassandraOp:
+		return s.scaleCasService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -851,6 +853,103 @@ func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
+func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogScaleCassandraRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogScaleCassandraRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("CatalogScaleCassandraRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	if req.Replicas == attr.Replicas {
+		glog.Infoln("service already has", req.Replicas, "replicas, requuid", requuid, attr)
+		return "", http.StatusOK
+	}
+
+	// not allow scaling down, as Cassandra nodes are peers. When one node goes down,
+	// Cassandra will automatically recover the failed replica on another node.
+	if req.Replicas < attr.Replicas {
+		errmsg := "scale down Cassandra service is not supported"
+		glog.Errorln(errmsg, "requuid", requuid, req.Service)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// TODO scaling from 1 node requires to add new seed nodes.
+	if attr.Replicas == 1 {
+		errmsg := "not support to scale from 1 node, please have at least 3 nodes"
+		glog.Errorln(errmsg, "requuid", requuid, req.Service)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// create new service members
+	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
+	// TODO add resources to ServiceAttr
+	res := &common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	opts := &manage.CatalogCassandraOptions{
+		Replicas:      req.Replicas,
+		Volume:        &attr.Volumes.PrimaryVolume,
+		JournalVolume: &attr.Volumes.JournalVolume,
+		// TODO add HeapSizeMB into CasUserAttr
+		HeapSizeMB: 512,
+	}
+
+	glog.Infoln("scale cassandra service from", attr.Replicas, "to", req.Replicas, "requuid", requuid, attr)
+
+	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, opts, res)
+	err = s.svc.CheckAndCreateServiceMembers(ctx, newAttr, crReq)
+	if err != nil {
+		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service, req.Replicas)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// scale the container service
+	glog.Infoln("scale container servie to", req.Replicas, "requuid", requuid, attr)
+
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.Service.ServiceName, req.Replicas)
+	if err != nil {
+		glog.Errorln("ScaleService new service members error", err, "requuid", requuid, req.Service, req.Replicas)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// update service attr
+	glog.Infoln("update service attr to", req.Replicas, "requuid", requuid, attr)
+
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service, req.Replicas)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("service scaled to", req.Replicas, "requuid", requuid, newAttr)
+
+	return "", http.StatusOK
+}
+
 func (s *ManageHTTPServer) updateCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogUpdateCassandraRequest{}
@@ -1028,9 +1127,9 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
-	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
 	if err != nil {
-		glog.Errorln("StartService error", err, "requuid", requuid, req)
+		glog.Errorln("ScaleService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -1114,9 +1213,9 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
-	err = s.containersvcIns.StartService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
 	if err != nil {
-		glog.Errorln("StartService error", err, "requuid", requuid, req)
+		glog.Errorln("ScaleService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
