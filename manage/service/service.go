@@ -728,7 +728,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Service.Cluster,
-		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, req.UserAttr)
+		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, req.UserAttr, *req.Resource)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)

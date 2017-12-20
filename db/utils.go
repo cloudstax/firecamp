@@ -56,7 +56,7 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string,
 	service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr) *common.ServiceAttr {
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr, res common.Resources) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
@@ -70,12 +70,13 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
+		Resource:        res,
 	}
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
 	cluster string, service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr) *common.ServiceAttr {
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr, res common.Resources) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
@@ -89,6 +90,7 @@ func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas 
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
+		Resource:        res,
 	}
 }
 
@@ -104,7 +106,18 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.DomainName == t2.DomainName &&
 		t1.HostedZoneID == t2.HostedZoneID &&
 		t1.RequireStaticIP == t2.RequireStaticIP &&
-		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) {
+		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) &&
+		EqualResources(&(t1.Resource), &(t2.Resource)) {
+		return true
+	}
+	return false
+}
+
+func EqualResources(r1 *common.Resources, r2 *common.Resources) bool {
+	if r1.MaxCPUUnits == r2.MaxCPUUnits &&
+		r1.ReserveCPUUnits == r2.ReserveCPUUnits &&
+		r1.MaxMemMB == r2.MaxMemMB &&
+		r1.ReserveMemMB == r2.ReserveMemMB {
 		return true
 	}
 	return false

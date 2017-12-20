@@ -40,6 +40,7 @@ const (
 	RequireStaticIP = "RequireStaticIP"
 	LastModified    = "LastModified"
 	UserAttr        = "UserAttr"
+	Resource        = "Resource"
 
 	VolumeID            = "VolumeID"
 	VolumeSizeGB        = "VolumeSizeGB"

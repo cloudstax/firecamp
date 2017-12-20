@@ -272,6 +272,12 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 	domainPrefix := "domain"
 	hostedZone := "zone1"
 	requireStaticIP := false
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
 
 	// create 21 service attrs
 	var err error
@@ -310,7 +316,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 			}
 		}
 		attr := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), cluster,
-			serviceNamePrefix+str, svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr)
+			serviceNamePrefix+str, svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr, res)
 		err := dbcli.CreateServiceAttr(ctx, attr)
 		if err != nil {
 			glog.Errorln("create service, expect success, got", err, attr)
@@ -326,7 +332,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// negative case: create the service attr again with different field
 		attr1 := db.CreateServiceAttr(uuid, serviceStatus, mtime, int64(i), cluster,
-			serviceNamePrefix+str+"xxx", svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr)
+			serviceNamePrefix+str+"xxx", svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr, res)
 		err = dbcli.CreateServiceAttr(ctx, attr1)
 		if err != db.ErrDBConditionalCheckFailed {
 			glog.Errorln("create existing service attr with different field, expect db.ErrDBConditionalCheckFailed, got", err, attr1)
@@ -353,7 +359,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// update service attr
 		attr1 = db.CreateServiceAttr(uuid, "ACTIVE", time.Now().UnixNano(), int64(i), cluster,
-			serviceNamePrefix+str, svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr)
+			serviceNamePrefix+str, svols, registerDNS, domainPrefix+str, hostedZone, requireStaticIP, userAttr, res)
 
 		// negative case: old attr mismatch
 		err = dbcli.UpdateServiceAttr(ctx, attr1, attr1)

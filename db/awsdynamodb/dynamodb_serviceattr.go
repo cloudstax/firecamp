@@ -27,6 +27,11 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 		glog.Errorln("Marshal ServiceVolumes error", err, "requuid", requuid, attr)
 		return err
 	}
+	resBytes, err := json.Marshal(attr.Resource)
+	if err != nil {
+		glog.Errorln("Marshal Resources error", err, "requuid", requuid, attr.Resource, attr)
+		return err
+	}
 
 	dbsvc := dynamodb.New(d.sess)
 
@@ -68,6 +73,9 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			},
 			RequireStaticIP: {
 				BOOL: aws.Bool(attr.RequireStaticIP),
+			},
+			Resource: {
+				B: resBytes,
 			},
 		},
 		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
@@ -222,6 +230,19 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		}
 		userAttr = tmpAttr
 	}
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	if _, ok := resp.Item[Resource]; ok {
+		err = json.Unmarshal(resp.Item[Resource].B, &res)
+		if err != nil {
+			glog.Errorln("Unmarshal Resource error", err, "requuid", requuid, resp)
+			return nil, db.ErrDBInternal
+		}
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -235,7 +256,8 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[DomainName].S),
 		*(resp.Item[HostedZoneID].S),
 		*(resp.Item[RequireStaticIP].BOOL),
-		userAttr)
+		userAttr,
+		res)
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil

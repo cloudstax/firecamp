@@ -955,9 +955,15 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 			VolumeSizeGB: 0,
 		},
 	}
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultMaxCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultMaxMemoryMB,
+	}
 	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
 		d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil)
+		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil, res)
 
 	return member, attr
 }

@@ -111,6 +111,14 @@ message ServiceAttr {
   bool requireStaticIP = 11;
 
   ServiceUserAttr userAttr = 12;
+  Resources res = 13;
+}
+
+message Resources {
+  int64 MaxCPUUnits = 1;
+  int64 ReserveCPUUnits = 2;
+  int64 MaxMemMB = 3;
+  int64 ReserveMemMB = 4;
 }
 
 message ServiceUserAttr {

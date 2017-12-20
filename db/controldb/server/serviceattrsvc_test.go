@@ -87,6 +87,7 @@ func TestAttrReadWriter(t *testing.T) {
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
+		Res:             &pb.Resources{},
 	}
 	err = s.createAttr(ctx, attr)
 	if err != nil {
@@ -210,6 +211,7 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 		DomainName:      domainPrefix + strconv.Itoa(i),
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
+		Res:             &pb.Resources{},
 	}
 	err := s.CreateServiceAttr(ctx, attr)
 	if err != nil {
@@ -413,6 +415,7 @@ func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
 		HostedZoneID:    a1.HostedZoneID,
 		RequireStaticIP: a1.RequireStaticIP,
 		UserAttr:        a1.UserAttr,
+		Res:             controldb.CopyResources(a1.Res),
 	}
 	return a2
 }

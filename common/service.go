@@ -129,6 +129,9 @@ type ServiceAttr struct {
 	// The custom service attributes
 	UserAttr *ServiceUserAttr
 
+	// The specified resources for the service.
+	Resource Resources
+
 	// The service admin and password. The password will be deleted once the service is initialized.
 	//Admin       string
 	//AdminPasswd string

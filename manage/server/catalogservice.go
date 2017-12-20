@@ -903,13 +903,6 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 
 	// create new service members
 	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
-	// TODO add resources to ServiceAttr
-	res := &common.Resources{
-		MaxCPUUnits:     common.DefaultMaxCPUUnits,
-		ReserveCPUUnits: common.DefaultReserveCPUUnits,
-		MaxMemMB:        common.DefaultMaxMemoryMB,
-		ReserveMemMB:    common.DefaultReserveMemoryMB,
-	}
 	opts := &manage.CatalogCassandraOptions{
 		Replicas:      req.Replicas,
 		Volume:        &attr.Volumes.PrimaryVolume,
@@ -920,7 +913,7 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 
 	glog.Infoln("scale cassandra service from", attr.Replicas, "to", req.Replicas, "requuid", requuid, attr)
 
-	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, opts, res)
+	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, opts, &(attr.Resource))
 	err = s.svc.CheckAndCreateServiceMembers(ctx, newAttr, crReq)
 	if err != nil {
 		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service, req.Replicas)

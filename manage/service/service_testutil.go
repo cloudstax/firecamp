@@ -75,6 +75,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				Cluster:     cluster,
 				ServiceName: service,
 			},
+			Resource: &common.Resources{
+				MaxCPUUnits:     common.DefaultMaxCPUUnits,
+				ReserveCPUUnits: common.DefaultReserveCPUUnits,
+				MaxMemMB:        common.DefaultMaxMemoryMB,
+				ReserveMemMB:    common.DefaultReserveMemoryMB,
+			},
 			Replicas:        int64(taskCount1),
 			Volume:          servicevol,
 			JournalVolume:   journalVol,
@@ -203,6 +209,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				Region:      region,
 				Cluster:     cluster,
 				ServiceName: service,
+			},
+			Resource: &common.Resources{
+				MaxCPUUnits:     common.DefaultMaxCPUUnits,
+				ReserveCPUUnits: common.DefaultReserveCPUUnits,
+				MaxMemMB:        common.DefaultMaxMemoryMB,
+				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
 			Replicas:        int64(taskCount2),
 			Volume:          servicevol,
@@ -342,6 +354,12 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				Cluster:     cluster,
 				ServiceName: service,
 			},
+			Resource: &common.Resources{
+				MaxCPUUnits:     common.DefaultMaxCPUUnits,
+				ReserveCPUUnits: common.DefaultReserveCPUUnits,
+				MaxMemMB:        common.DefaultMaxMemoryMB,
+				ReserveMemMB:    common.DefaultReserveMemoryMB,
+			},
 			Replicas:        int64(taskCount3),
 			Volume:          servicevol,
 			RegisterDNS:     registerDNS,
@@ -457,6 +475,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
 		Replicas:        int64(taskCount),
 		Volume:          servicevol,
@@ -657,8 +681,14 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if requireJournalVolume && svols.JournalDeviceName != "/dev/loop6" {
 		t.Fatalf("expect journal device /dev/loop6, get %s", svols.JournalDeviceName)
 	}
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -737,7 +767,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)

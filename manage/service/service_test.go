@@ -161,7 +161,13 @@ func TestUnassignedIPs(t *testing.T) {
 		ServiceType: common.CatalogService_Redis,
 		AttrBytes:   b,
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, userAttr)
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, userAttr, res)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	// case: 1 network interface with 0 private ip
@@ -364,7 +370,13 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil)
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil, res)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)
@@ -442,7 +454,13 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil)
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1", vols, true, "domain1", "hostedZone1", true, nil, res)
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)

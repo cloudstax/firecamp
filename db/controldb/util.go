@@ -134,6 +134,15 @@ func GenPbServiceUserAttr(ua *common.ServiceUserAttr) (*pb.ServiceUserAttr, erro
 	return pbuserAttr, nil
 }
 
+func GenPbServiceResource(res *common.Resources) *pb.Resources {
+	return &pb.Resources{
+		MaxCPUUnits:     res.MaxCPUUnits,
+		ReserveCPUUnits: res.ReserveCPUUnits,
+		MaxMemMB:        res.MaxMemMB,
+		ReserveMemMB:    res.ReserveMemMB,
+	}
+}
+
 func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
 	pbuserAttr, err := GenPbServiceUserAttr(attr.UserAttr)
 	if err != nil {
@@ -153,6 +162,7 @@ func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
 		HostedZoneID:    attr.HostedZoneID,
 		RequireStaticIP: attr.RequireStaticIP,
 		UserAttr:        pbuserAttr,
+		Res:             GenPbServiceResource(&(attr.Resource)),
 	}
 	return pbAttr, nil
 }
@@ -221,6 +231,15 @@ func GenDbServiceUserAttr(ua *pb.ServiceUserAttr) (*common.ServiceUserAttr, erro
 	return userAttr, nil
 }
 
+func GenDbServiceResource(res *pb.Resources) *common.Resources {
+	return &common.Resources{
+		MaxCPUUnits:     res.MaxCPUUnits,
+		ReserveCPUUnits: res.ReserveCPUUnits,
+		MaxMemMB:        res.MaxMemMB,
+		ReserveMemMB:    res.ReserveMemMB,
+	}
+}
+
 func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
 	userAttr, err := GenDbServiceUserAttr(attr.UserAttr)
 	if err != nil {
@@ -238,7 +257,8 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
 		attr.DomainName,
 		attr.HostedZoneID,
 		attr.RequireStaticIP,
-		userAttr)
+		userAttr,
+		*GenDbServiceResource(attr.Res))
 	return dbAttr, nil
 }
 
@@ -278,6 +298,15 @@ func CopyServiceVolumes(v1 *pb.ServiceVolumes) *pb.ServiceVolumes {
 	}
 }
 
+func CopyResources(r1 *pb.Resources) *pb.Resources {
+	return &pb.Resources{
+		MaxCPUUnits:     r1.MaxCPUUnits,
+		ReserveCPUUnits: r1.ReserveCPUUnits,
+		MaxMemMB:        r1.MaxMemMB,
+		ReserveMemMB:    r1.ReserveMemMB,
+	}
+}
+
 func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 	if a1.ServiceUUID == a2.ServiceUUID &&
 		a1.ServiceStatus == a2.ServiceStatus &&
@@ -290,7 +319,18 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&
 		a1.RequireStaticIP == a2.RequireStaticIP &&
-		EqualUserAttr(a1.UserAttr, a2.UserAttr) {
+		EqualUserAttr(a1.UserAttr, a2.UserAttr) &&
+		EqualResources(a1.Res, a2.Res) {
+		return true
+	}
+	return false
+}
+
+func EqualResources(r1 *pb.Resources, r2 *pb.Resources) bool {
+	if r1.MaxCPUUnits == r2.MaxCPUUnits &&
+		r1.ReserveCPUUnits == r2.ReserveCPUUnits &&
+		r1.MaxMemMB == r2.MaxMemMB &&
+		r1.ReserveMemMB == r2.ReserveMemMB {
 		return true
 	}
 	return false

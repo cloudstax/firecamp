@@ -185,6 +185,12 @@ func TestServiceAttr(t *testing.T) {
 		ServiceType: "mongodb",
 		AttrBytes:   b,
 	}
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
 
 	// create 5 services
 	var s [5]*common.ServiceAttr
@@ -204,7 +210,7 @@ func TestServiceAttr(t *testing.T) {
 		}
 
 		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {

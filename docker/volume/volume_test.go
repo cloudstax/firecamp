@@ -111,6 +111,12 @@ func TestVolumeFunctions(t *testing.T) {
 			Cluster:     cluster,
 			ServiceName: service1,
 		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
+		},
 		Replicas: int64(taskCounts),
 		Volume: &common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,
@@ -205,6 +211,12 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service1,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
 		Replicas: int64(taskCounts),
 		Volume: &common.ServiceVolume{
@@ -322,7 +334,13 @@ func TestFindIdleVolume(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil)
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil, res)
 
 	// add 2 service tasks
 	for i := 0; i < 2; i++ {
@@ -457,6 +475,12 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service1,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.DefaultReserveCPUUnits,
+			MaxMemMB:        common.DefaultMaxMemoryMB,
+			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
 		Replicas: int64(taskCounts),
 		Volume: &common.ServiceVolume{

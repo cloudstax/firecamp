@@ -207,6 +207,12 @@ func TestServiceAttrs(t *testing.T) {
 	domain := "domain"
 	hostedZoneID := "hostedZoneID"
 	requireStaticIP := false
+	res := common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
 
 	ctx := context.Background()
 
@@ -244,7 +250,7 @@ func TestServiceAttrs(t *testing.T) {
 			}
 		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create service attr %s, err %s", s[i], err)
