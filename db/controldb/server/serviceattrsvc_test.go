@@ -1,6 +1,7 @@
 package controldbserver
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"path"
@@ -8,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
@@ -51,17 +51,21 @@ func TestAttrReadWriter(t *testing.T) {
 	hostedZone := "zone1"
 	requireStaticIP := false
 
-	redisUserAttr := &pb.RedisUserAttr{
+	redisUserAttr := &common.RedisUserAttr{
 		Shards:           1,
 		ReplicasPerShard: 1,
 	}
-	b, err := proto.Marshal(redisUserAttr)
+	b, err := json.Marshal(redisUserAttr)
 	if err != nil {
 		t.Fatalf("Marshal userattr error %s", err)
 	}
-	userAttr := &pb.ServiceUserAttr{
+	userAttr := &common.ServiceUserAttr{
 		ServiceType: common.CatalogService_Redis,
 		AttrBytes:   b,
+	}
+	userAttrBytes, err := json.Marshal(userAttr)
+	if err != nil {
+		t.Fatalf("Marshal userattr error %s", err)
 	}
 
 	attr := &pb.ServiceAttr{
@@ -86,7 +90,7 @@ func TestAttrReadWriter(t *testing.T) {
 		DomainName:      domain,
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
-		UserAttr:        userAttr,
+		UserAttrBytes:   userAttrBytes,
 		Res:             &pb.Resources{},
 	}
 	err = s.createAttr(ctx, attr)
@@ -96,17 +100,17 @@ func TestAttrReadWriter(t *testing.T) {
 
 	// test the request retry
 	err = s.createAttr(ctx, attr)
-	if err != nil {
+	if err != db.ErrDBConditionalCheckFailed {
 		t.Fatalf("createAttr error %s rootdir %s", err, rootdir)
 	}
 
 	// create the service attr again with different mtime
 	// copy attr as s.createAttr returns the pointer, attr and attr1 point to the same pb
-	attr2 := copyAttr(attr)
+	attr2 := controldb.CopyServiceAttr(attr)
 	attr2.LastModified = time.Now().UnixNano()
 	err = s.createAttr(ctx, attr2)
-	if err != nil {
-		t.Fatalf("createAttr again with different mtime, expect success, got error %s rootdir %s", err, rootdir)
+	if err != db.ErrDBConditionalCheckFailed {
+		t.Fatalf("createAttr again with different mtime, expect db.ErrDBConditionalCheckFailed, got error %s rootdir %s", err, rootdir)
 	}
 
 	// negative case: create the existing service attr with different fields
@@ -139,7 +143,7 @@ func TestAttrReadWriter(t *testing.T) {
 
 	// copy attr as s.getAttr returns the pointer, attr and attr1 point to the same pb
 	// negative case: update attr, OldAttr mismatch
-	attr2 = copyAttr(attr)
+	attr2 = controldb.CopyServiceAttr(attr)
 	attr2.ServiceStatus = "ACTIVE"
 	req := &pb.UpdateServiceAttrRequest{
 		OldAttr: attr2,
@@ -220,12 +224,12 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 
 	// test the request retry
 	err = s.CreateServiceAttr(ctx, attr)
-	if err != nil {
+	if err != db.ErrDBConditionalCheckFailed {
 		t.Fatalf("createAttr error %s rootdir %s", err, rootdir, serviceUUID)
 	}
 
 	// negative case: create attr with different fields
-	attr2 := copyAttr(attr)
+	attr2 := controldb.CopyServiceAttr(attr)
 	attr2.ServiceName = attr.ServiceName + "xxx"
 	err = s.CreateServiceAttr(ctx, attr2)
 	if err != db.ErrDBConditionalCheckFailed {
@@ -254,7 +258,7 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 	}
 
 	// test update attr
-	attr2 = copyAttr(attr)
+	attr2 = controldb.CopyServiceAttr(attr)
 	attr2.ServiceStatus = "ACTIVE"
 	// negative case: OldAttr mismatch
 	req := &pb.UpdateServiceAttrRequest{
@@ -399,23 +403,4 @@ func TestServiceSvcAttr(t *testing.T) {
 
 	// cleanup
 	os.RemoveAll(rootdir)
-}
-
-func copyAttr(a1 *pb.ServiceAttr) *pb.ServiceAttr {
-	a2 := &pb.ServiceAttr{
-		ServiceUUID:     a1.ServiceUUID,
-		ServiceStatus:   a1.ServiceStatus,
-		LastModified:    a1.LastModified,
-		Replicas:        a1.Replicas,
-		ClusterName:     a1.ClusterName,
-		ServiceName:     a1.ServiceName,
-		Volumes:         controldb.CopyServiceVolumes(a1.Volumes),
-		RegisterDNS:     a1.RegisterDNS,
-		DomainName:      a1.DomainName,
-		HostedZoneID:    a1.HostedZoneID,
-		RequireStaticIP: a1.RequireStaticIP,
-		UserAttr:        a1.UserAttr,
-		Res:             controldb.CopyResources(a1.Res),
-	}
-	return a2
 }

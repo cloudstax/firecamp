@@ -110,7 +110,7 @@ message ServiceAttr {
   string hostedZoneID = 10;
   bool requireStaticIP = 11;
 
-  ServiceUserAttr userAttr = 12;
+  bytes userAttrBytes = 12;
   Resources res = 13;
 }
 
@@ -119,23 +119,6 @@ message Resources {
   int64 ReserveCPUUnits = 2;
   int64 MaxMemMB = 3;
   int64 ReserveMemMB = 4;
-}
-
-message ServiceUserAttr {
-  string serviceType = 1;
-  bytes attrBytes = 2;
-}
-
-message MongoDBUserAttr {
-  int64 shards = 1;
-  int64 replicasPerShard = 2;
-  bool replicaSetOnly = 3;
-  int64 configServers = 4;
-}
-
-message RedisUserAttr {
-  int64 shards = 1;
-  int64 replicasPerShard = 2;
 }
 
 message ServiceVolumes {

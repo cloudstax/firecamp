@@ -104,8 +104,7 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 }
 
 // UpdateServiceAttr updates the ServiceAttr in DB.
-// Only support updating ServiceStatus at v1, all other attributes are immutable.
-// TODO support Replicas and VolumeSizeGB change.
+// Only support updating ServiceStatus or Replicas at v1, all other attributes are immutable.
 func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)

@@ -320,13 +320,7 @@ func (r *attrReadWriter) createAttr(ctx context.Context, attr *pb.ServiceAttr) e
 	}
 
 	if r.attr != nil {
-		// service attr exists, check whether the creating attr is the same with the current attr
-		skipMtime := true
-		if controldb.EqualAttr(r.attr, attr, skipMtime) {
-			glog.Infoln("createAttr service exists with same attr", attr, "requuid", requuid)
-			return nil
-		}
-
+		// service attr exists, return error. Client should get the attr and check whether it is a retry.
 		glog.Errorln("createAttr service exists", r.attr, "creating attr", attr, "requuid", requuid)
 		return db.ErrDBConditionalCheckFailed
 	}
@@ -383,27 +377,37 @@ func (r *attrReadWriter) updateAttr(ctx context.Context, req *pb.UpdateServiceAt
 		return db.ErrDBRecordNotFound
 	}
 
-	skipMtime := true
-	if !controldb.EqualAttr(r.attr, req.OldAttr, skipMtime) {
-		glog.Errorln("updateAttr, req oldAttr", req.OldAttr,
-			"not match current attr", r.attr, "requuid", requuid)
+	// only ServiceStatus or Replicas are allowed to change.
+	if req.OldAttr.ServiceStatus != r.attr.ServiceStatus || req.OldAttr.Replicas != r.attr.Replicas {
+		glog.Errorln("oldAttr does not match current attr, requuid", requuid, req.OldAttr, r.attr)
 		return db.ErrDBConditionalCheckFailed
 	}
 
-	data, err := proto.Marshal(req.NewAttr)
+	newAttr := controldb.CopyServiceAttr(r.attr)
+	newAttr.LastModified = req.NewAttr.LastModified
+
+	if req.OldAttr.ServiceStatus != req.NewAttr.ServiceStatus {
+		glog.Infoln("update service status from", req.OldAttr.ServiceStatus, "to", req.NewAttr.ServiceStatus, "requuid", requuid)
+		newAttr.ServiceStatus = req.NewAttr.ServiceStatus
+	} else if req.OldAttr.Replicas != req.NewAttr.Replicas {
+		glog.Infoln("update service replicas from", req.OldAttr.Replicas, "to", req.NewAttr.Replicas, "requuid", requuid)
+		newAttr.Replicas = req.NewAttr.Replicas
+	}
+
+	data, err := proto.Marshal(newAttr)
 	if err != nil {
-		glog.Errorln("updateAttr Marshal ServiceAttr error", err, req.NewAttr, "requuid", requuid)
+		glog.Errorln("updateAttr Marshal ServiceAttr error", err, newAttr, "requuid", requuid)
 		return db.ErrDBInternal
 	}
 
 	err = r.store.CreateNewVersionFile(data, "updateAttr", requuid)
 	if err != nil {
-		glog.Errorln("updateAttr, createNewVersionFile error", err, req.NewAttr, "requuid", requuid)
+		glog.Errorln("updateAttr, createNewVersionFile error", err, newAttr, "requuid", requuid)
 		return db.ErrDBInternal
 	}
 
 	// successfully created the attr file, update in-memory cache
-	r.attr = req.NewAttr
+	r.attr = newAttr
 
 	glog.Infoln("updateAttr done", r.attr, "requuid", requuid)
 	return nil

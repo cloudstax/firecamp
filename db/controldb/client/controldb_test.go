@@ -325,8 +325,8 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 
 		// negative case: create the service attr again
 		err = dbcli.CreateServiceAttr(ctx, attr)
-		if err != nil {
-			glog.Errorln("create service attr again, expect success, got", err, "attr", attr)
+		if err != db.ErrDBConditionalCheckFailed {
+			glog.Errorln("create service attr again, expect db.ErrDBConditionalCheckFailed, got", err, "attr", attr)
 			return err
 		}
 
