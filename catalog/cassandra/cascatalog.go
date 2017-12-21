@@ -1,6 +1,7 @@
 package cascatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -74,7 +76,7 @@ func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) *manage.CreateServiceRequest {
+	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
 
@@ -89,6 +91,15 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	reserveMemMB := res.ReserveMemMB
 	if res.ReserveMemMB < opts.HeapSizeMB {
 		reserveMemMB = opts.HeapSizeMB
+	}
+
+	userAttr := &common.CasUserAttr{
+		HeapSizeMB: opts.HeapSizeMB,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -113,12 +124,17 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Cassandra,
+			AttrBytes:   b,
+		},
 	}
 	if opts.JournalVolume != nil {
 		req.JournalVolume = opts.JournalVolume
 		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
 	}
-	return req
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

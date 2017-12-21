@@ -139,7 +139,7 @@ type ServiceAttr struct {
 
 // ServiceUserAttr represents the custom service attributes.
 type ServiceUserAttr struct {
-	// "mongodb", "redis"
+	// catalog service type such as CatalogService_MongoDB.
 	ServiceType string
 	AttrBytes   []byte
 }
@@ -154,6 +154,11 @@ type MongoDBUserAttr struct {
 	ConfigServers int64
 	// the content of the key file.
 	KeyFileContent string
+}
+
+// CasUserAttr represents the custom Cassandra service attributes.
+type CasUserAttr struct {
+	HeapSizeMB int64
 }
 
 // RedisUserAttr represents the custom Redis service attributes.

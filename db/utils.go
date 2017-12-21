@@ -149,14 +149,26 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal mongodb user attr error", err, u2)
 			return false
 		}
-		if userAttr1.Shards == userAttr2.Shards &&
+		return (userAttr1.Shards == userAttr2.Shards &&
 			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
 			userAttr1.ReplicaSetOnly == userAttr2.ReplicaSetOnly &&
 			userAttr1.ConfigServers == userAttr2.ConfigServers &&
-			userAttr1.KeyFileContent == userAttr2.KeyFileContent {
-			return true
+			userAttr1.KeyFileContent == userAttr2.KeyFileContent)
+
+	case common.CatalogService_Cassandra:
+		userAttr1 := &common.CasUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, userAttr1)
+		if err != nil {
+			glog.Errorln("Unmarshal cassandra user attr error", err, u1)
+			return false
 		}
-		return false
+		userAttr2 := &common.CasUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, userAttr2)
+		if err != nil {
+			glog.Errorln("Unmarshal cassandra user attr error", err, u2)
+			return false
+		}
+		return userAttr1.HeapSizeMB == userAttr2.HeapSizeMB
 
 	case common.CatalogService_Redis:
 		userAttr1 := &common.RedisUserAttr{}
@@ -171,11 +183,8 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal redis user attr error", err, u2)
 			return false
 		}
-		if userAttr1.Shards == userAttr2.Shards &&
-			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard {
-			return true
-		}
-		return false
+		return (userAttr1.Shards == userAttr2.Shards &&
+			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard)
 
 	default:
 		return true

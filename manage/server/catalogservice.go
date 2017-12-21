@@ -815,8 +815,12 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
+	crReq, err := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, req.Options, req.Resource)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -901,19 +905,31 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 		return errmsg, http.StatusBadRequest
 	}
 
+	glog.Infoln("scale cassandra service from", attr.Replicas, "to", req.Replicas, "requuid", requuid, attr)
+
 	// create new service members
-	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
+	userAttr := &common.CasUserAttr{}
+	err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, attr)
+		return manage.ConvertToHTTPError(err)
+	}
+
 	opts := &manage.CatalogCassandraOptions{
 		Replicas:      req.Replicas,
 		Volume:        &attr.Volumes.PrimaryVolume,
 		JournalVolume: &attr.Volumes.JournalVolume,
-		// TODO add HeapSizeMB into CasUserAttr
-		HeapSizeMB: 512,
+		HeapSizeMB:    userAttr.HeapSizeMB,
 	}
 
-	glog.Infoln("scale cassandra service from", attr.Replicas, "to", req.Replicas, "requuid", requuid, attr)
+	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
+	crReq, err := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
+		s.cluster, req.Service.ServiceName, opts, &(attr.Resource))
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 
-	crReq := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, opts, &(attr.Resource))
 	err = s.svc.CheckAndCreateServiceMembers(ctx, newAttr, crReq)
 	if err != nil {
 		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service, req.Replicas)
