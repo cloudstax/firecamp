@@ -347,7 +347,25 @@ func (s *AWSEc2) CreateVolume(ctx context.Context, opts *server.CreateVolumeOpti
 
 // WaitVolumeCreated waits till volume is created
 func (s *AWSEc2) WaitVolumeCreated(ctx context.Context, volID string) error {
-	return s.waitVolumeState(ctx, volID, volumeStateCreating, volumeStateAvailable)
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	for i := 0; i < maxRetryCount; i++ {
+		state, err := s.GetVolumeState(ctx, volID)
+		if err != nil {
+			glog.Errorln("failed to GetVolumeState", volID, "error", err, "requuid", requuid)
+			return err
+		}
+
+		if state != volumeStateCreating {
+			glog.Infoln("volume is created, requuid", requuid, volID)
+			return nil
+		}
+
+		glog.Infoln("wait volume creation, requuid", requuid, volID)
+
+		time.Sleep(defaultSleepTime)
+	}
+	return common.ErrTimeout
 }
 
 // DeleteVolume deletes the volume
@@ -368,35 +386,6 @@ func (s *AWSEc2) DeleteVolume(ctx context.Context, volID string) error {
 
 	glog.Infoln("deleted volume", volID, "requuid", requuid, "resp", resp)
 	return nil
-}
-
-func (s *AWSEc2) waitVolumeState(ctx context.Context, volID string, state string, expectedState string) error {
-	requuid := utils.GetReqIDFromContext(ctx)
-
-	for i := 0; i < maxRetryCount; i++ {
-		state1, err := s.GetVolumeState(ctx, volID)
-		if err != nil {
-			glog.Errorln("failed to GetVolumeState", volID, "error", err,
-				"wait state", state, "to", expectedState, "requuid", requuid)
-			return err
-		}
-
-		if state1 == expectedState {
-			glog.Infoln("volume", volID, "state from", state, "to", expectedState, "requuid", requuid)
-			return nil
-		}
-
-		if state1 != state {
-			glog.Errorln("wait volume", volID, "state", state, "to", expectedState,
-				"but get state", state1, "requuid", requuid)
-			return common.ErrInternal
-		}
-
-		glog.Infoln("wait volume", volID, "state", state, "to", expectedState, "requuid", requuid)
-
-		time.Sleep(defaultSleepTime)
-	}
-	return common.ErrTimeout
 }
 
 // GetControlDBDeviceName returns the default controldb device name
