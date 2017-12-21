@@ -94,16 +94,9 @@ The AppAccessSecurityGroup and VPCID could be found in the CloudFormation Stack 
 ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cf+outputs.png)
 
 ## Delete the FireCamp Cluster
-1. Use firecamp-service-cli to delete all stateful services created on the cluster. **If any stateful service is not deleted, the cloudformation stack deletion will fail.**
+Use firecamp-service-cli to delete all stateful services created on the cluster. **If any stateful service is not deleted, the cloudformation stack deletion will fail.** There is no need to delete the manage service, CloudFormation will automatically clean up it at deletion.
 
-2. Use firecamp-service-cli to delete the firecamp manage server dns record and the HostedZone in AWS Route53. `firecamp-service-cli -op=clean-dns -region=us-east-1 -cluster=t1 -vpcid=vpcid`
-
-If the HostedZone is not deleted, the HostedZone will be left as garbage in AWS. The cloudformation stack deletion will still succeed.
-
-The FireCamp cluster creates the HostedZone in AWS Route53. When the created stack is deleted, all related resources, except the Route53 HostedZone, will be deleted. All DNS records need to be deleted before deleting the HostedZone. Deleting a DNS record requires to specify the current mapping from the DNS record name to the node's IP address. Unfortunately the CloudFormation stack is not able to know this mapping. So it could not delete the DNS record.
-
-3. Delete the CloudFormation stack, which will delete all resources created by the stack.
-
+After all stateful services are deleted, delete the CloudFormation stack, which will delete all resources created by the stack.
 
 # The FireCamp Service CLI
 A Bastion AutoScaleGroup is created and is the only one that could SSH to the cluster nodes, and access the FireCamp manage server. The nodes in the FireCamp Cluster could also access the manage server.

@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
 
 	"golang.org/x/net/context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
@@ -26,7 +25,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/manage/client"
 	"github.com/cloudstax/firecamp/server/awsec2"
@@ -36,12 +34,12 @@ import (
 // The catalog service command tool to create/query the catalog service.
 
 var (
-	op               = flag.String("op", "", "The operation type, such as create-service")
+	op               = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
 	serviceType      = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
-	cluster          = flag.String("cluster", "default", "The ECS cluster. Can only contain letters, numbers, or hyphens.")
-	serverURL        = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
-	region           = flag.String("region", "", "The target AWS region")
-	service          = flag.String("service-name", "", "The target service name in ECS. Can only contain letters, numbers, or hyphens.")
+	cluster          = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
+	serverURL        = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
+	region           = flag.String("region", "", "The AWS region")
+	service          = flag.String("service-name", "", "The service name. Can only contain letters, numbers, or hyphens")
 	replicas         = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
@@ -63,13 +61,13 @@ var (
 	keyFile     = flag.String("key-file", "", "the key file")
 
 	// The MongoDB service specific parameters.
-	mongoShards        = flag.Int64("mongo-shards", 1, "The number of MongoDB shards, default: 1")
-	mongoReplPerShard  = flag.Int64("mongo-replicas-pershard", 3, "The number of replicas in one MongoDB shard, default: 3")
-	mongoReplSetOnly   = flag.Bool("mongo-replicaset-only", true, "Create a MongoDB ReplicaSet only, default: true. To create a sharded cluster, set to false")
-	mongoConfigServers = flag.Int64("mongo-configservers", 3, "The number of config servers in the sharded cluster, default: 3")
+	mongoShards        = flag.Int64("mongo-shards", 1, "The number of MongoDB shards")
+	mongoReplPerShard  = flag.Int64("mongo-replicas-pershard", 3, "The number of replicas in one MongoDB shard")
+	mongoReplSetOnly   = flag.Bool("mongo-replicaset-only", true, "Whether create a MongoDB ReplicaSet only. To create a sharded cluster, set to false")
+	mongoConfigServers = flag.Int64("mongo-configservers", 3, "The number of config servers in the sharded cluster")
 
 	// The Cassandra service specific parameters
-	casHeapSizeMB = flag.Int64("cas-heap-size", cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB, default: 8192MB")
+	casHeapSizeMB = flag.Int64("cas-heap-size", cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
 
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
@@ -77,12 +75,12 @@ var (
 	pgContainerImage = flag.String("pg-image", pgcatalog.ContainerImage, "The PostgreSQL container image, "+pgcatalog.ContainerImage+" or "+pgcatalog.PostGISContainerImage)
 
 	// The ZooKeeper service specific parameters
-	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB, default: 4096MB")
+	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
 
 	// The kafka service creation specific parameters
-	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB, default: 6144MB")
-	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion, default: false")
-	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours, default: 168 hours")
+	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
+	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion")
+	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 
 	// The redis service creation specific parameters.
@@ -92,7 +90,7 @@ var (
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
-	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached, default: allkeys-lru")
+	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached")
 	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
 
 	// The couchdb service creation specific parameters.
@@ -117,7 +115,7 @@ var (
 	consulHTTPSPort  = flag.Int64("consul-https-port", 8080, "The Consul HTTPS port")
 
 	// The elasticsearch service creation specific parameters.
-	esHeapSizeMB             = flag.Int64("es-heap-size", escatalog.DefaultHeapMB, "The ElasticSearch JVM heap size, unit: MB, default: 2048MB")
+	esHeapSizeMB             = flag.Int64("es-heap-size", escatalog.DefaultHeapMB, "The ElasticSearch JVM heap size, unit: MB")
 	esDedicatedMasters       = flag.Int64("es-dedicated-masters", 3, "The number of dedicated masters for ElasticSearch")
 	esDisableDedicatedMaster = flag.Bool("es-disable-dedicated-master", false, "Whether disables the dedicated master for ElasticSearch")
 	esDisableForceAware      = flag.Bool("es-disable-force-awareness", false, "Whether disables the force awareness for ElasticSearch")
@@ -130,10 +128,10 @@ var (
 	kbCertFile      = flag.String("kb-cert-file", "", "The Kibana service certificate file")
 
 	// The logstash service creation specific parameters.
-	lsHeapSizeMB            = flag.Int64("ls-heap-size", logstashcatalog.DefaultHeapMB, "The Logstash JVM heap size, unit: MB, default: 2048MB")
+	lsHeapSizeMB            = flag.Int64("ls-heap-size", logstashcatalog.DefaultHeapMB, "The Logstash JVM heap size, unit: MB")
 	lsContainerImage        = flag.String("ls-container-image", logstashcatalog.ContainerImage, "The Logstash container image: "+logstashcatalog.ContainerImage+" or "+logstashcatalog.InputCouchDBContainerImage)
 	lsQueueType             = flag.String("ls-queue-type", logstashcatalog.QueueTypeMemory, "The Logstash service queue type: memory or persisted")
-	lsEnableDLQ             = flag.Bool("ls-enable-dlq", true, "Whether enables the Dead Letter Queue for Logstash, default: true")
+	lsEnableDLQ             = flag.Bool("ls-enable-dlq", true, "Whether enables the Dead Letter Queue for Logstash")
 	lsPipelineFile          = flag.String("ls-pipeline-file", "", "The Logstash pipeline config file")
 	lsPipelineWorkers       = flag.Int("ls-workers", 0, "The number of worker threads for Logstash filter and output processing, 0 means using the default logstash workers")
 	lsPipelineOutputWorkers = flag.Int("ls-outputworkers", 0, "The number of worker threads for each output, 0 means using the default logstash value")
@@ -143,9 +141,6 @@ var (
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
-
-	// the parameter for cleanDNS operation
-	vpcID = flag.String("vpcid", "", "The VPCID that the cluster runs on")
 )
 
 const (
@@ -167,45 +162,230 @@ const (
 	opGet         = "get-service"
 	opListMembers = "list-members"
 	opGetConfig   = "get-config"
-	// opCleanDNS will cleanup the left over manage server dns record and HostedZone in AWS Route53,
-	// as CloudFormation stack deletion could not delete them from Route53.
-	opCleanDNS = "clean-dns"
 )
+
+func printFlag(f *flag.Flag) {
+	s := fmt.Sprintf("  -%s", f.Name) // Two spaces before -; see next two comments.
+	name, usage := flag.UnquoteUsage(f)
+	if len(name) > 0 {
+		s += " " + name
+	}
+	// Boolean flags of one ASCII letter are so common we
+	// treat them specially, putting their usage on the same line.
+	if len(s) <= 4 { // space, space, '-', 'x'.
+		s += "\t"
+	} else {
+		// Four spaces before the tab triggers good alignment
+		// for both 4- and 8-space tab stops.
+		s += "\n    \t"
+	}
+	s += usage
+	if !isZeroValue(f, f.DefValue) {
+		s += fmt.Sprintf(". default: %v", f.DefValue)
+	}
+	fmt.Println(s)
+}
+
+// isZeroValue guesses whether the string represents the zero
+// value for a flag. It is not accurate but in practice works OK.
+func isZeroValue(f *flag.Flag, value string) bool {
+	// Build a zero value of the flag's Value type, and see if the
+	// result of calling its String method equals the value passed in.
+	// This works unless the Value type is itself an interface type.
+	typ := reflect.TypeOf(f.Value)
+	var z reflect.Value
+	if typ.Kind() == reflect.Ptr {
+		z = reflect.New(typ.Elem())
+	} else {
+		z = reflect.Zero(typ)
+	}
+	if value == z.Interface().(flag.Value).String() {
+		return true
+	}
+
+	switch value {
+	case "false":
+		return true
+	case "":
+		return true
+	case "0":
+		return true
+	}
+	return false
+}
 
 func usage() {
 	flag.Usage = func() {
 		switch *op {
 		case opCreate:
-			// TODO separate the usage for different type services.
-			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash> [OPTIONS]\n", opCreate)
-			flag.PrintDefaults()
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opCreate)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-type"))
+			printFlag(flag.Lookup("service-name"))
+			printFlag(flag.Lookup("volume-type"))
+			printFlag(flag.Lookup("volume-size"))
+			printFlag(flag.Lookup("volume-iops"))
+			switch *serviceType {
+			case common.CatalogService_MongoDB:
+				printFlag(flag.Lookup("journal-volume-type"))
+				printFlag(flag.Lookup("journal-volume-size"))
+				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("mongo-shards"))
+				printFlag(flag.Lookup("mongo-replicas-pershard"))
+				printFlag(flag.Lookup("mongo-replicaset-only"))
+				printFlag(flag.Lookup("mongo-configservers"))
+				printFlag(flag.Lookup("admin"))
+				printFlag(flag.Lookup("password"))
+			case common.CatalogService_PostgreSQL:
+				printFlag(flag.Lookup("journal-volume-type"))
+				printFlag(flag.Lookup("journal-volume-size"))
+				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("password"))
+				printFlag(flag.Lookup("pg-image"))
+				printFlag(flag.Lookup("pg-repluser"))
+				printFlag(flag.Lookup("pg-replpasswd"))
+			case common.CatalogService_Cassandra:
+				printFlag(flag.Lookup("journal-volume-type"))
+				printFlag(flag.Lookup("journal-volume-size"))
+				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("cas-heap-size"))
+			case common.CatalogService_Redis:
+				printFlag(flag.Lookup("redis-memory-size"))
+				printFlag(flag.Lookup("redis-shards"))
+				printFlag(flag.Lookup("redis-replicas-pershard"))
+				printFlag(flag.Lookup("redis-disable-aof"))
+				printFlag(flag.Lookup("redis-auth-pass"))
+				printFlag(flag.Lookup("redis-maxmem-policy"))
+				printFlag(flag.Lookup("redis-configcmd-name"))
+				printFlag(flag.Lookup("redis-repl-timeout"))
+			case common.CatalogService_ZooKeeper:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("zk-heap-size"))
+			case common.CatalogService_Kafka:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("kafka-heap-size"))
+				printFlag(flag.Lookup("kafka-allow-topic-del"))
+				printFlag(flag.Lookup("kafka-retention-hours"))
+				printFlag(flag.Lookup("kafka-zk-service"))
+			case common.CatalogService_ElasticSearch:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("es-heap-size"))
+				printFlag(flag.Lookup("es-dedicated-master"))
+				printFlag(flag.Lookup("es-disable-dedicated-master"))
+				printFlag(flag.Lookup("es-disable-force-awareness"))
+			case common.CatalogService_Kibana:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("kb-es-service"))
+				printFlag(flag.Lookup("kb-proxy-basepath"))
+				printFlag(flag.Lookup("kb-enable-ssl"))
+				printFlag(flag.Lookup("kb-key-file"))
+				printFlag(flag.Lookup("kb-cert-file"))
+			case common.CatalogService_Logstash:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("ls-heap-size"))
+				printFlag(flag.Lookup("ls-container-image"))
+				printFlag(flag.Lookup("ls-queue-type"))
+				printFlag(flag.Lookup("ls-enable-dlq"))
+				printFlag(flag.Lookup("ls-pipeline-file"))
+				printFlag(flag.Lookup("ls-workers"))
+				printFlag(flag.Lookup("ls-outputworkers"))
+				printFlag(flag.Lookup("ls-batch-size"))
+				printFlag(flag.Lookup("ls-batch-delay"))
+			case common.CatalogService_Consul:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("consul-datacenter"))
+				printFlag(flag.Lookup("consul-domain"))
+				printFlag(flag.Lookup("consul-encrypt"))
+				printFlag(flag.Lookup("consul-enable-tls"))
+				printFlag(flag.Lookup("consul-cert-file"))
+				printFlag(flag.Lookup("consul-key-file"))
+				printFlag(flag.Lookup("consul-cacert-file"))
+				printFlag(flag.Lookup("consul-https-port"))
+			case common.CatalogService_CouchDB:
+				printFlag(flag.Lookup("replicas"))
+				printFlag(flag.Lookup("couchdb-enable-cors"))
+				printFlag(flag.Lookup("couchdb-enable-cred"))
+				printFlag(flag.Lookup("couchdb-origins"))
+				printFlag(flag.Lookup("couchdb-headers"))
+				printFlag(flag.Lookup("couchdb-methods"))
+				printFlag(flag.Lookup("couchdb-enable-ssl"))
+				printFlag(flag.Lookup("couchdb-cert-file"))
+				printFlag(flag.Lookup("couchdb-key-file"))
+				printFlag(flag.Lookup("couchdb-cacert-file"))
+			}
+
 		case opUpdate:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opUpdate)
-			flag.PrintDefaults()
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdate)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			fmt.Println("  -service-type=cassandra")
+			printFlag(flag.Lookup("service-name"))
+			switch *serviceType {
+			case common.CatalogService_Cassandra:
+				printFlag(flag.Lookup("cas-heap-size"))
+			}
+
 		case opScale:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -service-type=<cassandra> [OPTIONS]\n", opScale)
-			flag.PrintDefaults()
-		case opStop:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opStop)
-		case opStart:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opStart)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opScale)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			fmt.Println("  -service-type=cassandra")
+			printFlag(flag.Lookup("service-name"))
+			switch *serviceType {
+			case common.CatalogService_Cassandra:
+				printFlag(flag.Lookup("replicas"))
+			}
+
 		case opCheckInit:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa -admin=admin -passwd=passwd\n", opCheckInit)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opCheckInit)
+			fmt.Println("  for MongoDB and CouchDB, please set -admin and -password")
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
+
+		case opStop:
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opStop)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
+		case opStart:
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opStart)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
 		case opDelete:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opDelete)
-		case opList:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default\n", opList)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opDelete)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
 		case opGet:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opGet)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opGet)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
 		case opListMembers:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-name=aaa\n", opListMembers)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opListMembers)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
 		case opGetConfig:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -service-uuid=serviceuuid -fileid=configfileID\n", opGetConfig)
-		case opCleanDNS:
-			fmt.Printf("usage: firecamp-service-cli -op=%s -region=us-west-1 -cluster=default -vpcid=vpcid\n", opCleanDNS)
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opGetConfig)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-uuid"))
+			printFlag(flag.Lookup("fileid"))
+		case opList:
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opList)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
 		default:
-			fmt.Printf("usage: firecamp-service-cli -op=<%s|%s|%s|%s|%s|%s|%s|%s> --help\n",
-				opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
+			fmt.Println("Usage: firecamp-service-cli")
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("op"))
 		}
 	}
 }
@@ -348,12 +528,9 @@ func main() {
 	case opGetConfig:
 		getConfig(ctx, cli)
 
-	case opCleanDNS:
-		cleanDNS(ctx, cli)
-
 	default:
-		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s\n",
-			opCreate, opCheckInit, opDelete, opList, opGet, opListMembers, opGetConfig, opCleanDNS)
+		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+			opCreate, opCheckInit, opUpdate, opScale, opStop, opStart, opDelete, opList, opGet, opListMembers, opGetConfig)
 		os.Exit(-1)
 	}
 }
@@ -556,7 +733,7 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The catalog service is scaled")
+	fmt.Println("The cassandra service is scaled to", *replicas, "nodes")
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
@@ -1391,58 +1568,4 @@ func getConfig(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Printf("%+v\n", *cfg)
-}
-
-func cleanDNS(ctx context.Context, cli *client.ManageClient) {
-	if *vpcID == "" {
-		fmt.Println("please specify the valid cluster VPCID")
-		os.Exit(-1)
-	}
-
-	config := aws.NewConfig().WithRegion(*region)
-	sess, err := session.NewSession(config)
-	if err != nil {
-		fmt.Println("failed to create session, error", err)
-		os.Exit(-1)
-	}
-	dnsIns := awsroute53.NewAWSRoute53(sess)
-
-	domain := dns.GenDefaultDomainName(*cluster)
-
-	private := true
-	hostedZoneID, err := dnsIns.GetOrCreateHostedZoneIDByName(ctx, domain, *vpcID, *region, private)
-	if err != nil {
-		fmt.Println("get aws route53 hostedZoneID error", err)
-		os.Exit(-1)
-	}
-
-	dnsname := dns.GenDNSName(common.ManageServiceName, domain)
-	hostname, err := dnsIns.GetDNSRecord(ctx, dnsname, hostedZoneID)
-	if err != nil {
-		if err == dns.ErrHostedZoneNotFound {
-			fmt.Println("aws route53 hostedZone is already deleted")
-			return
-		}
-		if err != dns.ErrDNSRecordNotFound {
-			fmt.Println("delete the manage server dns record error", err)
-			os.Exit(-1)
-		}
-		// err == dns.ErrDNSRecordNotFound, continue to delete hosted zone
-	} else {
-		// delete the dns record
-		err = dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, hostedZoneID)
-		if err != nil {
-			fmt.Println("delete the manage server dns record error", err)
-			os.Exit(-1)
-		}
-	}
-
-	// delete the route53 hosted zone
-	err = dnsIns.DeleteHostedZone(ctx, hostedZoneID)
-	if err != nil && err != dns.ErrHostedZoneNotFound {
-		fmt.Println("delete the aws route53 hostedZone error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("deleted the manage server dns record and aws route53 hostedZone")
 }
