@@ -13,5 +13,6 @@ var (
 	ErrInvalidArgs            = errors.New("InvalidArgs")
 	ErrUnsupportedPlatform    = errors.New("Not supported container platform")
 	ErrNotFound               = errors.New("NotFound")
+	ErrNotSupported           = errors.New("NotSupported")
 	ErrConditionalCheckFailed = errors.New("ConditionalCheckFailed")
 )

@@ -155,11 +155,15 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 	}
 
 	opts := &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: containerPath,
-		PortMappings:  []common.PortMapping{p},
-		Replicas:      int64(0),
-		Place:         place,
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{p},
+		Replicas:     int64(0),
+		Place:        place,
+	}
+	if len(containerPath) != 0 {
+		opts.DataVolume = &containersvc.VolumeOptions{
+			MountPath: containerPath,
+		}
 	}
 
 	err = e.CreateService(ctx, opts)

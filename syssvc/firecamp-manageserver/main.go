@@ -241,11 +241,15 @@ func createControlDB(ctx context.Context, region string, cluster string, logIns 
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: common.ControlDBDefaultDir,
-		PortMappings:  []common.PortMapping{p},
-		Replicas:      int64(1),
-		Envkvs:        []*common.EnvKeyValuePair{kv},
+		Common: commonOpts,
+		DataVolume: &containersvc.VolumeOptions{
+			MountPath:  common.ControlDBDefaultDir,
+			VolumeType: common.VolumeTypeGPSSD,
+			SizeGB:     common.ControlDBVolumeSizeGB,
+		},
+		PortMappings: []common.PortMapping{p},
+		Replicas:     int64(1),
+		Envkvs:       []*common.EnvKeyValuePair{kv},
 	}
 
 	err = containersvcIns.CreateService(ctx, createOpts)

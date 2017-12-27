@@ -121,10 +121,9 @@ func genCreateOptions(region string, cluster string, dbtype string, logConfig *c
 	}
 
 	return &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: "",
-		PortMappings:  []common.PortMapping{p},
-		Replicas:      int64(1),
-		Envkvs:        envkvs,
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{p},
+		Replicas:     int64(1),
+		Envkvs:       envkvs,
 	}
 }

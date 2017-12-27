@@ -175,10 +175,9 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		HostPort:      23011,
 	}
 	createOpts := &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: "",
-		PortMappings:  []common.PortMapping{portmapping},
-		Replicas:      replicas,
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{portmapping},
+		Replicas:     replicas,
 	}
 
 	err = e.CreateService(ctx, createOpts)

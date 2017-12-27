@@ -541,14 +541,14 @@ func (s *AWSEcs) createRegisterTaskDefinitionInput(taskDefFamily string,
 		},
 	}
 	if commonOpts.Resource != nil {
-		if commonOpts.Resource.ReserveCPUUnits != -1 {
+		if commonOpts.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
 			containerDef.Cpu = aws.Int64(commonOpts.Resource.ReserveCPUUnits)
 		}
-		if commonOpts.Resource.ReserveMemMB != -1 {
+		if commonOpts.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
 			// soft limit
 			containerDef.MemoryReservation = aws.Int64(commonOpts.Resource.ReserveMemMB)
 		}
-		if commonOpts.Resource.MaxMemMB != -1 {
+		if commonOpts.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
 			// hard limit
 			containerDef.Memory = aws.Int64(commonOpts.Resource.MaxMemMB)
 		}
@@ -588,7 +588,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 
 	params := s.createRegisterTaskDefinitionInput(taskDefFamily, opts.Common)
 
-	if len(opts.ContainerPath) != 0 {
+	if opts.DataVolume != nil {
 		// create the primary volume for service data
 		params.Volumes = []*ecs.Volume{
 			{
@@ -601,14 +601,14 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 
 		params.ContainerDefinitions[0].MountPoints = []*ecs.MountPoint{
 			{
-				ContainerPath: aws.String(opts.ContainerPath),
+				ContainerPath: aws.String(opts.DataVolume.MountPath),
 				SourceVolume:  aws.String(opts.Common.ServiceUUID),
 				//ReadOnly:      aws.Bool(true),
 			},
 		}
 	}
 
-	if len(opts.JournalContainerPath) != 0 {
+	if opts.JournalVolume != nil {
 		// create the journal volume for service journal
 		journalVolumeName := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
 		journalVolume := &ecs.Volume{
@@ -620,7 +620,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 		params.Volumes = append(params.Volumes, journalVolume)
 
 		journalMountPoint := &ecs.MountPoint{
-			ContainerPath: aws.String(opts.JournalContainerPath),
+			ContainerPath: aws.String(opts.JournalVolume.MountPath),
 			SourceVolume:  aws.String(journalVolumeName),
 		}
 		params.ContainerDefinitions[0].MountPoints = append(params.ContainerDefinitions[0].MountPoints, journalMountPoint)

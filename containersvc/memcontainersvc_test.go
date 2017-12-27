@@ -98,10 +98,9 @@ func serviceTest(ctx context.Context, t *testing.T, e *MemContainerSvc, cluster 
 	}
 
 	opts := &CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: "",
-		PortMappings:  []common.PortMapping{p},
-		Replicas:      int64(0),
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{p},
+		Replicas:     int64(0),
 	}
 
 	err = e.CreateService(ctx, opts)

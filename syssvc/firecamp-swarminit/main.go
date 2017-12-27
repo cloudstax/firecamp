@@ -244,10 +244,9 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: "",
-		PortMappings:  []common.PortMapping{portMap},
-		Replicas:      1,
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{portMap},
+		Replicas:     1,
 	}
 
 	spec := swarmSvc.CreateServiceSpec(createOpts)

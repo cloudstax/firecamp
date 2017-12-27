@@ -129,7 +129,7 @@ func (s *SwarmSvc) CreateSwarmService(ctx context.Context, serviceSpec swarm.Ser
 // CreateServiceSpec creates the swarm ServiceSpec.
 func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) swarm.ServiceSpec {
 	var mounts []mounttypes.Mount
-	if len(opts.ContainerPath) != 0 {
+	if opts.DataVolume != nil {
 		// The Task.Slot in the volume name does not work on the multiple zones cluster,
 		// as task slot is not aware of zone.
 		// Hit one bug: swarm is possible to schedule 2 tasks to one node, even the container exposes
@@ -151,7 +151,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
 			Source:   source,
-			Target:   opts.ContainerPath,
+			Target:   opts.DataVolume.MountPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
 				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},
@@ -160,7 +160,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		mounts = []mounttypes.Mount{mount}
 	}
 
-	if len(opts.JournalContainerPath) != 0 {
+	if opts.JournalVolume != nil {
 		// The Task.Slot in the volume name does not work on the multiple zones cluster,
 		// as task slot is not aware of zone.
 		source := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
@@ -173,7 +173,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		mount := mounttypes.Mount{
 			Type:     mounttypes.TypeVolume,
 			Source:   source,
-			Target:   opts.JournalContainerPath,
+			Target:   opts.JournalVolume.MountPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
 				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},

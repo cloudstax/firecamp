@@ -351,13 +351,23 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
-		Common:        commonOpts,
-		ContainerPath: req.ContainerPath,
-		PortMappings:  req.PortMappings,
-		Replicas:      req.Replicas,
+		Common: commonOpts,
+		DataVolume: &containersvc.VolumeOptions{
+			MountPath:  req.ContainerPath,
+			VolumeType: req.Volume.VolumeType,
+			SizeGB:     req.Volume.VolumeSizeGB,
+			Iops:       req.Volume.Iops,
+		},
+		PortMappings: req.PortMappings,
+		Replicas:     req.Replicas,
 	}
 	if req.JournalVolume != nil {
-		createOpts.JournalContainerPath = req.JournalContainerPath
+		createOpts.JournalVolume = &containersvc.VolumeOptions{
+			MountPath:  req.JournalContainerPath,
+			VolumeType: req.JournalVolume.VolumeType,
+			SizeGB:     req.JournalVolume.VolumeSizeGB,
+			Iops:       req.JournalVolume.Iops,
+		}
 	}
 
 	zones := make(map[string]bool)

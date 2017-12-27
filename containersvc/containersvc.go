@@ -30,16 +30,25 @@ type CommonOptions struct {
 	LogConfig      *cloudlog.LogConfig
 }
 
+type VolumeOptions struct {
+	MountPath  string
+	VolumeType string
+	SizeGB     int64
+	Iops       int64
+}
+
 type Placement struct {
 	Zones []string
 }
 
 type CreateServiceOptions struct {
-	Common               *CommonOptions
-	ContainerPath        string // The mount path inside container for the service data
-	JournalContainerPath string // The mount path inside container for the service journal
-	PortMappings         []common.PortMapping
-	Replicas             int64
+	Common *CommonOptions
+	// The volume mount for the service data, must exist.
+	DataVolume *VolumeOptions
+	// The volume mount for the service journal, optional.
+	JournalVolume *VolumeOptions
+	PortMappings  []common.PortMapping
+	Replicas      int64
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
