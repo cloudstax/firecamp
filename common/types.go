@@ -3,6 +3,8 @@ package common
 const (
 	Version = "latest"
 
+	CloudPlatformAWS = "aws"
+
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
 
@@ -35,9 +37,9 @@ const (
 	ServiceMemberDomainNameTTLSeconds = 5
 
 	// A ECS container instance has 1,024 cpu units for every CPU core
-	DefaultMaxCPUUnits     = -1
+	DefaultMaxCPUUnits     = 0
 	DefaultReserveCPUUnits = 256
-	DefaultMaxMemoryMB     = -1
+	DefaultMaxMemoryMB     = 0
 	DefaultReserveMemoryMB = 256
 
 	DefaultServiceWaitSeconds = 120

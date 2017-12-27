@@ -43,9 +43,9 @@ def lambda_handler(event, context):
                     "ServiceName": properties['ServiceName']
                 },
                 "Resource": {
-                    "MaxCPUUnits": -1,
+                    "MaxCPUUnits": 0,
                     "ReserveCPUUnits": 256,
-                    "MaxMemMB": -1,
+                    "MaxMemMB": 0,
                     "ReserveMemMB": 256
                 },
                 "Options": {
