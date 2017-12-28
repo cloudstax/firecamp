@@ -184,7 +184,13 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			return false
 		}
 		return (userAttr1.Shards == userAttr2.Shards &&
-			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard)
+			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
+			userAttr1.MemoryCacheSizeMB == userAttr2.MemoryCacheSizeMB &&
+			userAttr1.DisableAOF == userAttr2.DisableAOF &&
+			userAttr1.AuthPass == userAttr2.AuthPass &&
+			userAttr1.ReplTimeoutSecs == userAttr2.ReplTimeoutSecs &&
+			userAttr1.MaxMemPolicy == userAttr2.MaxMemPolicy &&
+			userAttr1.ConfigCmdName == userAttr2.ConfigCmdName)
 
 	default:
 		return true

@@ -149,11 +149,10 @@ func TestUnassignedIPs(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	redisUserAttr := &common.RedisUserAttr{
-		Shards:           1,
-		ReplicasPerShard: 1,
+	rattr := &common.CasUserAttr{
+		HeapSizeMB: 256,
 	}
-	b, err := json.Marshal(redisUserAttr)
+	b, err := json.Marshal(rattr)
 	if err != nil {
 		t.Fatalf("Marshal RedisUserAttr error %s", err)
 	}

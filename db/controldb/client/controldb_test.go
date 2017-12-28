@@ -301,9 +301,8 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 		}
 		var userAttr *common.ServiceUserAttr
 		if i%2 == 0 {
-			rattr := &common.RedisUserAttr{
-				Shards:           1,
-				ReplicasPerShard: 1,
+			rattr := &common.CasUserAttr{
+				HeapSizeMB: 256,
 			}
 			b, err := json.Marshal(rattr)
 			if err != nil {
@@ -311,7 +310,7 @@ func testServiceAttr(ctx context.Context, dbcli *ControlDBCli, cluster string) e
 				return err
 			}
 			userAttr = &common.ServiceUserAttr{
-				ServiceType: common.CatalogService_Redis,
+				ServiceType: common.CatalogService_Cassandra,
 				AttrBytes:   b,
 			}
 		}

@@ -123,7 +123,7 @@ type ServiceAttr struct {
 	// The AWS Route53 HostedZone for the current firecamp cluster.
 	HostedZoneID string
 
-	// Whether the service member needs the static ip. This is only required by Redis.
+	// Whether the service member needs the static ip. This is required by Redis & Consul.
 	RequireStaticIP bool
 
 	// The custom service attributes
@@ -163,8 +163,14 @@ type CasUserAttr struct {
 
 // RedisUserAttr represents the custom Redis service attributes.
 type RedisUserAttr struct {
-	Shards           int64
-	ReplicasPerShard int64
+	Shards            int64
+	ReplicasPerShard  int64
+	MemoryCacheSizeMB int64
+	DisableAOF        bool
+	AuthPass          string
+	ReplTimeoutSecs   int64
+	MaxMemPolicy      string
+	ConfigCmdName     string
 }
 
 // ServiceVolumes represent the volumes of one service.

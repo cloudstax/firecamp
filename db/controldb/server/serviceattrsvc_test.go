@@ -51,16 +51,15 @@ func TestAttrReadWriter(t *testing.T) {
 	hostedZone := "zone1"
 	requireStaticIP := false
 
-	redisUserAttr := &common.RedisUserAttr{
-		Shards:           1,
-		ReplicasPerShard: 1,
+	rattr := &common.CasUserAttr{
+		HeapSizeMB: 256,
 	}
-	b, err := json.Marshal(redisUserAttr)
+	b, err := json.Marshal(rattr)
 	if err != nil {
 		t.Fatalf("Marshal userattr error %s", err)
 	}
 	userAttr := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_Redis,
+		ServiceType: common.CatalogService_Cassandra,
 		AttrBytes:   b,
 	}
 	userAttrBytes, err := json.Marshal(userAttr)

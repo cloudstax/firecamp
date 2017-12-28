@@ -109,8 +109,14 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	userAttr := &common.RedisUserAttr{
-		Shards:           opts.Shards,
-		ReplicasPerShard: opts.ReplicasPerShard,
+		Shards:            opts.Shards,
+		ReplicasPerShard:  opts.ReplicasPerShard,
+		MemoryCacheSizeMB: opts.MemoryCacheSizeMB,
+		DisableAOF:        opts.DisableAOF,
+		AuthPass:          opts.AuthPass,
+		ReplTimeoutSecs:   opts.ReplTimeoutSecs,
+		MaxMemPolicy:      opts.MaxMemPolicy,
+		ConfigCmdName:     opts.ConfigCmdName,
 	}
 	b, err := json.Marshal(userAttr)
 	if err != nil {
