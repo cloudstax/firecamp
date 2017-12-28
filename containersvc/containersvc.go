@@ -30,6 +30,17 @@ type CommonOptions struct {
 	LogConfig      *cloudlog.LogConfig
 }
 
+// k8s specific options
+type K8sOptions struct {
+	// The container image of the init container, optional
+	InitContainerImage string
+	// The access port of the service
+	ServicePort int64
+	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
+	// If only use within k8s, set to false.
+	ExternalDNS bool
+}
+
 type VolumeOptions struct {
 	MountPath  string
 	VolumeType string
@@ -52,6 +63,8 @@ type CreateServiceOptions struct {
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
+
+	KubeOptions *K8sOptions
 }
 
 type RunTaskOptions struct {
