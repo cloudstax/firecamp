@@ -75,9 +75,12 @@ func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions) (*manage.CreateServiceRequest, error) {
+	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions, existingEncryptPasswd string) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
-	encryptedPasswd := encryptPasswd(opts.AdminPasswd)
+	encryptedPasswd := existingEncryptPasswd
+	if len(existingEncryptPasswd) == 0 {
+		encryptedPasswd = encryptPasswd(opts.AdminPasswd)
+	}
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, encryptedPasswd)
 
 	portMappings := []common.PortMapping{
