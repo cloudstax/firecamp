@@ -126,7 +126,7 @@ type ServiceAttr struct {
 	// Whether the service member needs the static ip. This is required by Redis & Consul.
 	RequireStaticIP bool
 
-	// The custom service attributes
+	// The custom service attributes.
 	UserAttr *ServiceUserAttr
 
 	// The specified resources for the service.
@@ -161,16 +161,90 @@ type CasUserAttr struct {
 	HeapSizeMB int64
 }
 
+// PostgresUserAttr represents the postgresql service attributes.
+type PostgresUserAttr struct {
+	ContainerImage string
+}
+
 // RedisUserAttr represents the custom Redis service attributes.
 type RedisUserAttr struct {
-	Shards            int64
-	ReplicasPerShard  int64
+	Shards           int64
+	ReplicasPerShard int64
+
 	MemoryCacheSizeMB int64
 	DisableAOF        bool
 	AuthPass          string
 	ReplTimeoutSecs   int64
 	MaxMemPolicy      string
 	ConfigCmdName     string
+}
+
+// ZKUserAttr represents the zookeeper service attributes.
+type ZKUserAttr struct {
+	HeapSizeMB int64
+}
+
+// KafkaUserAttr represents the kafka service attributes.
+type KafkaUserAttr struct {
+	HeapSizeMB     int64
+	AllowTopicDel  bool
+	RetentionHours int64
+	ZkServiceName  string
+}
+
+// CouchDBUserAttr represents the couchdb service attributes.
+type CouchDBUserAttr struct {
+	Admin           string
+	EncryptedPasswd string
+
+	// CouchDB Cors configs
+	EnableCors  bool
+	Credentials bool
+	Origins     string
+	Headers     string
+	Methods     string
+
+	EnableSSL bool
+}
+
+// ConsulUserAttr represents the consul service attributes.
+type ConsulUserAttr struct {
+	Datacenter string
+	Domain     string
+
+	Encrypt   string
+	EnableTLS bool
+	HTTPSPort int64
+}
+
+// ESUserAttr represents the elasticsearch service attributes.
+type ESUserAttr struct {
+	HeapSizeMB             int64
+	DedicatedMasters       int64
+	DisableDedicatedMaster bool
+	DisableForceAwareness  bool
+}
+
+// KibanaUserAttr represents the kibana service attributes.
+type KibanaUserAttr struct {
+	ESServiceName string
+	ProxyBasePath string
+	EnableSSL     bool
+}
+
+// LSUserAttr represents the logstash service attributes.
+type LSUserAttr struct {
+	HeapSizeMB     int64
+	ContainerImage string
+
+	QueueType             string
+	EnableDeadLetterQueue bool
+
+	PipelineConfigs       string
+	PipelineWorkers       int
+	PipelineOutputWorkers int
+	PipelineBatchSize     int
+	PipelineBatchDelay    int
 }
 
 // ServiceVolumes represent the volumes of one service.
@@ -195,6 +269,9 @@ type ServiceVolume struct {
 type ServiceMember struct {
 	ServiceUUID string // partition key
 	MemberIndex int64  // sort key
+	// TODO add a status field to represent the member status. This will be useful
+	// to prevent the member from running when doing some maintenance for one member.
+	// Status string
 	// The service member name, such as mypg-0, myredis-shard0-0
 	MemberName          string
 	AvailableZone       string

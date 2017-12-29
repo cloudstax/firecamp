@@ -353,7 +353,11 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
+	crReq, err := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -383,8 +387,12 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -429,8 +437,12 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, zkattr)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -562,8 +574,12 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -618,8 +634,12 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 
 	// create the service in the control plane
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
@@ -687,8 +707,12 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -741,8 +765,12 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	esNode := escatalog.GetFirstMemberHost(attr.DomainName, attr.ServiceName)
 
 	// create the service in the control plane and the container platform
-	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq, err := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options, esNode)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -778,8 +806,12 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
+	crReq, err := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

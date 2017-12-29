@@ -1,6 +1,7 @@
 package pgcatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -61,7 +63,7 @@ func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) *manage.CreateServiceRequest {
+	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
 
@@ -73,6 +75,15 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	image := ContainerImage
 	if len(opts.ContainerImage) != 0 {
 		image = opts.ContainerImage
+	}
+
+	userAttr := &common.PostgresUserAttr{
+		ContainerImage: opts.ContainerImage,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -92,12 +103,17 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_PostgreSQL,
+			AttrBytes:   b,
+		},
 	}
 	if opts.JournalVolume != nil {
 		req.JournalVolume = opts.JournalVolume
 		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
 	}
-	return req
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

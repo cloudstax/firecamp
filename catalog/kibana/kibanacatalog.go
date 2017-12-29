@@ -1,6 +1,7 @@
 package kibanacatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -45,7 +47,7 @@ func ValidateRequest(r *manage.CatalogCreateKibanaRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 // kibana simply connects to the first elasticsearch node. TODO create a local coordinating elasticsearch instance.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNode string) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNode string) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res, opts, esNode)
 
@@ -53,7 +55,18 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		{ContainerPort: kbHTTPPort, HostPort: kbHTTPPort},
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.KibanaUserAttr{
+		ESServiceName: opts.ESServiceName,
+		ProxyBasePath: opts.ProxyBasePath,
+		EnableSSL:     opts.EnableSSL,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -70,7 +83,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Kibana,
+			AttrBytes:   b,
+		},
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

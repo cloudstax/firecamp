@@ -40,7 +40,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req := GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err := GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -52,7 +55,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -63,7 +69,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -82,7 +91,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -105,7 +117,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -138,7 +153,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -177,7 +195,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -200,7 +221,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -233,7 +257,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -269,7 +296,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+3 || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -299,7 +329,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -332,7 +365,10 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}

@@ -1,6 +1,7 @@
 package consulcatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -50,7 +52,7 @@ func ValidateRequest(r *manage.CatalogCreateConsulRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogConsulOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogConsulOptions) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
 
@@ -66,7 +68,20 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		portMappings = append(portMappings, httpsPort)
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.ConsulUserAttr{
+		Datacenter: opts.Datacenter,
+		Domain:     opts.Domain,
+		Encrypt:    opts.Encrypt,
+		EnableTLS:  opts.EnableTLS,
+		HTTPSPort:  opts.HTTPSPort,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -84,7 +99,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		RegisterDNS:     true,
 		RequireStaticIP: true,
 		ReplicaConfigs:  replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Consul,
+			AttrBytes:   b,
+		},
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

@@ -170,6 +170,21 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 		}
 		return userAttr1.HeapSizeMB == userAttr2.HeapSizeMB
 
+	case common.CatalogService_PostgreSQL:
+		ua1 := &common.PostgresUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.PostgresUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.ContainerImage == ua2.ContainerImage
+
 	case common.CatalogService_Redis:
 		userAttr1 := &common.RedisUserAttr{}
 		err := json.Unmarshal(u1.AttrBytes, userAttr1)
@@ -191,6 +206,138 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			userAttr1.ReplTimeoutSecs == userAttr2.ReplTimeoutSecs &&
 			userAttr1.MaxMemPolicy == userAttr2.MaxMemPolicy &&
 			userAttr1.ConfigCmdName == userAttr2.ConfigCmdName)
+
+	case common.CatalogService_ZooKeeper:
+		ua1 := &common.ZKUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.ZKUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.HeapSizeMB == ua2.HeapSizeMB
+
+	case common.CatalogService_Kafka:
+		ua1 := &common.KafkaUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.KafkaUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.AllowTopicDel == ua2.AllowTopicDel &&
+			ua1.RetentionHours == ua2.RetentionHours &&
+			ua1.ZkServiceName == ua2.ZkServiceName
+
+	case common.CatalogService_CouchDB:
+		ua1 := &common.CouchDBUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.CouchDBUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.Admin == ua2.Admin &&
+			ua1.EncryptedPasswd == ua2.EncryptedPasswd &&
+			ua1.EnableCors == ua2.EnableCors &&
+			ua1.Credentials == ua2.Credentials &&
+			ua1.Origins == ua2.Origins &&
+			ua1.Headers == ua2.Headers &&
+			ua1.Methods == ua2.Methods &&
+			ua1.EnableSSL == ua2.EnableSSL
+
+	case common.CatalogService_Consul:
+		ua1 := &common.ConsulUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.ConsulUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.Datacenter == ua2.Datacenter &&
+			ua1.Domain == ua2.Domain &&
+			ua1.Encrypt == ua2.Encrypt &&
+			ua1.EnableTLS == ua2.EnableTLS &&
+			ua1.HTTPSPort == ua2.HTTPSPort
+
+	case common.CatalogService_ElasticSearch:
+		ua1 := &common.ESUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.ESUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.DedicatedMasters == ua2.DedicatedMasters &&
+			ua1.DisableDedicatedMaster == ua2.DisableDedicatedMaster &&
+			ua1.DisableForceAwareness == ua2.DisableForceAwareness
+
+	case common.CatalogService_Kibana:
+		ua1 := &common.KibanaUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.KibanaUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.ESServiceName == ua2.ESServiceName &&
+			ua1.ProxyBasePath == ua2.ProxyBasePath &&
+			ua1.EnableSSL == ua2.EnableSSL
+
+	case common.CatalogService_Logstash:
+		ua1 := &common.LSUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.LSUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.ContainerImage == ua2.ContainerImage &&
+			ua1.QueueType == ua2.QueueType &&
+			ua1.EnableDeadLetterQueue == ua2.EnableDeadLetterQueue &&
+			ua1.PipelineConfigs == ua2.PipelineConfigs &&
+			ua1.PipelineWorkers == ua2.PipelineWorkers &&
+			ua1.PipelineBatchSize == ua2.PipelineBatchSize &&
+			ua1.PipelineBatchDelay == ua2.PipelineBatchDelay &&
+			ua1.PipelineOutputWorkers == ua2.PipelineOutputWorkers
 
 	default:
 		return true

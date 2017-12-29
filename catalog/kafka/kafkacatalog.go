@@ -1,6 +1,7 @@
 package kafkacatalog
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -40,7 +42,7 @@ const (
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
-	zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
+	zkattr *common.ServiceAttr) (*manage.CreateServiceRequest, error) {
 	zkServers := genZkServerList(zkattr)
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
@@ -54,7 +56,19 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.KafkaUserAttr{
+		HeapSizeMB:     opts.HeapSizeMB,
+		AllowTopicDel:  opts.AllowTopicDel,
+		RetentionHours: opts.RetentionHours,
+		ZkServiceName:  opts.ZkServiceName,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -76,7 +90,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Kafka,
+			AttrBytes:   b,
+		},
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

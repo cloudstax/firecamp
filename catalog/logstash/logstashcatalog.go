@@ -1,6 +1,7 @@
 package logstashcatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -52,7 +54,7 @@ func ValidateRequest(r *manage.CatalogCreateLogstashRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogLogstashOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogLogstashOptions) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
@@ -66,7 +68,24 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.LSUserAttr{
+		HeapSizeMB:            opts.HeapSizeMB,
+		ContainerImage:        opts.ContainerImage,
+		QueueType:             opts.QueueType,
+		EnableDeadLetterQueue: opts.EnableDeadLetterQueue,
+		PipelineConfigs:       opts.PipelineConfigs,
+		PipelineWorkers:       opts.PipelineWorkers,
+		PipelineOutputWorkers: opts.PipelineOutputWorkers,
+		PipelineBatchSize:     opts.PipelineBatchSize,
+		PipelineBatchDelay:    opts.PipelineBatchDelay,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -88,7 +107,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Logstash,
+			AttrBytes:   b,
+		},
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.

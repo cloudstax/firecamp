@@ -3,6 +3,7 @@ package couchdbcatalog
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -73,9 +75,10 @@ func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
+	encryptedPasswd := encryptPasswd(opts.AdminPasswd)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, encryptedPasswd)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: httpPort, HostPort: httpPort},
@@ -97,7 +100,23 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		}
 	}
 
-	return &manage.CreateServiceRequest{
+	userAttr := &common.CouchDBUserAttr{
+		Admin:           opts.Admin,
+		EncryptedPasswd: encryptedPasswd,
+		EnableCors:      opts.EnableCors,
+		Credentials:     opts.Credentials,
+		Origins:         opts.Origins,
+		Headers:         opts.Headers,
+		Methods:         opts.Methods,
+		EnableSSL:       opts.EnableSSL,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -114,11 +133,17 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		RegisterDNS:    true,
 		ReplicaConfigs: replicaCfgs,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_CouchDB,
+			AttrBytes:   b,
+		},
 	}
+	return req, nil
 }
 
 // GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions) []*manage.ReplicaConfig {
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions, encryptedPasswd string) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 	uuid := utils.GenUUID()
 
@@ -156,7 +181,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		if opts.EnableCors {
 			enableCors = "true"
 		}
-		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member, enableCors, opts.Admin, encryptPasswd(opts.AdminPasswd))
+		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member, enableCors, opts.Admin, encryptedPasswd)
 
 		// set cluster configs
 		if opts.Replicas >= int64(3) {
