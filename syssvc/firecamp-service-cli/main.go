@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -661,13 +662,14 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		os.Exit(-1)
 	}
 
-	err = cli.CatalogCreateCassandraService(ctx, req)
+	jmxUser, jmxPasswd, err := cli.CatalogCreateCassandraService(ctx, req)
 	if err != nil {
 		fmt.Println("create cassandra service error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println("The catalog service is created, wait till it gets initialized")
+	fmt.Println("The catalog service is created, jmx user", jmxUser, "password", jmxPasswd)
+	fmt.Println("wait till the service gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: common.CatalogService_Cassandra,
@@ -1457,6 +1459,16 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Printf("%+v\n", *attr)
+
+	if attr.UserAttr.ServiceType == common.CatalogService_Cassandra {
+		ua := &common.CasUserAttr{}
+		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+		if err != nil {
+			fmt.Println("Unmarshal CasUserAttr error", err)
+			os.Exit(-1)
+		}
+		fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+	}
 }
 
 func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {

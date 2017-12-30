@@ -432,23 +432,31 @@ func (c *ManageClient) CatalogCreatePostgreSQLService(ctx context.Context, r *ma
 }
 
 // CatalogCreateCassandraService creates a new catalog Cassandra service.
-func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *manage.CatalogCreateCassandraRequest) error {
+func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *manage.CatalogCreateCassandraRequest) (jmxUser string, jmxPasswd string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateCassandraOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	return manage.ConvertHTTPError(resp)
+	if resp.StatusCode != http.StatusOK {
+		return "", "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCreateCassandraResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
 // CatalogUpdateCassandraService updates the configs of Cassandra service.

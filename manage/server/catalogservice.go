@@ -33,7 +33,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	case manage.CatalogCreatePostgreSQLOp:
 		return s.createPGService(ctx, r, requuid)
 	case manage.CatalogCreateCassandraOp:
-		return s.createCasService(ctx, r, requuid)
+		return s.createCasService(ctx, w, r, requuid)
 	case manage.CatalogCreateZooKeeperOp:
 		return s.createZkService(ctx, r, requuid)
 	case manage.CatalogCreateKafkaOp:
@@ -874,7 +874,7 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
-func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -918,6 +918,27 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, r *http.Request
 
 	// run the init task in the background
 	s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
+
+	// send back the jmx remote user & passwd
+	userAttr := &common.CasUserAttr{}
+	err = json.Unmarshal(crReq.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	resp := &manage.CatalogCreateCassandraResponse{
+		JmxRemoteUser:   userAttr.JmxRemoteUser,
+		JmxRemotePasswd: userAttr.JmxRemotePasswd,
+	}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal CatalogCreateCassandraResponse error", err, "requuid", requuid, req.Service, req.Options)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 
 	return "", http.StatusOK
 }

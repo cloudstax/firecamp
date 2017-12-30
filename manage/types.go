@@ -269,6 +269,12 @@ type CatalogCreateCassandraRequest struct {
 	Options  *CatalogCassandraOptions
 }
 
+// CatalogCreateCassandraResponse returns the Cassandra JMX user and password.
+type CatalogCreateCassandraResponse struct {
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
 // CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
 type CatalogUpdateCassandraRequest struct {
 	Service    *ServiceCommonRequest
