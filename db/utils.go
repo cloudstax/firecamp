@@ -402,6 +402,7 @@ func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberNam
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberIndex:         memberIndex,
+		Status:              common.ServiceMemberStatusActive,
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              DefaultTaskID,
@@ -414,12 +415,13 @@ func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberNam
 	}
 }
 
-func CreateServiceMember(serviceUUID string, memberIndex int64, memberName string,
+func CreateServiceMember(serviceUUID string, memberIndex int64, status string, memberName string,
 	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
 	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberIndex:         memberIndex,
+		Status:              status,
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              taskID,
@@ -435,6 +437,7 @@ func CreateServiceMember(serviceUUID string, memberIndex int64, memberName strin
 func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
 	if t1.ServiceUUID == t2.ServiceUUID &&
 		t1.MemberIndex == t2.MemberIndex &&
+		t1.Status == t2.Status &&
 		t1.MemberName == t2.MemberName &&
 		t1.AvailableZone == t2.AvailableZone &&
 		t1.TaskID == t2.TaskID &&
@@ -489,6 +492,7 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConf
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
 		MemberIndex:         t1.MemberIndex,
+		Status:              t1.Status,
 		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              t1.TaskID,
@@ -505,6 +509,7 @@ func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, container
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
 		MemberIndex:         t1.MemberIndex,
+		Status:              t1.Status,
 		MemberName:          t1.MemberName,
 		AvailableZone:       t1.AvailableZone,
 		TaskID:              taskID,

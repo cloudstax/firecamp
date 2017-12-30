@@ -43,6 +43,9 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 			tableSortKey: {
 				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
 			},
+			MemberStatus: {
+				S: aws.String(member.Status),
+			},
 			MemberName: {
 				S: aws.String(member.MemberName),
 			},
@@ -368,6 +371,7 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 
 	member := db.CreateServiceMember(serviceUUID,
 		memberIndex,
+		*(item[MemberStatus].S),
 		*(item[MemberName].S),
 		*(item[AvailableZone].S),
 		*(item[TaskID].S),

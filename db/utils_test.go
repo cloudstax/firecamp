@@ -89,7 +89,7 @@ func TestDBUtils(t *testing.T) {
 		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
 	member1 := CreateInitialServiceMember(serviceUUID, memberIndex, memberName, az, mvols, staticIP, cfgs)
-	member2 := CreateServiceMember(serviceUUID, memberIndex, memberName,
+	member2 := CreateServiceMember(serviceUUID, memberIndex, common.ServiceMemberStatusActive, memberName,
 		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
 		mvols, staticIP, cfgs)
 	if !EqualServiceMember(member1, member2, true) {

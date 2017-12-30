@@ -355,8 +355,8 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		s1[i] = db.CreateServiceMember(service1, int64(i), service1+c,
-			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
+		s1[i] = db.CreateServiceMember(service1, int64(i), common.ServiceMemberStatusActive,
+			service1+c, azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
 			mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
@@ -380,8 +380,8 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		s2[i] = db.CreateServiceMember(service2, int64(i), service2+c,
-			azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
+		s2[i] = db.CreateServiceMember(service2, int64(i), common.ServiceMemberStatusActive,
+			service2+c, azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
 			mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])

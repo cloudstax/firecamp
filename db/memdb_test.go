@@ -283,8 +283,9 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		s1[i] = CreateServiceMember(service1, int64(i), utils.GenServiceMemberName(service1, int64(i)),
-			az, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
+		s1[i] = CreateServiceMember(service1, int64(i), common.ServiceMemberStatusActive,
+			utils.GenServiceMemberName(service1, int64(i)), az, taskPrefix+c, contPrefix+c,
+			hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -304,8 +305,9 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		s2[i] = CreateServiceMember(service2, int64(i), utils.GenServiceMemberName(service2, int64(i)),
-			az, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
+		s2[i] = CreateServiceMember(service2, int64(i), common.ServiceMemberStatusActive,
+			utils.GenServiceMemberName(service2, int64(i)), az, taskPrefix+c, contPrefix+c,
+			hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {

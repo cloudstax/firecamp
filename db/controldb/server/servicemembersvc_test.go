@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/controldb"
 	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
@@ -59,6 +60,7 @@ func TestServiceMemberReadWriter(t *testing.T) {
 		member := &pb.ServiceMember{
 			ServiceUUID:         serviceUUID,
 			MemberIndex:         int64(i),
+			Status:              common.ServiceMemberStatusActive,
 			MemberName:          memberName,
 			AvailableZone:       az,
 			TaskID:              taskID,
@@ -243,6 +245,7 @@ func testServiceMemberOp(t *testing.T, s *serviceMemberSvc, serviceUUID string, 
 	member := &pb.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberIndex:         int64(i),
+		Status:              common.ServiceMemberStatusActive,
 		MemberName:          memberName,
 		AvailableZone:       az,
 		TaskID:              taskID,

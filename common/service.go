@@ -28,6 +28,11 @@ const (
 	ServiceStatusDeleting = "DELETING"
 	ServiceStatusDeleted  = "DELETED"
 
+	// Service member status.
+	ServiceMemberStatusActive = "ACTIVE"
+	ServiceMemberStatusPause  = "PAUSE"
+	ServiceMemberStatusBad    = "Bad"
+
 	// The status of one task
 	TaskStatusRunning = "RUNNING"
 	TaskStatusStopped = "STOPPED"
@@ -131,10 +136,6 @@ type ServiceAttr struct {
 
 	// The specified resources for the service.
 	Resource Resources
-
-	// The service admin and password. The password will be deleted once the service is initialized.
-	//Admin       string
-	//AdminPasswd string
 }
 
 // ServiceUserAttr represents the custom service attributes.
@@ -271,9 +272,10 @@ type ServiceVolume struct {
 type ServiceMember struct {
 	ServiceUUID string // partition key
 	MemberIndex int64  // sort key
-	// TODO add a status field to represent the member status. This will be useful
-	// to prevent the member from running when doing some maintenance for one member.
-	// Status string
+	// The member status: Active, Pause, Bad.
+	// This will be useful for some cases. For example, prevent the member container
+	// from running when doing some maintenance for one member.
+	Status string
 	// The service member name, such as mypg-0, myredis-shard0-0
 	MemberName          string
 	AvailableZone       string

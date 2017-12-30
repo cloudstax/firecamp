@@ -51,6 +51,7 @@ const (
 	ContainerInstanceID = "ContainerInstanceID"
 	ServerInstanceID    = "ServerInstanceID"
 	MemberIndex         = "MemberIndex"
+	MemberStatus        = "MemberStatus"
 	MemberName          = "MemberName"
 	MemberVolumes       = "MemberVolumes"
 	MemberConfigs       = "MemberConfigs"

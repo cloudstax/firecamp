@@ -293,6 +293,7 @@ func GenPbServiceMember(member *common.ServiceMember) *pb.ServiceMember {
 	pbmember := &pb.ServiceMember{
 		ServiceUUID:         member.ServiceUUID,
 		MemberIndex:         member.MemberIndex,
+		Status:              member.Status,
 		MemberName:          member.MemberName,
 		AvailableZone:       member.AvailableZone,
 		TaskID:              member.TaskID,
@@ -334,6 +335,7 @@ func GenDbMemberVolumes(vols *pb.MemberVolumes) common.MemberVolumes {
 func GenDbServiceMember(member *pb.ServiceMember) *common.ServiceMember {
 	dbmember := db.CreateServiceMember(member.ServiceUUID,
 		member.MemberIndex,
+		member.Status,
 		member.MemberName,
 		member.AvailableZone,
 		member.TaskID,
@@ -370,6 +372,7 @@ func EqualsMemberVolumes(v1 *pb.MemberVolumes, v2 *pb.MemberVolumes) bool {
 func EqualServiceMember(a1 *pb.ServiceMember, a2 *pb.ServiceMember, skipMtime bool) bool {
 	if a1.ServiceUUID == a2.ServiceUUID &&
 		a1.MemberIndex == a2.MemberIndex &&
+		a1.Status == a2.Status &&
 		a1.MemberName == a2.MemberName &&
 		a1.AvailableZone == a2.AvailableZone &&
 		a1.TaskID == a2.TaskID &&
@@ -450,6 +453,7 @@ func CopyServiceMember(a1 *pb.ServiceMember) *pb.ServiceMember {
 	return &pb.ServiceMember{
 		ServiceUUID:         a1.ServiceUUID,
 		MemberIndex:         a1.MemberIndex,
+		Status:              a1.Status,
 		MemberName:          a1.MemberName,
 		AvailableZone:       a1.AvailableZone,
 		TaskID:              a1.TaskID,

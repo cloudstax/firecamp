@@ -359,9 +359,9 @@ func TestFindIdleVolume(t *testing.T) {
 			PrimaryVolumeID:   volIDPrefix + str,
 			PrimaryDeviceName: "/dev/xvdf",
 		}
-		m := db.CreateServiceMember(serviceUUID, int64(i), utils.GenServiceMemberName(service, int64(i)),
-			mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
-			serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+		m := db.CreateServiceMember(serviceUUID, int64(i), common.ServiceMemberStatusActive,
+			utils.GenServiceMemberName(service, int64(i)), mockServerInfo.GetLocalAvailabilityZone(),
+			taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 		err := dbIns.CreateServiceMember(ctx, m)
 		if err != nil {
 			t.Fatalf("CreateServiceMember error %s, index %d", err, i)
@@ -374,9 +374,9 @@ func TestFindIdleVolume(t *testing.T) {
 		PrimaryVolumeID:   volIDPrefix + str,
 		PrimaryDeviceName: "/dev/xvdf",
 	}
-	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), utils.GenServiceMemberName(service, int64(memNumber+1)),
-		mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(),
-		serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), common.ServiceMemberStatusActive,
+		utils.GenServiceMemberName(service, int64(memNumber+1)), mockServerInfo.GetLocalAvailabilityZone(),
+		taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(), serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 	err := dbIns.CreateServiceMember(ctx, m)
 	if err != nil {
 		t.Fatalf("CreateServiceMember error %s, index %d", err, memNumber+1)
@@ -408,9 +408,9 @@ func TestFindIdleVolume(t *testing.T) {
 				PrimaryVolumeID:   volIDPrefix + str,
 				PrimaryDeviceName: "/dev/xvdf",
 			}
-			m := db.CreateServiceMember(serviceUUID, int64(i), utils.GenServiceMemberName(service, int64(i)),
-				mockServerInfo.GetLocalAvailabilityZone(), taskPrefix+str, contInsPrefix+str,
-				serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+			m := db.CreateServiceMember(serviceUUID, int64(i), common.ServiceMemberStatusActive,
+				utils.GenServiceMemberName(service, int64(i)), mockServerInfo.GetLocalAvailabilityZone(),
+				taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
 			if db.EqualServiceMember(m, m1, false) {
 				fmt.Println("select member", i)
 				selected = true

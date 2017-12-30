@@ -933,6 +933,7 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 	}
 	member := db.CreateServiceMember(serviceUUID,
 		0, // member index
+		common.ServiceMemberStatusActive,
 		common.ControlDBServiceName,
 		d.serverInfo.GetLocalAvailabilityZone(),
 		taskID,

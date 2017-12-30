@@ -157,16 +157,17 @@ message ServiceMember {
   string serviceUUID = 1;
   int64 memberIndex = 2;
 
-  string memberName = 3;
-  string availableZone = 4;
-  string taskID = 5;
-  string containerInstanceID = 6;
-  string serverInstanceID = 7;
-  int64 lastModified = 8;
+  string status = 3;
+  string memberName = 4;
+  string availableZone = 5;
+  string taskID = 6;
+  string containerInstanceID = 7;
+  string serverInstanceID = 8;
+  int64 lastModified = 9;
 
-  MemberVolumes volumes = 9;
-  string staticIP = 10;
-  repeated MemberConfig configs = 11;
+  MemberVolumes volumes = 10;
+  string staticIP = 11;
+  repeated MemberConfig configs = 12;
 }
 
 message CreateServiceMemberResponse {

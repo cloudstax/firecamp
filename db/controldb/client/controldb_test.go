@@ -443,6 +443,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		}
 		member := db.CreateServiceMember(serviceUUID,
 			int64(i),
+			common.ServiceMemberStatusActive,
 			memberName,
 			az,
 			taskIDPrefix+str,
@@ -468,6 +469,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		// negative case: create the serviceMember again with different field
 		member1 := db.CreateServiceMember(serviceUUID,
 			int64(i),
+			common.ServiceMemberStatusActive,
 			memberName,
 			az,
 			taskIDPrefix+str+updateSuffix,
@@ -504,6 +506,7 @@ func testServiceMember(ctx context.Context, dbcli *ControlDBCli, cluster string)
 		// update serviceMember
 		member1 = db.CreateServiceMember(serviceUUID,
 			int64(i),
+			common.ServiceMemberStatusActive,
 			memberName,
 			az,
 			taskIDPrefix+str+updateSuffix,

@@ -461,6 +461,7 @@ func copyServiceMember(t *common.ServiceMember) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t.ServiceUUID,
 		MemberIndex:         t.MemberIndex,
+		Status:              t.Status,
 		MemberName:          t.MemberName,
 		AvailableZone:       t.AvailableZone,
 		LastModified:        t.LastModified,
