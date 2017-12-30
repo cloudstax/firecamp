@@ -158,7 +158,9 @@ type MongoDBUserAttr struct {
 
 // CasUserAttr represents the custom Cassandra service attributes.
 type CasUserAttr struct {
-	HeapSizeMB int64
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // PostgresUserAttr represents the postgresql service attributes.

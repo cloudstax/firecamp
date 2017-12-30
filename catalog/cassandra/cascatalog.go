@@ -22,12 +22,15 @@ const (
 	// InitContainerImage initializes the Cassandra cluster.
 	InitContainerImage = common.ContainerNamePrefix + "cassandra-init:" + defaultVersion
 
+	// DefaultHeapMB is the default Cassandra JVM heap size.
 	// https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_tune_jvm_c.html
-	// Cassandra JVM heap size. The default value is 8GB. Cassandra recommends no more than 14GB
 	DefaultHeapMB = 8192
-	MaxHeapMB     = 14 * 1024
-	// if heap < 1024, jvm may stall long time at gc.
+	// MaxHeapMB is the max Cassandra JVM heap size. Cassandra recommends no more than 14GB
+	MaxHeapMB = 14 * 1024
+	// MinHeapMB is the minimal JVM heap size. If heap < 1024, jvm may stall long time at gc.
 	MinHeapMB = 1024
+	// DefaultJmxRemoteUser is the default jmx remote user.
+	DefaultJmxRemoteUser = "cassandrajmx"
 
 	intraNodePort    = 7000
 	tlsIntraNodePort = 7001
@@ -35,10 +38,13 @@ const (
 	cqlPort          = 9042
 	thriftPort       = 9160
 
-	yamlConfFileName   = "cassandra.yaml"
-	rackdcConfFileName = "cassandra-rackdc.properties"
-	jvmConfFileName    = "jvm.options"
-	logConfFileName    = "logback.xml"
+	yamlConfFileName            = "cassandra.yaml"
+	rackdcConfFileName          = "cassandra-rackdc.properties"
+	jvmConfFileName             = "jvm.options"
+	logConfFileName             = "logback.xml"
+	jmxRemotePasswdConfFileName = "jmxremote.password"
+
+	jmxRemotePasswdConfFileMode = 0400
 )
 
 // The default Cassandra catalog service. By default,
@@ -78,6 +84,12 @@ func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
+	if len(opts.JmxRemoteUser) == 0 {
+		opts.JmxRemoteUser = DefaultJmxRemoteUser
+	}
+	if len(opts.JmxRemotePasswd) == 0 {
+		opts.JmxRemotePasswd = utils.GenUUID()
+	}
 	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
@@ -94,7 +106,9 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	userAttr := &common.CasUserAttr{
-		HeapSizeMB: opts.HeapSizeMB,
+		HeapSizeMB:      opts.HeapSizeMB,
+		JmxRemoteUser:   opts.JmxRemoteUser,
+		JmxRemotePasswd: opts.JmxRemotePasswd,
 	}
 	b, err := json.Marshal(userAttr)
 	if err != nil {
@@ -193,7 +207,14 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  logConfContent,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg}
+		// create the jmxremote.password file
+		jmxCfg := &manage.ReplicaConfigFile{
+			FileName: jmxRemotePasswdConfFileName,
+			FileMode: jmxRemotePasswdConfFileMode,
+			Content:  fmt.Sprintf("%s %s\n", opts.JmxRemoteUser, opts.JmxRemotePasswd),
+		}
+
+		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

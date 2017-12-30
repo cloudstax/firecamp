@@ -7,7 +7,8 @@ CONFIG_DIR=$DATA_DIR/conf
 CASSANDRA_YAML_FILE=$CONFIG_DIR/cassandra.yaml
 CASSANDRA_RACKDC_FILE=$CONFIG_DIR/cassandra-rackdc.properties
 CASSANDRA_LOG_FILE=$CONFIG_DIR/logback.xml
-CASSANDRA_JVM_FILE=$confdir/jvm.options
+CASSANDRA_JVM_FILE=$CONFIG_DIR/jvm.options
+CASSANDRA_JMXREMOTEPASSWD_FILE=$CONFIG_DIR/jmxremote.password
 syscfgfile=$CONFIG_DIR/sys.conf
 
 # sanity check to make sure the volume is mounted to /data.
@@ -48,10 +49,17 @@ if [ "$(id -u)" = '0' ]; then
   cp $CASSANDRA_YAML_FILE /etc/cassandra/
   cp $CASSANDRA_RACKDC_FILE /etc/cassandra/
   cp $CASSANDRA_LOG_FILE /etc/cassandra/
+  # jvm.options file does not exist before release 0.9.1
   if [ -f "$CASSANDRA_JVM_FILE" ]; then
     cp $CASSANDRA_JVM_FILE /etc/cassandra/
   fi
+  # jmxremote.password file does not exist before release 0.9.2
+  if [ -f "$CASSANDRA_JMXREMOTEPASSWD_FILE" ]; then
+    export LOCAL_JMX="no"
+    cp $CASSANDRA_JMXREMOTEPASSWD_FILE /etc/cassandra/
+  fi
 fi
+
 
 # allow the container to be started with `--user`
 if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
@@ -64,6 +72,7 @@ if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
 	  chown -R cassandra $DATA_DIR
   fi
   chown -R cassandra "$CONFIG_DIR"
+  chown -R cassandra /etc/cassandra
 
 	exec gosu cassandra "$BASH_SOURCE" "$@"
 fi

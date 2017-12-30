@@ -255,6 +255,11 @@ type CatalogCassandraOptions struct {
 
 	// Cassandra JVM heap size. The default volue is 8GB.
 	HeapSizeMB int64
+	// The user for the JMX remote access. If empty, will be set as "cassandra".
+	JmxRemoteUser string
+	// The password for the JMX remote access. If empty, a uuid will be generated
+	// as the password. This will be used by nodetool to access replica remotely.
+	JmxRemotePasswd string
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.

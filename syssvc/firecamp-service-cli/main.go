@@ -68,6 +68,8 @@ var (
 
 	// The Cassandra service specific parameters
 	casHeapSizeMB = flag.Int64("cas-heap-size", cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
+	casJmxUser    = flag.String("cas-jmx-user", cascatalog.DefaultJmxRemoteUser, "The Cassandra JMX remote user")
+	casJmxPasswd  = flag.String("cas-jmx-passwd", "", "The Cassandra JMX. If leave as empty, an uuid will be generated automatically")
 
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
@@ -646,8 +648,10 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 			},
-			JournalVolume: journalVol,
-			HeapSizeMB:    *casHeapSizeMB,
+			JournalVolume:   journalVol,
+			HeapSizeMB:      *casHeapSizeMB,
+			JmxRemoteUser:   *casJmxUser,
+			JmxRemotePasswd: *casJmxPasswd,
 		},
 	}
 
