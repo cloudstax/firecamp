@@ -1019,10 +1019,12 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	}
 
 	opts := &manage.CatalogCassandraOptions{
-		Replicas:      req.Replicas,
-		Volume:        &attr.Volumes.PrimaryVolume,
-		JournalVolume: &attr.Volumes.JournalVolume,
-		HeapSizeMB:    userAttr.HeapSizeMB,
+		Replicas:        req.Replicas,
+		Volume:          &attr.Volumes.PrimaryVolume,
+		JournalVolume:   &attr.Volumes.JournalVolume,
+		HeapSizeMB:      userAttr.HeapSizeMB,
+		JmxRemoteUser:   userAttr.JmxRemoteUser,
+		JmxRemotePasswd: userAttr.JmxRemotePasswd,
 	}
 
 	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)

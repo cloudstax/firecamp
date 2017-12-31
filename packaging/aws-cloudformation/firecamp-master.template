@@ -578,6 +578,14 @@
           },
           {
             "IpProtocol": "tcp",
+            "FromPort": "7199",
+            "ToPort": "7199",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
             "FromPort": "9160",
             "ToPort": "9160",
             "SourceSecurityGroupId": {

@@ -739,7 +739,9 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The cassandra service is scaled to", *replicas, "nodes")
+	fmt.Println("The cassandra service is scaled to", *replicas, "nodes, wait for the containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
