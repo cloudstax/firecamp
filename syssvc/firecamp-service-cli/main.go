@@ -192,6 +192,11 @@ func printFlag(f *flag.Flag) {
 // isZeroValue guesses whether the string represents the zero
 // value for a flag. It is not accurate but in practice works OK.
 func isZeroValue(f *flag.Flag, value string) bool {
+	// for the "false" bool value, return false
+	if value == "false" {
+		return false
+	}
+
 	// Build a zero value of the flag's Value type, and see if the
 	// result of calling its String method equals the value passed in.
 	// This works unless the Value type is itself an interface type.
@@ -276,7 +281,7 @@ func usage() {
 			case common.CatalogService_ElasticSearch:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("es-heap-size"))
-				printFlag(flag.Lookup("es-dedicated-master"))
+				printFlag(flag.Lookup("es-dedicated-masters"))
 				printFlag(flag.Lookup("es-disable-dedicated-master"))
 				printFlag(flag.Lookup("es-disable-force-awareness"))
 			case common.CatalogService_Kibana:
@@ -1462,7 +1467,8 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Printf("%+v\n", *attr)
 
-	if attr.UserAttr.ServiceType == common.CatalogService_Cassandra {
+	switch attr.UserAttr.ServiceType {
+	case common.CatalogService_Cassandra:
 		ua := &common.CasUserAttr{}
 		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
 		if err != nil {
@@ -1470,6 +1476,15 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 			os.Exit(-1)
 		}
 		fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+
+	case common.CatalogService_MongoDB:
+		ua := &common.MongoDBUserAttr{}
+		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+		if err != nil {
+			fmt.Println("Unmarshal MongoDBUserAttr error", err)
+			os.Exit(-1)
+		}
+		fmt.Printf("%+v\n", *ua)
 	}
 }
 
@@ -1540,6 +1555,8 @@ func startService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("Service started")
+
+	waitServiceRunning(ctx, cli, serviceReq)
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {
