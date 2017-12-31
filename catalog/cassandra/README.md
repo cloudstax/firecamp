@@ -11,6 +11,47 @@ Cassandra Ec2Snitch could load the AWS region and availability zone from the EC2
 
 Only one region is supported currently. The multi-regions Cassandra will be supported in the future.
 
+## Scale
+
+Scaling a FireCamp Cassandra service requires 4 steps. For example, scaling a 3 replicas Cassandra service to 6 replicas. Cassandra service name is "mycas". Cluster name is "t1". If you want to scale to a large number of replicas, please repeat below steps to scale 3 replicas at one time.
+
+1. Scale the cluster nodes. For example, on AWS, go to the [EC2 AutoScalingGroup console](https://console.aws.amazon.com/ec2/autoscaling) and scale the FireCamp cluster nodes.
+
+2. Scale the replicas using firecamp cli.
+```
+firecamp-service-cli -op=scale-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=6
+```
+
+3. Use [nodetool status](https://docs.datastax.com/en/cassandra/3.0/cassandra/tools/toolsStatus.html) to verify the new replicas are fully bootstrapped and all other nodes are up (UN).
+```
+nodetool -h mycas-3.t1-firecamp.com -u cassandrajmx -pw changeme status
+nodetool -h mycas-4.t1-firecamp.com -u cassandrajmx -pw changeme status
+nodetool -h mycas-5.t1-firecamp.com -u cassandrajmx -pw changeme status
+```
+
+4. Run [nodetool cleanup](https://docs.datastax.com/en/cassandra/3.0/cassandra/tools/toolsCleanup.html) on each of the previously existing nodes to remove the keys that no longer belong to those nodes. Wait for cleanup to complete on one node before running nodetool cleanup on the next node. Cleanup can be safely postponed for low-usage hours.
+```
+nodetool -h mycas-0.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
+nodetool -h mycas-1.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
+nodetool -h mycas-2.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
+```
+
+Currently FireCamp only supports scaling from 3 replicas. Scaling from 1 replica is not supported yet. Scaling down the replicas are not supported as well. If you want to stop the service when idle, could run `firecamp-service-cli -op=stop-service -service-name=mycas`. This will stop the service containers, while the volumes are still there. Later could start the containers with `firecamp-service-cli -op=start-service -service-name=mycas`.
+
+### Troubleshooting
+
+If the new replicas do not work, probably the new node is not correctly added to the cluster.
+
+1. Check if the new node is added to the container orchestration framework.
+
+For ECS, go to [ECS console](https://console.aws.amazon.com/ecs), click the right cluster, and check if the new nodes show up in the container instances. If not, find the corresponding EC2 instance and terminate it. The AutoScalingGroup will create and initialize a new EC2 instance automatically.
+
+For Docker Swarm, login to swarm manager node, run `docker node ls` and check if the new node is added.
+
+2. Check the firecamp volume plugin is correctly installed.
+
+Login to the EC2 instance, run `sudo docker plugin ls`. If firecamp-volume plugin is not installed or not enabled, terminate the corresponding EC2 instance. The AutoScalingGroup will create and initialize a new EC2 instance automatically.
+
 ## Security
 
 The FireCamp Cassandra follows the official [security guide](http://cassandra.apache.org/doc/latest/operating/security.html). The Authentication and Authorization are enabled by default.
@@ -43,6 +84,10 @@ Note: the FireCamp Cassandra assumes the whole node is only used by Cassandra. W
 The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
 ## Configs
+
+**[JMX](https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureJmxAuthentication.html)**
+
+By default, JMX is enabled to allow tools such as nodetool to access the Cassandra replica remotely. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "cassandrajmx" and an UUID will be generated as the password.
 
 **[JVM Configs](https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_tune_jvm_c.html)**
 
