@@ -1,7 +1,7 @@
 
 .PHONY: install docker test lambda
 
-version=latest
+version=0.9.2
 
 cli:
 	cd syssvc/firecamp-service-cli; go install; cd -

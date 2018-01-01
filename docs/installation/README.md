@@ -7,7 +7,7 @@
   * [Delete the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-stateful-service)
 
 # Installation on AWS
-This doc always links to the last official release, currently 0.9.1. If you want to test against the latest master branch, which is under developing, manually replace the 0.9.1 to latest for the CloudFormation template and firecamp-service-cli.
+This doc always links to the last official release, currently 0.9.2. If you want to test against the latest master branch, which is under developing, manually replace the 0.9.2 to latest for the CloudFormation template and firecamp-service-cli.
 
 ## Install the FireCamp Cluster
 The FireCamp cluster could be easily installed using AWS CloudFormation. The CloudFormation template will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
@@ -40,17 +40,17 @@ Currently the template supports 2 and 3 AZs. It is recommended to use 3 AZs for 
 ]
 ```
 
-2. Run AWS CLI to create the cluster for release 0.9.1.
+2. Run AWS CLI to create the cluster for release 0.9.2.
 ```
 #!/bin/sh
 
-version=0.9.1
+version=0.9.2
 
 aws cloudformation create-stack --stack-name t1 --disable-rollback --capabilities CAPABILITY_IAM --template-url https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/templates/firecamp-master.template --parameters file://stack-master.json
 ```
 
 You could also use CloudFormation UI to create a cluster:
-1. Go to [FireCamp AWS CloudFormation of release 0.9.1](https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.1/templates/firecamp-master.template), click "Next".
+1. Go to [FireCamp AWS CloudFormation of release 0.9.2](https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.2/templates/firecamp-master.template), click "Next".
 
 2. "Specify Details": specify below fields, then click "Next".
 * Specify the "Stack name", such as "t1".
@@ -101,9 +101,9 @@ After all stateful services are deleted, delete the CloudFormation stack, which 
 # The FireCamp Service CLI
 A Bastion AutoScaleGroup is created and is the only one that could SSH to the cluster nodes, and access the FireCamp manage server. The nodes in the FireCamp Cluster could also access the manage server.
 
-After the stack is created, could ssh to the Bastion node, get the FireCamp service cli of release 0.9.1.
+After the stack is created, could ssh to the Bastion node, get the FireCamp service cli of release 0.9.2.
 
-  `wget https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.1/packages/firecamp-service-cli.tgz`
+  `wget https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.2/packages/firecamp-service-cli.tgz`
 
 ## Create the Stateful Service
 The MongoDB or PostgreSQL cluster could be simply created using the firecamp-service-cli. In case the service creation command fails, could simply retry it. **It is recommended that you should change the root user's password after the service is created.**
