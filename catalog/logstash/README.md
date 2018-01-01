@@ -72,7 +72,7 @@ firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-e
 ```
 3. Create a Logstash service:
 ```
-firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:latest
+firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6
 ```
 The logstash.conf content:
 ```

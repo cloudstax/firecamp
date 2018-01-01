@@ -118,17 +118,19 @@ This creates a 3 shards Redis on 3 availability zones. Each shard has 1 master a
 ## Set and Get Keys
 1. Set Keys
 ```
-for i in `seq 1 100`
-do
-  redis-cli -a changeme -h myredis-0.t1-firecamp.com -c set key$i value$i
+for i in `seq 0 5`; do
+  for j in `seq 1 30`; do
+    redis-cli -a changeme -h myredis-$i.t1-firecamp.com -c set key$i-$j value$i-$j
+  done
 done
 ```
 
 2. Get Keys
 ```
-for i in `seq 1 100`
-do
-  redis-cli -a changeme -h myredis-0.t1-firecamp.com -c get key$i
+for i in `seq 0 5`; do
+  for j in `seq 1 30`; do
+    redis-cli -a changeme -h myredis-$i.t1-firecamp.com -c get key$i-$j
+  done
 done
 ```
 
