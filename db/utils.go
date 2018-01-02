@@ -149,11 +149,15 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal mongodb user attr error", err, u2)
 			return false
 		}
-		return (userAttr1.Shards == userAttr2.Shards &&
+		if userAttr1.Shards == userAttr2.Shards &&
 			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
 			userAttr1.ReplicaSetOnly == userAttr2.ReplicaSetOnly &&
 			userAttr1.ConfigServers == userAttr2.ConfigServers &&
-			userAttr1.KeyFileContent == userAttr2.KeyFileContent)
+			userAttr1.KeyFileContent == userAttr2.KeyFileContent {
+			return true
+		}
+		glog.Errorln("MongoDBUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
+		return false
 
 	case common.CatalogService_Cassandra:
 		userAttr1 := &common.CasUserAttr{}
@@ -168,7 +172,13 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal cassandra user attr error", err, u2)
 			return false
 		}
-		return userAttr1.HeapSizeMB == userAttr2.HeapSizeMB
+		if userAttr1.HeapSizeMB == userAttr2.HeapSizeMB &&
+			userAttr1.JmxRemoteUser == userAttr2.JmxRemoteUser &&
+			userAttr1.JmxRemotePasswd == userAttr2.JmxRemotePasswd {
+			return true
+		}
+		glog.Errorln("CasUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
+		return false
 
 	case common.CatalogService_PostgreSQL:
 		ua1 := &common.PostgresUserAttr{}
@@ -183,7 +193,11 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.ContainerImage == ua2.ContainerImage
+		if ua1.ContainerImage == ua2.ContainerImage {
+			return true
+		}
+		glog.Errorln("PostgresUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_Redis:
 		userAttr1 := &common.RedisUserAttr{}
@@ -198,14 +212,18 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal redis user attr error", err, u2)
 			return false
 		}
-		return (userAttr1.Shards == userAttr2.Shards &&
+		if userAttr1.Shards == userAttr2.Shards &&
 			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
 			userAttr1.MemoryCacheSizeMB == userAttr2.MemoryCacheSizeMB &&
 			userAttr1.DisableAOF == userAttr2.DisableAOF &&
 			userAttr1.AuthPass == userAttr2.AuthPass &&
 			userAttr1.ReplTimeoutSecs == userAttr2.ReplTimeoutSecs &&
 			userAttr1.MaxMemPolicy == userAttr2.MaxMemPolicy &&
-			userAttr1.ConfigCmdName == userAttr2.ConfigCmdName)
+			userAttr1.ConfigCmdName == userAttr2.ConfigCmdName {
+			return true
+		}
+		glog.Errorln("RedisUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
+		return false
 
 	case common.CatalogService_ZooKeeper:
 		ua1 := &common.ZKUserAttr{}
@@ -220,7 +238,11 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.HeapSizeMB == ua2.HeapSizeMB
+		if ua1.HeapSizeMB == ua2.HeapSizeMB {
+			return true
+		}
+		glog.Errorln("ZKUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_Kafka:
 		ua1 := &common.KafkaUserAttr{}
@@ -235,10 +257,14 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
 			ua1.AllowTopicDel == ua2.AllowTopicDel &&
 			ua1.RetentionHours == ua2.RetentionHours &&
-			ua1.ZkServiceName == ua2.ZkServiceName
+			ua1.ZkServiceName == ua2.ZkServiceName {
+			return true
+		}
+		glog.Errorln("KafkaUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_CouchDB:
 		ua1 := &common.CouchDBUserAttr{}
@@ -253,14 +279,18 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.Admin == ua2.Admin &&
+		if ua1.Admin == ua2.Admin &&
 			ua1.EncryptedPasswd == ua2.EncryptedPasswd &&
 			ua1.EnableCors == ua2.EnableCors &&
 			ua1.Credentials == ua2.Credentials &&
 			ua1.Origins == ua2.Origins &&
 			ua1.Headers == ua2.Headers &&
 			ua1.Methods == ua2.Methods &&
-			ua1.EnableSSL == ua2.EnableSSL
+			ua1.EnableSSL == ua2.EnableSSL {
+			return true
+		}
+		glog.Errorln("CouchDBUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_Consul:
 		ua1 := &common.ConsulUserAttr{}
@@ -275,11 +305,15 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.Datacenter == ua2.Datacenter &&
+		if ua1.Datacenter == ua2.Datacenter &&
 			ua1.Domain == ua2.Domain &&
 			ua1.Encrypt == ua2.Encrypt &&
 			ua1.EnableTLS == ua2.EnableTLS &&
-			ua1.HTTPSPort == ua2.HTTPSPort
+			ua1.HTTPSPort == ua2.HTTPSPort {
+			return true
+		}
+		glog.Errorln("ConsulUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_ElasticSearch:
 		ua1 := &common.ESUserAttr{}
@@ -294,10 +328,14 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
 			ua1.DedicatedMasters == ua2.DedicatedMasters &&
 			ua1.DisableDedicatedMaster == ua2.DisableDedicatedMaster &&
-			ua1.DisableForceAwareness == ua2.DisableForceAwareness
+			ua1.DisableForceAwareness == ua2.DisableForceAwareness {
+			return true
+		}
+		glog.Errorln("ESUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_Kibana:
 		ua1 := &common.KibanaUserAttr{}
@@ -312,9 +350,13 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.ESServiceName == ua2.ESServiceName &&
+		if ua1.ESServiceName == ua2.ESServiceName &&
 			ua1.ProxyBasePath == ua2.ProxyBasePath &&
-			ua1.EnableSSL == ua2.EnableSSL
+			ua1.EnableSSL == ua2.EnableSSL {
+			return true
+		}
+		glog.Errorln("KibanaUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	case common.CatalogService_Logstash:
 		ua1 := &common.LSUserAttr{}
@@ -329,7 +371,7 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		return ua1.HeapSizeMB == ua2.HeapSizeMB &&
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
 			ua1.ContainerImage == ua2.ContainerImage &&
 			ua1.QueueType == ua2.QueueType &&
 			ua1.EnableDeadLetterQueue == ua2.EnableDeadLetterQueue &&
@@ -337,7 +379,11 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			ua1.PipelineWorkers == ua2.PipelineWorkers &&
 			ua1.PipelineBatchSize == ua2.PipelineBatchSize &&
 			ua1.PipelineBatchDelay == ua2.PipelineBatchDelay &&
-			ua1.PipelineOutputWorkers == ua2.PipelineOutputWorkers
+			ua1.PipelineOutputWorkers == ua2.PipelineOutputWorkers {
+			return true
+		}
+		glog.Errorln("LSUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
 
 	default:
 		return true
@@ -363,6 +409,14 @@ func EqualServiceVolume(v1 *common.ServiceVolume, v2 *common.ServiceVolume) bool
 	return false
 }
 
+func CopyCasUserAttr(u1 *common.CasUserAttr) *common.CasUserAttr {
+	return &common.CasUserAttr{
+		HeapSizeMB:      u1.HeapSizeMB,
+		JmxRemoteUser:   u1.JmxRemoteUser,
+		JmxRemotePasswd: u1.JmxRemotePasswd,
+	}
+}
+
 func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     t1.ServiceUUID,
@@ -377,6 +431,7 @@ func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceA
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
+		Resource:        t1.Resource,
 	}
 }
 
@@ -394,6 +449,25 @@ func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.Servi
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
+		Resource:        t1.Resource,
+	}
+}
+
+func UpdateServiceUserAttr(t1 *common.ServiceAttr, ua *common.ServiceUserAttr) *common.ServiceAttr {
+	return &common.ServiceAttr{
+		ServiceUUID:     t1.ServiceUUID,
+		ServiceStatus:   t1.ServiceStatus,
+		LastModified:    time.Now().UnixNano(),
+		Replicas:        t1.Replicas,
+		ClusterName:     t1.ClusterName,
+		ServiceName:     t1.ServiceName,
+		Volumes:         t1.Volumes,
+		RegisterDNS:     t1.RegisterDNS,
+		DomainName:      t1.DomainName,
+		HostedZoneID:    t1.HostedZoneID,
+		RequireStaticIP: t1.RequireStaticIP,
+		UserAttr:        ua,
+		Resource:        t1.Resource,
 	}
 }
 
