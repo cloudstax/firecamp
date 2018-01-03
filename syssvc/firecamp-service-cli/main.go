@@ -402,10 +402,12 @@ func main() {
 	usage()
 	flag.Parse()
 
-	validName := regexp.MustCompile(common.ServiceNamePattern)
-	if !validName.MatchString(*service) {
-		fmt.Println("service name must start with a letter and can only contain letters, numbers, or hyphens.")
-		os.Exit(-1)
+	if *op != opList && *op != opGetConfig {
+		validName := regexp.MustCompile(common.ServiceNamePattern)
+		if !validName.MatchString(*service) {
+			fmt.Println("service name must start with a letter and can only contain letters, numbers, or hyphens.")
+			os.Exit(-1)
+		}
 	}
 
 	if *tlsEnabled && (*caFile == "" || *certFile == "" || *keyFile == "") {
