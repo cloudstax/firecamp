@@ -31,3 +31,6 @@ test:
 clean:
 	-rm -rf build
 	-rm $(GOPATH)/bin/firecamp* || true
+
+cleanall: clean
+	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/cloudstax/firecamp

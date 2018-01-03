@@ -707,7 +707,9 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		HeapSizeMB: *casHeapSizeMB,
+		HeapSizeMB:      *casHeapSizeMB,
+		JmxRemoteUser:   *casJmxUser,
+		JmxRemotePasswd: *casJmxPasswd,
 	}
 
 	err := cascatalog.ValidateUpdateRequest(req)

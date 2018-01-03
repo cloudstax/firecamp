@@ -2,6 +2,7 @@ package manageserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -1082,7 +1083,7 @@ func (s *ManageHTTPServer) updateCasService(ctx context.Context, r *http.Request
 
 	err = cascatalog.ValidateUpdateRequest(req)
 	if err != nil {
-		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.HeapSizeMB)
+		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req)
 		return err.Error(), http.StatusBadRequest
 	}
 
@@ -1092,25 +1093,99 @@ func (s *ManageHTTPServer) updateCasService(ctx context.Context, r *http.Request
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("update cassandra service heap size to", req.HeapSizeMB, "requuid", requuid, svc)
+	glog.Infoln("update cassandra service configs, requuid", requuid, svc, req)
 
-	err = s.updateCasConfigs(ctx, svc.ServiceUUID, req.HeapSizeMB, requuid)
+	err = s.updateCasConfigs(ctx, svc.ServiceUUID, req, requuid)
 	if err != nil {
-		glog.Errorln("updateCasConfigs error", err, "requuid", requuid, req.Service, req.HeapSizeMB)
+		glog.Errorln("updateCasConfigs error", err, "requuid", requuid, req.Service, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID string, heapSizeMB int64, requuid string) error {
-	// update the cassandra heap size in the jvm.options file
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID string, req *manage.CatalogUpdateCassandraRequest, requuid string) error {
+	attr, err := s.dbIns.GetServiceAttr(ctx, serviceUUID)
 	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("GetServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 		return err
 	}
 
+	ua := &common.CasUserAttr{}
+	if attr.UserAttr != nil {
+		// sanity check
+		if attr.UserAttr.ServiceType != common.CatalogService_Cassandra {
+			glog.Errorln("not a cassandra service", attr.UserAttr.ServiceType, "serviceUUID", serviceUUID, "requuid", requuid)
+			return errors.New("the service is not a cassandra service")
+		}
+
+		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+		if err != nil {
+			glog.Errorln("Unmarshal UserAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			return err
+		}
+	}
+
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+		return err
+	}
+
+	newua := db.CopyCasUserAttr(ua)
+	updated := false
+	if req.HeapSizeMB != 0 && req.HeapSizeMB != ua.HeapSizeMB {
+		err = s.updateCasHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, requuid)
+		if err != nil {
+			glog.Errorln("updateCasHeapSize error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			return err
+		}
+
+		updated = true
+		newua.HeapSizeMB = req.HeapSizeMB
+	}
+
+	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
+		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
+		err = s.updateCasJmx(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		if err != nil {
+			glog.Errorln("updateCasJmx error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			return err
+		}
+
+		updated = true
+		newua.JmxRemoteUser = req.JmxRemoteUser
+		newua.JmxRemotePasswd = req.JmxRemotePasswd
+	}
+
+	// update the user attr
+	if updated {
+		b, err := json.Marshal(newua)
+		if err != nil {
+			glog.Errorln("Marshal user attr error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			return err
+		}
+		userAttr := &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Cassandra,
+			AttrBytes:   b,
+		}
+
+		newAttr := db.UpdateServiceUserAttr(attr, userAttr)
+		err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+		if err != nil {
+			glog.Errorln("UpdateServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			return err
+		}
+
+		glog.Infoln("updated service configs from", ua, "to", newua, "requuid", requuid, req.Service)
+	} else {
+		glog.Infoln("service configs are not changed, skip the update, requuid", requuid, req.Service, req)
+	}
+
+	return nil
+}
+
+func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -1142,6 +1217,41 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 	}
 
 	glog.Infoln("updated heap size for cassandra service", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) updateCasJmx(ctx context.Context, serviceUUID string, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
+	for _, member := range members {
+		var cfg *common.MemberConfig
+		cfgIndex := -1
+		for i, c := range member.Configs {
+			if cascatalog.IsJmxConfFile(c.FileName) {
+				cfg = c
+				cfgIndex = i
+				break
+			}
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// replace the original member jmx conf file content
+		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
+		newContent := cascatalog.NewJmxConfContent(jmxUser, jmxPasswd)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("updated cassandra jmx user & password", jmxUser, jmxPasswd, "for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("updated jmx user & password for cassandra service", serviceUUID, "requuid", requuid)
 	return nil
 }
 

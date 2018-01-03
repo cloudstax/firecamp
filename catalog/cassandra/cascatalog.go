@@ -293,6 +293,16 @@ func NewJVMConfContent(heapSizeMB int64) string {
 	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
 }
 
+// IsJmxConfFile checks if the file is jmx conf file
+func IsJmxConfFile(filename string) bool {
+	return filename == jmxRemotePasswdConfFileName
+}
+
+// NewJmxConfContent returns the new jmxremote.password file content
+func NewJmxConfContent(jmxUser string, jmxPasswd string) string {
+	return fmt.Sprintf("%s %s\n", jmxUser, jmxPasswd)
+}
+
 const (
 	rackdcProps = `
 dc=%s

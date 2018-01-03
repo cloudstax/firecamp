@@ -277,8 +277,10 @@ type CatalogCreateCassandraResponse struct {
 
 // CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
 type CatalogUpdateCassandraRequest struct {
-	Service    *ServiceCommonRequest
-	HeapSizeMB int64
+	Service         *ServiceCommonRequest
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // CatalogScaleCassandraRequest scales the Cassandra service.
