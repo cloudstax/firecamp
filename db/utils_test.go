@@ -54,18 +54,26 @@ func TestDBUtils(t *testing.T) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
 
+	attr2 = UpdateServiceReplicas(attr1, 5)
+	attr1.Replicas = 5
+	attr1.LastModified = attr2.LastModified
+	if !EqualServiceAttr(attr1, attr2, false) {
+		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
+	}
+
 	mattr := common.MongoDBUserAttr{
 		Shards:           1,
 		ReplicasPerShard: 3,
 		ReplicaSetOnly:   false,
 		ConfigServers:    3,
+		KeyFileContent:   "keyfile",
 	}
 	b, err := json.Marshal(mattr)
 	if err != nil {
 		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
 	}
 	userAttr := &common.ServiceUserAttr{
-		ServiceType: "mongodb",
+		ServiceType: common.CatalogService_MongoDB,
 		AttrBytes:   b,
 	}
 	attr3 := CreateInitialServiceAttr(serviceUUID, replicas,
@@ -75,6 +83,23 @@ func TestDBUtils(t *testing.T) {
 		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
 	if !EqualServiceAttr(attr3, attr4, false) {
 		t.Fatalf("attr is not the same, %s %s", attr3, attr4)
+	}
+
+	// update service userAttr
+	mattr.Shards = 2
+	b, err = json.Marshal(mattr)
+	if err != nil {
+		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
+	}
+	userAttr = &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_MongoDB,
+		AttrBytes:   b,
+	}
+	tmpattr := UpdateServiceUserAttr(attr4, userAttr)
+	attr3.UserAttr = userAttr
+	attr3.LastModified = tmpattr.LastModified
+	if !EqualServiceAttr(attr3, tmpattr, false) {
+		t.Fatalf("attr is not the same, %s %s", attr3, tmpattr)
 	}
 
 	volID := "vol-1"

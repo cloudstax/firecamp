@@ -214,10 +214,23 @@ func TestServiceAttrs(t *testing.T) {
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
 
+	casUA := &common.CasUserAttr{
+		HeapSizeMB:      256,
+		JmxRemoteUser:   "user1",
+		JmxRemotePasswd: "pd1",
+	}
+	b, err := json.Marshal(casUA)
+	if err != nil {
+		t.Fatalf("Marshal RedisUserAttr error %s", err)
+	}
+	ua := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_Cassandra,
+		AttrBytes:   b,
+	}
+
 	ctx := context.Background()
 
 	// create 5 services
-	var err error
 	var s [5]*common.ServiceAttr
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
@@ -236,17 +249,7 @@ func TestServiceAttrs(t *testing.T) {
 
 		var userAttr *common.ServiceUserAttr
 		if i%2 == 0 {
-			rattr := &common.CasUserAttr{
-				HeapSizeMB: 256,
-			}
-			b, err := json.Marshal(rattr)
-			if err != nil {
-				t.Fatalf("Marshal RedisUserAttr error %s", err)
-			}
-			userAttr = &common.ServiceUserAttr{
-				ServiceType: common.CatalogService_Cassandra,
-				AttrBytes:   b,
-			}
+			userAttr = ua
 		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
 			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
@@ -295,9 +298,33 @@ func TestServiceAttrs(t *testing.T) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
+	// update service user attr
+	newCasUA := db.CopyCasUserAttr(casUA)
+	newCasUA.HeapSizeMB = 512
+	newCasUA.JmxRemoteUser = "newuser"
+	newCasUA.JmxRemotePasswd = "newpd"
+	b, err = json.Marshal(newCasUA)
+	if err != nil {
+		t.Fatalf("Marshal UserAttr error %s", err)
+	}
+	newua := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_Cassandra,
+		AttrBytes:   b,
+	}
+	newAttr := db.UpdateServiceUserAttr(item, newua)
+	err = dbIns.UpdateServiceAttr(ctx, s[1], newAttr)
+	if err != nil {
+		t.Fatalf("update user attr error %s", err)
+	}
+	// get service again to verify the update
+	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
+	if err != nil || !db.EqualServiceAttr(item, newAttr, false) {
+		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, newAttr, item)
+	}
+
 	// negative case: update immutable fields
-	item.ServiceName = "new-name"
-	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
+	newAttr.ServiceName = "new-name"
+	err = dbIns.UpdateServiceAttr(ctx, item, newAttr)
 	if err != db.ErrDBInvalidRequest {
 		t.Fatalf("update service attr, expect db.ErrDBInvalidRequest, get error %s, attr %s", err, item)
 	}

@@ -157,6 +157,31 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 				N: aws.String(strconv.FormatInt(oldAttr.Replicas, 10)),
 			},
 		}
+	} else if newAttr.UserAttr != nil && !db.EqualServiceUserAttr(oldAttr.UserAttr, newAttr.UserAttr) {
+		// update service user attr
+		glog.Infoln("update user attr, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
+
+		userAttrBytes, err := json.Marshal(newAttr.UserAttr)
+		if err != nil {
+			glog.Errorln("Marshal ServiceUserAttr error", err, "requuid", requuid, newAttr)
+			return err
+		}
+
+		updateExpr := "SET " + UserAttr + " = :v1, " + LastModified + " = :v2"
+		conditionExpr := LastModified + " = :cv1"
+		params.UpdateExpression = aws.String(updateExpr)
+		params.ConditionExpression = aws.String(conditionExpr)
+		params.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
+			":v1": {
+				B: userAttrBytes,
+			},
+			":v2": {
+				N: aws.String(strconv.FormatInt(newAttr.LastModified, 10)),
+			},
+			":cv1": {
+				N: aws.String(strconv.FormatInt(oldAttr.LastModified, 10)),
+			},
+		}
 	} else {
 		glog.Errorln("not supported attr update, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
 		return db.ErrDBInvalidRequest
