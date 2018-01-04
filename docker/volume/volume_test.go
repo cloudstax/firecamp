@@ -33,7 +33,7 @@ func TestParseRequestName(t *testing.T) {
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
 
 	d := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	d.ifname = "lo"
+	d.netSvc.SetIfname("lo")
 
 	serviceuuid := "uuid"
 	name := serviceuuid
@@ -79,7 +79,7 @@ func TestVolumeFunctions(t *testing.T) {
 	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	driver.ifname = "lo"
+	driver.netSvc.SetIfname("lo")
 
 	requuid := utils.GenRequestUUID()
 	ctx := context.Background()
@@ -178,9 +178,9 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	driver.ifname = "lo"
+	driver.netSvc.SetIfname("lo")
 
-	defer cleanupStaticIP(requireStaticIP, driver.ifname, serverIns)
+	defer cleanupStaticIP(requireStaticIP, "lo", serverIns)
 
 	requuid := utils.GenRequestUUID()
 	ctx := context.Background()
@@ -287,7 +287,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	member.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
 
 	driver2 := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	driver.ifname = "lo"
+	driver.netSvc.SetIfname("lo")
 
 	volumeMountTestWithDriverRestart(ctx, t, driver, driver2, uuid2, serverIns, member, requireJournalVolume)
 
@@ -314,7 +314,7 @@ func TestFindIdleVolume(t *testing.T) {
 	ctx = utils.NewRequestContext(ctx, requuid)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	driver.ifname = "lo"
+	driver.netSvc.SetIfname("lo")
 
 	cluster := "cluster1"
 	service := "service1"
@@ -448,7 +448,7 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
-	driver.ifname = "lo"
+	driver.netSvc.SetIfname("lo")
 
 	cluster := "cluster1"
 	taskCounts := 1
