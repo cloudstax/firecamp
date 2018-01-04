@@ -1,4 +1,4 @@
-package firecampdockervolume
+package dockervolume
 
 import (
 	"flag"
@@ -180,7 +180,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
 
-	defer cleanupStaticIP(requireStaticIP, "lo", serverIns)
+	defer cleanupStaticIP(requireStaticIP, driver, serverIns)
 
 	requuid := utils.GenRequestUUID()
 	ctx := context.Background()
@@ -790,9 +790,9 @@ func runlsblk() {
 	glog.Errorln(args, "output", string(output[:]), "error", err)
 }
 
-func cleanupStaticIP(requireStaticIP bool, ifname string, serverIns *server.LoopServer) {
+func cleanupStaticIP(requireStaticIP bool, driver *FireCampVolumeDriver, serverIns *server.LoopServer) {
 	if requireStaticIP {
 		cidrPrefix, _, _, _ := serverIns.GetCidrBlock()
-		delIP(cidrPrefix, ifname)
+		driver.netSvc.DeleteIP(cidrPrefix)
 	}
 }

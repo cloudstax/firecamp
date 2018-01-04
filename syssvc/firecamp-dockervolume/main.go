@@ -50,7 +50,7 @@ func main() {
 	if ok, _ := strconv.ParseBool(testmode); ok {
 		glog.Infoln("new test volume driver")
 
-		driver := firecampdockervolume.NewVolumeDriver(db.NewMemDB(), dns.NewMockDNS(), server.NewMemServer(),
+		driver := dockervolume.NewVolumeDriver(db.NewMemDB(), dns.NewMockDNS(), server.NewMemServer(),
 			server.NewMockServerInfo(), containersvc.NewMemContainerSvc(), containersvc.NewMockContainerSvcInfo())
 
 		h := volume.NewHandler(driver)
@@ -139,7 +139,7 @@ func main() {
 	ec2Ins := awsec2.NewAWSEc2(sess)
 	dnsIns := awsroute53.NewAWSRoute53(sess)
 
-	driver := firecampdockervolume.NewVolumeDriver(dbIns, dnsIns, ec2Ins, ec2Info, containersvcIns, info)
+	driver := dockervolume.NewVolumeDriver(dbIns, dnsIns, ec2Ins, ec2Info, containersvcIns, info)
 
 	glog.Infoln("NewScDriver, platform", targetPlatform, "ec2InstanceID", ec2Info.GetLocalInstanceID(), "region", region,
 		"ContainerInstanceID", info.GetLocalContainerInstanceID(),

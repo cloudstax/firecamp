@@ -8,7 +8,7 @@ import (
 	"github.com/cloudstax/firecamp/server"
 )
 
-func TestAddDelIP(t *testing.T) {
+func TestNetworkAddDelIP(t *testing.T) {
 	dbIns := db.NewMemDB()
 	mockDNS := dns.NewMockDNS()
 	serverIns := server.NewLoopServer()

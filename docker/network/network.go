@@ -1,9 +1,6 @@
 package dockernetwork
 
 import (
-	"net"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -17,7 +14,8 @@ import (
 )
 
 const (
-	defaultNetworkInterface = "eth0"
+	// DefaultNetworkInterface is the default static ip attach network.
+	DefaultNetworkInterface = "eth0"
 )
 
 // ServiceNetwork handles the network for the service. It handles:
@@ -42,7 +40,7 @@ func NewServiceNetwork(dbIns db.DB, dnsIns dns.DNS, serverIns server.Server, ser
 		dnsIns:     dnsIns,
 		serverIns:  serverIns,
 		serverInfo: serverInfo,
-		ifname:     defaultNetworkInterface,
+		ifname:     DefaultNetworkInterface,
 	}
 }
 
@@ -244,51 +242,10 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 
 // AddIP adds the ip to the net interface.
 func (s *ServiceNetwork) AddIP(ip string) error {
-	var args []string
-	args = append(args, "ip", "addr", "add", ip, "dev", s.ifname)
-
-	command := exec.Command(args[0], args[1:]...)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		glog.Errorln("add ip failed, arguments", args, "output", string(output[:]), "error", err)
-		return err
-	}
-
-	glog.Infoln("added ip", ip, "to eth0")
-	return nil
+	return AddIP(ip, s.ifname)
 }
 
 // DeleteIP deletes the ip from the net interface.
 func (s *ServiceNetwork) DeleteIP(ip string) error {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		glog.Errorln("get net interface addrs error", err)
-		return err
-	}
-
-	for _, addr := range addrs {
-		addrstr := addr.String()
-		if strings.HasPrefix(addrstr, ip) {
-			err = s.delOneIP(addrstr)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (s *ServiceNetwork) delOneIP(ip string) error {
-	var args []string
-	args = append(args, "ip", "addr", "del", ip, "dev", s.ifname)
-
-	command := exec.Command(args[0], args[1:]...)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		glog.Errorln("del ip failed, arguments", args, "output", string(output[:]), "error", err)
-		return err
-	}
-
-	glog.Infoln("deleted ip", ip, "from", s.ifname)
-	return nil
+	return DeleteIP(ip, s.ifname)
 }
