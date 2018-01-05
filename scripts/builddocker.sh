@@ -91,6 +91,17 @@ BuildManageImages() {
   rm -f $path$binfile
   docker push $image
 
+  # build initcontainer docker image
+  echo
+  target=$system"-initcontainer"
+  image="${org}${target}:${version}"
+  binfile=$target
+  path="${TOPWD}/syssvc/firecamp-initcontainer/dockerfile/"
+  cp $GOPATH/bin/$binfile $path
+  docker build -q -t $image $path
+  rm -f $path$binfile
+  docker push $image
+
 
   # build controldb docker image
   echo

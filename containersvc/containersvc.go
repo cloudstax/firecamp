@@ -12,6 +12,13 @@ import (
 const (
 	// The busybox image for unit test.
 	TestBusyBoxContainerImage = common.OrgName + "/" + common.SystemName + "-busybox"
+
+	EnvInitContainerOp          = "OP"
+	EnvInitContainerCluster     = "CLUSTER"
+	EnvInitContainerServiceName = "SERVICE_NAME"
+	InitContainerOpInit         = "init"
+	InitContainerOpStop         = "stop"
+	InitContainerOpTest         = "test"
 )
 
 var (

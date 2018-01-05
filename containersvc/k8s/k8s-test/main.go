@@ -32,7 +32,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	svc, err := k8ssvc.NewK8sSvcWithConfig(common.CloudPlatformAWS, "default", config)
+	svc, err := k8ssvc.NewTestK8sSvc(common.CloudPlatformAWS, "default", config)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -80,7 +80,7 @@ func testService(svc *k8ssvc.K8sSvc) {
 			{Name: "env1", Value: "val1"},
 		},
 		KubeOptions: &containersvc.K8sOptions{
-			InitContainerImage: "cloudstax/firecamp-busybox",
+			InitContainerImage: "cloudstax/firecamp-initcontainer",
 			ServicePort:        5001,
 			ExternalDNS:        false,
 		},

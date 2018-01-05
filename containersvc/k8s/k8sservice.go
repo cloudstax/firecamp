@@ -46,6 +46,9 @@ type K8sSvc struct {
 	namespace     string
 	cloudPlatform string
 	provisioner   string
+
+	// whether the init container works on the test mode
+	testMode bool
 }
 
 // NewK8sSvc creates a new K8sSvc instance.
@@ -56,11 +59,21 @@ func NewK8sSvc(cloudPlatform string, namespace string) (*K8sSvc, error) {
 		glog.Errorln("rest.InClusterConfig error", err)
 		return nil, err
 	}
-	return NewK8sSvcWithConfig(cloudPlatform, namespace, config)
+	return newK8sSvcWithConfig(cloudPlatform, namespace, config)
 }
 
-// NewK8sSvcWithConfig creates a new K8sSvc instance with the config.
-func NewK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
+// NewTestK8sSvc creates a new K8sSvc instance for test.
+func NewTestK8sSvc(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
+	svc, err := newK8sSvcWithConfig(cloudPlatform, namespace, config)
+	if err != nil {
+		return svc, err
+	}
+	svc.testMode = true
+	return svc, err
+}
+
+// newK8sSvcWithConfig creates a new K8sSvc instance with the config.
+func newK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -449,11 +462,21 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 
 	// set the statefulset init container
 	if len(opts.KubeOptions.InitContainerImage) != 0 {
+		op := containersvc.InitContainerOpInit
+		if s.testMode {
+			op = containersvc.InitContainerOpTest
+		}
+		envs := []corev1.EnvVar{
+			{Name: containersvc.EnvInitContainerOp, Value: op},
+			{Name: containersvc.EnvInitContainerCluster, Value: opts.Common.Cluster},
+			{Name: containersvc.EnvInitContainerServiceName, Value: opts.Common.ServiceName},
+		}
 		statefulset.Spec.Template.Spec.InitContainers = []corev1.Container{
 			{
 				Name:         initContainerNamePrefix + opts.Common.ServiceName,
 				Image:        opts.KubeOptions.InitContainerImage,
 				VolumeMounts: volMounts,
+				Env:          envs,
 			},
 		}
 	}
