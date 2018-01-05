@@ -16,6 +16,7 @@ const (
 	EnvInitContainerOp          = "OP"
 	EnvInitContainerCluster     = "CLUSTER"
 	EnvInitContainerServiceName = "SERVICE_NAME"
+	EnvInitContainerPodName     = "POD_NAME"
 	InitContainerOpInit         = "init"
 	InitContainerOpStop         = "stop"
 	InitContainerOpTest         = "test"

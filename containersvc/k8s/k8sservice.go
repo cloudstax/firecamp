@@ -414,6 +414,14 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 
 	glog.Infoln("statefulset VolumeMounts", volMounts, "requuid", requuid, opts.Common)
 
+	envs := make([]corev1.EnvVar, len(opts.Envkvs))
+	for i, e := range opts.Envkvs {
+		envs[i] = corev1.EnvVar{
+			Name:  e.Name,
+			Value: e.Value,
+		}
+	}
+
 	// The ParallelPodManagement policy is used instead of OrderedReadyPodManagement.
 	// The OrderedReadyPodManagement create pods in strictly increasing order. This may introduce
 	// some issue when running in cloud. For example, Cassandra service has 3 replicas on 3 AZs.
@@ -451,6 +459,7 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 							VolumeMounts:    volMounts,
 							Resources:       res,
 							ImagePullPolicy: corev1.PullAlways,
+							Env:             envs,
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyAlways,
@@ -466,10 +475,20 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 		if s.testMode {
 			op = containersvc.InitContainerOpTest
 		}
+
+		// expose the pod name, such as service-0, to the init container.
+		// the init container could not get the ordinal from the hostname, as the HostNetwork is used.
+		// https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/
+		podNameEnvSource := &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "metadata.name",
+			},
+		}
 		envs := []corev1.EnvVar{
 			{Name: containersvc.EnvInitContainerOp, Value: op},
 			{Name: containersvc.EnvInitContainerCluster, Value: opts.Common.Cluster},
 			{Name: containersvc.EnvInitContainerServiceName, Value: opts.Common.ServiceName},
+			{Name: containersvc.EnvInitContainerPodName, ValueFrom: podNameEnvSource},
 		}
 		statefulset.Spec.Template.Spec.InitContainers = []corev1.Container{
 			{
@@ -497,6 +516,10 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 			}
 		}
 		statefulset.Spec.Template.Spec.Containers[0].Ports = ports
+
+		// use host network by default for better performance.
+		// k8s requires "If this option is set, the ports that will be used must be specified."
+		statefulset.Spec.Template.Spec.HostNetwork = true
 	}
 
 	_, err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Create(statefulset)

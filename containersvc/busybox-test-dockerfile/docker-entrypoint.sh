@@ -1,7 +1,11 @@
 #!/bin/sh
 
-echo "start sleeping"
+echo "start sleeping, $SLEEP_TIME"
 
-sleep 20
+if [ -n "$SLEEP_TIME" ]; then
+  sleep $SLEEP_TIME
+else
+  sleep 20
+fi
 
 echo "end sleeping"
