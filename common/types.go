@@ -7,6 +7,7 @@ const (
 
 	ContainerPlatformECS   = "ecs"
 	ContainerPlatformSwarm = "swarm"
+	ContainerPlatformK8s   = "k8s"
 
 	ContainerPlatformRoleManager = "manager"
 	ContainerPlatformRoleWorker  = "worker"

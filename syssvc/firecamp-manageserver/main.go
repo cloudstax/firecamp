@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/awsecs"
+	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/containersvc/swarm"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
@@ -127,6 +128,25 @@ func main() {
 		containersvcIns, err = swarmsvc.NewSwarmSvc(azs)
 		if err != nil {
 			glog.Fatalln("NewSwarmSvc error", err)
+		}
+
+	case common.ContainerPlatformK8s:
+		cluster = os.Getenv(common.ENV_CLUSTER)
+		if len(cluster) == 0 {
+			glog.Fatalln("K8s cluster name is not set")
+		}
+
+		fullhostname, err := awsec2.GetLocalEc2Hostname()
+		if err != nil {
+			glog.Fatalln("get local ec2 hostname error", err)
+		}
+		info := k8ssvc.NewK8sInfo(cluster, fullhostname)
+		cluster = info.GetContainerClusterID()
+
+		namespace := "default"
+		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, namespace)
+		if err != nil {
+			glog.Fatalln("NewK8sSvc error", err)
 		}
 
 	default:
