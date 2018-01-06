@@ -24,18 +24,13 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-var (
-	// ErrVolumeExist means PersistentVolume exists
-	ErrVolumeExist = errors.New("PersistentVolume Exists")
-	// ErrVolumeClaimExist means PersistentVolumeClaim exists
-	ErrVolumeClaimExist = errors.New("PersistentVolumeClaim Exists")
-)
-
 const (
 	serviceLabelName        = "app"
 	initContainerNamePrefix = "init-"
-	dataVolumeNameSuffix    = "-data"
-	journalVolumeNameSuffix = "-journal"
+	dataVolumeName          = "data"
+	journalVolumeName       = "journal"
+	pvName                  = "pv"
+	pvcName                 = "pvc"
 	awsStorageProvisioner   = "kubernetes.io/aws-ebs"
 )
 
@@ -52,6 +47,7 @@ type K8sSvc struct {
 }
 
 // NewK8sSvc creates a new K8sSvc instance.
+// TODO support different namespaces for different services? Wait for the real requirement.
 func NewK8sSvc(cloudPlatform string, namespace string) (*K8sSvc, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -96,8 +92,62 @@ func newK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Co
 	return svc, nil
 }
 
-// CreatePV creates a PersistentVolume.
-func (s *K8sSvc) CreatePV(ctx context.Context, service string, pvname string, sclassname string, volID string, volSizeGB int64, fsType string) (*corev1.PersistentVolume, error) {
+// CreateServiceVolume creates PV and PVC for the service member.
+func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	pvname := s.genDataVolumePVName(service, memberIndex)
+	pvcname := s.genDataVolumePVCName(service, memberIndex)
+	sclassname := s.genDataVolumeStorageClassName(service)
+	if journal {
+		pvname = s.genJournalVolumePVName(service, memberIndex)
+		pvcname = s.genJournalVolumePVCName(service, memberIndex)
+		sclassname = s.genJournalVolumeStorageClassName(service)
+	}
+
+	// create pvc
+	err = s.createPVC(service, pvcname, pvname, sclassname, volumeSizeGB, requuid)
+	if err != nil {
+		glog.Errorln("create pvc error", err, pvcname, "requuid", requuid)
+		return "", err
+	}
+
+	// create pv
+	volID, err := s.createPV(service, pvname, sclassname, volumeID, volumeSizeGB, requuid)
+	if err != nil {
+		if err != containersvc.ErrVolumeExist {
+			glog.Errorln("createPV error", err, "volume", volumeID, "pvname", pvname, "requuid", requuid)
+			return "", err
+		}
+		glog.Infoln("pv exist", pvname, "existing volumeID", volID, "new volumeID", volumeID, "requuid", requuid)
+	} else {
+		glog.Infoln("created pv", pvname, "volume", volumeID, "created volID", volID, "requuid", requuid)
+	}
+
+	return volID, err
+}
+
+// DeleteServiceVolume deletes the pv and pvc for the service member.
+func (s *K8sSvc) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	pvname := s.genDataVolumePVName(service, memberIndex)
+	pvcname := s.genDataVolumePVCName(service, memberIndex)
+	if journal {
+		pvname = s.genJournalVolumePVName(service, memberIndex)
+		pvcname = s.genJournalVolumePVCName(service, memberIndex)
+	}
+
+	err := s.deletePVC(pvcname, requuid)
+	if err != nil {
+		return err
+	}
+
+	return s.deletePV(pvname, requuid)
+}
+
+// createPV creates a PersistentVolume.
+func (s *K8sSvc) createPV(service string, pvname string, sclassname string, volID string, volSizeGB int64, requuid string) (existingVolID string, err error) {
 	labels := make(map[string]string)
 	labels[serviceLabelName] = service
 
@@ -117,37 +167,67 @@ func (s *K8sSvc) CreatePV(ctx context.Context, service string, pvname string, sc
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				AWSElasticBlockStore: &corev1.AWSElasticBlockStoreVolumeSource{
 					VolumeID: volID,
-					FSType:   fsType,
+					FSType:   common.DefaultFSType,
 				},
 			},
+			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
 		},
 	}
 
-	currpv, err := s.cliset.CoreV1().PersistentVolumes().Create(pv)
+	_, err = s.cliset.CoreV1().PersistentVolumes().Create(pv)
 	if err != nil {
 		if !k8errors.IsAlreadyExists(err) {
-			glog.Errorln("create PersistentVolume error", err, "service", service, "pvname", pvname)
-			return nil, err
+			glog.Errorln("create PersistentVolume error", err, "pvname", pvname, "requuid", requuid)
+			return "", err
 		}
 
-		glog.Infoln("PersistentVolume exists", pvname, "service", service)
+		currpv, err := s.cliset.CoreV1().PersistentVolumes().Get(pvname, metav1.GetOptions{})
+		if err != nil {
+			glog.Errorln("get PersistentVolume error", err, pvname, "requuid", requuid)
+			return "", err
+		}
+
+		glog.Infoln("PersistentVolume exists", pvname, "requuid", requuid, currpv.Spec)
+
+		awsBlockStore := currpv.Spec.PersistentVolumeSource.AWSElasticBlockStore
 
 		// check if the existing PersistentVolume is the same
-		if currpv.Spec.Capacity.StorageEphemeral().Cmp(*pv.Spec.Capacity.StorageEphemeral()) != 0 ||
+		if currpv.Name != pvname ||
+			currpv.Spec.Capacity.StorageEphemeral().Cmp(*pv.Spec.Capacity.StorageEphemeral()) != 0 ||
 			currpv.Spec.StorageClassName != pv.Spec.StorageClassName ||
-			currpv.Spec.PersistentVolumeSource.AWSElasticBlockStore.VolumeID != volID ||
-			currpv.Spec.PersistentVolumeSource.AWSElasticBlockStore.FSType != fsType {
-			glog.Errorln("creating PersistentVolume is not the same with existing volume", currpv.Spec.Capacity, currpv.Spec.StorageClassName, currpv.Spec.PersistentVolumeSource.AWSElasticBlockStore, "creating volume", volSizeGB, sclassname, volID, fsType)
-			return nil, ErrVolumeExist
+			awsBlockStore.FSType != common.DefaultFSType {
+			glog.Errorln("creating PersistentVolume is not the same with existing volume", currpv.Name, currpv.Spec.Capacity,
+				currpv.Spec.StorageClassName, awsBlockStore, "creating volume", pvname, volSizeGB, sclassname, volID, "requuid", requuid)
+			return "", errors.New("persistent volume exists with different attributes")
+		}
+
+		if awsBlockStore.VolumeID != volID {
+			glog.Errorln("pv exists with a different volume id", awsBlockStore.VolumeID,
+				"new volume id", volID, "pvname", pvname, "requuid", requuid)
+			return awsBlockStore.VolumeID, containersvc.ErrVolumeExist
 		}
 	}
 
-	glog.Infoln("created PersistentVolume for service", service, pvname, sclassname, volID, volSizeGB, fsType)
-	return currpv, nil
+	glog.Infoln("created PersistentVolume", pvname, volID, volSizeGB, "requuid", requuid)
+	return volID, nil
 }
 
-// CreatePVC creates a PersistentVolumeClaim.
-func (s *K8sSvc) CreatePVC(ctx context.Context, service string, pvcname string, pvname string, sclassname string, volSizeGB int64) (*corev1.PersistentVolumeClaim, error) {
+func (s *K8sSvc) deletePV(pvname string, requuid string) error {
+	err := s.cliset.CoreV1().PersistentVolumes().Delete(pvname, &metav1.DeleteOptions{})
+	if err != nil {
+		if !k8errors.IsNotFound(err) {
+			glog.Errorln("delete PersistentVolume error", err, pvname, "requuid", requuid)
+			return err
+		}
+
+		glog.Infoln("PersistentVolume is already deleted", pvname, "requuid", requuid)
+	} else {
+		glog.Infoln("deleted PersistentVolume", pvname, "requuid", requuid)
+	}
+	return nil
+}
+
+func (s *K8sSvc) createPVC(service string, pvcname string, pvname string, sclassname string, volSizeGB int64, requuid string) error {
 	labels := make(map[string]string)
 	labels[serviceLabelName] = service
 
@@ -169,27 +249,47 @@ func (s *K8sSvc) CreatePVC(ctx context.Context, service string, pvcname string, 
 		},
 	}
 
-	currpvc, err := s.cliset.CoreV1().PersistentVolumeClaims(s.namespace).Create(pvc)
+	_, err := s.cliset.CoreV1().PersistentVolumeClaims(s.namespace).Create(pvc)
 	if err != nil {
 		if !k8errors.IsAlreadyExists(err) {
-			glog.Errorln("create PersistentVolumeClaim error", err, "service", service, "pvcname", pvcname)
-			return nil, err
+			glog.Errorln("create PersistentVolumeClaim error", err, pvcname, "requuid", requuid)
+			return err
 		}
 
-		glog.Infoln("PersistentVolumeClaim exists", pvcname, "service", service)
+		currpvc, err := s.cliset.CoreV1().PersistentVolumeClaims(s.namespace).Get(pvcname, metav1.GetOptions{})
+		if err != nil {
+			glog.Errorln("get PersistentVolumeClaim error", err, pvcname, "requuid", requuid)
+			return err
+		}
+
+		glog.Infoln("PersistentVolumeClaim exists", pvcname, "requuid", requuid, currpvc.Spec)
 
 		// check if the existing PersistentVolumeClaim is the same
-		if currpvc.Spec.Resources.Requests.StorageEphemeral().Cmp(*pvc.Spec.Resources.Requests.StorageEphemeral()) != 0 ||
-			*(currpvc.Spec.StorageClassName) != sclassname ||
+		if currpvc.Name != pvcname ||
+			currpvc.Spec.Resources.Requests.StorageEphemeral().Cmp(*pvc.Spec.Resources.Requests.StorageEphemeral()) != 0 ||
+			(currpvc.Spec.StorageClassName == nil || *(currpvc.Spec.StorageClassName) != sclassname) ||
 			currpvc.Spec.VolumeName != pvname {
-			glog.Errorln("creating PersistentVolumeClaim is not the same with existing claim", currpvc.Spec.Resources.Requests.StorageEphemeral(), currpvc.Spec.StorageClassName, currpvc.Spec.VolumeName, "creating claim", volSizeGB, sclassname, pvname)
-			return nil, ErrVolumeClaimExist
+			glog.Errorln("creating PersistentVolumeClaim is not the same with existing claim", currpvc.Name, currpvc.Spec.Resources.Requests.StorageEphemeral(), currpvc.Spec.StorageClassName, currpvc.Spec.VolumeName, "creating claim", pvcname, volSizeGB, sclassname, pvname)
+			return errors.New("PersistentVolumeClaim exists with different attributes")
 		}
 	}
 
-	glog.Infoln("created PersistentVolumeClaim for service", service, pvname, sclassname, volSizeGB)
-	return currpvc, nil
+	glog.Infoln("created PersistentVolumeClaim", pvcname, volSizeGB, "requuid", requuid)
+	return nil
+}
 
+func (s *K8sSvc) deletePVC(pvcname string, requuid string) error {
+	err := s.cliset.CoreV1().PersistentVolumeClaims(s.namespace).Delete(pvcname, &metav1.DeleteOptions{})
+	if err != nil {
+		if !k8errors.IsNotFound(err) {
+			glog.Errorln("delete PersistentVolumeClaim error", err, pvcname, "requuid", requuid)
+			return err
+		}
+		glog.Infoln("PersistentVolumeClaim is already deleted", pvcname, "requuid", requuid)
+	} else {
+		glog.Infoln("deleted PersistentVolumeClaim", pvcname, "requuid", requuid)
+	}
+	return nil
 }
 
 func (s *K8sSvc) createStorageClass(ctx context.Context, opts *containersvc.CreateServiceOptions, requuid string) error {
@@ -833,9 +933,33 @@ func (s *K8sSvc) int32Ptr(i int32) *int32 {
 }
 
 func (s *K8sSvc) genDataVolumeStorageClassName(service string) string {
-	return service + dataVolumeNameSuffix
+	return fmt.Sprintf("%s-%s", service, dataVolumeName)
 }
 
 func (s *K8sSvc) genJournalVolumeStorageClassName(service string) string {
-	return service + journalVolumeNameSuffix
+	return fmt.Sprintf("%s-%s", service, journalVolumeName)
+}
+
+func (s *K8sSvc) genDataVolumePVName(service string, memberIndex int64) string {
+	// example: service-data-pv-0
+	return fmt.Sprintf("%s-%s-%s-%d", service, dataVolumeName, pvName, memberIndex)
+}
+
+func (s *K8sSvc) genJournalVolumePVName(service string, memberIndex int64) string {
+	// example: service-journal-pv-0
+	return fmt.Sprintf("%s-%s-%s-%d", service, journalVolumeName, pvName, memberIndex)
+}
+
+func (s *K8sSvc) genDataVolumePVCName(service string, memberIndex int64) string {
+	// example: service-data-service-0.
+	// Note: this format could not be changed. this is the default k8s format.
+	// statefulset relies on this name to select the pvc.
+	return fmt.Sprintf("%s-%s-%s-%d", service, dataVolumeName, service, memberIndex)
+}
+
+func (s *K8sSvc) genJournalVolumePVCName(service string, memberIndex int64) string {
+	// example: service-journal-service-0
+	// Note: this format could not be changed. this is the default k8s format.
+	// statefulset relies on this name to select the pvc.
+	return fmt.Sprintf("%s-%s-%s-%d", service, journalVolumeName, service, memberIndex)
 }

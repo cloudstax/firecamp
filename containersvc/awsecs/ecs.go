@@ -1215,3 +1215,13 @@ func (s *AWSEcs) genTaskDefFamilyForTask(cluster string, service string, taskTyp
 func (s *AWSEcs) isServiceNotFoundError(err error) bool {
 	return err.(awserr.Error).Code() == serviceNotFoundException
 }
+
+// CreateServiceVolume is a non-op for ecs.
+func (s *AWSEcs) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+	return "", nil
+}
+
+// DeleteServiceVolume is a non-op for ecs.
+func (s *AWSEcs) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+	return nil
+}

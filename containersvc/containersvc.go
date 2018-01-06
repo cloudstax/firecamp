@@ -27,6 +27,7 @@ var (
 	ErrContainerSvcNoTask         = errors.New("The service has no task on the ContainerInstance")
 	ErrInvalidContainerInstanceID = errors.New("InvalidContainerInstanceID")
 	ErrInvalidCluster             = errors.New("InvalidCluster")
+	ErrVolumeExist                = errors.New("Volume Exists")
 )
 
 type CommonOptions struct {
@@ -120,6 +121,10 @@ type ContainerSvc interface {
 	RunTask(ctx context.Context, opts *RunTaskOptions) (taskID string, err error)
 	GetTaskStatus(ctx context.Context, cluster string, taskID string) (*common.TaskStatus, error)
 	DeleteTask(ctx context.Context, cluster string, service string, taskType string) error
+
+	// Create the service volume. This is only useful for k8s to create PV and PVC. And simply non-op for ECS and Swarm.
+	CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error)
+	DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error
 }
 
 // Info defines the operations for the container related info

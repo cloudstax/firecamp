@@ -19,7 +19,11 @@ import (
 
 var (
 	kubeconfig = flag.String("kubeconfig", "/home/ubuntu/.kube/config", "absolute path to the kubeconfig file")
-	op         = flag.String("op", "all", "test ops: all|create-service|stop-service|scale-service|delete-service|run-task")
+	op         = flag.String("op", "all", "test ops: all|create-volume|delete-volume|create-service|stop-service|scale-service|delete-service|run-task")
+	volID      = flag.String("volid", "", "EBS volume ID")
+	volSizeGB  = flag.Int64("volsize", 0, "EBS volume size GB")
+	jvolID     = flag.String("jvolid", "", "journal EBS volume ID")
+	jvolSizeGB = flag.Int64("jvolsize", 0, "journal EBS volume size GB")
 )
 
 func main() {
@@ -46,11 +50,27 @@ func main() {
 
 	switch *op {
 	case "all":
+		createVolume(ctx, svc, service, *volID, *volSizeGB, false)
+		createVolume(ctx, svc, service, *jvolID, *jvolSizeGB, true)
 		createService(ctx, svc, cluster, service, replicas)
 		stopService(ctx, svc, cluster, service)
 		scaleService(ctx, svc, cluster, service, replicas)
 		deleteService(ctx, svc, cluster, service)
+		deleteVolume(ctx, svc, service, false)
+		deleteVolume(ctx, svc, service, true)
 		testTask(svc)
+
+	case "create-volume":
+		if len(*volID) != 0 {
+			createVolume(ctx, svc, service, *volID, *volSizeGB, false)
+		}
+		if len(*jvolID) != 0 {
+			createVolume(ctx, svc, service, *jvolID, *jvolSizeGB, true)
+		}
+
+	case "delete-volume":
+		deleteVolume(ctx, svc, service, false)
+		deleteVolume(ctx, svc, service, true)
 
 	case "create-service":
 		createService(ctx, svc, cluster, service, replicas)
@@ -66,6 +86,36 @@ func main() {
 
 	case "run-task":
 		testTask(svc)
+	}
+}
+
+func createVolume(ctx context.Context, svc *k8ssvc.K8sSvc, service string, volID string, volSizeGB int64, journal bool) {
+	if len(volID) == 0 || volSizeGB == 0 {
+		panic("please specify the volume id and size")
+	}
+
+	existingVolID, err := svc.CreateServiceVolume(ctx, service, 0, volID, volSizeGB, journal)
+	if err != nil || existingVolID != volID {
+		glog.Fatalln("CreateServiceVolume error", err, "volID", volID, "existingVolID", existingVolID)
+	}
+
+	// create again
+	existingVolID, err = svc.CreateServiceVolume(ctx, service, 0, volID, volSizeGB, journal)
+	if err != nil || existingVolID != volID {
+		glog.Fatalln("CreateServiceVolume again error", err, "volID", volID, "existingVolID", existingVolID)
+	}
+}
+
+func deleteVolume(ctx context.Context, svc *k8ssvc.K8sSvc, service string, journal bool) {
+	err := svc.DeleteServiceVolume(ctx, service, 0, journal)
+	if err != nil {
+		glog.Fatalln("DeleteServiceVolume error", err)
+	}
+
+	// delete again
+	err = svc.DeleteServiceVolume(ctx, service, 0, journal)
+	if err != nil {
+		glog.Fatalln("DeleteServiceVolume error", err)
 	}
 }
 
@@ -129,7 +179,7 @@ func createService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, serv
 		panic(fmt.Sprintf("service %s exists", service))
 	}
 
-	maxRetry := 20
+	maxRetry := 40
 	for i := 0; i < maxRetry; i++ {
 		status, err := svc.GetServiceStatus(ctx, cluster, service)
 		if err != nil {

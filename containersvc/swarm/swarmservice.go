@@ -948,3 +948,13 @@ func (s *SwarmSvc) SwarmJoin(ctx context.Context, addr string, joinAddr string, 
 	glog.Infoln("SwarmJoin", addr, "join addr", joinAddr)
 	return nil
 }
+
+// CreateServiceVolume is a non-op for swarm.
+func (s *SwarmSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+	return "", nil
+}
+
+// DeleteServiceVolume is a non-op for swarm.
+func (s *SwarmSvc) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+	return nil
+}

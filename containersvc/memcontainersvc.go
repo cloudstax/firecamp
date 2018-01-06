@@ -222,3 +222,11 @@ func (m *MemContainerSvc) DeleteTask(ctx context.Context, cluster string, servic
 	delete(m.tasks, taskID)
 	return nil
 }
+
+func (m *MemContainerSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+	return "", nil
+}
+
+func (m *MemContainerSvc) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+	return nil
+}
