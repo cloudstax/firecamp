@@ -27,7 +27,6 @@ import (
 
 const (
 	defaultRoot   = "/mnt/" + common.SystemName
-	defaultFSType = "xfs"
 	defaultMkfs   = "mkfs.xfs"
 	tmpfileSuffix = ".tmp"
 )
@@ -1101,7 +1100,7 @@ func (d *FireCampVolumeDriver) mountFS(source string, mountPath string) error {
 		return err
 	}
 
-	args := d.getMountArgs(source, mountPath, defaultFSType, defaultMountOptions)
+	args := d.getMountArgs(source, mountPath, common.DefaultFSType, defaultMountOptions)
 
 	command := exec.Command(args[0], args[1:]...)
 	output, err := command.CombinedOutput()

@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/server"
@@ -32,7 +33,8 @@ func TestDeviceName(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := awsec2.NewAWSEc2(sess)
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	ctx := context.Background()
 
@@ -88,7 +90,8 @@ func TestServiceCreationWithStaticIP(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := true
 	TestUtil_ServiceCreation(t, s, dbIns, serverIns, requireStaticIP)
@@ -99,7 +102,8 @@ func TestServiceCreationWithoutStaticIP(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := false
 	TestUtil_ServiceCreation(t, s, dbIns, serverIns, requireStaticIP)
@@ -111,7 +115,8 @@ func TestServiceCreationRetryWithStaticIP(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := true
 	requireJournalVolume := true
@@ -124,7 +129,8 @@ func TestServiceCreationRetryWithoutStaticIP(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := false
 	requireJournalVolume := false
@@ -136,7 +142,8 @@ func TestUnassignedIPs(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	ctx := context.Background()
 	az := serverInfo.GetLocalAvailabilityZone()
@@ -309,7 +316,8 @@ func TestCreateNextIP(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	serverIns := server.NewLoopServer()
 	dnsIns := dns.NewMockDNS()
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	ctx := context.Background()
 
@@ -354,10 +362,10 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	dbIns := db.NewMemDB()
 	dnsIns := dns.NewMockDNS()
 	serverInfo := server.NewMockServerInfo()
-
 	serverIns := server.NewLoopServer()
+	csvcIns := containersvc.NewMemContainerSvc()
 
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	ctx := context.Background()
 	az := serverInfo.GetLocalAvailabilityZone()
@@ -441,7 +449,8 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	serverIns.AddNetworkInterface()
 	serverIns.AddNetworkInterface()
 
-	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := NewManageService(dbIns, serverInfo, serverIns, dnsIns, csvcIns)
 
 	ctx := context.Background()
 	az := serverInfo.GetLocalAvailabilityZone()

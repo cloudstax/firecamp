@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage/service"
 	"github.com/cloudstax/firecamp/server"
@@ -27,7 +28,8 @@ func TestServiceWithControlDBWithStaticIP(t *testing.T) {
 	serverIns := server.NewLoopServer()
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := true
 	manageservice.TestUtil_ServiceCreation(t, s, dbcli, serverIns, requireStaticIP)
@@ -48,7 +50,8 @@ func TestServiceWithControlDBWithoutStaticIP(t *testing.T) {
 	serverIns := server.NewLoopServer()
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := false
 	manageservice.TestUtil_ServiceCreation(t, s, dbcli, serverIns, requireStaticIP)
@@ -69,7 +72,8 @@ func TestServiceCreationRetryWithControlDBWithStaticIP(t *testing.T) {
 	serverIns := server.NewLoopServer()
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := true
 	requireJournalVolume := true
@@ -91,7 +95,8 @@ func TestServiceCreationRetryWithControlDBWithoutStaticIP(t *testing.T) {
 	serverIns := server.NewLoopServer()
 	serverInfo := server.NewMockServerInfo()
 	dnsIns := dns.NewMockDNS()
-	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns)
+	csvcIns := containersvc.NewMemContainerSvc()
+	s := manageservice.NewManageService(dbcli, serverInfo, serverIns, dnsIns, csvcIns)
 
 	requireStaticIP := false
 	requireJournalVolume := false

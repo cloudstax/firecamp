@@ -16,6 +16,8 @@ const (
 	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
 
+	DefaultFSType = "xfs"
+
 	// VolumeDriverName is the name for docker volume driver.
 	// Do NOT change the volume driver name. If this name is changed,
 	// please update the volume driver plugin in scripts/builddocker.sh.

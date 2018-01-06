@@ -29,8 +29,8 @@ func TestParseRequestName(t *testing.T) {
 	mockDNS := dns.NewMockDNS()
 	serverIns := server.NewLoopServer()
 	mockServerInfo := server.NewMockServerInfo()
-	contSvcIns := containersvc.NewMemContainerSvc()
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
+	contSvcIns := containersvc.NewMemContainerSvc()
 
 	d := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	d.netSvc.SetIfname("lo")
@@ -75,8 +75,9 @@ func TestVolumeFunctions(t *testing.T) {
 	mockServerInfo := server.NewMockServerInfo()
 	contSvcIns := containersvc.NewMemContainerSvc()
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
+	csvcIns := containersvc.NewMemContainerSvc()
 
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
@@ -174,8 +175,9 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	mockServerInfo := server.NewMockServerInfo()
 	contSvcIns := containersvc.NewMemContainerSvc()
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
+	csvcIns := containersvc.NewMemContainerSvc()
 
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
@@ -440,12 +442,13 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	mockServerInfo := server.NewMockServerInfo()
 	contSvcIns := containersvc.NewMemContainerSvc()
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
+	csvcIns := containersvc.NewMemContainerSvc()
+
+	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	requuid := utils.GenRequestUUID()
 	ctx := context.Background()
 	ctx = utils.NewRequestContext(ctx, requuid)
-
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")

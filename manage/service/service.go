@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
@@ -50,23 +51,25 @@ var errServiceHasDevice = errors.New("device is already assigned to service")
 
 // ManageService implements the service operation details.
 type ManageService struct {
-	dbIns      db.DB
-	serverInfo server.Info
-	serverIns  server.Server
-	dnsIns     dns.DNS
+	dbIns           db.DB
+	serverInfo      server.Info
+	serverIns       server.Server
+	dnsIns          dns.DNS
+	containersvcIns containersvc.ContainerSvc
 
 	// the lock to protect the possible concurrent static ip creation
 	iplock *sync.Mutex
 }
 
 // NewManageService allocates a ManageService instance
-func NewManageService(dbIns db.DB, serverInfo server.Info, serverIns server.Server, dnsIns dns.DNS) *ManageService {
+func NewManageService(dbIns db.DB, serverInfo server.Info, serverIns server.Server, dnsIns dns.DNS, containersvcIns containersvc.ContainerSvc) *ManageService {
 	return &ManageService{
-		dbIns:      dbIns,
-		serverInfo: serverInfo,
-		serverIns:  serverIns,
-		dnsIns:     dnsIns,
-		iplock:     &sync.Mutex{},
+		dbIns:           dbIns,
+		serverInfo:      serverInfo,
+		serverIns:       serverIns,
+		dnsIns:          dnsIns,
+		containersvcIns: containersvcIns,
+		iplock:          &sync.Mutex{},
 	}
 }
 
@@ -219,7 +222,7 @@ func (s *ManageService) ListServiceVolumes(ctx context.Context, cluster string, 
 	// get service
 	sitem, err := s.dbIns.GetService(ctx, cluster, service)
 	if err != nil {
-		glog.Errorln("DeleteService error", err, "service", service, "cluster", cluster, "requuid", requuid)
+		glog.Errorln("GetService error", err, "service", service, "cluster", cluster, "requuid", requuid)
 		return nil, err
 	}
 
@@ -381,6 +384,12 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	// delete all serviceMember records in DB
 	glog.Infoln("deleting serviceMembers from DB, service attr", sattr, "serviceMembers", len(members), "requuid", requuid)
 	for _, m := range members {
+		// delete the container service volume, the possible error is skipped
+		s.containersvcIns.DeleteServiceVolume(ctx, sattr.ServiceName, m.MemberIndex, false)
+		if len(m.Volumes.JournalVolumeID) != 0 {
+			s.containersvcIns.DeleteServiceVolume(ctx, sattr.ServiceName, m.MemberIndex, true)
+		}
+
 		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberIndex)
 		if err != nil && err != db.ErrDBRecordNotFound {
 			glog.Errorln("DeleteServiceMember error", err, "requuid", requuid, m)
@@ -928,27 +937,13 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 	az string, memberIndex int64, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	volOpts := &server.CreateVolumeOptions{
-		AvailabilityZone: az,
-		VolumeType:       sattr.Volumes.PrimaryVolume.VolumeType,
-		VolumeSizeGB:     sattr.Volumes.PrimaryVolume.VolumeSizeGB,
-		Iops:             sattr.Volumes.PrimaryVolume.Iops,
-		TagSpecs: []common.KeyValuePair{
-			common.KeyValuePair{
-				Key:   "Name",
-				Value: sattr.ClusterName + common.NameSeparator + memberName,
-			},
-		},
-	}
-
-	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
-	volID, err := s.serverIns.CreateVolume(ctx, volOpts)
+	volID, err := s.createVolume(ctx, sattr, az, memberIndex, memberName, false)
 	if err != nil {
-		glog.Errorln("create the primary volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
+		glog.Errorln("create primary volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
 		return nil, err
 	}
 
-	glog.Infoln("created primary volume", volID, "az", az, "requuid", requuid, sattr)
+	glog.Infoln("created primary volume", volID, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
 
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
@@ -956,20 +951,9 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 	}
 
 	if len(sattr.Volumes.JournalDeviceName) != 0 {
-		volOpts.VolumeType = sattr.Volumes.JournalVolume.VolumeType
-		volOpts.VolumeSizeGB = sattr.Volumes.JournalVolume.VolumeSizeGB
-		volOpts.Iops = sattr.Volumes.JournalVolume.Iops
-		volOpts.TagSpecs = []common.KeyValuePair{
-			common.KeyValuePair{
-				Key:   "Name",
-				Value: sattr.ClusterName + common.NameSeparator + memberName + common.NameSeparator + common.JournalVolumeNamePrefix,
-			},
-		}
-
-		// create the journal device
-		volID, err = s.serverIns.CreateVolume(ctx, volOpts)
+		volID, err = s.createVolume(ctx, sattr, az, memberIndex, memberName, true)
 		if err != nil {
-			glog.Errorln("create the journal volume failed, volID", volID, "az", az, "error", err, "requuid", requuid, sattr)
+			glog.Errorln("create journal volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
 			return nil, err
 		}
 
@@ -988,6 +972,60 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 
 	glog.Infoln("created serviceMember", member, "requuid", requuid)
 	return member, nil
+}
+
+func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceAttr,
+	az string, memberIndex int64, memberName string, journal bool) (volID string, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	nameTag := sattr.ClusterName + common.NameSeparator + memberName
+	vol := &sattr.Volumes.PrimaryVolume
+	if journal {
+		nameTag += common.NameSeparator + common.JournalVolumeNamePrefix
+		vol = &sattr.Volumes.JournalVolume
+	}
+
+	volOpts := &server.CreateVolumeOptions{
+		AvailabilityZone: az,
+		VolumeType:       vol.VolumeType,
+		VolumeSizeGB:     vol.VolumeSizeGB,
+		Iops:             vol.Iops,
+		TagSpecs: []common.KeyValuePair{
+			common.KeyValuePair{
+				Key:   "Name",
+				Value: nameTag,
+			},
+		},
+	}
+
+	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
+	volID, err = s.serverIns.CreateVolume(ctx, volOpts)
+	if err != nil {
+		glog.Errorln("create the volume error", err, "member", memberIndex, "az", az, "requuid", requuid, sattr)
+		return "", err
+	}
+
+	glog.Infoln("created volume", volID, "member", memberIndex, "az", az, "requuid", requuid, sattr)
+
+	existingVolID, err := s.containersvcIns.CreateServiceVolume(ctx, sattr.ServiceName, memberIndex, volID, vol.VolumeSizeGB, journal)
+	if err != nil {
+		if err != containersvc.ErrVolumeExist {
+			glog.Errorln("create the container service volume error", err, "volume", volID, "member index", memberIndex, "requuid", requuid, sattr)
+			// not safe to delete the EBS volume here, as CreateServiceVolume may time out and k8s PV is actually created.
+			return "", err
+		}
+
+		glog.Infoln("the container service volume exists", existingVolID, "member index", memberIndex, "requuid", requuid, sattr)
+
+		if volID != existingVolID {
+			// try to delete the newly created volume, ignore the possible error
+			s.serverIns.DeleteVolume(ctx, volID)
+		}
+
+		volID = existingVolID
+	}
+
+	return volID, nil
 }
 
 func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.ServiceAttr,

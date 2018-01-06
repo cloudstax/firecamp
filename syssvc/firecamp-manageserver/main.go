@@ -143,6 +143,7 @@ func main() {
 		info := k8ssvc.NewK8sInfo(cluster, fullhostname)
 		cluster = info.GetContainerClusterID()
 
+		// TODO support other namespace?
 		namespace := "default"
 		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, namespace)
 		if err != nil {

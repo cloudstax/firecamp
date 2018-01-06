@@ -1028,6 +1028,8 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 		JmxRemotePasswd: userAttr.JmxRemotePasswd,
 	}
 
+	// TODO for now, simply create the specs for all members, same for CheckAndCreateServiceMembers.
+	// 			optimize to bypass the existing members in the future.
 	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
 	crReq, err := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, opts, &(attr.Resource))
