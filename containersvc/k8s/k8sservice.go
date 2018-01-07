@@ -434,84 +434,11 @@ func (s *K8sSvc) createHeadlessService(ctx context.Context, opts *containersvc.C
 
 func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.CreateServiceOptions, labels map[string]string, requuid string) error {
 	// set statefulset resource limits and requests
-	var res corev1.ResourceRequirements
-	if opts.Common.Resource != nil {
-		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
-			res.Limits = make(corev1.ResourceList)
-			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {
-				res.Limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.MaxCPUUnits, resource.BinarySI)
-			}
-			if opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
-				res.Limits[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.MaxMemMB*1024*1024, resource.BinarySI)
-			}
-		}
-
-		if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
-			res.Requests = make(corev1.ResourceList)
-			if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
-				res.Requests[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.ReserveCPUUnits, resource.BinarySI)
-			}
-			if opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
-				res.Requests[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.ReserveMemMB*1024*1024, resource.BinarySI)
-			}
-		}
-	}
-
+	res := s.createResource(opts)
 	glog.Infoln("create statefulset resource", res, "requuid", requuid, opts.Common)
 
 	// set statefulset volume mounts and claims
-	scname := s.genDataVolumeStorageClassName(opts.Common.ServiceName)
-	dataVolume := corev1.VolumeMount{
-		Name:      scname,
-		MountPath: opts.DataVolume.MountPath,
-	}
-	dataVolClaim := corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      scname,
-			Namespace: s.namespace,
-			Labels:    labels,
-			//Annotations:
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: *resource.NewQuantity(opts.JournalVolume.SizeGB*1024*1024*1024, resource.BinarySI),
-				},
-			},
-			StorageClassName: &scname,
-		},
-	}
-	volMounts := []corev1.VolumeMount{dataVolume}
-	volClaims := []corev1.PersistentVolumeClaim{dataVolClaim}
-	if opts.JournalVolume != nil {
-		scname := s.genJournalVolumeStorageClassName(opts.Common.ServiceName)
-		journalVolume := corev1.VolumeMount{
-			Name:      scname,
-			MountPath: opts.JournalVolume.MountPath,
-		}
-		journalVolClaim := corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      scname,
-				Namespace: s.namespace,
-				Labels:    labels,
-				//Annotations:
-			},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceStorage: *resource.NewQuantity(opts.JournalVolume.SizeGB*1024*1024*1024, resource.BinarySI),
-					},
-				},
-				StorageClassName: &scname,
-			},
-		}
-
-		volMounts = append(volMounts, journalVolume)
-		volClaims = append(volClaims, journalVolClaim)
-	}
-
+	volMounts, volClaims := s.createVolumeMountsAndClaims(opts, labels)
 	glog.Infoln("statefulset VolumeMounts", volMounts, "requuid", requuid, opts.Common)
 
 	envs := make([]corev1.EnvVar, len(opts.Envkvs))
@@ -926,6 +853,158 @@ func (s *K8sSvc) DeleteTask(ctx context.Context, cluster string, service string,
 
 	glog.Infoln("deleted task", taskID, "requuid", requuid)
 	return nil
+}
+
+// CreateReplicaSet creates a k8s replicaset.
+// Note: currently volume is skipped for ReplicaSet.
+func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// set replicaset resource limits and requests
+	res := s.createResource(opts)
+	glog.Infoln("create replicaset resource", res, "requuid", requuid, opts.Common)
+
+	// set env
+	envs := make([]corev1.EnvVar, len(opts.Envkvs))
+	for i, e := range opts.Envkvs {
+		envs[i] = corev1.EnvVar{
+			Name:  e.Name,
+			Value: e.Value,
+		}
+	}
+
+	labels := make(map[string]string)
+	labels[serviceLabelName] = opts.Common.ServiceName
+
+	replicaset := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      opts.Common.ServiceName,
+			Namespace: s.namespace,
+			Labels:    labels,
+		},
+		Spec: appsv1.ReplicaSetSpec{
+			Replicas: s.int32Ptr(int32(opts.Replicas)),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: s.namespace,
+					Labels:    labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            opts.Common.ServiceName,
+							Image:           opts.Common.ContainerImage,
+							Resources:       res,
+							ImagePullPolicy: corev1.PullAlways,
+							Env:             envs,
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyAlways,
+				},
+			},
+		},
+	}
+
+	// set port exposing
+	if len(opts.PortMappings) != 0 {
+		glog.Infoln("expose port", opts.PortMappings, "requuid", requuid, opts.Common)
+
+		ports := make([]corev1.ContainerPort, len(opts.PortMappings))
+		for i, p := range opts.PortMappings {
+			ports[i] = corev1.ContainerPort{
+				ContainerPort: int32(p.ContainerPort),
+			}
+			if opts.KubeOptions.ExternalDNS {
+				// TODO current needs to expose the host port for ExternalDNS, so replicas could talk with each other.
+				// refactor it when using the k8s external dns project.
+				ports[i].HostPort = int32(p.HostPort)
+			}
+		}
+
+		replicaset.Spec.Template.Spec.Containers[0].Ports = ports
+
+		// use host network by default for better performance.
+		// k8s requires "If this option is set, the ports that will be used must be specified."
+		replicaset.Spec.Template.Spec.HostNetwork = true
+	}
+
+	_, err := s.cliset.AppsV1beta2().ReplicaSets(s.namespace).Create(replicaset)
+	return err
+}
+
+// DeleteReplicaSet deletes a k8s replicaset.
+func (s *K8sSvc) DeleteReplicaSet(ctx context.Context, service string) error {
+	return s.cliset.AppsV1beta2().ReplicaSets(s.namespace).Delete(service, &metav1.DeleteOptions{})
+}
+
+func (s *K8sSvc) createResource(opts *containersvc.CreateServiceOptions) corev1.ResourceRequirements {
+	var res corev1.ResourceRequirements
+	if opts.Common.Resource != nil {
+		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
+			res.Limits = make(corev1.ResourceList)
+			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {
+				res.Limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.MaxCPUUnits, resource.BinarySI)
+			}
+			if opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
+				res.Limits[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.MaxMemMB*1024*1024, resource.BinarySI)
+			}
+		}
+
+		if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
+			res.Requests = make(corev1.ResourceList)
+			if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
+				res.Requests[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.ReserveCPUUnits, resource.BinarySI)
+			}
+			if opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
+				res.Requests[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.ReserveMemMB*1024*1024, resource.BinarySI)
+			}
+		}
+	}
+	return res
+}
+
+func (s *K8sSvc) createVolumeMountsAndClaims(opts *containersvc.CreateServiceOptions, labels map[string]string) ([]corev1.VolumeMount, []corev1.PersistentVolumeClaim) {
+	volMounts := []corev1.VolumeMount{}
+	volClaims := []corev1.PersistentVolumeClaim{}
+
+	if opts.DataVolume != nil {
+		scname := s.genDataVolumeStorageClassName(opts.Common.ServiceName)
+		dataVolume, dataVolClaim := s.createVolumeAndClaim(opts.DataVolume, scname, labels)
+		volMounts = append(volMounts, *dataVolume)
+		volClaims = append(volClaims, *dataVolClaim)
+	}
+	if opts.JournalVolume != nil {
+		scname := s.genJournalVolumeStorageClassName(opts.Common.ServiceName)
+		journalVolume, journalVolClaim := s.createVolumeAndClaim(opts.JournalVolume, scname, labels)
+		volMounts = append(volMounts, *journalVolume)
+		volClaims = append(volClaims, *journalVolClaim)
+	}
+	return volMounts, volClaims
+}
+
+func (s *K8sSvc) createVolumeAndClaim(volOpts *containersvc.VolumeOptions, scname string, labels map[string]string) (*corev1.VolumeMount, *corev1.PersistentVolumeClaim) {
+	vol := &corev1.VolumeMount{
+		Name:      scname,
+		MountPath: volOpts.MountPath,
+	}
+	volClaim := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      scname,
+			Namespace: s.namespace,
+			Labels:    labels,
+			//Annotations:
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: *resource.NewQuantity(volOpts.SizeGB*1024*1024*1024, resource.BinarySI),
+				},
+			},
+			StorageClassName: &scname,
+		},
+	}
+	return vol, volClaim
 }
 
 func (s *K8sSvc) int32Ptr(i int32) *int32 {

@@ -19,7 +19,7 @@ import (
 
 var (
 	kubeconfig = flag.String("kubeconfig", "/home/ubuntu/.kube/config", "absolute path to the kubeconfig file")
-	op         = flag.String("op", "all", "test ops: all|create-volume|delete-volume|create-service|stop-service|scale-service|delete-service|run-task")
+	op         = flag.String("op", "all", "test ops: all|create-manageservice|delete-manageservice|create-volume|delete-volume|create-service|stop-service|scale-service|delete-service|run-task")
 	volID      = flag.String("volid", "", "EBS volume ID")
 	volSizeGB  = flag.Int64("volsize", 0, "EBS volume size GB")
 	jvolID     = flag.String("jvolid", "", "journal EBS volume ID")
@@ -86,6 +86,48 @@ func main() {
 
 	case "run-task":
 		testTask(svc)
+
+	case "create-manageservice":
+		opts := &containersvc.CreateServiceOptions{
+			Common: &containersvc.CommonOptions{
+				Cluster:        cluster,
+				ServiceName:    common.ManageServiceName,
+				ContainerImage: common.ManageContainerImage,
+				Resource: &common.Resources{
+					MaxCPUUnits:     common.DefaultMaxCPUUnits,
+					ReserveCPUUnits: common.DefaultReserveCPUUnits,
+					MaxMemMB:        common.DefaultMaxMemoryMB,
+					ReserveMemMB:    common.DefaultReserveMemoryMB,
+				},
+			},
+			PortMappings: []common.PortMapping{
+				{ContainerPort: common.ManageHTTPServerPort, HostPort: common.ManageHTTPServerPort},
+			},
+			Envkvs: []*common.EnvKeyValuePair{
+				&common.EnvKeyValuePair{
+					Name:  common.ENV_CONTAINER_PLATFORM,
+					Value: common.ContainerPlatformK8s,
+				},
+				&common.EnvKeyValuePair{
+					Name:  common.ENV_DB_TYPE,
+					Value: common.DBTypeCloudDB,
+				},
+				&common.EnvKeyValuePair{
+					Name:  common.ENV_AVAILABILITY_ZONES,
+					Value: "us-east-1a",
+				},
+			},
+		}
+		err = svc.CreateReplicaSet(ctx, opts)
+		if err != nil {
+			glog.Fatalln("create manage service replicaset error", err)
+		}
+
+	case "delete-manageservice":
+		err = svc.DeleteReplicaSet(ctx, common.ManageServiceName)
+		if err != nil {
+			glog.Fatalln("delete manage service replicaset error", err)
+		}
 	}
 }
 
