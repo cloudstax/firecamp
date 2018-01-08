@@ -26,7 +26,7 @@ func (d *DynamoDB) CreateDevice(ctx context.Context, dev *common.Device) error {
 			tableSortKey: {
 				S: aws.String(dev.DeviceName),
 			},
-			ServiceName: {
+			db.ServiceName: {
 				S: aws.String(dev.ServiceName),
 			},
 		},
@@ -75,7 +75,7 @@ func (d *DynamoDB) GetDevice(ctx context.Context, clusterName string, deviceName
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	dev = db.CreateDevice(clusterName, deviceName, *(resp.Item[ServiceName].S))
+	dev = db.CreateDevice(clusterName, deviceName, *(resp.Item[db.ServiceName].S))
 
 	glog.Infoln("get device", dev, "requuid", requuid)
 	return dev, nil
@@ -170,7 +170,7 @@ func (d *DynamoDB) listDevicesWithLimit(ctx context.Context, clusterName string,
 		}
 
 		for _, item := range resp.Items {
-			dev := db.CreateDevice(clusterName, *(item[tableSortKey].S), *(item[ServiceName].S))
+			dev := db.CreateDevice(clusterName, *(item[tableSortKey].S), *(item[db.ServiceName].S))
 			devs = append(devs, dev)
 		}
 

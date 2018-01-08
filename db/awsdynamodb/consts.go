@@ -28,43 +28,6 @@ const (
 	defaultReadCapacity  = 25
 	defaultWriteCapacity = 25
 
-	ClusterName     = "ClusterName"
-	ServiceName     = "ServiceName"
-	ServiceStatus   = "ServiceStatus"
-	ServiceUUID     = "ServiceUUID"
-	ServiceVolumes  = "ServiceVolumes"
-	Replicas        = "Replicas"
-	RegisterDNS     = "RegisterDNS"
-	DomainName      = "DomainName"
-	HostedZoneID    = "HostedZoneID"
-	RequireStaticIP = "RequireStaticIP"
-	LastModified    = "LastModified"
-	UserAttr        = "UserAttr"
-	Resource        = "Resource"
-
-	VolumeID            = "VolumeID"
-	VolumeSizeGB        = "VolumeSizeGB"
-	DeviceName          = "DeviceName"
-	DeviceNames         = "DeviceNames"
-	AvailableZone       = "AvailableZone"
-	TaskID              = "TaskID"
-	ContainerInstanceID = "ContainerInstanceID"
-	ServerInstanceID    = "ServerInstanceID"
-	MemberIndex         = "MemberIndex"
-	MemberStatus        = "MemberStatus"
-	MemberName          = "MemberName"
-	MemberVolumes       = "MemberVolumes"
-	MemberConfigs       = "MemberConfigs"
-
-	ConfigFileID      = "ConfigFileID"
-	ConfigFileMD5     = "ConfigFileMD5"
-	ConfigFileName    = "ConfigFileName"
-	ConfigFileMode    = "ConfigFileMode"
-	ConfigFileContent = "ConfigFileContent"
-
-	StaticIP           = "StaticIP"
-	NetworkInterfaceID = "NetworkInterfaceID"
-
 	// see http://stackoverflow.com/questions/32833351/dynamodb-put-item-if-hash-or-hash-and-range-combination-doesnt-exist
 	// Every item has both a hash and a range key. This means that one of two things will happen:
 	// 1. The hash+range pair exists in the database.

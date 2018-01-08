@@ -28,19 +28,19 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 			tableSortKey: {
 				S: aws.String(cfg.FileID),
 			},
-			ConfigFileMD5: {
+			db.ConfigFileMD5: {
 				S: aws.String(cfg.FileMD5),
 			},
-			ConfigFileName: {
+			db.ConfigFileName: {
 				S: aws.String(cfg.FileName),
 			},
-			ConfigFileMode: {
+			db.ConfigFileMode: {
 				N: aws.String(strconv.FormatUint(uint64(cfg.FileMode), 10)),
 			},
-			LastModified: {
+			db.LastModified: {
 				N: aws.String(strconv.FormatInt(cfg.LastModified, 10)),
 			},
-			ConfigFileContent: {
+			db.ConfigFileContent: {
 				S: aws.String(cfg.Content),
 			},
 		},
@@ -89,13 +89,13 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	mtime, err := strconv.ParseInt(*(resp.Item[LastModified].N), 10, 64)
+	mtime, err := strconv.ParseInt(*(resp.Item[db.LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
 	}
 
-	mode, err := strconv.ParseUint(*(resp.Item[ConfigFileMode].N), 10, 64)
+	mode, err := strconv.ParseUint(*(resp.Item[db.ConfigFileMode].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseUint FileMode error", err, "requuid", requuid, "resp", resp)
 		return nil, db.ErrDBInternal
@@ -103,11 +103,11 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 
 	cfg, err = db.CreateConfigFile(serviceUUID,
 		fileID,
-		*(resp.Item[ConfigFileMD5].S),
-		*(resp.Item[ConfigFileName].S),
+		*(resp.Item[db.ConfigFileMD5].S),
+		*(resp.Item[db.ConfigFileName].S),
 		uint32(mode),
 		mtime,
-		*(resp.Item[ConfigFileContent].S))
+		*(resp.Item[db.ConfigFileContent].S))
 	if err != nil {
 		glog.Errorln("CreateConfigFile error", err, "fileID", fileID, "serviceUUID", serviceUUID, "requuid", requuid)
 		return nil, err

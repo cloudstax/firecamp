@@ -43,34 +43,34 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 			tableSortKey: {
 				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
 			},
-			MemberStatus: {
+			db.MemberStatus: {
 				S: aws.String(member.Status),
 			},
-			MemberName: {
+			db.MemberName: {
 				S: aws.String(member.MemberName),
 			},
-			LastModified: {
+			db.LastModified: {
 				N: aws.String(strconv.FormatInt(member.LastModified, 10)),
 			},
-			AvailableZone: {
+			db.AvailableZone: {
 				S: aws.String(member.AvailableZone),
 			},
-			TaskID: {
+			db.TaskID: {
 				S: aws.String(member.TaskID),
 			},
-			ContainerInstanceID: {
+			db.ContainerInstanceID: {
 				S: aws.String(member.ContainerInstanceID),
 			},
-			ServerInstanceID: {
+			db.ServerInstanceID: {
 				S: aws.String(member.ServerInstanceID),
 			},
-			MemberVolumes: {
+			db.MemberVolumes: {
 				B: volBytes,
 			},
-			StaticIP: {
+			db.StaticIP: {
 				S: aws.String(member.StaticIP),
 			},
-			MemberConfigs: {
+			db.MemberConfigs: {
 				B: configBytes,
 			},
 		},
@@ -124,10 +124,10 @@ func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.Se
 
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + TaskID + " = :v1, " + ContainerInstanceID + " = :v2, " +
-		ServerInstanceID + " = :v3, " + LastModified + " = :v4, " + MemberConfigs + " = :v5"
-	conditionExpr := TaskID + " = :cv1 AND " + ContainerInstanceID + " = :cv2 AND " +
-		ServerInstanceID + " = :cv3 AND " + MemberConfigs + " = :cv4"
+	updateExpr := "SET " + db.TaskID + " = :v1, " + db.ContainerInstanceID + " = :v2, " +
+		db.ServerInstanceID + " = :v3, " + db.LastModified + " = :v4, " + db.MemberConfigs + " = :v5"
+	conditionExpr := db.TaskID + " = :cv1 AND " + db.ContainerInstanceID + " = :cv2 AND " +
+		db.ServerInstanceID + " = :cv3 AND " + db.MemberConfigs + " = :cv4"
 
 	params := &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
@@ -343,21 +343,21 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 }
 
 func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dynamodb.AttributeValue) (*common.ServiceMember, error) {
-	mtime, err := strconv.ParseInt(*(item[LastModified].N), 10, 64)
+	mtime, err := strconv.ParseInt(*(item[db.LastModified].N), 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt LastModified error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
 	var configs []*common.MemberConfig
-	err = json.Unmarshal(item[MemberConfigs].B, &configs)
+	err = json.Unmarshal(item[db.MemberConfigs].B, &configs)
 	if err != nil {
 		glog.Errorln("Unmarshal json MemberConfigs error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
 	var volumes common.MemberVolumes
-	err = json.Unmarshal(item[MemberVolumes].B, &volumes)
+	err = json.Unmarshal(item[db.MemberVolumes].B, &volumes)
 	if err != nil {
 		glog.Errorln("Unmarshal json MemberVolumes error", err, item)
 		return nil, db.ErrDBInternal
@@ -371,15 +371,15 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 
 	member := db.CreateServiceMember(serviceUUID,
 		memberIndex,
-		*(item[MemberStatus].S),
-		*(item[MemberName].S),
-		*(item[AvailableZone].S),
-		*(item[TaskID].S),
-		*(item[ContainerInstanceID].S),
-		*(item[ServerInstanceID].S),
+		*(item[db.MemberStatus].S),
+		*(item[db.MemberName].S),
+		*(item[db.AvailableZone].S),
+		*(item[db.TaskID].S),
+		*(item[db.ContainerInstanceID].S),
+		*(item[db.ServerInstanceID].S),
 		mtime,
 		volumes,
-		*(item[StaticIP].S),
+		*(item[db.StaticIP].S),
 		configs)
 
 	return member, nil
@@ -410,7 +410,7 @@ func (d *DynamoDB) UpdateServiceMemberVolume(ctx context.Context, member *common
 
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + MemberVolumes + " = :v1"
+	updateExpr := "SET " + db.MemberVolumes + " = :v1"
 
 	params := &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),

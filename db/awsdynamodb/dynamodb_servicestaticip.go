@@ -27,16 +27,16 @@ func (d *DynamoDB) CreateServiceStaticIP(ctx context.Context, serviceip *common.
 			tableSortKey: {
 				S: aws.String(staticIPPartitionKeyPrefix),
 			},
-			ServiceUUID: {
+			db.ServiceUUID: {
 				S: aws.String(serviceip.ServiceUUID),
 			},
-			AvailableZone: {
+			db.AvailableZone: {
 				S: aws.String(serviceip.AvailableZone),
 			},
-			ServerInstanceID: {
+			db.ServerInstanceID: {
 				S: aws.String(serviceip.ServerInstanceID),
 			},
-			NetworkInterfaceID: {
+			db.NetworkInterfaceID: {
 				S: aws.String(serviceip.NetworkInterfaceID),
 			},
 		},
@@ -68,8 +68,8 @@ func (d *DynamoDB) UpdateServiceStaticIP(ctx context.Context, oldIP *common.Serv
 
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + ServerInstanceID + " = :v1, " + NetworkInterfaceID + " = :v2"
-	conditionExpr := ServerInstanceID + " = :cv1 AND " + NetworkInterfaceID + " = :cv2"
+	updateExpr := "SET " + db.ServerInstanceID + " = :v1, " + db.NetworkInterfaceID + " = :v2"
+	conditionExpr := db.ServerInstanceID + " = :cv1 AND " + db.NetworkInterfaceID + " = :cv2"
 
 	params := &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
@@ -144,10 +144,10 @@ func (d *DynamoDB) GetServiceStaticIP(ctx context.Context, staticIP string) (ser
 
 	serviceip = db.CreateServiceStaticIP(
 		staticIP,
-		*(resp.Item[ServiceUUID].S),
-		*(resp.Item[AvailableZone].S),
-		*(resp.Item[ServerInstanceID].S),
-		*(resp.Item[NetworkInterfaceID].S))
+		*(resp.Item[db.ServiceUUID].S),
+		*(resp.Item[db.AvailableZone].S),
+		*(resp.Item[db.ServerInstanceID].S),
+		*(resp.Item[db.NetworkInterfaceID].S))
 
 	glog.Infoln("get service static ip", serviceip, "requuid", requuid)
 	return serviceip, nil

@@ -27,7 +27,7 @@ func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error
 			tableSortKey: {
 				S: aws.String(svc.ServiceName),
 			},
-			ServiceUUID: {
+			db.ServiceUUID: {
 				S: aws.String(svc.ServiceUUID),
 			},
 		},
@@ -76,7 +76,7 @@ func (d *DynamoDB) GetService(ctx context.Context, clusterName string, serviceNa
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	svc = db.CreateService(clusterName, serviceName, *(resp.Item[ServiceUUID].S))
+	svc = db.CreateService(clusterName, serviceName, *(resp.Item[db.ServiceUUID].S))
 
 	glog.Infoln("get service", svc, "requuid", requuid)
 	return svc, nil
@@ -175,7 +175,7 @@ func (d *DynamoDB) listServicesWithLimit(ctx context.Context, clusterName string
 		}
 
 		for _, item := range resp.Items {
-			svc := db.CreateService(clusterName, *(item[tableSortKey].S), *(item[ServiceUUID].S))
+			svc := db.CreateService(clusterName, *(item[tableSortKey].S), *(item[db.ServiceUUID].S))
 			services = append(services, svc)
 		}
 
