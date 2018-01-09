@@ -624,24 +624,14 @@ func (s *K8sSvc) GetServiceStatus(ctx context.Context, cluster string, service s
 func (s *K8sSvc) StopService(ctx context.Context, cluster string, service string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// get statefulset
-	statefulset, err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Get(service, metav1.GetOptions{})
+	err := s.stopService(cluster, service, requuid)
 	if err != nil {
-		glog.Errorln("get statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
-		return err
-	}
-
-	glog.Infoln("get statefulset for service", service, "requuid", requuid, statefulset.Status)
-
-	// update statefulset Replicas to 0
-	statefulset.Spec.Replicas = s.int32Ptr(0)
-	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
-	if err != nil {
-		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
+		glog.Errorln("stopService error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
 		return err
 	}
 
 	// wait till all pods are stopped
+	var statefulset *appsv1.StatefulSet
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		statefulset, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Get(service, metav1.GetOptions{})
 		if err != nil {
@@ -663,6 +653,28 @@ func (s *K8sSvc) StopService(ctx context.Context, cluster string, service string
 		"running pods, after", common.DefaultServiceWaitSeconds, "requuid", requuid, statefulset.Status)
 
 	return common.ErrTimeout
+}
+
+func (s *K8sSvc) stopService(cluster string, service string, requuid string) error {
+	// get statefulset
+	statefulset, err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Get(service, metav1.GetOptions{})
+	if err != nil {
+		glog.Errorln("get statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
+		return err
+	}
+
+	glog.Infoln("get statefulset for service", service, "requuid", requuid, statefulset.Status)
+
+	// update statefulset Replicas to 0
+	statefulset.Spec.Replicas = s.int32Ptr(0)
+	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
+	if err != nil {
+		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
+		return err
+	}
+
+	glog.Infoln("set statefulset replicas to 0", service, "requuid", requuid)
+	return nil
 }
 
 // ScaleService scales the service containers up/down to the desiredCount. Note: it does not wait till all containers are started or stopped.
@@ -695,10 +707,20 @@ func (s *K8sSvc) ScaleService(ctx context.Context, cluster string, service strin
 func (s *K8sSvc) DeleteService(ctx context.Context, cluster string, service string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// stop the service, not wait till pods are stopped.
+	// k8s statefulset looks not terminating pods automaticaly after statefulset is deleted.
+	// see the k8s-test program, simply ./k8s-test -op=create-service, and then ./k8s-test -op=delete-service.
+	// the created pod is still running after statefulset is deleted.
+	err := s.stopService(cluster, service, requuid)
+	if err != nil {
+		glog.Errorln("stopService error", err, "service", service, "requuid", requuid, s.namespace)
+		return err
+	}
+
 	delOpt := &metav1.DeleteOptions{}
 
 	// delete statefulset
-	err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Delete(service, delOpt)
+	err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Delete(service, delOpt)
 	if err != nil {
 		if !k8errors.IsNotFound(err) {
 			glog.Errorln("delete statefulset error", err, "service", service, "requuid", requuid)
