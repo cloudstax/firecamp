@@ -1,0 +1,40 @@
+apiVersion: apps/v1beta2
+kind: ReplicaSet
+metadata:
+  name: firecamp-manageserver
+  labels:
+    app: firecamp-manageserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firecamp-manageserver
+  template:
+    metadata:
+      labels:
+        app: firecamp-manageserver
+    spec:
+      hostNetwork: true
+      containers:
+      - name: firecamp-manageserver
+        image: cloudstax/firecamp-manageserver
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 27040
+          hostPort: 27040
+        resources:
+          limits:
+            cpu: "500m"
+            memory: 4Gi
+          requests:
+            cpu: "100m"
+            memory: 256Mi
+        env:
+          - name: CONTAINER_PLATFORM
+            value: "k8s"
+          - name: DB_TYPE
+            value: "k8sdb"
+          - name: AVAILABILITY_ZONES
+            value: "us-east-1a"
+          - name: CLUSTER
+            value: "t1"
