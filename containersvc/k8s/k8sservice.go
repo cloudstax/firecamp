@@ -557,6 +557,12 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 func (s *K8sSvc) CreateService(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// sanity check
+	if opts.KubeOptions == nil {
+		glog.Errorln("invalid request, CreateServiceOptions does not have KubeOptions, requuid", requuid, opts.Common)
+		return common.ErrInternal
+	}
+
 	labels := make(map[string]string)
 	labels[serviceLabelName] = opts.Common.ServiceName
 
@@ -860,6 +866,12 @@ func (s *K8sSvc) DeleteTask(ctx context.Context, cluster string, service string,
 func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// sanity check
+	if opts.KubeOptions == nil {
+		glog.Errorln("invalid request, CreateServiceOptions does not have KubeOptions, requuid", requuid, opts.Common)
+		return common.ErrInternal
+	}
+
 	// set replicaset resource limits and requests
 	res := s.createResource(opts)
 	glog.Infoln("create replicaset resource", res, "requuid", requuid, opts.Common)
@@ -884,6 +896,9 @@ func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.Create
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: s.int32Ptr(int32(opts.Replicas)),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: s.namespace,

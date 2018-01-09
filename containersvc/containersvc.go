@@ -43,7 +43,7 @@ type CommonOptions struct {
 type K8sOptions struct {
 	// The container image of the init container, optional
 	InitContainerImage string
-	// The access port of the service
+	// The access port of the headless service, equals the service serving port.
 	ServicePort int64
 	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
 	// If only use within k8s, set to false.
@@ -62,13 +62,13 @@ type Placement struct {
 }
 
 type CreateServiceOptions struct {
-	Common *CommonOptions
+	Replicas int64
+	Common   *CommonOptions
 	// The volume mount for the service data, must exist.
 	DataVolume *VolumeOptions
 	// The volume mount for the service journal, optional.
 	JournalVolume *VolumeOptions
 	PortMappings  []common.PortMapping
-	Replicas      int64
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair

@@ -20,6 +20,7 @@ import (
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
 	"github.com/cloudstax/firecamp/db/controldb/client"
+	"github.com/cloudstax/firecamp/db/k8sconfigdb"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/log"
@@ -56,7 +57,9 @@ func main() {
 		os.Exit(-1)
 	}
 
-	if *platform != common.ContainerPlatformECS && *platform != common.ContainerPlatformSwarm {
+	if *platform != common.ContainerPlatformECS &&
+		*platform != common.ContainerPlatformSwarm &&
+		*platform != common.ContainerPlatformK8s {
 		fmt.Println("not supported container platform", *platform)
 		os.Exit(-1)
 	}
@@ -143,8 +146,11 @@ func main() {
 		info := k8ssvc.NewK8sInfo(cluster, fullhostname)
 		cluster = info.GetContainerClusterID()
 
-		// TODO support other namespace?
-		namespace := "default"
+		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
+		if len(namespace) == 0 {
+			glog.Infoln("k8s namespace is not set. set to default")
+			namespace = common.DefaultK8sNamespace
+		}
 		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, namespace)
 		if err != nil {
 			glog.Fatalln("NewK8sSvc error", err)
@@ -181,6 +187,17 @@ func main() {
 
 		createControlDB(ctx, region, cluster, logIns, containersvcIns, serverIns, serverInfo)
 		waitControlDBReady(ctx, cluster, containersvcIns)
+
+	case common.DBTypeK8sDB:
+		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
+		if len(namespace) == 0 {
+			glog.Infoln("k8s namespace is not set. set to default")
+			namespace = common.DefaultK8sNamespace
+		}
+		dbIns, err = k8sconfigdb.NewK8sConfigDB(namespace)
+		if err != nil {
+			glog.Fatalln("NewK8sConfigDB error", err)
+		}
 
 	default:
 		glog.Fatalln("unknown db type", dbtype)

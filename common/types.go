@@ -9,6 +9,8 @@ const (
 	ContainerPlatformSwarm = "swarm"
 	ContainerPlatformK8s   = "k8s"
 
+	DefaultK8sNamespace = "default"
+
 	ContainerPlatformRoleManager = "manager"
 	ContainerPlatformRoleWorker  = "worker"
 
@@ -67,6 +69,7 @@ const (
 
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
+	DBTypeK8sDB     = "k8sdb"     // db on top of k8s ConfigMap
 
 	ControlDBServerPort  = 27030
 	ControlDBName        = "controldb"
@@ -128,6 +131,7 @@ const (
 	ENV_CONTAINER_PLATFORM = "CONTAINER_PLATFORM"
 	ENV_DB_TYPE            = "DB_TYPE"
 	ENV_AVAILABILITY_ZONES = "AVAILABILITY_ZONES"
+	ENV_K8S_NAMESPACE      = "K8S_NAMESPACE"
 
 	ENV_SHARDS            = "SHARDS"
 	ENV_REPLICAS_PERSHARD = "REPLICAS_PERSHARD"

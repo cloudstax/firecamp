@@ -24,6 +24,7 @@ var (
 	volSizeGB  = flag.Int64("volsize", 0, "EBS volume size GB")
 	jvolID     = flag.String("jvolid", "", "journal EBS volume ID")
 	jvolSizeGB = flag.Int64("jvolsize", 0, "journal EBS volume size GB")
+	az         = flag.String("zone", "us-east-1a", "the availability zone")
 )
 
 func main() {
@@ -89,6 +90,7 @@ func main() {
 
 	case "create-manageservice":
 		opts := &containersvc.CreateServiceOptions{
+			Replicas: 1,
 			Common: &containersvc.CommonOptions{
 				Cluster:        cluster,
 				ServiceName:    common.ManageServiceName,
@@ -110,12 +112,23 @@ func main() {
 				},
 				&common.EnvKeyValuePair{
 					Name:  common.ENV_DB_TYPE,
-					Value: common.DBTypeCloudDB,
+					Value: common.DBTypeK8sDB,
 				},
 				&common.EnvKeyValuePair{
 					Name:  common.ENV_AVAILABILITY_ZONES,
-					Value: "us-east-1a",
+					Value: *az,
 				},
+				&common.EnvKeyValuePair{
+					Name:  common.ENV_CLUSTER,
+					Value: "t1",
+				},
+				&common.EnvKeyValuePair{
+					Name:  common.ENV_K8S_NAMESPACE,
+					Value: "default",
+				},
+			},
+			KubeOptions: &containersvc.K8sOptions{
+				ExternalDNS: true,
 			},
 		}
 		err = svc.CreateReplicaSet(ctx, opts)
