@@ -180,11 +180,8 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		az := azs[azIndex]
 
 		// create the local.ini file
-		enableCors := "false"
-		if opts.EnableCors {
-			enableCors = "true"
-		}
-		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member, enableCors, opts.Admin, encryptedPasswd)
+		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member,
+			strconv.FormatBool(opts.EnableCors), opts.Admin, encryptedPasswd)
 
 		// set cluster configs
 		if opts.Replicas >= int64(3) {
@@ -205,11 +202,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		// set cors configs
 		if opts.EnableCors {
-			cred := "false"
-			if opts.Credentials {
-				cred = "true"
-			}
-			corsContent := fmt.Sprintf(corsConfigs, cred, opts.Origins, opts.Headers, opts.Methods)
+			corsContent := fmt.Sprintf(corsConfigs, strconv.FormatBool(opts.Credentials), opts.Origins, opts.Headers, opts.Methods)
 			couchContent += corsContent
 		}
 

@@ -12,6 +12,7 @@ const (
 	ContainerPlatformRoleManager = "manager"
 	ContainerPlatformRoleWorker  = "worker"
 
+	// OrgName and SystemName could not include "-"
 	OrgName             = "cloudstax"
 	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + "/" + SystemName + "-"

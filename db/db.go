@@ -79,6 +79,7 @@ type DB interface {
 	ListServices(ctx context.Context, clusterName string) (svcs []*common.Service, err error)
 
 	CreateServiceAttr(ctx context.Context, attr *common.ServiceAttr) error
+	// Only support updating ServiceStatus, Replicas or UserAttr at v1, all other attributes are immutable.
 	UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error
 	GetServiceAttr(ctx context.Context, serviceUUID string) (attr *common.ServiceAttr, err error)
 	DeleteServiceAttr(ctx context.Context, serviceUUID string) error

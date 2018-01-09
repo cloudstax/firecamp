@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -132,11 +133,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		if platform == common.ContainerPlatformSwarm {
 			bind = catalog.BindAllIP
 		}
-		enableDLQStr := "false"
-		if opts.EnableDeadLetterQueue {
-			enableDLQStr = "true"
-		}
-		content := fmt.Sprintf(lsConfigs, member, bind, opts.QueueType, enableDLQStr)
+		content := fmt.Sprintf(lsConfigs, member, bind, opts.QueueType, strconv.FormatBool(opts.EnableDeadLetterQueue))
 
 		if opts.PipelineWorkers > 0 {
 			content += fmt.Sprintf(plWorkersConfig, opts.PipelineWorkers)

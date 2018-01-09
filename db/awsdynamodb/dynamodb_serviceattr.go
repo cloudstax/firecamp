@@ -104,9 +104,22 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 }
 
 // UpdateServiceAttr updates the ServiceAttr in DB.
-// Only support updating ServiceStatus or Replicas at v1, all other attributes are immutable.
+// Only support updating ServiceStatus, Replicas or UserAttr at v1, all other attributes are immutable.
 func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
+
+	if oldAttr.ClusterName != newAttr.ClusterName ||
+		oldAttr.DomainName != newAttr.DomainName ||
+		oldAttr.HostedZoneID != newAttr.HostedZoneID ||
+		oldAttr.RegisterDNS != newAttr.RegisterDNS ||
+		oldAttr.RequireStaticIP != newAttr.RequireStaticIP ||
+		oldAttr.ServiceName != newAttr.ServiceName ||
+		!db.EqualResources(&oldAttr.Resource, &newAttr.Resource) ||
+		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) {
+		glog.Errorln("immutable fields could not be updated, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
+		return db.ErrDBInvalidRequest
+	}
+
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.UpdateItemInput{

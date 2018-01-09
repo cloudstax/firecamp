@@ -3,6 +3,7 @@ package kafkacatalog
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -126,15 +127,11 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		// create the server.properties file
 		index := i % len(azs)
-		topicDel := "false"
-		if opts.AllowTopicDel {
-			topicDel = "true"
-		}
 		bind := memberHost
 		if platform == common.ContainerPlatformSwarm {
 			bind = catalog.BindAllIP
 		}
-		content := fmt.Sprintf(serverPropConfig, i, azs[index], topicDel, numPartitions, bind, memberHost,
+		content := fmt.Sprintf(serverPropConfig, i, azs[index], strconv.FormatBool(opts.AllowTopicDel), numPartitions, bind, memberHost,
 			replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,

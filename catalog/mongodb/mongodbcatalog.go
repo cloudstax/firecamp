@@ -325,10 +325,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 
 	kvshards := &common.EnvKeyValuePair{Name: common.ENV_SHARDS, Value: strconv.FormatInt(opts.Shards, 10)}
 	kvreplpershard := &common.EnvKeyValuePair{Name: common.ENV_REPLICAS_PERSHARD, Value: strconv.FormatInt(opts.ReplicasPerShard, 10)}
-	kvreplsetonly := &common.EnvKeyValuePair{Name: envReplicaSetOnly, Value: "false"}
-	if opts.ReplicaSetOnly {
-		kvreplsetonly.Value = "true"
-	}
+	kvreplsetonly := &common.EnvKeyValuePair{Name: envReplicaSetOnly, Value: strconv.FormatBool(opts.ReplicaSetOnly)}
 
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvservice, kvsvctype, kvmgtserver, kvop, kvadminuser, kvadminpass, kvshards, kvreplpershard, kvreplsetonly}
 
