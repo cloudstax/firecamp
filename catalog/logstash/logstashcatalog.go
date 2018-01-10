@@ -60,7 +60,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: httpPort, HostPort: httpPort},
+		{ContainerPort: httpPort, HostPort: httpPort, IsServicePort: true},
 		{ContainerPort: beatsPort, HostPort: beatsPort},
 	}
 

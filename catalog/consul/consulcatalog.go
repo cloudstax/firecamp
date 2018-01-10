@@ -60,7 +60,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		{ContainerPort: rpcPort, HostPort: rpcPort},
 		{ContainerPort: serfLanPort, HostPort: serfLanPort},
 		{ContainerPort: serfWanPort, HostPort: serfWanPort},
-		{ContainerPort: httpAPIPort, HostPort: httpAPIPort},
+		{ContainerPort: httpAPIPort, HostPort: httpAPIPort, IsServicePort: true},
 		{ContainerPort: dnsPort, HostPort: dnsPort},
 	}
 	if opts.EnableTLS {

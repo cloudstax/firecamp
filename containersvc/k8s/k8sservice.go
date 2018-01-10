@@ -412,6 +412,17 @@ func (s *K8sSvc) isHeadlessServiceExist(ctx context.Context, cluster string, ser
 }
 
 func (s *K8sSvc) createHeadlessService(ctx context.Context, opts *containersvc.CreateServiceOptions, labels map[string]string, requuid string) error {
+	ports := []corev1.ServicePort{}
+	for _, m := range opts.PortMappings {
+		if m.IsServicePort {
+			ports = append(ports, corev1.ServicePort{Port: int32(m.ContainerPort)})
+		}
+	}
+	if len(ports) == 0 {
+		glog.Errorln("headless service of statefulset does not have the listening port, requuid", requuid, opts)
+		return common.ErrInternal
+	}
+
 	// create the headless service
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -420,11 +431,9 @@ func (s *K8sSvc) createHeadlessService(ctx context.Context, opts *containersvc.C
 			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
-			ClusterIP: "None",
-			Ports: []corev1.ServicePort{
-				{Port: int32(opts.KubeOptions.ServicePort)},
-			},
-			Selector: labels,
+			ClusterIP: corev1.ClusterIPNone,
+			Ports:     ports,
+			Selector:  labels,
 		},
 	}
 

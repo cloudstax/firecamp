@@ -70,6 +70,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
 		HostPort:      defaultPort,
+		IsServicePort:   true,
 	}
 
 	image := ContainerImage

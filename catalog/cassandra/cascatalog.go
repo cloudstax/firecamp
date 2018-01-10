@@ -96,7 +96,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		{ContainerPort: intraNodePort, HostPort: intraNodePort},
 		{ContainerPort: tlsIntraNodePort, HostPort: tlsIntraNodePort},
 		{ContainerPort: jmxPort, HostPort: jmxPort},
-		{ContainerPort: cqlPort, HostPort: cqlPort},
+		{ContainerPort: cqlPort, HostPort: cqlPort, IsServicePort: true},
 		{ContainerPort: thriftPort, HostPort: thriftPort},
 	}
 

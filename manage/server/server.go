@@ -390,6 +390,14 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		glog.Infoln("deploy to zones", placeZones, "for service", req.Service, "all zones", s.azs)
 	}
 
+	if s.platform == common.ContainerPlatformK8s {
+		kopts := &containersvc.K8sOptions{
+			InitContainerImage: containersvc.K8sServiceInitContainerImage,
+			ExternalDNS:        true,
+		}
+		createOpts.KubeOptions = kopts
+	}
+
 	return createOpts
 }
 

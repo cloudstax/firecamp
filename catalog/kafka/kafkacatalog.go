@@ -49,7 +49,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: listenPort, HostPort: listenPort},
+		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
 	}
 
 	reserveMemMB := res.ReserveMemMB

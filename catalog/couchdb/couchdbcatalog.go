@@ -84,8 +84,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, encryptedPasswd)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: httpPort, HostPort: httpPort},
-		{ContainerPort: sslPort, HostPort: sslPort},
+		{ContainerPort: httpPort, HostPort: httpPort, IsServicePort: true},
+		{ContainerPort: sslPort, HostPort: sslPort, IsServicePort: true},
 	}
 	if opts.Replicas != int64(1) {
 		m := common.PortMapping{ContainerPort: localPort, HostPort: localPort}

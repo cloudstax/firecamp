@@ -91,11 +91,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	portmapping := common.PortMapping{
 		ContainerPort: mongoPort,
 		HostPort:      mongoPort,
+		IsServicePort:   true,
 	}
 	portmaps := []common.PortMapping{portmapping}
 	if opts.Shards != 1 || !opts.ReplicaSetOnly {
-		shardportmap := common.PortMapping{ContainerPort: shardPort, HostPort: shardPort}
-		configportmap := common.PortMapping{ContainerPort: configServerPort, HostPort: configServerPort}
+		shardportmap := common.PortMapping{ContainerPort: shardPort, HostPort: shardPort, IsServicePort: true}
+		configportmap := common.PortMapping{ContainerPort: configServerPort, HostPort: configServerPort, IsServicePort: true}
 		portmaps = append(portmaps, shardportmap, configportmap)
 	}
 

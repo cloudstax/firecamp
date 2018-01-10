@@ -72,6 +72,8 @@ type Resources struct {
 type PortMapping struct {
 	ContainerPort int64
 	HostPort      int64
+	// whether the port is a service port, used by k8s headless service for statefulset.
+	IsServicePort bool
 }
 
 // ServiceStatus represents the service's running status.

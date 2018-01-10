@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	// The busybox image for unit test.
+	// TestBusyBoxContainerImage is the busybox image for unit test.
 	TestBusyBoxContainerImage = common.OrgName + "/" + common.SystemName + "-busybox"
+	// K8sServiceInitContainerImage is the common init container image for all services in k8s.
+	K8sServiceInitContainerImage = common.OrgName + "/" + common.SystemName + "-initcontainer"
 
 	EnvInitContainerOp          = "OP"
 	EnvInitContainerCluster     = "CLUSTER"
@@ -43,8 +45,6 @@ type CommonOptions struct {
 type K8sOptions struct {
 	// The container image of the init container, optional
 	InitContainerImage string
-	// The access port of the headless service, equals the service serving port.
-	ServicePort int64
 	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
 	// If only use within k8s, set to false.
 	ExternalDNS bool
@@ -68,7 +68,12 @@ type CreateServiceOptions struct {
 	DataVolume *VolumeOptions
 	// The volume mount for the service journal, optional.
 	JournalVolume *VolumeOptions
-	PortMappings  []common.PortMapping
+	// PortMappings include the ports exposed by the services. It includes a "ServicePort" field
+	// for whether the port is a service port, used by k8s headless service for statefulset.
+	// https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#creating-a-statefulset
+	// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+	// https://kubernetes.io/docs/concepts/services-networking/service/#multi-port-services
+	PortMappings []common.PortMapping
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair

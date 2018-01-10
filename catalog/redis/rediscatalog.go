@@ -101,7 +101,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: listenPort, HostPort: listenPort},
+		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
 	}
 	if opts.Shards >= minClusterShards {
 		m := common.PortMapping{ContainerPort: clusterPort, HostPort: clusterPort}

@@ -52,7 +52,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res, opts, esNode)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: kbHTTPPort, HostPort: kbHTTPPort},
+		{ContainerPort: kbHTTPPort, HostPort: kbHTTPPort, IsServicePort: true},
 	}
 
 	userAttr := &common.KibanaUserAttr{
