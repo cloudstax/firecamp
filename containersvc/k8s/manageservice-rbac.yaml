@@ -1,0 +1,45 @@
+# http://docs.heptio.com/content/tutorials/rbac.html
+# https://github.com/IBM/k8s-service-accounts/blob/master/api-reader-all-in-one.yaml
+# Ref for detail role rules: https://github.com/kubernetes/kubernetes/blob/master/plugin/pkg/auth/authorizer/rbac/bootstrappolicy/testdata/cluster-roles.yaml
+
+# firecamp manageservice ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: firecamp-manageservice-sa
+  namespace: default
+---
+# firecamp manageservice ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: firecamp-manageservice-cr
+  namespace: default
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps", "services", "persistentvolumeclaims", "persistentvolumes"]
+  verbs: ["create", "delete", "get", "list", "update"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["create", "delete", "get", "update"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["create", "delete"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "delete", "get"]
+---
+# firecamp manageservice RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: firecamp-manageservice-rb
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: firecamp-manageservice-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: firecamp-manageservice-cr
+  apiGroup: rbac.authorization.k8s.io

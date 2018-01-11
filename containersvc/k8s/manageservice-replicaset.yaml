@@ -14,6 +14,8 @@ spec:
       labels:
         app: firecamp-manageserver
     spec:
+      serviceAccountName: firecamp-manageservice-sa
+      automountServiceAccountToken: true
       hostNetwork: true
       containers:
       - name: firecamp-manageserver
