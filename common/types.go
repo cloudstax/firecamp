@@ -70,6 +70,7 @@ const (
 	DBTypeControlDB = "controldb" // the controldb service
 	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
 	DBTypeK8sDB     = "k8sdb"     // db on top of k8s ConfigMap
+	DBTypeMemDB     = "memdb"     // in-memory db, for test only
 
 	ControlDBServerPort  = 27030
 	ControlDBName        = "controldb"

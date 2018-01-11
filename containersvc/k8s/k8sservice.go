@@ -39,8 +39,9 @@ const (
 type K8sSvc struct {
 	cliset        *kubernetes.Clientset
 	namespace     string
-	cloudPlatform string
 	provisioner   string
+	cloudPlatform string
+	dbType        string
 
 	// whether the init container works on the test mode
 	testMode bool
@@ -48,19 +49,19 @@ type K8sSvc struct {
 
 // NewK8sSvc creates a new K8sSvc instance.
 // TODO support different namespaces for different services? Wait for the real requirement.
-func NewK8sSvc(cloudPlatform string, namespace string) (*K8sSvc, error) {
+func NewK8sSvc(cloudPlatform string, dbType string, namespace string) (*K8sSvc, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		glog.Errorln("rest.InClusterConfig error", err)
 		return nil, err
 	}
-	return newK8sSvcWithConfig(cloudPlatform, namespace, config)
+	return newK8sSvcWithConfig(cloudPlatform, dbType, namespace, config)
 }
 
 // NewTestK8sSvc creates a new K8sSvc instance for test.
 func NewTestK8sSvc(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
-	svc, err := newK8sSvcWithConfig(cloudPlatform, namespace, config)
+	svc, err := newK8sSvcWithConfig(cloudPlatform, common.DBTypeMemDB, namespace, config)
 	if err != nil {
 		return svc, err
 	}
@@ -69,7 +70,7 @@ func NewTestK8sSvc(cloudPlatform string, namespace string, config *rest.Config) 
 }
 
 // newK8sSvcWithConfig creates a new K8sSvc instance with the config.
-func newK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
+func newK8sSvcWithConfig(cloudPlatform string, dbType string, namespace string, config *rest.Config) (*K8sSvc, error) {
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -86,8 +87,9 @@ func newK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Co
 	svc := &K8sSvc{
 		cliset:        clientset,
 		namespace:     namespace,
-		cloudPlatform: cloudPlatform,
 		provisioner:   provisioner,
+		cloudPlatform: cloudPlatform,
+		dbType:        dbType,
 	}
 	return svc, nil
 }
@@ -526,6 +528,8 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 			{Name: containersvc.EnvInitContainerCluster, Value: opts.Common.Cluster},
 			{Name: containersvc.EnvInitContainerServiceName, Value: opts.Common.ServiceName},
 			{Name: containersvc.EnvInitContainerPodName, ValueFrom: podNameEnvSource},
+			{Name: common.ENV_K8S_NAMESPACE, Value: s.namespace},
+			{Name: common.ENV_DB_TYPE, Value: common.DBTypeK8sDB},
 		}
 		statefulset.Spec.Template.Spec.InitContainers = []corev1.Container{
 			{

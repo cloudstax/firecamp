@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -14,7 +15,11 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
+	"github.com/cloudstax/firecamp/db/controldb/client"
+	"github.com/cloudstax/firecamp/db/k8sconfigdb"
+	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/docker/network"
 	"github.com/cloudstax/firecamp/docker/volume"
@@ -36,6 +41,7 @@ var (
 	cluster     = flag.String("cluster", "", "The cluster name")
 	serviceName = flag.String("service-name", "", "The service name")
 	memberIndex = flag.Int64("member-index", -1, "The service member index")
+	dbtype      = flag.String("dbtype", common.DBTypeK8sDB, "The db type, such as k8sdb or dynamodb")
 )
 
 func main() {
@@ -81,11 +87,6 @@ func main() {
 		panic("please specify the cluster name, service name and member index")
 	}
 
-	utils.SetLogDir()
-
-	// not log error to std
-	flag.Set("stderrthreshold", "FATAL")
-
 	region, err := awsec2.GetLocalEc2Region()
 	if err != nil {
 		glog.Fatalln("awsec2 GetLocalEc2Region error", err)
@@ -97,8 +98,29 @@ func main() {
 		glog.Fatalln("failed to create session, error", err)
 	}
 
-	// TODO implement DB on top of K8s ConfigMap
-	dbIns := awsdynamodb.NewDynamoDB(sess, *cluster)
+	var dbIns db.DB
+	switch *dbtype {
+	case common.DBTypeCloudDB:
+		dbIns = awsdynamodb.NewDynamoDB(sess, *cluster)
+
+	case common.DBTypeControlDB:
+		addr := dns.GetDefaultControlDBAddr(*cluster)
+		dbIns = controldbcli.NewControlDBCli(addr)
+
+	case common.DBTypeK8sDB:
+		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
+		if len(namespace) == 0 {
+			glog.Fatalln("k8s namespace is not set")
+		}
+		dbIns, err = k8sconfigdb.NewK8sConfigDB(namespace)
+		if err != nil {
+			glog.Fatalln("NewK8sConfigDB error", err)
+		}
+
+	default:
+		glog.Fatalln("unknown db type", *dbtype)
+	}
+
 	dnsIns := awsroute53.NewAWSRoute53(sess)
 	ec2Ins := awsec2.NewAWSEc2(sess)
 	ec2Info, err := awsec2.NewEc2Info(sess)
@@ -108,9 +130,9 @@ func main() {
 
 	netIns := dockernetwork.NewServiceNetwork(dbIns, dnsIns, ec2Ins, ec2Info)
 
-	tstr := strconv.FormatInt(time.Now().Unix(), 10)
+	tmstr := strconv.FormatInt(time.Now().Unix(), 10)
 	mindexstr := strconv.FormatInt(*memberIndex, 10)
-	requuid := *serviceName + common.NameSeparator + mindexstr + common.NameSeparator + tstr
+	requuid := *serviceName + common.NameSeparator + mindexstr + common.NameSeparator + tmstr
 
 	ctx := context.Background()
 	ctx = utils.NewRequestContext(ctx, requuid)

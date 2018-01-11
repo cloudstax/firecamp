@@ -151,7 +151,7 @@ func main() {
 			glog.Infoln("k8s namespace is not set. set to default")
 			namespace = common.DefaultK8sNamespace
 		}
-		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, namespace)
+		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, *dbtype, namespace)
 		if err != nil {
 			glog.Fatalln("NewK8sSvc error", err)
 		}
@@ -200,7 +200,7 @@ func main() {
 		}
 
 	default:
-		glog.Fatalln("unknown db type", dbtype)
+		glog.Fatalln("unknown db type", *dbtype)
 	}
 
 	err = manageserver.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
