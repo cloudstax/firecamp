@@ -92,6 +92,11 @@ func newK8sSvcWithConfig(cloudPlatform string, namespace string, config *rest.Co
 	return svc, nil
 }
 
+// GetContainerSvcType gets the containersvc type.
+func (s *K8sSvc) GetContainerSvcType() string {
+	return common.ContainerPlatformK8s
+}
+
 // CreateServiceVolume creates PV and PVC for the service member.
 func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
@@ -329,10 +334,6 @@ func (s *K8sSvc) createVolumeStorageClass(ctx context.Context, scname string, vo
 	}
 
 	sc := &storagev1.StorageClass{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "StorageClass",
-			APIVersion: "storage.k8s.io/v1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      scname,
 			Namespace: s.namespace,
@@ -635,6 +636,10 @@ func (s *K8sSvc) StopService(ctx context.Context, cluster string, service string
 
 	err := s.stopService(cluster, service, requuid)
 	if err != nil {
+		if k8errors.IsNotFound(err) {
+			glog.Infoln("statefulset not found, service", service, "requuid", requuid)
+			return nil
+		}
 		glog.Errorln("stopService error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
 		return err
 	}
@@ -716,20 +721,10 @@ func (s *K8sSvc) ScaleService(ctx context.Context, cluster string, service strin
 func (s *K8sSvc) DeleteService(ctx context.Context, cluster string, service string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// stop the service, not wait till pods are stopped.
-	// k8s statefulset looks not terminating pods automaticaly after statefulset is deleted.
-	// see the k8s-test program, simply ./k8s-test -op=create-service, and then ./k8s-test -op=delete-service.
-	// the created pod is still running after statefulset is deleted.
-	err := s.stopService(cluster, service, requuid)
-	if err != nil {
-		glog.Errorln("stopService error", err, "service", service, "requuid", requuid, s.namespace)
-		return err
-	}
-
 	delOpt := &metav1.DeleteOptions{}
 
 	// delete statefulset
-	err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Delete(service, delOpt)
+	err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Delete(service, delOpt)
 	if err != nil {
 		if !k8errors.IsNotFound(err) {
 			glog.Errorln("delete statefulset error", err, "service", service, "requuid", requuid)

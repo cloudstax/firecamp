@@ -59,6 +59,11 @@ func NewAWSEcs(sess *session.Session) *AWSEcs {
 	return s
 }
 
+// GetContainerSvcType gets the containersvc type.
+func (s *AWSEcs) GetContainerSvcType() string {
+	return common.ContainerPlatformECS
+}
+
 // ListActiveServiceTasks lists all running and pending tasks of the service
 func (s *AWSEcs) ListActiveServiceTasks(ctx context.Context, cluster string, service string) (taskIDs map[string]bool, err error) {
 	return s.ListActiveServiceTasksWithLimit(ctx, cluster, service, 0)

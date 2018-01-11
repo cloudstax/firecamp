@@ -100,6 +100,11 @@ func NewSwarmSvcForVolumePlugin(region string, cluster string) (*SwarmSvc, error
 	return s, nil
 }
 
+// GetContainerSvcType gets the containersvc type.
+func (s *SwarmSvc) GetContainerSvcType() string {
+	return common.ContainerPlatformSwarm
+}
+
 // CreateService creates a swarm service
 func (s *SwarmSvc) CreateService(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
 	serviceSpec := s.CreateServiceSpec(opts)

@@ -373,11 +373,14 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			glog.V(1).Infoln("deleted config file", c.FileID, m.ServiceUUID, "requuid", requuid)
 		}
 
-		// detach the member's volumes
-		err = s.detachVolumes(ctx, m, requuid)
-		if err != nil {
-			glog.Errorln("detach volume error", err, "requuid", requuid, m.Volumes, m)
-			return volIDs, err
+		if s.containersvcIns.GetContainerSvcType() != common.ContainerPlatformK8s {
+			// detach the member's volumes for ecs and swarm.
+			// k8s statefulset takes care of the volume, no need to detach.
+			err = s.detachVolumes(ctx, m, requuid)
+			if err != nil {
+				glog.Errorln("detach volume error", err, "requuid", requuid, m.Volumes, m)
+				return volIDs, err
+			}
 		}
 	}
 

@@ -36,6 +36,10 @@ func NewMemContainerSvc() *MemContainerSvc {
 	}
 }
 
+func (m *MemContainerSvc) GetContainerSvcType() string {
+	return "MemContainerSvc"
+}
+
 func (m *MemContainerSvc) CreateService(ctx context.Context, opts *CreateServiceOptions) error {
 	key := opts.Common.Cluster + opts.Common.ServiceName
 
