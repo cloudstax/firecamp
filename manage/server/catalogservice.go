@@ -897,6 +897,19 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 		return err.Error(), http.StatusBadRequest
 	}
 
+	// JmxRemotePasswd may be generated (uuid) locally.
+	if len(req.Options.JmxRemotePasswd) == 0 {
+		jmxUser, jmxPasswd, err := s.getExistingCasJmxPasswd(ctx, req, requuid)
+		if err != nil {
+			glog.Errorln("getExistingCasJmxPasswd error", err, "requuid", requuid, req.Service)
+			return manage.ConvertToHTTPError(err)
+		}
+		if len(jmxPasswd) != 0 {
+			req.Options.JmxRemoteUser = jmxUser
+			req.Options.JmxRemotePasswd = jmxPasswd
+		}
+	}
+
 	// create the service in the control plane and the container platform
 	crReq, err := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, req.Options, req.Resource)
@@ -904,6 +917,7 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -942,6 +956,42 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	w.Write(b)
 
 	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) getExistingCasJmxPasswd(ctx context.Context, req *manage.CatalogCreateCassandraRequest, requuid string) (jmxUser string, jmxPasswd string, err error) {
+	// check if service attributes exist. If yes, this would be a retry request, use the existing JmxRemoteUser & JmxRemotePasswd.
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		if err != db.ErrDBRecordNotFound {
+			glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+			return "", "", err
+		}
+		// service not exist
+		return "", "", nil
+	}
+
+	// service exists
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		if err != db.ErrDBRecordNotFound {
+			glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+			return "", "", err
+		}
+		// service attr not exist
+		return "", "", nil
+	}
+
+	// service attributes exist, use the existing JmxRemoteUser & JmxRemotePasswd
+	userAttr := &common.CasUserAttr{}
+	err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req.Service, req.Options, attr)
+		return "", "", err
+	}
+
+	glog.Infoln("service exists, use the existing jmx user and passwd, requuid", requuid, attr)
+
+	return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
 }
 
 func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
