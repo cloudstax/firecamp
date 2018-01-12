@@ -25,13 +25,14 @@ import (
 )
 
 const (
-	serviceLabelName        = "app"
-	initContainerNamePrefix = "init-"
-	dataVolumeName          = "data"
-	journalVolumeName       = "journal"
-	pvName                  = "pv"
-	pvcName                 = "pvc"
-	awsStorageProvisioner   = "kubernetes.io/aws-ebs"
+	defaultStatefulServiceAccount = common.SystemName + "-statefulservice-sa"
+	serviceLabelName              = "app"
+	initContainerNamePrefix       = "init-"
+	dataVolumeName                = "data"
+	journalVolumeName             = "journal"
+	pvName                        = "pv"
+	pvcName                       = "pvc"
+	awsStorageProvisioner         = "kubernetes.io/aws-ebs"
 )
 
 // K8sSvc implements the containersvc interface for kubernetes.
@@ -501,7 +502,9 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 							Env:             envs,
 						},
 					},
-					RestartPolicy: corev1.RestartPolicyAlways,
+					RestartPolicy:                corev1.RestartPolicyAlways,
+					ServiceAccountName:           defaultStatefulServiceAccount,
+					AutomountServiceAccountToken: s.boolPtr(true),
 				},
 			},
 			VolumeClaimTemplates: volClaims,
@@ -1054,6 +1057,10 @@ func (s *K8sSvc) createVolumeAndClaim(volOpts *containersvc.VolumeOptions, scnam
 
 func (s *K8sSvc) int32Ptr(i int32) *int32 {
 	return &i
+}
+
+func (s *K8sSvc) boolPtr(bl bool) *bool {
+	return &bl
 }
 
 func (s *K8sSvc) genDataVolumeStorageClassName(service string) string {
