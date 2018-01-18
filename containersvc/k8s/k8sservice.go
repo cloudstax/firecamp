@@ -27,7 +27,7 @@ import (
 const (
 	defaultStatefulServiceAccount = common.SystemName + "-statefulservice-sa"
 	serviceLabelName              = "app"
-	initContainerNamePrefix       = "init-"
+	initContainerNamePrefix       = "memberinit-"
 	dataVolumeName                = "data"
 	journalVolumeName             = "journal"
 	pvName                        = "pv"
@@ -796,6 +796,8 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 		Spec: batchv1.JobSpec{
 			Parallelism: s.int32Ptr(1),
 			Completions: s.int32Ptr(1),
+			// allow restarting the job twice before mark the job failed.
+			BackoffLimit: s.int32Ptr(2),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      taskID,
@@ -809,7 +811,7 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 							Env:   envs,
 						},
 					},
-					RestartPolicy: corev1.RestartPolicyOnFailure,
+					RestartPolicy: corev1.RestartPolicyNever,
 				},
 			},
 		},
