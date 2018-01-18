@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd-cw-sa
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-cw
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluentd-cw-cr
+  labels:
+    k8s-app: fluentd-cw
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "namespaces"
+  - "pods"
+  verbs:
+  - "get"
+  - "watch"
+  - "list"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluentd-cw-rb
+  labels:
+    k8s-app: fluentd-cw
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: fluentd-cw-sa
+  namespace: kube-system
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: fluentd-cw-cr
+  apiGroup: ""
+---
+apiVersion: apps/v1beta2
+kind: DaemonSet
+metadata:
+  name: fluentd-cw
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-cw
+    kubernetes.io/cluster-service: "true"
+    #addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-cw
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-cw
+        kubernetes.io/cluster-service: "true"
+      # This annotation ensures that fluentd does not get evicted if the node
+      # supports critical pod annotation based priority scheme.
+      # Note that this does not guarantee admission on the nodes (#40573).
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      serviceAccountName: fluentd-cw-sa
+      containers:
+      - name: fluentd-cw
+        image: fluent/fluentd-kubernetes-daemonset:cloudwatch
+        env:
+          - name: AWS_REGION
+            value: "us-east-1"
+          - name:  LOG_GROUP_NAME
+            value: "testlg"
+          - name:  CLUSTER_NAME
+            value: "t1"
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: libsystemddir
+          mountPath: /host/lib
+          readOnly: true
+        - name: config-volume
+          mountPath: /fluentd/etc/
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      # It is needed to copy systemd library to decompress journals
+      - name: libsystemddir
+        hostPath:
+          path: /usr/lib64
+      - name: config-volume
+        configMap:
+          name: fluentd-cw-config
