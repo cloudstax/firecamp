@@ -98,6 +98,8 @@
                     "logs:Create*",
                     "logs:Put*",
                     "logs:Delete*"
+                    "logs:DescribeLogGroups",
+                    "logs:DescribeLogStreams"
                   ],
                   "Resource":"*"
                 },
