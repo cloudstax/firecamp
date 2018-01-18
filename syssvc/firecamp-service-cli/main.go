@@ -1471,24 +1471,26 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Printf("%+v\n", *attr)
 
-	switch attr.UserAttr.ServiceType {
-	case common.CatalogService_Cassandra:
-		ua := &common.CasUserAttr{}
-		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-		if err != nil {
-			fmt.Println("Unmarshal CasUserAttr error", err)
-			os.Exit(-1)
-		}
-		fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+	if attr.UserAttr != nil {
+		switch attr.UserAttr.ServiceType {
+		case common.CatalogService_Cassandra:
+			ua := &common.CasUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal CasUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
 
-	case common.CatalogService_MongoDB:
-		ua := &common.MongoDBUserAttr{}
-		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-		if err != nil {
-			fmt.Println("Unmarshal MongoDBUserAttr error", err)
-			os.Exit(-1)
+		case common.CatalogService_MongoDB:
+			ua := &common.MongoDBUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal MongoDBUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
 		}
-		fmt.Printf("%+v\n", *ua)
 	}
 }
 
