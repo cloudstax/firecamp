@@ -1,5 +1,8 @@
 * [The Stateful Service Requirements](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-stateful-service-requirements)
-  * [Service Member Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#service-member-static-ip)
+* [Design Considerations](https://github.com/cloudstax/firecamp/tree/master/docs/architect#design-considerations)
+  * [Storage](https://github.com/cloudstax/firecamp/tree/master/docs/architect#storage)
+  * [Network](https://github.com/cloudstax/firecamp/tree/master/docs/architect#network)
+  * [Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#static-ip)
 * [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect#architecture)
 * [Components](https://github.com/cloudstax/firecamp/tree/master/docs/architect#components)
   * [Key-Value Database](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-key-value-database)
@@ -9,9 +12,7 @@
   * [Common Services](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-common-services)
 
 # The Stateful Service Requirements
-**The stateful services have 2 basic requirements: membership and data.**
-
-Every service member, such as DB replica, needs to have a unique and stable network identity. So the members could talk with each other to form a cluster. And every service member will have a volume to persist data.
+**The stateful services have 2 basic requirements: membership and data.** Every service member, such as DB replica, needs to have a unique and stable network identity. So the members could talk with each other to form a cluster. And every service member will have a volume to persist data.
 
 When one member moves from one node to another, the member needs to keep the original data by accessing the previous data volume or recovering data from other members. Recovering data from other member could take long time when data is large, and also impact other member's performance.
 
@@ -19,7 +20,7 @@ Also when the member moves, the member should be able to join back the cluster a
 
 While, some services, such as Redis and Consul, do not work with the DNS name, instead, they require the static IP for each member. To run this kind of services, a static IP needs to be binded to the container of one service member.
 
-# FireCamp Design Considerations
+# Design Considerations
 FireCamp follows below design principles.
 
 1. **Self-Manage.**
@@ -29,7 +30,7 @@ The stateful services should be easy to set up, manage and scale.
 More and more workloads are running on public cloud directly. The public cloud provides stable network and storage for the applications. It would be great to leverage the public cloud ability. For example, AWS Route53 supports multiple regions. It would be good to leverage Route53 to run the stateful service across regions.
 
 3. **Fit for private cloud.**
-The solution could be easily expanded to the private cloud and hybrid cloud. On the private cloud, it will be valuable to support the distributed storage such as Ceph, GlusterFS, etc, and commodity hardware.
+The solution could be easily expanded to the private cloud and hybrid cloud. On the private cloud, it will be valuable to support the EBS like storage such as Ceph, GlusterFS, etc, and commodity hardware.
 
 4. **Cross container orchestration frameworks.**
 Kubernetes is the most popular framework. AWS ECS is also a very valuable option on AWS. AWS ECS is simple to set up and use, and there is no master nodes for you to manage. Docker Swarm is very simple. Docker Swarm would also be a good option for some simple workloads. It will be valuable to have the stateful services work across these frameworks seamlessly.
@@ -37,14 +38,14 @@ Kubernetes is the most popular framework. AWS ECS is also a very valuable option
 ## Storage
 Public cloud provides the elastic block storage such as EBS. The volume could be detached from one node, and attached to another node. This is a great ability to leverage when the service member container moves from one node to another. FireCamp binds the data volume with the member. When the member moves to another node, FireCamp will automatically move the data volume. There is no data copy involved during the member failover.
 
-In the private cloud, there are 2 types of storage. One is EBS like storage, such as Ceph, GlusterFS, etc. We could develop the similar volume failover mechanism with public cloud storage. The other is the local disk storage on the commodity hardware. This could save the storage usage for the stateful service, as the stateful service usually has its own replication mechanism to protect the local disk failure. A trade-off is the data recovery. The stateful service has to assign a new disk and replicate the data of the failed disk from other nodes. We will further update the design for the commodity hardware when we start working on it.
+In the private cloud, there are 2 types of storage. One is EBS like storage, such as Ceph, GlusterFS, etc. We could develop the similar volume failover mechanism with public cloud storage. The other is the local disk storage on the commodity hardware. This could save the storage usage for the stateful service, as the stateful service usually has its own replication mechanism to protect the local disk failure. A trade-off is the data recovery. The stateful service has to assign a new disk and replicate the data of the failed disk from other nodes. We will further update the design for the commodity hardware.
 
 ## Network
 Network is a critical and complex component for the container orchestration framework. There are many network plugins for container, such as Calico, Weave, etc. The stability, performance and global scalability are very important for the stateful services. Public cloud provides great support for the network. FireCamp tries to leverage the public cloud network and reduce the dependency on others as much as possible. This would help the stateful services to be more stable and have better performance and scalability.
 
-Another advantage of using the public cloud network service is the communication with other cloud applications/services. For example, AWS Lambda function wants to access the MongoDB cluster. The Lambda function would have to access the services through the nodes' public IPs, Load Balancer, or using the Proxy Verb. [Kubernetes access cluster services](https://kubernetes.io/docs/tasks/administer-cluster/access-cluster-services/) and [Kubernetes Publishing services](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services---service-types) discuss about it. Using the Proxy Verb has some limitations. For example, Kubernetes Proxy Verb only works for HTTP/HTTPS. Accessing through the public IPs directly is not easy. Every node has its own public IP. When the member moves from one node to another, the public IP to access the member will also change. This requires the customers to detect the public IP change of the member. Load Balancer could help to detect the public IP change automatically. The Cloud Load Balancer introduces the additional cost and the additional network hop. Integrating with the public cloud network service, such as AWS Route53 DNS service, will help on it. For Kubernetes, we will integrate with the [external DNS project](https://github.com/kubernetes-incubator/external-dns) in the future.
+Another advantage of using the public cloud network service is the communication with other cloud applications/services. For example, AWS Lambda function wants to access the MongoDB cluster. The Lambda function would have to access the services through the nodes' public IPs, Load Balancer, or using the Proxy Verb. [Kubernetes access cluster services](https://kubernetes.io/docs/tasks/administer-cluster/access-cluster-services/) and [Kubernetes Publishing services](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services---service-types) discuss about it. Using the Proxy Verb has some limitations. For example, Kubernetes Proxy Verb only works for HTTP/HTTPS. Accessing through the public IPs directly is not easy. Every node has its own public IP. When the member moves from one node to another, the public IP to access the member will also change. This requires the customers to detect the public IP change of the member. Load Balancer could help to detect the public IP change automatically. The Cloud Load Balancer introduces the additional cost and the additional network hop. Integrating with the public cloud network service, such as AWS Route53 DNS service, will make it easy for the cloud applications/services to talk with each other. For Kubernetes, we will integrate with the [external DNS project](https://github.com/kubernetes-incubator/external-dns) in the future.
 
-FireCamp associates one Route53 HostedZone with one cluster. Every service member is assigned a unique DNS name in Route53 HostedZone. FireCamp binds the DNS name with the service member. When the member moves to another node, FireCamp will automatically update the DNS address in the HostedZone. AWS Route53 supports multiple regions. This makes it easier to deploy the stateful service globally. For example, to deploy a MongoDB cluster with the primary replica at region1 and a secondary replica at region2, FireCamp registres both the primary and secondary replicas to the same HostedZone.
+FireCamp associates one Route53 HostedZone with one cluster. Every service member is assigned a unique DNS name in Route53 HostedZone. FireCamp binds the DNS name with the service member. When the member moves to another node, FireCamp will automatically update the DNS address in the HostedZone. AWS Route53 supports multiple regions. This makes it easier to deploy the stateful service globally. For example, to deploy a MongoDB cluster with the primary replica at region1 and a secondary replica at region2, FireCamp registers both the primary and secondary replicas to the same HostedZone.
 
 For the private cloud, we will further evaluate to integrate with such as Calico, Consul, etc.
 
@@ -59,7 +60,7 @@ This solution is limited by the maximum private ips for one instance. See [IP Ad
 
 This solution would also work for the private cloud. We will further evaluate the best solution for the private cloud.
 
-# FireCamp Architecture
+# Architecture
 The FireCamp platform is built on top of Clouds and Container Orchestration frameworks. This enables the customers to choose Cloud and Container Orchestration framework freely.
 
 The following picture illustrates FireCamp's architecture.
@@ -85,6 +86,8 @@ If the service requires static IP, every member will also get a static IP. The m
 The FireCamp Container plugin is the central coordinator between the container orchestration framework and other FireCamp components.
 
 When the container orchestration framework schedules a service container to a worker node, the plugin will talk with the database to find out which member the container serves, updates the registry service (update the member's DNS record or move the member's static IP), and mounts the member's data volume. By this, the service will recognize the new container as the original member. Please refer to [Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow) for more details.
+
+For Kubernetes, FireCamp leverages the [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), which binds the volume with one pod. The StatefulSets also binds one internal DNS name with one pod. FireCamp reuses the StatefulSets volume binding, and simply registers the external DNS name with the public cloud DNS service, such as AWS Route53.
 
 ## The Catalog Service
 The Catalog service manages the lifecycle of the stateful services, including deployment, upgrade, scaling, data management, etc. The Catalog service understands the differences of each service, and drives the container orchestration framework to work accordingly.
