@@ -96,7 +96,7 @@ BuildManageImages() {
   target=$system"-initcontainer"
   image="${org}${target}:${version}"
   binfile=$target
-  path="${TOPWD}/syssvc/firecamp-initcontainer/dockerfile/"
+  path="${TOPWD}/containersvc/k8s/firecamp-initcontainer/"
   cp $GOPATH/bin/$binfile $path
   docker build -q -t $image $path
   rm -f $path$binfile
