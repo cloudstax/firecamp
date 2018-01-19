@@ -512,36 +512,29 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 	}
 
 	// set the statefulset init container
-	if len(opts.KubeOptions.InitContainerImage) != 0 {
-		op := containersvc.InitContainerOpInit
-		if s.testMode {
-			op = containersvc.InitContainerOpTest
-		}
-
-		// expose the pod name, such as service-0, to the init container.
-		// the init container could not get the ordinal from the hostname, as the HostNetwork is used.
-		// https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/
-		podNameEnvSource := &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "metadata.name",
-			},
-		}
-		envs := []corev1.EnvVar{
-			{Name: containersvc.EnvInitContainerOp, Value: op},
-			{Name: containersvc.EnvInitContainerCluster, Value: opts.Common.Cluster},
-			{Name: containersvc.EnvInitContainerServiceName, Value: opts.Common.ServiceName},
-			{Name: containersvc.EnvInitContainerPodName, ValueFrom: podNameEnvSource},
-			{Name: common.ENV_K8S_NAMESPACE, Value: s.namespace},
-			{Name: common.ENV_DB_TYPE, Value: common.DBTypeK8sDB},
-		}
-		statefulset.Spec.Template.Spec.InitContainers = []corev1.Container{
-			{
-				Name:         initContainerNamePrefix + opts.Common.ServiceName,
-				Image:        opts.KubeOptions.InitContainerImage,
-				VolumeMounts: volMounts,
-				Env:          envs,
-			},
-		}
+	// expose the pod name, such as service-0, to the init container.
+	// the init container could not get the ordinal from the hostname, as the HostNetwork is used.
+	// https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/
+	podNameEnvSource := &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "metadata.name",
+		},
+	}
+	envs = []corev1.EnvVar{
+		{Name: EnvInitContainerTestMode, Value: strconv.FormatBool(s.testMode)},
+		{Name: EnvInitContainerCluster, Value: opts.Common.Cluster},
+		{Name: EnvInitContainerServiceName, Value: opts.Common.ServiceName},
+		{Name: EnvInitContainerPodName, ValueFrom: podNameEnvSource},
+		{Name: common.ENV_K8S_NAMESPACE, Value: s.namespace},
+		{Name: common.ENV_DB_TYPE, Value: common.DBTypeK8sDB},
+	}
+	statefulset.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name:         initContainerNamePrefix + opts.Common.ServiceName,
+			Image:        K8sServiceInitContainerImage,
+			VolumeMounts: volMounts,
+			Env:          envs,
+		},
 	}
 
 	// set port exposing
@@ -553,7 +546,7 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 			ports[i] = corev1.ContainerPort{
 				ContainerPort: int32(p.ContainerPort),
 			}
-			if opts.KubeOptions.ExternalDNS {
+			if opts.ExternalDNS {
 				// TODO current needs to expose the host port for ExternalDNS, so replicas could talk with each other.
 				// refactor it when using the k8s external dns project.
 				ports[i].HostPort = int32(p.HostPort)
@@ -573,12 +566,6 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 // CreateService creates the headless service, storage class and statefulset.
 func (s *K8sSvc) CreateService(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
 	requuid := utils.GetReqIDFromContext(ctx)
-
-	// sanity check
-	if opts.KubeOptions == nil {
-		glog.Errorln("invalid request, CreateServiceOptions does not have KubeOptions, requuid", requuid, opts.Common)
-		return common.ErrInternal
-	}
 
 	labels := make(map[string]string)
 	labels[serviceLabelName] = opts.Common.ServiceName
@@ -901,12 +888,6 @@ func (s *K8sSvc) DeleteTask(ctx context.Context, cluster string, service string,
 func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.CreateServiceOptions) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// sanity check
-	if opts.KubeOptions == nil {
-		glog.Errorln("invalid request, CreateServiceOptions does not have KubeOptions, requuid", requuid, opts.Common)
-		return common.ErrInternal
-	}
-
 	// set replicaset resource limits and requests
 	res := s.createResource(opts)
 	glog.Infoln("create replicaset resource", res, "requuid", requuid, opts.Common)
@@ -964,7 +945,7 @@ func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.Create
 			ports[i] = corev1.ContainerPort{
 				ContainerPort: int32(p.ContainerPort),
 			}
-			if opts.KubeOptions.ExternalDNS {
+			if opts.ExternalDNS {
 				// TODO current needs to expose the host port for ExternalDNS, so replicas could talk with each other.
 				// refactor it when using the k8s external dns project.
 				ports[i].HostPort = int32(p.HostPort)

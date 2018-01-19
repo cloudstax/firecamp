@@ -12,16 +12,6 @@ import (
 const (
 	// TestBusyBoxContainerImage is the busybox image for unit test.
 	TestBusyBoxContainerImage = common.OrgName + "/" + common.SystemName + "-busybox"
-	// K8sServiceInitContainerImage is the common init container image for all services in k8s.
-	K8sServiceInitContainerImage = common.OrgName + "/" + common.SystemName + "-initcontainer"
-
-	EnvInitContainerOp          = "OP"
-	EnvInitContainerCluster     = "CLUSTER"
-	EnvInitContainerServiceName = "SERVICE_NAME"
-	EnvInitContainerPodName     = "POD_NAME"
-	InitContainerOpInit         = "init"
-	InitContainerOpStop         = "stop"
-	InitContainerOpTest         = "test"
 )
 
 var (
@@ -39,15 +29,6 @@ type CommonOptions struct {
 	ContainerImage string
 	Resource       *common.Resources
 	LogConfig      *cloudlog.LogConfig
-}
-
-// k8s specific options
-type K8sOptions struct {
-	// The container image of the init container, optional
-	InitContainerImage string
-	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
-	// If only use within k8s, set to false.
-	ExternalDNS bool
 }
 
 type VolumeOptions struct {
@@ -78,7 +59,11 @@ type CreateServiceOptions struct {
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
 
-	KubeOptions *K8sOptions
+	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
+	// If only use within k8s, set to false.
+	ExternalDNS bool
+	// Whether uses the external static IP. This is only for the services that require static ip, such as Redis, Consul.
+	ExternalStaticIP bool
 }
 
 type RunTaskOptions struct {

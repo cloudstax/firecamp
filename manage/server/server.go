@@ -351,15 +351,17 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
-		Common: commonOpts,
+		Replicas: req.Replicas,
+		Common:   commonOpts,
 		DataVolume: &containersvc.VolumeOptions{
 			MountPath:  req.ContainerPath,
 			VolumeType: req.Volume.VolumeType,
 			SizeGB:     req.Volume.VolumeSizeGB,
 			Iops:       req.Volume.Iops,
 		},
-		PortMappings: req.PortMappings,
-		Replicas:     req.Replicas,
+		PortMappings:     req.PortMappings,
+		ExternalDNS:      req.RegisterDNS,
+		ExternalStaticIP: req.RequireStaticIP,
 	}
 	if req.JournalVolume != nil {
 		createOpts.JournalVolume = &containersvc.VolumeOptions{
@@ -388,14 +390,6 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		}
 
 		glog.Infoln("deploy to zones", placeZones, "for service", req.Service, "all zones", s.azs)
-	}
-
-	if s.platform == common.ContainerPlatformK8s {
-		kopts := &containersvc.K8sOptions{
-			InitContainerImage: containersvc.K8sServiceInitContainerImage,
-			ExternalDNS:        true,
-		}
-		createOpts.KubeOptions = kopts
 	}
 
 	return createOpts

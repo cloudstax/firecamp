@@ -127,9 +127,7 @@ func main() {
 					Value: "default",
 				},
 			},
-			KubeOptions: &containersvc.K8sOptions{
-				ExternalDNS: true,
-			},
+			ExternalDNS: true,
 		}
 		err = svc.CreateReplicaSet(ctx, opts)
 		if err != nil {
@@ -200,17 +198,13 @@ func createService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, serv
 			SizeGB:     1,
 		},
 		PortMappings: []common.PortMapping{
-			{ContainerPort: 5000, HostPort: 5000},
+			{ContainerPort: 5000, HostPort: 5000, IsServicePort: true},
 		},
 		Replicas: replicas,
 		Envkvs: []*common.EnvKeyValuePair{
 			{Name: "SLEEP_TIME", Value: "1000"},
 		},
-		KubeOptions: &containersvc.K8sOptions{
-			InitContainerImage: "cloudstax/firecamp-initcontainer",
-			ServicePort:        5001,
-			ExternalDNS:        false,
-		},
+		ExternalDNS: false,
 	}
 
 	exist, err := svc.IsServiceExist(ctx, cluster, service)
