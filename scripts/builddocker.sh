@@ -102,6 +102,17 @@ BuildManageImages() {
   rm -f $path$binfile
   docker push $image
 
+  echo
+  # docker image to clean up when the service container stops, such as deleting the static ip.
+  target=$system"-stopcontainer"
+  image="${org}${target}:${version}"
+  binfile=$system"-stopcontainer"
+  path="${TOPWD}/containersvc/k8s/firecamp-stopcontainer/"
+  cp $GOPATH/bin/$binfile $path
+  docker build -q -t $image $path
+  rm -f $path$binfile
+  docker push $image
+
 
   # build controldb docker image
   echo
