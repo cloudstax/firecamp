@@ -274,4 +274,11 @@ data:
       log_stream_name_key stream_name
       auto_create_stream true
       put_log_events_retry_limit 20
+      # fluentd cloudwatch plugin does not support format yet.
+      # https://github.com/ryotarai/fluent-plugin-cloudwatch-logs lists it as a TODO.
+      # see format(tag, time, record) in out_cloudwatch_logs.rb, which simply calls [tag, time, record].to_msgpack.
+      # https://github.com/fluent/fluentd/tree/master/lib/fluent/plugin/formatter_msgpack.rb.
+      # refer to the format support in out_file.rb, we could wait till the cloudwatch plugin supports formatter_single_value.rb,
+      # or we could make the patch when we have time.
+      #format single_value
     </match>
