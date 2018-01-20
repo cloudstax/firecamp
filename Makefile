@@ -29,7 +29,6 @@ test:
 	./scripts/gotest.sh
 
 clean:
-	-rm -rf build
 	-rm $(GOPATH)/bin/firecamp* || true
 
 cleanall: clean

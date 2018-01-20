@@ -2,9 +2,7 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -14,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
 	"github.com/cloudstax/firecamp/db/controldb/client"
@@ -31,13 +29,7 @@ import (
 // The init container will update the DNS record or static ip if necessary,
 // and create/update the config files if necessary.
 // In the future, will integrate with the external dns project.
-
-const (
-	prestopStaticIPFile = "prestop-staticip"
-)
-
 var (
-	op          = flag.String("op", containersvc.InitContainerOpInit, "pod init or stop")
 	cluster     = flag.String("cluster", "", "The cluster name")
 	serviceName = flag.String("service-name", "", "The service name")
 	memberIndex = flag.Int64("member-index", -1, "The service member index")
@@ -47,40 +39,13 @@ var (
 func main() {
 	flag.Parse()
 
-	if *op == containersvc.InitContainerOpTest {
+	// log to std
+	utils.SetLogToStd()
+
+	testmode := os.Getenv("TESTMODE")
+	if ok, _ := strconv.ParseBool(testmode); ok {
 		glog.Infoln("test op, cluster", *cluster, "service", *serviceName, "member index", *memberIndex)
 		return
-	}
-
-	if *op == containersvc.InitContainerOpStop {
-		// this will be called in the pod pre-stop hook
-		prestopfilepath := filepath.Join(common.DefaultConfigPath, prestopStaticIPFile)
-		exist, err := utils.IsFileExist(prestopfilepath)
-		if err != nil {
-			glog.Fatalln("check prestop file exist error", err, prestopfilepath)
-		}
-
-		if exist {
-			// prestopfile exists. Must be the service that requires static ip. delete the ip from network.
-			b, err := ioutil.ReadFile(prestopfilepath)
-			if err != nil {
-				glog.Fatalln("read prestop file error", err, prestopfilepath)
-			}
-
-			ip := string(b)
-			err = dockernetwork.DeleteIP(ip, dockernetwork.DefaultNetworkInterface)
-			if err != nil {
-				glog.Fatalln("DeleteIP error", err, ip)
-			}
-			glog.Infoln("deleted ip", ip, "from network", dockernetwork.DefaultNetworkInterface)
-		} else {
-			glog.Infoln("not require to delete static ip")
-		}
-		return
-	}
-
-	if *op != containersvc.InitContainerOpInit {
-		panic("invalid op, please specify init or stop")
 	}
 
 	if len(*cluster) == 0 || len(*serviceName) == 0 || *memberIndex == -1 {
@@ -167,18 +132,10 @@ func main() {
 			glog.Fatalln("UpdateStaticIP error", err, "requuid", requuid, member)
 		}
 
-		// create the prestop file, so the container stop could delete the attached ip.
-		prestopfilepath := filepath.Join(common.DefaultConfigPath, prestopStaticIPFile)
-		exist, err := utils.IsFileExist(prestopfilepath)
+		// create the staticip file, so the container stop could delete the attached ip.
+		err = k8ssvc.CreateStaticIPFile(member.StaticIP)
 		if err != nil {
-			glog.Fatalln("check the prestop file error", err, prestopfilepath, "requuid", requuid, member)
-		}
-		if !exist {
-			glog.Infoln("create the prestop file", prestopfilepath, "requuid", requuid, member)
-			err = utils.CreateOrOverwriteFile(prestopfilepath, []byte(member.StaticIP), common.DefaultConfigFileMode)
-			if err != nil {
-				glog.Fatalln("create the prestop file error", err, prestopfilepath, "requuid", requuid, member)
-			}
+			glog.Fatalln("create the staticip file error", err, "requuid", requuid, member)
 		}
 
 		err = netIns.AddIP(member.StaticIP)
@@ -200,4 +157,6 @@ func main() {
 
 	glog.Infoln("successfully updated dns record or static ip, and created config file for service",
 		*serviceName, "cluster", *cluster, "memberIndex", *memberIndex)
+
+	glog.Flush()
 }

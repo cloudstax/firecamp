@@ -25,7 +25,7 @@ echo "init version $version, cluster $clusterName, container platform $container
 
 # 1. tune the system configs.
 # set never for THP (Transparent Huge Pages), as THP might impact the performance for some services
-# such as MongoDB and Reddis. Could set to madvise if some service really benefits from madvise.
+# such as MongoDB and Redis. Could set to madvise if some service really benefits from madvise.
 # https://www.kernel.org/doc/Documentation/vm/transhuge.txt
 echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
 
@@ -61,7 +61,7 @@ if [ "$containerPlatform" = "ecs" ]; then
   # AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".
   # The container inherits the docker daemon ulimit.
   # The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.
-  # Ubuntu is /etc/init/docker.conf
+  # Ubuntu is /etc/init/docker.conf, DOCKER_OPTS
   sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g" /etc/sysconfig/docker
 
   service docker start
