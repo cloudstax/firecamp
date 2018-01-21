@@ -204,7 +204,8 @@ func createService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, serv
 		Envkvs: []*common.EnvKeyValuePair{
 			{Name: "SLEEP_TIME", Value: "1000"},
 		},
-		ExternalDNS: false,
+		ExternalDNS:      false,
+		ExternalStaticIP: true,
 	}
 
 	exist, err := svc.IsServiceExist(ctx, cluster, service)

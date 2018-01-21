@@ -117,6 +117,12 @@ func main() {
 		glog.Fatalln("GetServiceMember error", err, *memberIndex, "requuid", requuid, attr)
 	}
 
+	// create the config files if necessary
+	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, member, dbIns)
+	if err != nil {
+		glog.Fatalln("CreateConfigFile error", err, "requuid", requuid, member)
+	}
+
 	// update DNS if required
 	if attr.RegisterDNS && !attr.RequireStaticIP {
 		err = netIns.UpdateDNS(ctx, attr.DomainName, attr.HostedZoneID, member)
@@ -142,17 +148,6 @@ func main() {
 		if err != nil {
 			glog.Fatalln("AddIP error", err, "requuid", requuid, member)
 		}
-	}
-
-	// create the config files if necessary
-	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, member, dbIns)
-	if err != nil {
-		if attr.RequireStaticIP {
-			deliperr := netIns.DeleteIP(member.StaticIP)
-			glog.Errorln("DeleteIP error", deliperr, "requuid", requuid, member)
-		}
-
-		glog.Fatalln("CreateConfigFile error", err, "requuid", requuid, member)
 	}
 
 	glog.Infoln("successfully updated dns record or static ip, and created config file for service",

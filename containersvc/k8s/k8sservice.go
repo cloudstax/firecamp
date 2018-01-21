@@ -28,6 +28,7 @@ const (
 	defaultStatefulServiceAccount = common.SystemName + "-statefulservice-sa"
 	serviceLabelName              = "app"
 	initContainerNamePrefix       = "memberinit-"
+	stopContainerNamePrefix       = "memberstop-"
 	dataVolumeName                = "data"
 	journalVolumeName             = "journal"
 	pvName                        = "pv"
@@ -557,6 +558,30 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 		// use host network by default for better performance.
 		// k8s requires "If this option is set, the ports that will be used must be specified."
 		statefulset.Spec.Template.Spec.HostNetwork = true
+
+		// if the service requires static ip, set the static ip deletion container.
+		// the static ip only works with HostNetwork.
+		if opts.ExternalStaticIP {
+			// the service (Redis/Consul) requires the static ip. The init and stop container
+			// need the CAP_NET_ADMIN to add ip to the network interface.
+			netAdminCtx := &corev1.SecurityContext{
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{"NET_ADMIN"},
+				},
+			}
+
+			// set SecurityContext for the init container
+			statefulset.Spec.Template.Spec.InitContainers[0].SecurityContext = netAdminCtx
+
+			// add the stop container to delete the ip from the network interface when pod stops.
+			stopContainer := corev1.Container{
+				Name:            stopContainerNamePrefix + opts.Common.ServiceName,
+				Image:           K8sServiceStopContainerImage,
+				VolumeMounts:    volMounts,
+				SecurityContext: netAdminCtx,
+			}
+			statefulset.Spec.Template.Spec.Containers = append(statefulset.Spec.Template.Spec.Containers, stopContainer)
+		}
 	}
 
 	_, err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Create(statefulset)
