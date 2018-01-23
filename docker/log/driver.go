@@ -1,4 +1,4 @@
-package firecampdockerlogs
+package firecampdockerlog
 
 import (
 	"context"
@@ -20,6 +20,13 @@ import (
 	"github.com/tonistiigi/fifo"
 )
 
+const (
+	regionKey         = "awslogs-region"
+	logGroupKey       = "awslogs-group"
+	logStreamKey      = "awslogs-stream"
+	logCreateGroupKey = "awslogs-create-group"
+)
+
 type LogDriver interface {
 	StartLogging(file string, logCtx logger.Info) error
 	StopLogging(file string) error
@@ -27,6 +34,9 @@ type LogDriver interface {
 }
 
 type driver struct {
+	region  string
+	cluster string
+
 	mu     sync.Mutex
 	logs   map[string]*logPair
 	logger logger.Logger
@@ -38,9 +48,11 @@ type logPair struct {
 	info   logger.Info
 }
 
-func NewDriver() *driver {
+func newDriver(region string, cluster string) *driver {
 	return &driver{
-		logs: make(map[string]*logPair),
+		region:  region,
+		cluster: cluster,
+		logs:    make(map[string]*logPair),
 	}
 }
 
@@ -64,6 +76,8 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	if err != nil {
 		return errors.Wrapf(err, "error opening logger fifo: %q", file)
 	}
+
+	logrus.Errorln("start logging, logger info", logCtx)
 
 	l, err := awslogs.New(logCtx)
 	if err != nil {

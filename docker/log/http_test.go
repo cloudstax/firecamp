@@ -1,4 +1,4 @@
-package firecampdockerlogs
+package firecampdockerlog
 
 import (
 	"bytes"

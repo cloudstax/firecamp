@@ -1,4 +1,4 @@
-package firecampdockerlogs
+package firecampdockerlog
 
 import (
 	"encoding/json"
@@ -32,7 +32,8 @@ const START_LOGGING_REQUEST string = "/LogDriver.StartLogging"
 const STOP_LOGGING_REQUEST string = "/LogDriver.StopLogging"
 const LOG_CAPABILITIES_REQUEST string = "/LogDriver.Capabilities"
 
-func NewHandler(h *sdk.Handler, d LogDriver) {
+func NewHandler(h *sdk.Handler, region string, cluster string) {
+	d := newDriver(region, cluster)
 	h.HandleFunc(START_LOGGING_REQUEST, startLoggingHandleFunc(d))
 	h.HandleFunc(STOP_LOGGING_REQUEST, stopLoggingHandleFunc(d))
 	h.HandleFunc(LOG_CAPABILITIES_REQUEST, capabilityHandleFunc(d))
