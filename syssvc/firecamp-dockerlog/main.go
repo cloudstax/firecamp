@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/docker/log"
+	"github.com/cloudstax/firecamp/server/awsec2"
 )
 
 const socketAddress = "/run/docker/plugins/" + common.SystemName + "log.sock"
@@ -21,6 +23,8 @@ var logLevels = map[string]logrus.Level{
 }
 
 func main() {
+	flag.Parse()
+
 	levelVal := os.Getenv("LOG_LEVEL")
 	if levelVal == "" {
 		levelVal = "info"
@@ -32,13 +36,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	region, err := awsec2.GetLocalEc2Region()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "awsec2 GetLocalEc2Region error", err)
+		os.Exit(2)
+	}
+
+	cluster := os.Getenv("CLUSTER")
+	if len(cluster) == 0 {
+		fmt.Fprintln(os.Stderr, "CLUSTER name not set")
+		os.Exit(2)
+	}
+
 	h := sdk.NewHandler(`{"Implements": ["LoggingDriver"]}`)
 
-	driver := firecampdockerlogs.NewDriver()
-	firecampdockerlogs.NewHandler(&h, driver)
+	firecampdockerlog.NewHandler(&h, region, cluster)
 
 	logrus.Errorf("start listening on %s\n", socketAddress)
-	err := h.ServeUnix(socketAddress, 0)
+	err = h.ServeUnix(socketAddress, 0)
 	if err != nil {
 		panic(err)
 	}

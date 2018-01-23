@@ -6,6 +6,7 @@ protoc -I db/controldb/protocols/ db/controldb/protocols/controldb.proto --go_ou
 cd syssvc/firecamp-controldb; go install; cd -
 
 cd syssvc/firecamp-dockervolume; go install; cd -
+cd syssvc/firecamp-dockerlog; go install; cd -
 
 cd syssvc/firecamp-manageserver; go install; cd -
 

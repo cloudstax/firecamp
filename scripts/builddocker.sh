@@ -26,7 +26,7 @@ BuildPlugin() {
 
   # build the volume plugin
   volumePluginPath="${TOPWD}/syssvc/firecamp-dockervolume/dockerfile"
-  volumePluginImage="${org}$system-volume"
+  volumePluginImage="${org}${system}-volume"
 	echo "### docker build: rootfs image with firecamp-dockervolume"
 	docker cp $containername:/go/bin/firecamp-dockervolume $volumePluginPath
 	docker build -q -t ${volumePluginImage}:rootfs $volumePluginPath
@@ -48,12 +48,12 @@ BuildPlugin() {
 
 
   # build the log plugin
-  logPluginPath="${TOPWD}/syssvc/firecamp-dockerlogs/dockerfile"
-  logPluginImage="${org}$system-log"
-	echo "### docker build: rootfs image with firecamp-dockerlogs"
-	docker cp $containername:/go/bin/firecamp-dockerlogs $logPluginPath
+  logPluginPath="${TOPWD}/syssvc/firecamp-dockerlog/dockerfile"
+  logPluginImage="${org}${system}-log"
+	echo "### docker build: rootfs image with firecamp-dockerlog"
+	docker cp $containername:/go/bin/firecamp-dockerlog $logPluginPath
 	docker build -q -t ${logPluginImage}:rootfs $logPluginPath
-  rm -f $logPluginPath/firecamp-dockerlogs
+  rm -f $logPluginPath/firecamp-dockerlog
 
   echo "### create the plugin rootfs directory"
   logPluginBuildPath="${TOPWD}/build/logplugin"
@@ -61,7 +61,7 @@ BuildPlugin() {
   docker rm -vf tmp || true
 	docker create --name tmp ${logPluginImage}:rootfs
 	docker export tmp | tar -x -C $logPluginBuildPath/rootfs
-	cp ${TOPWD}/syssvc/firecamp-dockerlogs/config.json $logPluginBuildPath
+	cp ${TOPWD}/syssvc/firecamp-dockerlog/config.json $logPluginBuildPath
 	docker rm -vf tmp
 
 	echo "### create new plugin ${logPluginImage}:${version}"

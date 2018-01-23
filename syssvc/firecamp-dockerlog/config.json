@@ -1,0 +1,40 @@
+{
+	"description": "firecamp log plugin for docker: consume logs from service containers and send to AWS CloudWatch",
+	"documentation": "-",
+	"entrypoint": ["/firecamp-dockerlog"],
+	"interface": {
+		"types": ["docker.logdriver/1.0"],
+		"socket": "firecamplog.sock"
+  },
+  "network": {
+    "type": "host"
+  },
+  "mounts": [
+    {
+      "destination": "/etc/ssl",
+      "source": "/etc/ssl",
+      "type": "bind",
+      "options": ["rbind", "ro"]
+    },
+    {
+      "destination": "/etc/pki",
+      "source": "/etc/pki",
+      "type": "bind",
+      "options": ["rbind", "ro"]
+    }
+  ],
+	"env": [
+    {
+      "name": "LOG_LEVEL",
+      "description": "Set log level to output for plugin logs",
+      "value": "info",
+      "settable": ["value"]
+    },
+    {
+      "name": "CLUSTER",
+      "description": "The firecamp cluster name",
+      "value": "",
+      "settable": ["value"]
+    }
+	]
+}

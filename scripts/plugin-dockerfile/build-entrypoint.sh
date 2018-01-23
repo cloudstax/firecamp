@@ -14,8 +14,8 @@ echo "build firecamp-dockervolume"
 cd $codedir/syssvc/firecamp-dockervolume
 go install --ldflags '-extldflags "-static"'
 
-echo "build firecamp-dockerlogs"
-cd $codedir/syssvc/firecamp-dockerlogs
+echo "build firecamp-dockerlog"
+cd $codedir/syssvc/firecamp-dockerlog
 go install --ldflags '-extldflags "-static"'
 
 ls /go/bin/
