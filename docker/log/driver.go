@@ -18,9 +18,18 @@ import (
 	protoio "github.com/gogo/protobuf/io"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fifo"
+
+	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/docker"
 )
 
 const (
+	// currently this key is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
+	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
+	logServiceUUIDKey         = "ServiceUUID"
+	getMemberMaxWaitSeconds   = int64(60)
+	getMemberRetryWaitSeconds = int64(2)
+
 	regionKey         = "awslogs-region"
 	logGroupKey       = "awslogs-group"
 	logStreamKey      = "awslogs-stream"
@@ -64,6 +73,47 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	}
 	d.mu.Unlock()
 
+	// Get the service member.
+	// The volume plugin creates a local file to record the service member.
+	// The volume plugin will delete the local file when the container is shut down.
+	// The log plugin should be called after the volume plugin. If this is not the case,
+	// there might be a corner case that the log plugin may get the stale service member.
+	// The corner case is: the node is restarted and leaves the service member file undeleted.
+	// After restart, the volume plugin assigns a different member to the local node. If StartLogging
+	// is called before that, it will get the old service member. This only mixes the member's log,
+	// we could still recover the correct log, as the service container logs its member at startup.
+	//
+	// The other option is: construct dbIns and find the service member that is owned by the local instance.
+	// While, finding the service member requires to list all members and compare the
+	// member's ContainerInstanceID, as the volume plugin will assign one member to the local
+	// instance. This may waste the resources if the service has like 100 members.
+	// This option may hit one corner case. The member could be updated when listing all service
+	// members. Listing may get 2 members (one is stale) on the local instance.
+
+	// the serviceuuid shoud be set in logCtx.Config map.
+	serviceUUID := logCtx.Config[logServiceUUIDKey]
+	if len(serviceUUID) == 0 {
+		logrus.WithField("id", logCtx.ContainerID).Errorf("ServiceUUID is not set in the log config %s", logCtx)
+		return errors.New("ServiceUUID is not set in the log config")
+	}
+
+	memberName, err := firecampplugin.GetPluginServiceMember(serviceUUID, getMemberMaxWaitSeconds, getMemberRetryWaitSeconds)
+	if err != nil {
+		logrus.WithField("id", logCtx.ContainerID).WithField("ServiceUUID", serviceUUID).WithError(err).Error("GetPluginServiceMember error")
+		return errors.Wrapf(err, "error GetPluginServiceMember, serviceUUID: %s", serviceUUID)
+	}
+
+	hostname, err := logCtx.Hostname()
+	if err != nil {
+		return errors.Wrapf(err, "error getting hostname")
+	}
+
+	logCtx.Config[regionKey] = d.region
+	logCtx.Config[logGroupKey] = fmt.Sprintf("%s-%s", common.SystemName, d.cluster)
+	logCtx.Config[logStreamKey] = fmt.Sprintf("%s-%s-%s", memberName, hostname, logCtx.ContainerID)
+
+	logrus.WithField("id", logCtx.ContainerID).WithField("ServiceUUID", serviceUUID).WithField("ServiceMember", memberName).Infoln("start logging, logger info", logCtx)
+
 	if logCtx.LogPath == "" {
 		logCtx.LogPath = filepath.Join("/var/log/docker", logCtx.ContainerID)
 	}
@@ -76,8 +126,6 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	if err != nil {
 		return errors.Wrapf(err, "error opening logger fifo: %q", file)
 	}
-
-	logrus.Errorln("start logging, logger info", logCtx)
 
 	l, err := awslogs.New(logCtx)
 	if err != nil {

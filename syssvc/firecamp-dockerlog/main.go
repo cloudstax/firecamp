@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/docker/log"
 	"github.com/cloudstax/firecamp/server/awsec2"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 const socketAddress = "/run/docker/plugins/" + common.SystemName + "log.sock"
@@ -24,6 +25,8 @@ var logLevels = map[string]logrus.Level{
 
 func main() {
 	flag.Parse()
+	// set the glog to std
+	utils.SetLogToStd()
 
 	levelVal := os.Getenv("LOG_LEVEL")
 	if levelVal == "" {

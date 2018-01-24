@@ -11,6 +11,12 @@
   },
   "mounts": [
     {
+      "destination": "/var/lib/firecamp",
+      "source": "/var/lib/firecamp",
+      "type": "bind",
+      "options": ["rbind", "ro"]
+    },
+    {
       "destination": "/etc/ssl",
       "source": "/etc/ssl",
       "type": "bind",
