@@ -20,6 +20,7 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/docker"
 	"github.com/cloudstax/firecamp/docker/network"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
@@ -317,6 +318,15 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	mpath := d.mountpoint(member.ServiceUUID)
 	configDirPath := filepath.Join(mpath, common.DefaultConfigDir)
 	err = CreateConfigFile(ctx, configDirPath, member, d.dbIns)
+	if err == nil {
+		// create the service member so the log driver could know the service member.
+		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.MemberName, requuid)
+		if err != nil {
+			glog.Errorln("CreatePluginServiceMemberFile error", err, "requuid", requuid, member)
+			// cleanup the possbile garbage
+			firecampplugin.DeletePluginServiceMemberFile(member.ServiceUUID, requuid)
+		}
+	}
 	if err != nil {
 		errmsg := fmt.Sprintf("create the config file error %s, service %s, requuid %s", err, serviceAttr, requuid)
 		glog.Errorln(errmsg)
@@ -412,6 +422,14 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 
 		// static ip could not be unassigned from the network interface. If unassigned, AWS will
 		// think the ip is available and may assign to the new instance.
+	}
+
+	// cleanup the member file for the log driver
+	err = firecampplugin.DeletePluginServiceMemberFile(vol.member.ServiceUUID, requuid)
+	if err != nil {
+		errmsg := fmt.Sprintf("DeletePluginServiceMemberFile error %s, requuid %s, member %s", err, requuid, vol.member)
+		glog.Errorln(errmsg)
+		return volume.Response{Err: errmsg}
 	}
 
 	// last container for the volume, umount fs

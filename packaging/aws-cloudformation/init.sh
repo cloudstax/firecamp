@@ -54,8 +54,12 @@ sysctl -w vm.overcommit_memory=1
 # 2. install docker.
 yum install -y docker
 
+# 3. Create the firecamp data directory.
+# The volume plugin will write the service member to the data directory, so the log plugin
+# could know the target service member for the log stream.
+mkdir /var/lib/firecamp
 
-# 3. Container platform specific initialization.
+# 4. Container platform specific initialization.
 if [ "$containerPlatform" = "ecs" ]; then
   # Kafka uses a very large number of files, increase the file descriptor count.
   # AWS AMI sets the ulimit for docker daemon, OPTIONS=\"--default-ulimit nofile=1024:4096\".

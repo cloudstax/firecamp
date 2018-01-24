@@ -16,6 +16,12 @@
   },
   "mounts": [
     {
+      "destination": "/var/lib/firecamp",
+      "source": "/var/lib/firecamp",
+      "type": "bind",
+      "options": ["rbind", "rw"]
+    },
+    {
       "destination": "/var/log/firecamp",
       "source": "/var/log/firecamp",
       "type": "bind",
