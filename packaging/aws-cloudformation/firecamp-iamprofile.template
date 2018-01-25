@@ -97,7 +97,7 @@
                   "Action":[
                     "logs:Create*",
                     "logs:Put*",
-                    "logs:Delete*"
+                    "logs:Delete*",
                     "logs:DescribeLogGroups",
                     "logs:DescribeLogStreams"
                   ],

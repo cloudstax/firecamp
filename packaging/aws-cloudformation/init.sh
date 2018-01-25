@@ -116,9 +116,9 @@ if [ "$containerPlatform" = "ecs" ]; then
     docker plugin enable cloudstax/firecamp-volume:$version
   fi
 
-  # TODO enable log driver after upgrade to 17.05/06
-  # install firecamp docker log driver
-  # docker plugin install cloudstax/firecamp-logs
+  # install firecamp docker log plugin
+  docker plugin install --grant-all-permissions cloudstax/firecamp-log:$version CLUSTER="$clusterName"
+
 fi
 
 if [ "$containerPlatform" = "swarm" ]; then
@@ -186,9 +186,8 @@ if [ "$containerPlatform" = "swarm" ]; then
     mkdir -p /var/log/firecamp
     docker plugin install --grant-all-permissions cloudstax/firecamp-volume:$version PLATFORM="swarm" CLUSTER="$clusterName"
 
-    # TODO enable log driver after upgrade to 17.05/06
-    # install firecamp docker log driver
-    # docker plugin install cloudstax/firecamp-logs
+    # install firecamp docker log plugin
+    docker plugin install --grant-all-permissions cloudstax/firecamp-log:$version CLUSTER="$clusterName"
   fi
 fi
 
