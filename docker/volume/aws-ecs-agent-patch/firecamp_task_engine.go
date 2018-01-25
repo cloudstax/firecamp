@@ -21,6 +21,7 @@ func (err *VolumeDriverConfigError) ErrorName() string { return "VolumeDriverCon
 const (
 	volumeDriver        = "cloudstax/firecamp-volume"
 	logDriver           = "cloudstax/firecamp-log"
+	logGroupKey         = "awslogs-group"
 	logServiceUUIDKey   = "ServiceUUID"
 	logDriverMinVersion = "0.9.3"
 	versionKey          = "VERSION"
@@ -61,6 +62,7 @@ func AddVolumeDriver(hostConfig *docker.HostConfig, container *api.Container, cl
 			hostConfig.LogConfig = docker.LogConfig{
 				Type: logDriver + ":" + version,
 				Config: map[string]string{
+					logGroupKey:       hostConfig.LogConfig.Config[logGroupKey],
 					logServiceUUIDKey: serviceUUID,
 				},
 			}

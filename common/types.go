@@ -27,12 +27,16 @@ const (
 	// please also update docker/volume/aws-ecs-agent-patch/firecamp_task_engine.go,
 	// Has the separate definition in firecamp_task_engine.go aims to avoid the dependency of
 	// ecs-agent on firecamp code.
-	VolumeDriverName = OrgName + "/" + SystemName + "-" + "volume"
+	VolumeDriverName = OrgName + "/" + SystemName + "-" + "volume:" + Version
 
 	// LogDriverName is the name for docker log driver.
 	// Do NOT change the log driver name. If this name is changed,
 	// please update the log driver plugin in scripts/builddocker.sh.
-	LogDriverName     = OrgName + "/" + SystemName + "-" + "log"
+	LogDriverName = OrgName + "/" + SystemName + "-" + "log:" + Version
+	// The LogServiceUUIDKey is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
+	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
+	LogServiceUUIDKey = "ServiceUUID"
+
 	LOGDRIVER_DEFAULT = "json-file"
 	LOGDRIVER_AWSLOGS = "awslogs"
 

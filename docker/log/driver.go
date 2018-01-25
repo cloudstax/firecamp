@@ -21,19 +21,15 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/docker"
+	"github.com/cloudstax/firecamp/log"
 )
 
 const (
-	// currently this key is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
-	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
-	logServiceUUIDKey         = "ServiceUUID"
 	getMemberMaxWaitSeconds   = int64(60)
 	getMemberRetryWaitSeconds = int64(2)
 
-	regionKey         = "awslogs-region"
-	logGroupKey       = "awslogs-group"
-	logStreamKey      = "awslogs-stream"
-	logCreateGroupKey = "awslogs-create-group"
+	regionKey    = "awslogs-region"
+	logStreamKey = "awslogs-stream"
 )
 
 type LogDriver interface {
@@ -91,7 +87,7 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 	// members. Listing may get 2 members (one is stale) on the local instance.
 
 	// the serviceuuid shoud be set in logCtx.Config map.
-	serviceUUID := logCtx.Config[logServiceUUIDKey]
+	serviceUUID := logCtx.Config[common.LogServiceUUIDKey]
 	if len(serviceUUID) == 0 {
 		logrus.WithField("id", logCtx.ContainerID).Errorf("ServiceUUID is not set in the log config %s", logCtx)
 		return errors.New("ServiceUUID is not set in the log config")
@@ -108,9 +104,9 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 		return errors.Wrapf(err, "error getting hostname")
 	}
 
+	// logCtx.Config should already set the logGroup.
 	logCtx.Config[regionKey] = d.region
-	logCtx.Config[logGroupKey] = fmt.Sprintf("%s-%s", common.SystemName, d.cluster)
-	logCtx.Config[logStreamKey] = fmt.Sprintf("%s-%s-%s", memberName, hostname, logCtx.ContainerID)
+	logCtx.Config[logStreamKey] = cloudlog.GenServiceMemberLogStreamName(memberName, hostname, logCtx.ContainerID)
 
 	logrus.WithField("id", logCtx.ContainerID).WithField("ServiceUUID", serviceUUID).WithField("ServiceMember", memberName).Infoln("start logging, logger info", logCtx)
 

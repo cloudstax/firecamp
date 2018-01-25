@@ -3,6 +3,8 @@
 
 version=latest
 
+all: docker lambda
+
 cli:
 	cd syssvc/firecamp-service-cli; go install; cd -
 	cd $(GOPATH)/bin; tar -zcf firecamp-service-cli.tgz firecamp-service-cli; cd -
@@ -30,6 +32,7 @@ test:
 
 clean:
 	-rm $(GOPATH)/bin/firecamp* || true
+	-rm -fr build || true
 
 cleanall: clean
 	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/cloudstax/firecamp

@@ -159,7 +159,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 			Target:   opts.DataVolume.MountPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
-				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},
+				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName},
 			},
 		}
 		mounts = []mounttypes.Mount{mount}
@@ -181,7 +181,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 			Target:   opts.JournalVolume.MountPath,
 			ReadOnly: false,
 			VolumeOptions: &mounttypes.VolumeOptions{
-				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName + ":" + common.Version},
+				DriverConfig: &mounttypes.Driver{Name: common.VolumeDriverName},
 			},
 		}
 		mounts = append(mounts, mount)

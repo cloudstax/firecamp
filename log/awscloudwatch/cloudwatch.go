@@ -1,6 +1,8 @@
 package awscloudwatch
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -29,7 +31,7 @@ const (
 	// It is not urgent to enable it now. AWS CloudWatch console and cli support "text" view mode.
 	// aws logs get-log-events --log-group-name A --log-stream-name a --output text > a.log
 
-	defaultLogRetentionDays = 30
+	defaultLogRetentionDays = 120
 )
 
 // Log implements the cloudlog interface for AWS CloudWatchLogs.
@@ -52,16 +54,32 @@ func NewLog(sess *session.Session, region string, containerPlatform string) *Log
 func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
-	opts[logGroup] = l.genLogGroupName(cluster, service, serviceUUID)
-	// not set the log stream name. By default, awslogs uses container id as the log stream name.
-	// TODO switch to use the modified service member aware log driver, which requires docker 17.05.
-	// after switch to the new driver, the new driver will get the service member name and
-	// overwrite the log stream name.
+	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
 
-	return &cloudlog.LogConfig{
-		Name:    driverName,
-		Options: opts,
+	// not set the log stream name. By default, awslogs uses container id as the log stream name.
+	// FireCamp has a log driver cloudstax/firecamp-log, which creates the log stream with the
+	// service member name as prefix. So we could easily track the logs of one service member.
+	// While, AWS ECS does not support custom log driver. FireCamp amazon-ecs-agent will replace
+	// the log driver with firecamp-log plugin. We still set awslogs as the default driver.
+	// Just in case if firecamp-amazon-ecs-agent is replaced by aws amazon-ecs-agent, the logs will
+	// still be sent to CloudWatch, and we could manually fix the log stream name later.
+	switch l.platform {
+	case common.ContainerPlatformECS:
+		return &cloudlog.LogConfig{
+			Name:    driverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformSwarm:
+		opts[common.LogServiceUUIDKey] = serviceUUID
+		return &cloudlog.LogConfig{
+			Name:    common.LogDriverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformK8s:
+		// k8s uses the Fluentd daemonset, which will set the LogGroup and LogStream names.
+		return nil
 	}
+	return nil
 }
 
 // CreateLogConfigForStream creates the LogConfig for the stream to send logs to AWS CloudWatch.
@@ -69,7 +87,7 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 func (l *Log) CreateLogConfigForStream(ctx context.Context, cluster string, service string, serviceUUID string, stream string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
-	opts[logGroup] = l.genLogGroupName(cluster, service, serviceUUID)
+	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
 	switch l.platform {
 	case common.ContainerPlatformECS:
 		opts[logStreamPrefix] = stream
@@ -84,14 +102,14 @@ func (l *Log) CreateLogConfigForStream(ctx context.Context, cluster string, serv
 }
 
 func (l *Log) genLogGroupName(cluster string, service string, serviceUUID string) string {
-	return cluster + common.NameSeparator + service + common.NameSeparator + serviceUUID
+	return fmt.Sprintf("%s-%s-%s-%s", common.SystemName, cluster, service, serviceUUID)
 }
 
 // InitializeServiceLogConfig creates the CloudWatch log group.
 func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	group := l.genLogGroupName(cluster, service, serviceUUID)
+	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
 	crreq := &cloudwatchlogs.CreateLogGroupInput{
 		LogGroupName: aws.String(group),
 	}
@@ -119,7 +137,7 @@ func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, se
 func (l *Log) DeleteServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	group := l.genLogGroupName(cluster, service, serviceUUID)
+	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
 	req := &cloudwatchlogs.DeleteLogGroupInput{
 		LogGroupName: aws.String(group),
 	}
