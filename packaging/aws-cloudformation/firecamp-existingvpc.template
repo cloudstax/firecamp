@@ -100,7 +100,7 @@
     },
     "AvailabilityZones": {
       "Type": "List<AWS::EC2::AvailabilityZone::Name>",
-      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets and less or equal to Number of Container Worker Nodes, or else the cluster will not work."
+      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets, or else the cluster will not work."
     },
     "RemoteAccessCIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
@@ -156,7 +156,7 @@
     "NumberOfNodes":{
       "Type":"Number",
       "Default":"1",
-      "Description":"Number of instances to launch. Make sure it's greater or equal to the number of Availability Zones. For Swarm, this is the number of worker nodes."
+      "Description":"Number of instances to launch. For Swarm, this is the number of worker nodes."
     },
     "NodeAMIOS": {
       "AllowedValues": [
