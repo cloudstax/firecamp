@@ -7,7 +7,10 @@ import (
 )
 
 // GenServiceLogGroupName creates the service log group name: firecamp-clustername-servicename-serviceUUID.
-func GenServiceLogGroupName(cluster string, service string, serviceUUID string) string {
+func GenServiceLogGroupName(cluster string, service string, serviceUUID string, k8snamespace string) string {
+	if len(k8snamespace) == 0 {
+		return fmt.Sprintf("%s-%s-%s-%s-%s", common.SystemName, cluster, k8snamespace, service, serviceUUID)
+	}
 	return fmt.Sprintf("%s-%s-%s-%s", common.SystemName, cluster, service, serviceUUID)
 }
 

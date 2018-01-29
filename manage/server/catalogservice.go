@@ -316,7 +316,7 @@ func (s *ManageHTTPServer) getMongoDBExistingKeyFile(ctx context.Context, req *m
 
 func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
 	serviceUUID string, opts *manage.CatalogMongoDBOptions, requuid string) {
-	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	logCfg := s.logIns.CreateTaskLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl, opts)
 
 	task := &serviceTask{
@@ -532,7 +532,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 
 func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
 	serviceUUID string, shards int64, replicasPerShard int64, requuid string) error {
-	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	logCfg := s.logIns.CreateTaskLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 
 	taskOpts, err := rediscatalog.GenDefaultInitTaskRequest(req, logCfg, shards, replicasPerShard, serviceUUID, s.manageurl)
 	if err != nil {
@@ -647,7 +647,7 @@ func (s *ManageHTTPServer) getCouchDBExistingEncryptPasswd(ctx context.Context, 
 
 func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
 	serviceUUID string, replicas int64, admin string, adminPass string, requuid string) {
-	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	logCfg := s.logIns.CreateTaskLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 	taskOpts := couchdbcatalog.GenDefaultInitTaskRequest(req, logCfg, s.azs, serviceUUID, replicas, s.manageurl, admin, adminPass)
 
 	task := &serviceTask{
@@ -996,7 +996,7 @@ func (s *ManageHTTPServer) getExistingCasJmxPasswd(ctx context.Context, req *man
 
 func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 	req *manage.ServiceCommonRequest, serviceUUID string, requuid string) {
-	logCfg := s.logIns.CreateLogConfigForStream(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
+	logCfg := s.logIns.CreateTaskLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 	taskOpts := cascatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl)
 
 	task := &serviceTask{

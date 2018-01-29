@@ -36,17 +36,19 @@ const (
 
 // Log implements the cloudlog interface for AWS CloudWatchLogs.
 type Log struct {
-	platform string
-	region   string
-	cli      *cloudwatchlogs.CloudWatchLogs
+	platform     string
+	k8snamespace string
+	region       string
+	cli          *cloudwatchlogs.CloudWatchLogs
 }
 
 // NewLog returns a new AWS CloudWatchLogs instance.
-func NewLog(sess *session.Session, region string, containerPlatform string) *Log {
+func NewLog(sess *session.Session, region string, containerPlatform string, k8snamespace string) *Log {
 	return &Log{
-		platform: containerPlatform,
-		region:   region,
-		cli:      cloudwatchlogs.New(sess),
+		platform:     containerPlatform,
+		k8snamespace: k8snamespace,
+		region:       region,
+		cli:          cloudwatchlogs.New(sess),
 	}
 }
 
@@ -54,7 +56,7 @@ func NewLog(sess *session.Session, region string, containerPlatform string) *Log
 func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
-	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
+	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
 
 	// not set the log stream name. By default, awslogs uses container id as the log stream name.
 	// FireCamp has a log driver cloudstax/firecamp-log, which creates the log stream with the
@@ -65,11 +67,14 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 	// still be sent to CloudWatch, and we could manually fix the log stream name later.
 	switch l.platform {
 	case common.ContainerPlatformECS:
+		// not set LogServiceUUIDKey, which is not supported by awslog driver.
+		// The firecamp amazon-ecs-agent will replace the log driver to firecamp-log-driver and set the LogServiceUUIDKey.
 		return &cloudlog.LogConfig{
 			Name:    driverName,
 			Options: opts,
 		}
 	case common.ContainerPlatformSwarm:
+		// set the LogServiceUUIDKey for firecamp-log-driver to get the serviceUUID.
 		opts[common.LogServiceUUIDKey] = serviceUUID
 		return &cloudlog.LogConfig{
 			Name:    common.LogDriverName,
@@ -77,39 +82,54 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 		}
 	case common.ContainerPlatformK8s:
 		// k8s uses the Fluentd daemonset, which will set the LogGroup and LogStream names.
+		glog.Infoln("no log config set for k8s, cluster", cluster, "service", service,
+			"serviceUUID", serviceUUID, "namespace", l.k8snamespace)
 		return nil
 	}
+	panic(fmt.Sprintf("unsupported container platform %s, cluster %s, service %s", l.platform, cluster, service))
 	return nil
 }
 
-// CreateLogConfigForStream creates the LogConfig for the stream to send logs to AWS CloudWatch.
-// This is used for the service task or the system service that only runs one container.
-func (l *Log) CreateLogConfigForStream(ctx context.Context, cluster string, service string, serviceUUID string, stream string) *cloudlog.LogConfig {
+// CreateTaskLogConfig creates the LogConfig for the task to send logs to AWS CloudWatch.
+// The task log directly uses the awslogs driver. There is no need to use firecamp-log-driver.
+func (l *Log) CreateTaskLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, taskType string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
-	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
+	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
+
 	switch l.platform {
 	case common.ContainerPlatformECS:
-		opts[logStreamPrefix] = stream
-	default:
-		opts[logStream] = stream
+		// not set LogServiceUUIDKey, which is not supported by awslog driver.
+		// The firecamp amazon-ecs-agent will replace the log driver to firecamp-log-driver and set the LogServiceUUIDKey.
+		opts[logStreamPrefix] = fmt.Sprintf("%s-%s", service, taskType)
+		return &cloudlog.LogConfig{
+			Name:    driverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformSwarm:
+		// set the LogServiceUUIDKey for firecamp-log-driver to get the serviceUUID.
+		opts[common.LogServiceUUIDKey] = serviceUUID
+		// reuse the LogServiceMemberKey to pass the taskStream.
+		opts[common.LogServiceMemberKey] = fmt.Sprintf("%s-%s", service, taskType)
+		return &cloudlog.LogConfig{
+			Name:    common.LogDriverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformK8s:
+		// k8s uses the Fluentd daemonset, which will set the LogGroup and LogStream names.
+		glog.Infoln("no log config set for k8s, cluster", cluster, "service", service,
+			"serviceUUID", serviceUUID, "namespace", l.k8snamespace)
+		return nil
 	}
-
-	return &cloudlog.LogConfig{
-		Name:    driverName,
-		Options: opts,
-	}
-}
-
-func (l *Log) genLogGroupName(cluster string, service string, serviceUUID string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", common.SystemName, cluster, service, serviceUUID)
+	panic(fmt.Sprintf("unsupported container platform %s, cluster %s, service %s", l.platform, cluster, service))
+	return nil
 }
 
 // InitializeServiceLogConfig creates the CloudWatch log group.
 func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
+	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
 	crreq := &cloudwatchlogs.CreateLogGroupInput{
 		LogGroupName: aws.String(group),
 	}
@@ -119,6 +139,7 @@ func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, se
 		return err
 	}
 
+	// TODO make the RetentionInDays configurable
 	putReq := &cloudwatchlogs.PutRetentionPolicyInput{
 		LogGroupName:    aws.String(group),
 		RetentionInDays: aws.Int64(defaultLogRetentionDays),
@@ -137,7 +158,7 @@ func (l *Log) InitializeServiceLogConfig(ctx context.Context, cluster string, se
 func (l *Log) DeleteServiceLogConfig(ctx context.Context, cluster string, service string, serviceUUID string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID)
+	group := cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
 	req := &cloudwatchlogs.DeleteLogGroupInput{
 		LogGroupName: aws.String(group),
 	}

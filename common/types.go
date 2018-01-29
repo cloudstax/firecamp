@@ -36,6 +36,8 @@ const (
 	// The LogServiceUUIDKey is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
 	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
 	LogServiceUUIDKey = "ServiceUUID"
+	// The LogServiceMemberKey is for the single member service, such as the management service.
+	LogServiceMemberKey = "ServiceMember"
 
 	LOGDRIVER_DEFAULT = "json-file"
 	LOGDRIVER_AWSLOGS = "awslogs"

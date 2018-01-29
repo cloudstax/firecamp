@@ -84,7 +84,7 @@ func main() {
 	}
 
 	if *role == awsdynamodb.RoleManager {
-		logIns := awscloudwatch.NewLog(sess, region, common.ContainerPlatformSwarm)
+		logIns := awscloudwatch.NewLog(sess, region, common.ContainerPlatformSwarm, "")
 		initManager(ctx, swarmSvc, dbIns, logIns, *cluster, addr)
 	} else {
 		initWorker(ctx, swarmSvc, dbIns, *cluster, addr)
@@ -223,6 +223,8 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 	serviceUUID := common.SystemName
 
 	logConfig := logIns.CreateServiceLogConfig(ctx, cluster, common.ManageName, serviceUUID)
+	// set the LogServiceMemberKey for the log driver
+	logConfig.Options[common.LogServiceMemberKey] = common.ManageName
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,

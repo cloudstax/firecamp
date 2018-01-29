@@ -24,7 +24,6 @@ cd containersvc/k8s/firecamp-stopcontainer/; go install; cd -
 cd syssvc/tools/firecamp-volume-replace; go install; cd -
 cd $GOPATH/bin; tar -zcf firecamp-volume-replace.tgz firecamp-volume-replace; cd -
 
-# these 3 commands are example commands
-cd syssvc/examples/firecamp-init; go install; cd -
+# example commands
 cd syssvc/examples/firecamp-cleanup; go install; cd -
 cd syssvc/examples/firecamp-service-creation-example; go install; cd -

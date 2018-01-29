@@ -19,7 +19,7 @@ func TestCloudWatchLog(t *testing.T) {
 		t.Fatalf("NewSession error %s", err)
 	}
 
-	ins := NewLog(sess, region, common.ContainerPlatformECS)
+	ins := NewLog(sess, region, common.ContainerPlatformECS, "")
 
 	ctx := context.Background()
 	uuid := utils.GenUUID()
@@ -33,11 +33,11 @@ func TestCloudWatchLog(t *testing.T) {
 		t.Fatalf("expect log driver name %s, got %s", driverName, cfg.Name)
 	}
 
-	cfg = ins.CreateLogConfigForStream(ctx, cluster, service, serviceUUID, stream)
+	cfg = ins.CreateTaskLogConfig(ctx, cluster, service, serviceUUID, stream)
 	if cfg.Name != driverName {
 		t.Fatalf("expect log driver name %s, got %s", driverName, cfg.Name)
 	}
-	if cfg.Options[logStreamPrefix] != stream {
+	if cfg.Options[logStreamPrefix] != service+"-"+stream {
 		t.Fatalf("expect log stream %s, got %s", stream, cfg.Options)
 	}
 

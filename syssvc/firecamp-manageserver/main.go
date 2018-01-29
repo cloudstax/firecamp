@@ -69,6 +69,15 @@ func main() {
 		os.Exit(-1)
 	}
 
+	k8snamespace := ""
+	if *platform == common.ContainerPlatformK8s {
+		k8snamespace := os.Getenv(common.ENV_K8S_NAMESPACE)
+		if len(k8snamespace) == 0 {
+			glog.Infoln("k8s namespace is not set. set to default")
+			k8snamespace = common.DefaultK8sNamespace
+		}
+	}
+
 	region, err := awsec2.GetLocalEc2Region()
 	if err != nil {
 		glog.Fatalln("awsec2 GetLocalEc2Region error", err)
@@ -102,7 +111,7 @@ func main() {
 	}
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
-	logIns := awscloudwatch.NewLog(sess, region, *platform)
+	logIns := awscloudwatch.NewLog(sess, region, *platform, k8snamespace)
 
 	cluster := ""
 	var containersvcIns containersvc.ContainerSvc
@@ -146,12 +155,7 @@ func main() {
 		info := k8ssvc.NewK8sInfo(cluster, fullhostname)
 		cluster = info.GetContainerClusterID()
 
-		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
-		if len(namespace) == 0 {
-			glog.Infoln("k8s namespace is not set. set to default")
-			namespace = common.DefaultK8sNamespace
-		}
-		containersvcIns, err = k8ssvc.NewK8sSvc(common.CloudPlatformAWS, *dbtype, namespace)
+		containersvcIns, err = k8ssvc.NewK8sSvc(cluster, common.CloudPlatformAWS, *dbtype, k8snamespace)
 		if err != nil {
 			glog.Fatalln("NewK8sSvc error", err)
 		}
@@ -189,12 +193,7 @@ func main() {
 		waitControlDBReady(ctx, cluster, containersvcIns)
 
 	case common.DBTypeK8sDB:
-		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
-		if len(namespace) == 0 {
-			glog.Infoln("k8s namespace is not set. set to default")
-			namespace = common.DefaultK8sNamespace
-		}
-		dbIns, err = k8sconfigdb.NewK8sConfigDB(namespace)
+		dbIns, err = k8sconfigdb.NewK8sConfigDB(k8snamespace)
 		if err != nil {
 			glog.Fatalln("NewK8sConfigDB error", err)
 		}
@@ -251,8 +250,8 @@ func createControlDB(ctx context.Context, region string, cluster string, logIns 
 
 	// create the controldb service
 	serviceUUID := utils.GenControlDBServiceUUID(volID)
-	logConfig := logIns.CreateLogConfigForStream(ctx, cluster,
-		common.ControlDBServiceName, serviceUUID, common.ControlDBServiceName)
+	logConfig := logIns.CreateServiceLogConfig(ctx, cluster, common.ControlDBServiceName, serviceUUID)
+	logConfig.Options[common.LogServiceMemberKey] = common.ControlDBServiceName
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,
