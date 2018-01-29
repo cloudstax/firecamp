@@ -26,7 +26,8 @@ import (
 
 const (
 	defaultStatefulServiceAccount = common.SystemName + "-statefulservice-sa"
-	serviceLabelName              = "app"
+	serviceNameLabel              = "firecamp-servicename"
+	serviceUUIDLabel              = "firecamp-serviceuuid"
 	initContainerNamePrefix       = "memberinit-"
 	stopContainerNamePrefix       = "memberstop-"
 	dataVolumeName                = "data"
@@ -40,6 +41,7 @@ const (
 // https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster
 type K8sSvc struct {
 	cliset        *kubernetes.Clientset
+	cluster       string
 	namespace     string
 	provisioner   string
 	cloudPlatform string
@@ -51,19 +53,19 @@ type K8sSvc struct {
 
 // NewK8sSvc creates a new K8sSvc instance.
 // TODO support different namespaces for different services? Wait for the real requirement.
-func NewK8sSvc(cloudPlatform string, dbType string, namespace string) (*K8sSvc, error) {
+func NewK8sSvc(cluster string, cloudPlatform string, dbType string, namespace string) (*K8sSvc, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		glog.Errorln("rest.InClusterConfig error", err)
 		return nil, err
 	}
-	return newK8sSvcWithConfig(cloudPlatform, dbType, namespace, config)
+	return newK8sSvcWithConfig(cluster, cloudPlatform, dbType, namespace, config)
 }
 
 // NewTestK8sSvc creates a new K8sSvc instance for test.
-func NewTestK8sSvc(cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
-	svc, err := newK8sSvcWithConfig(cloudPlatform, common.DBTypeMemDB, namespace, config)
+func NewTestK8sSvc(cluster string, cloudPlatform string, namespace string, config *rest.Config) (*K8sSvc, error) {
+	svc, err := newK8sSvcWithConfig(cluster, cloudPlatform, common.DBTypeMemDB, namespace, config)
 	if err != nil {
 		return svc, err
 	}
@@ -72,7 +74,7 @@ func NewTestK8sSvc(cloudPlatform string, namespace string, config *rest.Config) 
 }
 
 // newK8sSvcWithConfig creates a new K8sSvc instance with the config.
-func newK8sSvcWithConfig(cloudPlatform string, dbType string, namespace string, config *rest.Config) (*K8sSvc, error) {
+func newK8sSvcWithConfig(cluster string, cloudPlatform string, dbType string, namespace string, config *rest.Config) (*K8sSvc, error) {
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -88,6 +90,7 @@ func newK8sSvcWithConfig(cloudPlatform string, dbType string, namespace string, 
 
 	svc := &K8sSvc{
 		cliset:        clientset,
+		cluster:       cluster,
 		namespace:     namespace,
 		provisioner:   provisioner,
 		cloudPlatform: cloudPlatform,
@@ -158,7 +161,7 @@ func (s *K8sSvc) DeleteServiceVolume(ctx context.Context, service string, member
 // createPV creates a PersistentVolume.
 func (s *K8sSvc) createPV(service string, pvname string, sclassname string, volID string, volSizeGB int64, requuid string) (existingVolID string, err error) {
 	labels := make(map[string]string)
-	labels[serviceLabelName] = service
+	labels[serviceNameLabel] = service
 
 	// create one pv
 	pv := &corev1.PersistentVolume{
@@ -238,7 +241,7 @@ func (s *K8sSvc) deletePV(pvname string, requuid string) error {
 
 func (s *K8sSvc) createPVC(service string, pvcname string, pvname string, sclassname string, volSizeGB int64, requuid string) error {
 	labels := make(map[string]string)
-	labels[serviceLabelName] = service
+	labels[serviceNameLabel] = service
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -593,7 +596,8 @@ func (s *K8sSvc) CreateService(ctx context.Context, opts *containersvc.CreateSer
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	labels := make(map[string]string)
-	labels[serviceLabelName] = opts.Common.ServiceName
+	labels[serviceNameLabel] = opts.Common.ServiceName
+	labels[serviceUUIDLabel] = opts.Common.ServiceUUID
 
 	// create the headless service
 	err := s.createHeadlessService(ctx, opts, labels, requuid)
@@ -792,6 +796,10 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 
 	taskID = opts.Common.ServiceName + common.NameSeparator + opts.TaskType
 
+	labels := make(map[string]string)
+	labels[serviceNameLabel] = opts.Common.ServiceName
+	labels[serviceUUIDLabel] = opts.Common.ServiceUUID
+
 	envs := make([]corev1.EnvVar, len(opts.Envkvs))
 	for i, e := range opts.Envkvs {
 		envs[i] = corev1.EnvVar{
@@ -804,6 +812,7 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      taskID,
 			Namespace: s.namespace,
+			Labels:    labels,
 		},
 		Spec: batchv1.JobSpec{
 			Parallelism: s.int32Ptr(1),
@@ -814,6 +823,7 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      taskID,
 					Namespace: s.namespace,
+					Labels:    labels,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -927,7 +937,8 @@ func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.Create
 	}
 
 	labels := make(map[string]string)
-	labels[serviceLabelName] = opts.Common.ServiceName
+	labels[serviceNameLabel] = opts.Common.ServiceName
+	labels[serviceUUIDLabel] = opts.Common.ServiceUUID
 
 	replicaset := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{

@@ -38,7 +38,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	svc, err := k8ssvc.NewTestK8sSvc(common.CloudPlatformAWS, "default", config)
+	svc, err := k8ssvc.NewTestK8sSvc("testcluster", common.CloudPlatformAWS, "default", config)
 	if err != nil {
 		panic(err.Error())
 	}
