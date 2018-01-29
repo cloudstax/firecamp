@@ -16,18 +16,20 @@ import (
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/utils"
 )
 
 func TestLogDriver(t *testing.T) {
 	uuid := utils.GenUUID()
 	region := "us-east-1"
+	cluster := "c1" + uuid
+	serviceUUID := "service" + uuid
 	containerID := "test-ContainerID"
 	group := "testgroup-" + uuid
-	stream := "teststream"
 
 	ctx := context.Background()
-	d := NewDriver()
+	d := newDriver(region, cluster)
 
 	basePath := "/tmp/logdriver" + uuid
 	err := os.MkdirAll(basePath, 0700)
@@ -51,10 +53,10 @@ func TestLogDriver(t *testing.T) {
 		Config:      make(map[string]string),
 	}
 
-	logCtx.Config["awslogs-region"] = region
 	logCtx.Config["awslogs-group"] = group
-	logCtx.Config["awslogs-stream"] = stream
 	logCtx.Config["awslogs-create-group"] = "true"
+	logCtx.Config[common.LogServiceUUIDKey] = serviceUUID
+	logCtx.Config[common.LogServiceMemberKey] = "service-1"
 
 	err = d.StartLogging(fpath, logCtx)
 	if err != nil {
@@ -62,6 +64,8 @@ func TestLogDriver(t *testing.T) {
 	}
 	defer d.StopLogging(fpath)
 	defer deleteLogGroup(t, region, group)
+
+	stream := logCtx.Config[logStreamKey]
 
 	// negative case: StartLogging again
 	err = d.StartLogging(fpath, logCtx)

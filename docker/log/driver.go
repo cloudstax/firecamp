@@ -32,6 +32,7 @@ const (
 	logStreamKey = "awslogs-stream"
 )
 
+// LogDriver defines the docker log driver interface.
 type LogDriver interface {
 	StartLogging(file string, logCtx logger.Info) error
 	StopLogging(file string) error
@@ -93,15 +94,20 @@ func (d *driver) StartLogging(file string, logCtx logger.Info) error {
 		return errors.New("ServiceUUID is not set in the log config")
 	}
 
-	memberName, err := firecampplugin.GetPluginServiceMember(serviceUUID, getMemberMaxWaitSeconds, getMemberRetryWaitSeconds)
-	if err != nil {
-		logrus.WithField("id", logCtx.ContainerID).WithField("ServiceUUID", serviceUUID).WithError(err).Error("GetPluginServiceMember error")
-		return errors.Wrapf(err, "error GetPluginServiceMember, serviceUUID: %s", serviceUUID)
-	}
-
+	// get hostname
 	hostname, err := logCtx.Hostname()
 	if err != nil {
 		return errors.Wrapf(err, "error getting hostname")
+	}
+
+	// get service member name. For service with a single member, the service could directly pass this field.
+	memberName, ok := logCtx.Config[common.LogServiceMemberKey]
+	if !ok {
+		memberName, err = firecampplugin.GetPluginServiceMember(serviceUUID, getMemberMaxWaitSeconds, getMemberRetryWaitSeconds)
+		if err != nil {
+			logrus.WithField("id", logCtx.ContainerID).WithField("ServiceUUID", serviceUUID).WithError(err).Error("GetPluginServiceMember error")
+			return errors.Wrapf(err, "error GetPluginServiceMember, serviceUUID: %s", serviceUUID)
+		}
 	}
 
 	// logCtx.Config should already set the logGroup.
