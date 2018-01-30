@@ -272,7 +272,7 @@ data:
         group_name "#{ENV['FIRECAMP_CLUSTER_NAME']}-${record.fetch(\"kubernetes\", Hash.new).fetch(\"namespace_name\", \"unknown_namespace\")}-${if record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).has_key?(\"firecamp-servicename\"); record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).fetch(\"firecamp-servicename\", \"unknown_servicename\") + \"-\" + record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).fetch(\"firecamp-serviceuuid\", \"unknown_serviceuuid\"); else; record.fetch(\"kubernetes\", Hash.new).fetch(\"pod_name\", \"unknown_podname\"); end;}"
         # stream_name format: podname/containername/hostname/containerID
         # ${hostname} looks get the fluentd container hostname.
-        stream_name ${record.fetch("kubernetes", Hash.new).fetch("pod_name", "unknown_podname")}/${record.fetch("kubernetes", Hash.new).fetch("container_name", "unknown_containername")}/${record.fetch("kubernetes", Hash.new).fetch("host", "unknown_hostname")}/${record.fetch("docker", Hash.new).fetch("container_id", "unknown_containerid")}
+        stream_name ${record.fetch("kubernetes", Hash.new).fetch("pod_name", "unknown_podname")}/${record.fetch("kubernetes", Hash.new).fetch("container_name", "unknown_containername")}/${record.fetch("kubernetes", Hash.new).fetch("host", "unknown_hostname")}/${record.fetch("docker", Hash.new).fetch("container_id", "unknown_containerid")[0..12]}
       </record>
     </filter>
 
@@ -282,6 +282,7 @@ data:
       log_stream_name_key stream_name
       auto_create_stream true
       put_log_events_retry_limit 20
+      #flush_interval 5
       # fluentd cloudwatch plugin does not support format yet.
       # https://github.com/ryotarai/fluent-plugin-cloudwatch-logs lists it as a TODO.
       # see format(tag, time, record) in out_cloudwatch_logs.rb, which simply calls [tag, time, record].to_msgpack.

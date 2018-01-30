@@ -3,16 +3,19 @@ kind: ReplicaSet
 metadata:
   name: firecamp-manageserver
   labels:
-    app: firecamp-manageserver
+    firecamp-servicename: firecamp-manageserver
+    firecamp-serviceuuid: firecamp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: firecamp-manageserver
+      firecamp-servicename: firecamp-manageserver
+      firecamp-serviceuuid: firecamp
   template:
     metadata:
       labels:
-        app: firecamp-manageserver
+        firecamp-servicename: firecamp-manageserver
+        firecamp-serviceuuid: firecamp
     spec:
       serviceAccountName: firecamp-manageservice-sa
       automountServiceAccountToken: true

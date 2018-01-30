@@ -43,7 +43,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	cluster := "c1"
+	cluster := "t1"
 	service := "s1"
 	replicas := int64(1)
 
