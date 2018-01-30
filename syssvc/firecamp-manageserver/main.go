@@ -71,7 +71,7 @@ func main() {
 
 	k8snamespace := ""
 	if *platform == common.ContainerPlatformK8s {
-		k8snamespace := os.Getenv(common.ENV_K8S_NAMESPACE)
+		k8snamespace = os.Getenv(common.ENV_K8S_NAMESPACE)
 		if len(k8snamespace) == 0 {
 			glog.Infoln("k8s namespace is not set. set to default")
 			k8snamespace = common.DefaultK8sNamespace
@@ -109,6 +109,8 @@ func main() {
 			glog.Fatalln("The specified availability zone is not in the region's availability zones", *zones, regionAZs)
 		}
 	}
+
+	glog.Infoln("create manageserver, container platform", *platform, ", dbtype", *dbtype, ", availability zones", azs, ", k8snamespace", k8snamespace)
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
 	logIns := awscloudwatch.NewLog(sess, region, *platform, k8snamespace)
