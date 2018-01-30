@@ -3,7 +3,7 @@
 
 version=latest
 
-all: docker lambda
+all: install
 
 cli:
 	cd syssvc/firecamp-service-cli; go install; cd -
