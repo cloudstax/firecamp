@@ -117,13 +117,6 @@ func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, member
 		sclassname = s.genJournalVolumeStorageClassName(service)
 	}
 
-	// create pvc
-	err = s.createPVC(service, pvcname, pvname, sclassname, volumeSizeGB, requuid)
-	if err != nil {
-		glog.Errorln("create pvc error", err, pvcname, "requuid", requuid)
-		return "", err
-	}
-
 	// create pv
 	volID, err := s.createPV(service, pvname, sclassname, volumeID, volumeSizeGB, requuid)
 	if err != nil {
@@ -134,6 +127,13 @@ func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, member
 		glog.Infoln("pv exist", pvname, "existing volumeID", volID, "new volumeID", volumeID, "requuid", requuid)
 	} else {
 		glog.Infoln("created pv", pvname, "volume", volumeID, "created volID", volID, "requuid", requuid)
+	}
+
+	// create pvc
+	err = s.createPVC(service, pvcname, pvname, sclassname, volumeSizeGB, requuid)
+	if err != nil {
+		glog.Errorln("create pvc error", err, pvcname, "requuid", requuid)
+		return "", err
 	}
 
 	return volID, err
@@ -647,7 +647,7 @@ func (s *K8sSvc) GetServiceStatus(ctx context.Context, cluster string, service s
 
 	status := &common.ServiceStatus{
 		RunningCount: int64(statefulset.Status.ReadyReplicas),
-		DesiredCount: int64(statefulset.Status.Replicas),
+		DesiredCount: int64(*(statefulset.Spec.Replicas)),
 	}
 	return status, nil
 }

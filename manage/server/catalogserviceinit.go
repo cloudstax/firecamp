@@ -188,7 +188,7 @@ func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *servi
 			glog.Errorln("GetServiceStatus error", err, "requuid", requuid, task)
 		} else {
 			if status.RunningCount == status.DesiredCount {
-				glog.Infoln("The service containers are all running, requuid", requuid, task)
+				glog.Infoln("The service containers are all running, requuid", requuid, status, task)
 				task.statusMessage = serviceRunningMsg
 				return nil
 			}
