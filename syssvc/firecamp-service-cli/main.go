@@ -34,6 +34,14 @@ import (
 
 // The catalog service command tool to create/query the catalog service.
 
+const (
+	// max wait 300s for service initialization. The pods of K8s statefulset may take long time to become ready.
+	// The pod init may fail a few times with "FailedMount". But after some time, volume could be finally mounted.
+	// Not sure why yet. There are many similar issues reported, but no one seems to have the answer.
+	// TODO further investigate the reason.
+	maxServiceInitWaitSeconds = time.Duration(300) * time.Second
+)
+
 var (
 	op               = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
 	serviceType      = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
@@ -600,11 +608,11 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 	}
 
 	if req.Options.Shards == 1 && req.Options.ReplicaSetOnly {
-		fmt.Println("The catalog service is created, wait till it gets initialized")
+		fmt.Println(time.Now().UTC(), "The catalog service is created, wait till it gets initialized")
 	} else {
 		// mongodb sharded cluster
-		fmt.Println("The MongoDB Sharded cluster is created, please run the mongos with keyfile content", keyfileContent)
-		fmt.Println("Wait till the sharded cluster gets initialized")
+		fmt.Println(time.Now().UTC(), "The MongoDB Sharded cluster is created, please run the mongos with keyfile content", keyfileContent)
+		fmt.Println(time.Now().UTC(), "Wait till the sharded cluster gets initialized")
 	}
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
@@ -675,8 +683,8 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		os.Exit(-1)
 	}
 
-	fmt.Println("The catalog service is created, jmx user", jmxUser, "password", jmxPasswd)
-	fmt.Println("wait till the service gets initialized")
+	fmt.Println(time.Now().UTC(), "The catalog service is created, jmx user", jmxUser, "password", jmxPasswd)
+	fmt.Println(time.Now().UTC(), "wait till the service gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: common.CatalogService_Cassandra,
@@ -755,21 +763,21 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
 	sleepSeconds := time.Duration(5) * time.Second
-	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
+	for sec := time.Duration(0); sec < maxServiceInitWaitSeconds; sec += sleepSeconds {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err == nil {
 			if initialized {
-				fmt.Println("The catalog service is initialized")
+				fmt.Println(time.Now().UTC(), "The catalog service is initialized")
 				return
 			}
-			fmt.Println(statusMsg)
+			fmt.Println(time.Now().UTC(), statusMsg)
 		} else {
-			fmt.Println("check service init error", err)
+			fmt.Println(time.Now().UTC(), "check service init error", err)
 		}
 		time.Sleep(sleepSeconds)
 	}
 
-	fmt.Println("The catalog service is not initialized after", common.DefaultServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", common.DefaultServiceWaitSeconds)
 	os.Exit(-1)
 }
 
@@ -815,7 +823,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The zookeeper service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The zookeeper service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -866,7 +874,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The kafka service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The kafka service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -925,7 +933,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	if rediscatalog.IsClusterMode(*redisShards) {
-		fmt.Println("The service is created, wait till it gets initialized")
+		fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
 			ServiceType: common.CatalogService_Redis,
@@ -935,7 +943,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		waitServiceInit(ctx, cli, initReq)
 	}
 
-	fmt.Println("The service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The service is created, wait for all containers running")
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
@@ -1016,7 +1024,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The service is created, wait till it gets initialized")
+	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
 		ServiceType: common.CatalogService_CouchDB,
@@ -1105,8 +1113,8 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The consul service created, Consul server ips", serverips)
-	fmt.Println("Wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The consul service created, Consul server ips", serverips)
+	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1163,7 +1171,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1243,7 +1251,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The kibana service created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The kibana service created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1316,7 +1324,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("The logstash service created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The logstash service created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1374,7 +1382,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 		os.Exit(-1)
 	}
 
-	fmt.Println("The postgresql service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The postgresql service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1388,19 +1396,19 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 			// temporary error, such as network error. For example, ECS may return MISSING
 			// for the GET right after the service creation.
 			// Here just log the GetServiceStatus error and retry.
-			fmt.Println("GetServiceStatus error", err, r)
+			fmt.Println(time.Now().UTC(), "GetServiceStatus error", err, r)
 		} else {
 			if status.RunningCount == status.DesiredCount {
-				fmt.Println("All service containers are running, RunningCount", status.RunningCount)
+				fmt.Println(time.Now().UTC(), "All service containers are running, RunningCount", status.RunningCount)
 				return
 			}
-			fmt.Println("wait the service containers running, RunningCount", status.RunningCount)
+			fmt.Println(time.Now().UTC(), "wait the service containers running, RunningCount", status.RunningCount)
 		}
 
 		time.Sleep(sleepSeconds)
 	}
 
-	fmt.Println("not all service containers are running after", common.DefaultServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "not all service containers are running after", common.DefaultServiceWaitSeconds)
 	os.Exit(-1)
 }
 
