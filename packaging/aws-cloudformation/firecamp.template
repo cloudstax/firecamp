@@ -149,6 +149,11 @@
               }
             }
           ]
+        },
+        "Parameters": {
+          "ContainerPlatform": {
+            "Ref": "ContainerPlatform"
+          }
         }
       }
     },
