@@ -2,7 +2,7 @@
 * [Design Considerations](https://github.com/cloudstax/firecamp/tree/master/docs/architect#design-considerations)
   * [Storage](https://github.com/cloudstax/firecamp/tree/master/docs/architect#storage)
   * [Network](https://github.com/cloudstax/firecamp/tree/master/docs/architect#network)
-  * [Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#static-ip)
+    * [Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#static-ip)
 * [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect#architecture)
 * [Components](https://github.com/cloudstax/firecamp/tree/master/docs/architect#components)
   * [Key-Value Database](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-key-value-database)
@@ -21,7 +21,7 @@ Also when the member moves, the member should be able to join back the cluster a
 While, some services, such as Redis and Consul, do not work with the DNS name, instead, they require the static IP for each member. To run this kind of services, a static IP needs to be binded to the container of one service member.
 
 # Design Considerations
-FireCamp follows below design principles.
+The stability is always the most important thing for a stateful service. The top 3 goals of FireCamp are stability, ease of use and performance. FireCamp follows below design principles.
 
 1. **Self-Manage.**
 The stateful services should be easy to set up, manage and scale.
