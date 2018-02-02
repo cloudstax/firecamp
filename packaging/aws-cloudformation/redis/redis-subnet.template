@@ -100,6 +100,11 @@
       "Default": "1",
       "Description": "The Redis volume size. If AOF is enabled, volume size should be 6x of memory cache size. If AOF is disabled, volume size could be 2x of memory cache size."
     },
+    "Encrypted": {
+      "Type": "Boolean",
+      "Default": false,
+      "Description": "Whether to encrypt the Redis volume."
+    },
     "DisableAOF": {
       "Type": "String",
       "Default": "false",
@@ -252,6 +257,9 @@
           },
           "VolumeSizeGB": {
             "Ref": "VolumeSizeGB"
+          },
+          "Encrypted": {
+            "Ref": "Encrypted"
           },
           "DisableAOF": {
             "Ref": "DisableAOF"

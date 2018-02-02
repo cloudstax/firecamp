@@ -118,6 +118,8 @@ To create a 3 nodes PostgreSQL cluster on 3 availability zones, with 100GB data 
 firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -journal-volume-size=10 -volume-size=100 -passwd=changeme -replication-user=repluser -replication-passwd=replpassword
 ```
 
+To encrypt the data and/or journal volumes add **-volume-encrypted=true** and/or **-journal-volume-encrypted=true** to the **firecamp-service-cli** command line. It works in AWS environments only.
+
 For more details, please refer to each service's tutorials in the service's readme, such as [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb).
 
 The general service creation steps:

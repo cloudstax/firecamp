@@ -403,7 +403,8 @@ func EqualServiceVolumes(v1 *common.ServiceVolumes, v2 *common.ServiceVolumes) b
 func EqualServiceVolume(v1 *common.ServiceVolume, v2 *common.ServiceVolume) bool {
 	if v1.VolumeType == v2.VolumeType &&
 		v1.Iops == v2.Iops &&
-		v1.VolumeSizeGB == v2.VolumeSizeGB {
+		v1.VolumeSizeGB == v2.VolumeSizeGB &&
+		v1.Encrypted == v2.Encrypted {
 		return true
 	}
 	return false

@@ -141,6 +141,7 @@ func TestVolumeFunctions(t *testing.T) {
 		VolumeType:   common.VolumeTypeIOPSSSD,
 		VolumeSizeGB: 1,
 		Iops:         1,
+		Encrypted:    false,
 	}
 
 	uuid2, err := mgsvc.CreateService(ctx, req, domain, vpcID)
@@ -234,6 +235,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: 1,
 			Iops:         1,
+			Encrypted:    false,
 		}
 	}
 

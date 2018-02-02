@@ -358,6 +358,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 			VolumeType: req.Volume.VolumeType,
 			SizeGB:     req.Volume.VolumeSizeGB,
 			Iops:       req.Volume.Iops,
+			Encrypted:  req.Volume.Encrypted,
 		},
 		PortMappings:     req.PortMappings,
 		ExternalDNS:      req.RegisterDNS,
@@ -369,6 +370,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 			VolumeType: req.JournalVolume.VolumeType,
 			SizeGB:     req.JournalVolume.VolumeSizeGB,
 			Iops:       req.JournalVolume.Iops,
+			Encrypted:  req.JournalVolume.Encrypted,
 		}
 	}
 

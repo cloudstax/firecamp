@@ -993,6 +993,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 		VolumeType:       vol.VolumeType,
 		VolumeSizeGB:     vol.VolumeSizeGB,
 		Iops:             vol.Iops,
+		Encrypted:        vol.Encrypted,
 		TagSpecs: []common.KeyValuePair{
 			common.KeyValuePair{
 				Key:   "Name",

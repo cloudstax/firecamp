@@ -45,9 +45,11 @@ var (
 	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
 	volSizeGB        = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
+	volEncrypted     = flag.Bool("volume-encrypted", false, "whether to create encrypted volume")
 	journalVolType   = flag.String("journal-volume-type", common.VolumeTypeGPSSD, "The service journal EBS volume type: gp2|io1|st1")
 	journalVolIops   = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
 	journalVolSizeGB = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
+	journalVolEncrypted = flag.Bool("journal-volume-encrypted", false, "whether to create encrypted journal volume")
 	maxCPUUnits      = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
 	reserveCPUUnits  = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
 	maxMemMB         = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
@@ -234,11 +236,13 @@ func usage() {
 			printFlag(flag.Lookup("volume-type"))
 			printFlag(flag.Lookup("volume-size"))
 			printFlag(flag.Lookup("volume-iops"))
+			printFlag(flag.Lookup("volume-encrypted"))
 			switch *serviceType {
 			case common.CatalogService_MongoDB:
 				printFlag(flag.Lookup("journal-volume-type"))
 				printFlag(flag.Lookup("journal-volume-size"))
 				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("mongo-shards"))
 				printFlag(flag.Lookup("mongo-replicas-pershard"))
 				printFlag(flag.Lookup("mongo-replicaset-only"))
@@ -249,6 +253,7 @@ func usage() {
 				printFlag(flag.Lookup("journal-volume-type"))
 				printFlag(flag.Lookup("journal-volume-size"))
 				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("password"))
 				printFlag(flag.Lookup("pg-image"))
@@ -258,6 +263,7 @@ func usage() {
 				printFlag(flag.Lookup("journal-volume-type"))
 				printFlag(flag.Lookup("journal-volume-size"))
 				printFlag(flag.Lookup("journal-volume-iops"))
+				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("cas-heap-size"))
 			case common.CatalogService_Redis:
@@ -454,6 +460,7 @@ func main() {
 				VolumeType:   *journalVolType,
 				VolumeSizeGB: *journalVolSizeGB,
 				Iops:         *journalVolIops,
+				Encrypted:    *journalVolEncrypted,
 			}
 		}
 		switch *serviceType {
@@ -580,6 +587,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 			JournalVolume: journalVol,
 			Admin:         *admin,
@@ -655,6 +663,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 			JournalVolume:   journalVol,
 			HeapSizeMB:      *casHeapSizeMB,
@@ -805,6 +814,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 		},
 	}
@@ -851,6 +861,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 
 			HeapSizeMB:     *kafkaHeapSizeMB,
@@ -902,6 +913,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 
 			DisableAOF:      *redisDisableAOF,
@@ -970,6 +982,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 		},
 	}
@@ -1057,6 +1070,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 
 			Datacenter: *consulDc,
@@ -1142,6 +1156,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 
 			HeapSizeMB:             *esHeapSizeMB,
@@ -1206,6 +1221,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 			ESServiceName: *kbESServiceName,
 			ProxyBasePath: *kbProxyBasePath,
@@ -1291,6 +1307,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 			HeapSizeMB:            *lsHeapSizeMB,
 			ContainerImage:        *lsContainerImage,
@@ -1353,6 +1370,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
+				Encrypted:    *volEncrypted,
 			},
 			JournalVolume:  journalVol,
 			ContainerImage: *pgContainerImage,
