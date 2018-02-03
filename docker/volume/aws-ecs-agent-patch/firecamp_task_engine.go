@@ -19,8 +19,9 @@ func (err *VolumeDriverConfigError) ErrorName() string { return "VolumeDriverCon
 
 // Define here again to avoid the dependency on githut.com/cloudstax/firecamp
 const (
-	volumeDriver        = "cloudstax/firecamp-volume"
-	logDriver           = "cloudstax/firecamp-log"
+	org                 = "cloudstax/"
+	volumeDriver        = org + "firecamp-volume"
+	logDriver           = org + "firecamp-log"
 	logGroupKey         = "awslogs-group"
 	logServiceUUIDKey   = "ServiceUUID"
 	logDriverMinVersion = "0.9.3"
