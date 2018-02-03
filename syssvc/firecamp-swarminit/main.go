@@ -226,6 +226,12 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 	// set the LogServiceMemberKey for the log driver
 	logConfig.Options[common.LogServiceMemberKey] = common.ManageName
 
+	// create the log group
+	err := logIns.InitializeServiceLogConfig(ctx, cluster, common.ManageName, serviceUUID)
+	if err != nil {
+		glog.Fatalln("create the manage service log group error", err, common.ManageName)
+	}
+
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,
 		ServiceName:    common.ManageServiceName,
@@ -275,7 +281,7 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 		Constraints: []string{manageServerConstraint},
 	}
 
-	err := swarmSvc.CreateSwarmService(ctx, spec, createOpts)
+	err = swarmSvc.CreateSwarmService(ctx, spec, createOpts)
 	if err != nil {
 		glog.Fatalln("create the manage service error", err, cluster)
 	}
