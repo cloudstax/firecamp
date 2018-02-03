@@ -6,6 +6,8 @@ containerPlatform=$3
 containerPlatformRole=$4
 azs=$5
 
+org="cloudstax/"
+
 if [ "$version" = "" -o "$clusterName" = "" -o "$azs" = "" ]; then
   echo "version $version, clusterName $clusterName and azs $azs should not be empty"
   exit 1
@@ -57,7 +59,7 @@ yum install -y docker
 # 3. Create the firecamp data directory.
 # The volume plugin will write the service member to the data directory, so the log plugin
 # could know the target service member for the log stream.
-mkdir /var/lib/firecamp
+mkdir -p /var/lib/firecamp
 
 # 4. Container platform specific initialization.
 if [ "$containerPlatform" = "ecs" ]; then
@@ -99,25 +101,25 @@ if [ "$containerPlatform" = "ecs" ]; then
     --env=ECS_DATADIR=/data/ \
     --env=ECS_ENABLE_TASK_IAM_ROLE=true \
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
-    cloudstax/firecamp-amazon-ecs-agent:latest
+    ${org}firecamp-amazon-ecs-agent:latest
 
   # wait for ecs agent to be ready
   sleep 6
 
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp
-  docker plugin install --grant-all-permissions cloudstax/firecamp-volume:$version
+  docker plugin install --grant-all-permissions ${org}firecamp-volume:$version
 
   # check if volume plugin is enabled
-  enabled=$(docker plugin inspect cloudstax/firecamp-volume:$version | grep Enabled | grep true)
+  enabled=$(docker plugin inspect ${org}firecamp-volume:$version | grep Enabled | grep true)
   if [ -z "$enabled" ]; then
     # volume plugin not enabled. this may happen if ecs agent is not ready. wait some time and try to enable it again.
     sleep 10
-    docker plugin enable cloudstax/firecamp-volume:$version
+    docker plugin enable ${org}firecamp-volume:$version
   fi
 
   # install firecamp docker log plugin
-  docker plugin install --grant-all-permissions cloudstax/firecamp-log:$version CLUSTER="$clusterName"
+  docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
 
 fi
 
@@ -184,11 +186,11 @@ if [ "$containerPlatform" = "swarm" ]; then
     # worker node, install the firecamp plugin
     # install firecamp docker volume plugin
     mkdir -p /var/log/firecamp
-    docker plugin install --grant-all-permissions cloudstax/firecamp-volume:$version PLATFORM="swarm" CLUSTER="$clusterName"
-
-    # install firecamp docker log plugin
-    docker plugin install --grant-all-permissions cloudstax/firecamp-log:$version CLUSTER="$clusterName"
+    docker plugin install --grant-all-permissions ${org}firecamp-volume:$version PLATFORM="swarm" CLUSTER="$clusterName"
   fi
+
+  # install firecamp docker log plugin on worker and manage nodes
+  docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
 fi
 
 
