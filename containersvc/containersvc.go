@@ -11,7 +11,7 @@ import (
 
 const (
 	// TestBusyBoxContainerImage is the busybox image for unit test.
-	TestBusyBoxContainerImage = common.OrgName + "/" + common.SystemName + "-busybox"
+	TestBusyBoxContainerImage = common.OrgName + common.SystemName + "-busybox"
 )
 
 var (

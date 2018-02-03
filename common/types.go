@@ -15,9 +15,9 @@ const (
 	ContainerPlatformRoleWorker  = "worker"
 
 	// OrgName and SystemName could not include "-"
-	OrgName             = "cloudstax"
+	OrgName             = "cloudstax/"
 	SystemName          = "firecamp"
-	ContainerNamePrefix = OrgName + "/" + SystemName + "-"
+	ContainerNamePrefix = OrgName + SystemName + "-"
 
 	DefaultFSType = "xfs"
 
@@ -27,12 +27,12 @@ const (
 	// please also update docker/volume/aws-ecs-agent-patch/firecamp_task_engine.go,
 	// Has the separate definition in firecamp_task_engine.go aims to avoid the dependency of
 	// ecs-agent on firecamp code.
-	VolumeDriverName = OrgName + "/" + SystemName + "-" + "volume:" + Version
+	VolumeDriverName = OrgName + SystemName + "-" + "volume:" + Version
 
 	// LogDriverName is the name for docker log driver.
 	// Do NOT change the log driver name. If this name is changed,
 	// please update the log driver plugin in scripts/builddocker.sh.
-	LogDriverName = OrgName + "/" + SystemName + "-" + "log:" + Version
+	LogDriverName = OrgName + SystemName + "-" + "log:" + Version
 	// The LogServiceUUIDKey is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
 	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
 	LogServiceUUIDKey = "ServiceUUID"
@@ -86,7 +86,7 @@ const (
 	// The service uuid of the controldb service would be ControlDBUUIDPrefix + volumeID.
 	// The volumeID is the ID of the volume created for the controldb service.
 	ControlDBUUIDPrefix      = ControlDBName + NameSeparator
-	ControlDBContainerImage  = OrgName + "/" + ControlDBServiceName + ":" + Version
+	ControlDBContainerImage  = OrgName + ControlDBServiceName + ":" + Version
 	ControlDBReserveCPUUnits = 256
 	ControlDBMaxMemMB        = 4096
 	ControlDBReserveMemMB    = 256
@@ -95,7 +95,7 @@ const (
 	ManageHTTPServerPort  = 27040
 	ManageName            = "manageserver"
 	ManageServiceName     = SystemName + NameSeparator + ManageName
-	ManageContainerImage  = OrgName + "/" + ManageServiceName + ":" + Version
+	ManageContainerImage  = OrgName + ManageServiceName + ":" + Version
 	ManageReserveCPUUnits = 256
 	ManageMaxMemMB        = 4096
 	ManageReserveMemMB    = 256

@@ -11,8 +11,8 @@ import (
 
 const (
 	// K8sServiceInitContainerImage is the common init container image for all services in k8s.
-	K8sServiceInitContainerImage      = common.OrgName + "/" + common.SystemName + "-initcontainer"
-	K8sServiceStopContainerImage      = common.OrgName + "/" + common.SystemName + "-stopcontainer"
+	K8sServiceInitContainerImage      = common.OrgName + common.SystemName + "-initcontainer"
+	K8sServiceStopContainerImage      = common.OrgName + common.SystemName + "-stopcontainer"
 	k8sServiceStopContainerPreStopCmd = "/firecamp-stopcontainer"
 
 	EnvInitContainerTestMode    = "TESTMODE"

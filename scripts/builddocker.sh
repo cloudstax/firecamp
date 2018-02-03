@@ -167,7 +167,7 @@ BuildCatalogImages() {
   sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
   docker build -q -t $image .
   docker push $image
-  #rm -f Dockerfile
+  rm -f Dockerfile
   cd -
 
   # build cassandra docker image
@@ -288,7 +288,7 @@ BuildCatalogImages() {
   sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
   docker build -q -t $image .
   docker push $image
-  #rm -f Dockerfile
+  rm -f Dockerfile
   cd -
 
 }
