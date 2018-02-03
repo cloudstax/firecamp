@@ -1,7 +1,8 @@
 
 .PHONY: install docker test lambda
 
-version=latest
+org="cloudstax/"
+version="latest"
 
 all: install
 
@@ -16,16 +17,16 @@ lambda:
 	./scripts/buildlambda.sh
 
 docker: install
-	./scripts/builddocker.sh $(version) all
+	./scripts/builddocker.sh $(org) $(version) all
 
 pluginimages:
-	./scripts/builddocker.sh $(version) pluginimages
+	./scripts/builddocker.sh $(org) $(version) pluginimages
 
 manageimages:
-	./scripts/builddocker.sh $(version) manageimages
+	./scripts/builddocker.sh $(org) $(version) manageimages
 
 catalogimages:
-	./scripts/builddocker.sh $(version) catalogimages
+	./scripts/builddocker.sh $(org) $(version) catalogimages
 
 test:
 	./scripts/gotest.sh

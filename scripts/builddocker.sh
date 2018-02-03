@@ -4,11 +4,13 @@ set -e
 
 export TOPWD="$(pwd)"
 
-version=$1
-buildtarget=$2
+org=$1
+version=$2
+buildtarget=$3
 
-org="cloudstax/"
 system="firecamp"
+
+replaceOrgName="s!%%OrgName%%!${org}!g;"
 
 BuildPlugin() {
   path="${TOPWD}/scripts/plugin-dockerfile"
@@ -161,8 +163,12 @@ BuildCatalogImages() {
   target=$system"-postgres-postgis"
   image="${org}${target}:9.6"
   path="${TOPWD}/catalog/postgres/9.6/postgis-dockerfile/"
-  docker build -q -t $image $path
+  cd $path
+  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
+  docker build -q -t $image .
   docker push $image
+  #rm -f Dockerfile
+  cd -
 
   # build cassandra docker image
   echo
@@ -278,8 +284,12 @@ BuildCatalogImages() {
   target=$system"-logstash-input-couchdb"
   image="${org}${target}:5.6"
   path="${TOPWD}/catalog/logstash/5.6/input-couchdb-dockerfile/"
-  docker build -q -t $image $path
+  cd $path
+  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
+  docker build -q -t $image .
   docker push $image
+  #rm -f Dockerfile
+  cd -
 
 }
 
