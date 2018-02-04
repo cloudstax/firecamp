@@ -1,7 +1,11 @@
 #!/bin/sh
 set -ex
 
+
+# for the single replicaset
 primary=$(mongo --host mymongo-0.t1-firecamp.com --eval "db.isMaster()" | grep primary | awk '{ print $3 }' | awk -F "\"" '{ print $2 }')
+# for the sharded cluster
+#primary=localhost
 
 mongo --host $primary -u admin -p changeme --authenticationDatabase admin memberdb --eval "
 db.createUser(

@@ -91,7 +91,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	portmapping := common.PortMapping{
 		ContainerPort: mongoPort,
 		HostPort:      mongoPort,
-		IsServicePort:   true,
+		IsServicePort: true,
 	}
 	portmaps := []common.PortMapping{portmapping}
 	if opts.Shards != 1 || !opts.ReplicaSetOnly {
@@ -211,7 +211,7 @@ func GenReplicaConfigs(platform string, azs []string, cluster string, service st
 		shardName := getShardName(service, shard)
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
 			member := utils.GenServiceMemberName(shardName, i)
-			index := int(i) % len(azs)
+			index := int(shard+i) % len(azs)
 			az := azs[index]
 			replicaCfg := genReplicaConfig(platform, domain, member, shardName, shardRole, az, maxMemMB, keyfileCfg)
 			replicaCfgs = append(replicaCfgs, replicaCfg)
