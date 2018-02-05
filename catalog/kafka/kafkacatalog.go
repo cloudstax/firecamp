@@ -132,7 +132,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			bind = catalog.BindAllIP
 		}
 		content := fmt.Sprintf(serverPropConfig, i, azs[index], strconv.FormatBool(opts.AllowTopicDel), numPartitions, bind, memberHost,
-			replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
+			replFactor, replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
 		serverCfg := &manage.ReplicaConfigFile{
 			FileName: serverPropConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -196,6 +196,7 @@ log.dirs=/data/kafka
 offsets.topic.replication.factor=%d
 transaction.state.log.replication.factor=%d
 transaction.state.log.min.isr=%d
+default.replication.factor=%d
 min.insync.replicas=%d
 
 unclean.leader.election.enable=false
