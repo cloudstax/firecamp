@@ -264,7 +264,7 @@
     "SwarmClusterStack":{
       "Type": "AWS::CloudFormation::Stack",
       "Condition": "SwarmContainerPlatformCondition",
-      "DependsOn": "DynamoDBTables",
+      "DependsOn": [ "DynamoDBTables", "Route53HostedZone" ],
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
