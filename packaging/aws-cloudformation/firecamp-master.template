@@ -252,7 +252,7 @@
         "3",
         "4"
       ],
-      "Default": "1",
+      "Default": "2",
       "Description": "Enter the number of bastion hosts to create",
       "Type": "String"
     },

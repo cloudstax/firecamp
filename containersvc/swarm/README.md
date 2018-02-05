@@ -38,18 +38,18 @@ If the cluster includes only 1 or 2 availability zones and Redis is deployed to 
 
 Create the FireCamp directory: `sudo mkdir -p /var/lib/firecamp` and `sudo mkdir -p /var/log/firecamp`.
 
-Install plugin at such as release 0.9.2: `docker plugin install --grant-all-permissions cloudstax/firecamp-volume:0.9.2 PLATFORM=swarm CLUSTER=c1` and `docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.2 CLUSTER=c1`.
+Install plugin at such as release 0.9.3: `docker plugin install --grant-all-permissions cloudstax/firecamp-volume:0.9.3 PLATFORM=swarm CLUSTER=c1` and `docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.3 CLUSTER=c1`.
 
 5. Install FireCamp log plugin on every swarm manager node.
 
 Create the FireCamp directory: `sudo mkdir -p /var/lib/firecamp` and `sudo mkdir -p /var/log/firecamp`.
 
-Install plugin at such as release 0.9.2: `docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.2 CLUSTER=c1`.
+Install plugin at such as release 0.9.3: `docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.3 CLUSTER=c1`.
 
 6. Create the FireCamp manageserver service on the swarm manager node.
 
-The example command for release 0.9.2:
-`docker service create --name firecamp-manageserver --constraint node.role==manager --publish mode=host,target=27040,published=27040 --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 --log-driver=cloudstax/firecamp-log:0.9.2 --log-opt ServiceUUID=firecamp --log-opt ServiceMember=manageserver -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a,us-east-1b,us-east-1c -e CLUSTER=c1 cloudstax/firecamp-manageserver:0.9.2`
+The example command for release 0.9.3:
+`docker service create --name firecamp-manageserver --constraint node.role==manager --publish mode=host,target=27040,published=27040 --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 --log-driver=cloudstax/firecamp-log:0.9.3 --log-opt ServiceUUID=firecamp --log-opt ServiceMember=manageserver -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a,us-east-1b,us-east-1c -e CLUSTER=c1 cloudstax/firecamp-manageserver:0.9.3`
 
 Please update the AVAILABILITY_ZONES, CLUSTER, the manageserver docker image tag and firecamp log plugin tag accordingly accordingly to your environment. Please do NOT change others.
 

@@ -76,7 +76,7 @@ This is a simple tutorial about how to create a ElasticSearch service and how to
 ## Create an ElasticSearch service
 Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a ElasticSearch cluster:
 ```
-firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048 -es-disable-dedicated-master=false -es-dedicated-masters=3
 ```
 
 This creates a 3 dedicated master nodes and 3 data nodes ElasticSearch cluster on 3 availability zones. The master nodes and data nodes will be evenly distributed to different availability zone. So the ElasticSearch service could tolerate one availability zone failure. The default heap size is 2g. To change the heap size, such as 512MB for test, set -es-heap-size=512. Every node has 10GB volume. The master node DNS names are: myes-master-0.t1-firecamp.com, myes-master-1.t1-firecamp.com, myes-master-2.t1-firecamp.com. The data node DNS names are: myes-0.t1-firecamp.com, myes-1.t1-firecamp.com, myes-2.t1-firecamp.com.
