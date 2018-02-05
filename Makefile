@@ -2,7 +2,7 @@
 .PHONY: install docker test lambda
 
 org="cloudstax/"
-version="latest"
+version="0.9.3"
 
 all: install
 
