@@ -100,7 +100,7 @@
               {
                 "Ref": "ClusterName"
               },
-              "manageserver"
+              "manageserver-firecamp"
             ]
           ]
         },
