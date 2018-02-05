@@ -309,6 +309,7 @@ func (s *AWSEc2) CreateVolume(ctx context.Context, opts *server.CreateVolumeOpti
 		AvailabilityZone: aws.String(opts.AvailabilityZone),
 		VolumeType:       aws.String(opts.VolumeType),
 		Size:             aws.Int64(opts.VolumeSizeGB),
+		Encrypted:        aws.Bool(opts.Encrypted),
 	}
 	if opts.VolumeType == common.VolumeTypeIOPSSSD {
 		params.Iops = aws.Int64(opts.Iops)

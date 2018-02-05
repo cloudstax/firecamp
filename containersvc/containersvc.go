@@ -36,6 +36,7 @@ type VolumeOptions struct {
 	VolumeType string
 	SizeGB     int64
 	Iops       int64
+	Encrypted  bool
 }
 
 type Placement struct {

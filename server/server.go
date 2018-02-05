@@ -36,6 +36,7 @@ type CreateVolumeOptions struct {
 	VolumeType       string
 	Iops             int64
 	VolumeSizeGB     int64
+	Encrypted        bool
 	TagSpecs         []common.KeyValuePair
 }
 

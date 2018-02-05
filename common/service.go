@@ -268,6 +268,7 @@ type ServiceVolume struct {
 	VolumeType   string
 	VolumeSizeGB int64
 	Iops         int64
+	Encrypted    bool
 }
 
 // ServiceMember represents the attributes of one service member.

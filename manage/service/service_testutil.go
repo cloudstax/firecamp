@@ -66,6 +66,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 				Iops:         100,
+				Encrypted:    false,
 			}
 		}
 
@@ -201,6 +202,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: 1,
 				Iops:         100,
+				Encrypted:    false,
 			}
 		}
 
@@ -494,6 +496,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: volSize,
 			Iops:         1,
+			Encrypted:    false,
 		}
 	}
 
@@ -764,6 +767,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			VolumeType:   common.VolumeTypeGPSSD,
 			VolumeSizeGB: volSize,
 			Iops:         1,
+			Encrypted:    false,
 		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),

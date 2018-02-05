@@ -56,6 +56,7 @@ def lambda_handler(event, context):
                         "VolumeType": properties['VolumeType'],
                         "Iops": int(properties['Iops']),
                         "VolumeSizeGB": int(properties['VolumeSizeGB']),
+                        "Encrypted": properties['Encrypted'],
                     },
                     "DisableAOF": disableAOF,
                     "AuthPass": properties['AuthPass'],
