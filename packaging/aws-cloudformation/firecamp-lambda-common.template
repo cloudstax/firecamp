@@ -2,6 +2,15 @@
   "AWSTemplateFormatVersion":"2010-09-09",
   "Description": "This template creates the Lambda Role, and the destroy function that cleans up the Lambda ENI.",
   "Parameters":{
+    "ClusterName":{
+      "Type":"String",
+      "Description":"Name of the ECS cluster.",
+      "Default":"default",
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
+    },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
       "Default": "cloudstax",
@@ -234,7 +243,16 @@
       "DependsOn": "CopyZipsFunction",
       "DeletionPolicy": "Retain",
       "Properties": {
-        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "CopyZipsFunction"}]]},
+        "LogGroupName": {
+          "Fn::Join": [
+            "/",
+            [
+              {"Ref": "ClusterName"},
+              "aws/lambda",
+              {"Ref": "CopyZipsFunction"}
+            ]
+          ]
+        },
         "RetentionInDays": 1
       }
     },
@@ -360,7 +378,16 @@
       "DependsOn": "VPCDestroyENIFunction",
       "DeletionPolicy": "Retain",
       "Properties": {
-        "LogGroupName": {"Fn::Join": ["", ["/aws/lambda/", {"Ref": "VPCDestroyENIFunction"}]]},
+        "LogGroupName": {
+          "Fn::Join": [
+            "/",
+            [
+              {"Ref": "ClusterName"},
+              "aws/lambda",
+              {"Ref": "VPCDestroyENIFunction"}
+            ]
+          ]
+        },
         "RetentionInDays": 1
       }
     }
