@@ -43,25 +43,25 @@ const (
 )
 
 var (
-	op               = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
-	serviceType      = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
-	cluster          = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
-	serverURL        = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
-	region           = flag.String("region", "", "The AWS region")
-	service          = flag.String("service-name", "", "The service name. Can only contain letters, numbers, or hyphens")
-	replicas         = flag.Int64("replicas", 3, "The number of replicas for the service")
-	volType          = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
-	volIops          = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
-	volSizeGB        = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	volEncrypted     = flag.Bool("volume-encrypted", false, "whether to create encrypted volume")
-	journalVolType   = flag.String("journal-volume-type", common.VolumeTypeGPSSD, "The service journal EBS volume type: gp2|io1|st1")
-	journalVolIops   = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
-	journalVolSizeGB = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
+	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
+	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
+	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
+	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
+	region              = flag.String("region", "", "The AWS region")
+	service             = flag.String("service-name", "", "The service name. Can only contain letters, numbers, or hyphens")
+	replicas            = flag.Int64("replicas", 3, "The number of replicas for the service")
+	volType             = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
+	volIops             = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
+	volSizeGB           = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
+	volEncrypted        = flag.Bool("volume-encrypted", false, "whether to create encrypted volume")
+	journalVolType      = flag.String("journal-volume-type", common.VolumeTypeGPSSD, "The service journal EBS volume type: gp2|io1|st1")
+	journalVolIops      = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
+	journalVolSizeGB    = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
 	journalVolEncrypted = flag.Bool("journal-volume-encrypted", false, "whether to create encrypted journal volume")
-	maxCPUUnits      = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
-	reserveCPUUnits  = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
-	maxMemMB         = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
-	reserveMemMB     = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
+	maxCPUUnits         = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
+	reserveCPUUnits     = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
+	maxMemMB            = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
+	reserveMemMB        = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
 	admin       = flag.String("admin", "admin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
@@ -611,7 +611,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 
 	keyfileContent, err := cli.CatalogCreateMongoDBService(ctx, req)
 	if err != nil {
-		fmt.Println("create catalog mongodb service error", err)
+		fmt.Println(time.Now().UTC(), "create catalog mongodb service error", err)
 		os.Exit(-1)
 	}
 
@@ -688,7 +688,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 
 	jmxUser, jmxPasswd, err := cli.CatalogCreateCassandraService(ctx, req)
 	if err != nil {
-		fmt.Println("create cassandra service error", err)
+		fmt.Println(time.Now().UTC(), "create cassandra service error", err)
 		os.Exit(-1)
 	}
 
@@ -737,7 +737,7 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 
 	err = cli.CatalogUpdateCassandraService(ctx, req)
 	if err != nil {
-		fmt.Println("update cassandra service error", err)
+		fmt.Println(time.Now().UTC(), "update cassandra service error", err)
 		os.Exit(-1)
 	}
 
@@ -761,7 +761,7 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.CatalogScaleCassandraService(ctx, req)
 	if err != nil {
-		fmt.Println("scale cassandra service error", err)
+		fmt.Println(time.Now().UTC(), "scale cassandra service error", err)
 		os.Exit(-1)
 	}
 
@@ -829,7 +829,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.CatalogCreateZooKeeperService(ctx, req)
 	if err != nil {
-		fmt.Println("create zookeeper service error", err)
+		fmt.Println(time.Now().UTC(), "create zookeeper service error", err)
 		os.Exit(-1)
 	}
 
@@ -881,7 +881,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.CatalogCreateKafkaService(ctx, req)
 	if err != nil {
-		fmt.Println("create kafka service error", err)
+		fmt.Println(time.Now().UTC(), "create kafka service error", err)
 		os.Exit(-1)
 	}
 
@@ -940,7 +940,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 
 	err = cli.CatalogCreateRedisService(ctx, req)
 	if err != nil {
-		fmt.Println("create redis service error", err)
+		fmt.Println(time.Now().UTC(), "create redis service error", err)
 		os.Exit(-1)
 	}
 
@@ -1033,7 +1033,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.CatalogCreateCouchDBService(ctx, req)
 	if err != nil {
-		fmt.Println("create couchdb service error", err)
+		fmt.Println(time.Now().UTC(), "create couchdb service error", err)
 		os.Exit(-1)
 	}
 
@@ -1123,7 +1123,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 
 	serverips, err := cli.CatalogCreateConsulService(ctx, req)
 	if err != nil {
-		fmt.Println("create consul service error", err)
+		fmt.Println(time.Now().UTC(), "create consul service error", err)
 		os.Exit(-1)
 	}
 
@@ -1182,7 +1182,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 
 	err = cli.CatalogCreateElasticSearchService(ctx, req)
 	if err != nil {
-		fmt.Println("create service error", err)
+		fmt.Println(time.Now().UTC(), "create service error", err)
 		os.Exit(-1)
 	}
 
@@ -1263,7 +1263,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 
 	err = cli.CatalogCreateKibanaService(ctx, req)
 	if err != nil {
-		fmt.Println("create kibana service error", err)
+		fmt.Println(time.Now().UTC(), "create kibana service error", err)
 		os.Exit(-1)
 	}
 
@@ -1337,7 +1337,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 
 	err = cli.CatalogCreateLogstashService(ctx, req)
 	if err != nil {
-		fmt.Println("create logstash service error", err)
+		fmt.Println(time.Now().UTC(), "create logstash service error", err)
 		os.Exit(-1)
 	}
 
@@ -1396,7 +1396,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 
 	err = cli.CatalogCreatePostgreSQLService(ctx, req)
 	if err != nil {
-		fmt.Println("create postgresql service error", err)
+		fmt.Println(time.Now().UTC(), "create postgresql service error", err)
 		os.Exit(-1)
 	}
 
@@ -1448,7 +1448,7 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 
 	initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, req)
 	if err != nil {
-		fmt.Println("check service init error", err)
+		fmt.Println(time.Now().UTC(), "check service init error", err)
 		return
 	}
 
@@ -1468,7 +1468,7 @@ func listServices(ctx context.Context, cli *client.ManageClient) {
 
 	services, err := cli.ListService(ctx, req)
 	if err != nil {
-		fmt.Println("ListService error", err)
+		fmt.Println(time.Now().UTC(), "ListService error", err)
 		os.Exit(-1)
 	}
 
@@ -1491,7 +1491,7 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 
 	attr, err := cli.GetServiceAttr(ctx, req)
 	if err != nil {
-		fmt.Println("GetServiceAttr error", err)
+		fmt.Println(time.Now().UTC(), "GetServiceAttr error", err)
 		os.Exit(-1)
 	}
 
@@ -1538,7 +1538,7 @@ func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common
 
 	members, err := cli.ListServiceMember(ctx, listReq)
 	if err != nil {
-		fmt.Println("ListServiceMember error", err)
+		fmt.Println(time.Now().UTC(), "ListServiceMember error", err)
 		os.Exit(-1)
 	}
 
@@ -1560,7 +1560,7 @@ func stopService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.StopService(ctx, serviceReq)
 	if err != nil {
-		fmt.Println("StopService error", err)
+		fmt.Println(time.Now().UTC(), "StopService error", err)
 		os.Exit(-1)
 	}
 
@@ -1582,7 +1582,7 @@ func startService(ctx context.Context, cli *client.ManageClient) {
 
 	err := cli.StartService(ctx, serviceReq)
 	if err != nil {
-		fmt.Println("StartService error", err)
+		fmt.Println(time.Now().UTC(), "StartService error", err)
 		os.Exit(-1)
 	}
 
@@ -1608,7 +1608,7 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 
 	volIDs, err := cli.DeleteService(ctx, serviceReq)
 	if err != nil {
-		fmt.Println("DeleteService error", err)
+		fmt.Println(time.Now().UTC(), "DeleteService error", err)
 		os.Exit(-1)
 	}
 
@@ -1630,7 +1630,7 @@ func getConfig(ctx context.Context, cli *client.ManageClient) {
 
 	cfg, err := cli.GetConfigFile(ctx, req)
 	if err != nil {
-		fmt.Println("GetConfigFile error", err)
+		fmt.Println(time.Now().UTC(), "GetConfigFile error", err)
 		os.Exit(-1)
 	}
 

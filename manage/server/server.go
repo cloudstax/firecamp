@@ -129,6 +129,8 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		errcode = http.StatusNotImplemented
 	}
 
+	glog.Infoln("request done, errcode", errcode, "errmsg", errmsg, "URL", r.URL, "requuid", requuid)
+
 	if errcode != http.StatusOK {
 		http.Error(w, errmsg, errcode)
 	}
