@@ -25,7 +25,7 @@ RUN set -ex; \
 
 RUN echo 'deb http://www.apache.org/dist/cassandra/debian 311x main' >> /etc/apt/sources.list.d/cassandra.list
 
-ENV CASSANDRA_VERSION 3.11.0
+ENV CASSANDRA_VERSION 3.11.1
 
 RUN apt-get update \
 	&& apt-get install -y \
