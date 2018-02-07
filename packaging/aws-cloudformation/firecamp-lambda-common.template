@@ -28,7 +28,7 @@
       "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
       "ConstraintDescription": "Lambda zip can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
       "Description": "S3 key for the Lambda function zip object. Example: scripts/redis-lambda.zip",
-      "Type": "String",
+      "Type": "String"
     }
   },
   "Resources":{

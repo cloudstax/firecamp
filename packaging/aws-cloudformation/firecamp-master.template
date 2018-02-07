@@ -265,9 +265,9 @@
     },
     "ClusterName":{
       "Type":"String",
-      "Description":"Name of the ECS or Swarm cluster. Could be same with the Stack name",
+      "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
       "MinLength": "1",
-      "MaxLength": "255",
+      "MaxLength": "54",
       "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
       "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
     },
@@ -758,36 +758,50 @@
           "SubnetIDs": {
             "Fn::If": [
               "2AZCondition",
-              "Fn::Join": [
-                ",",
-                [
-                  "Fn::GetAtt": [
-                    "VPCStack",
-                    "Outputs.PrivateSubnet1AID"
-                  ],
-                  "Fn::GetAtt": [
-                    "VPCStack",
-                    "Outputs.PrivateSubnet2AID"
+              {
+                "Fn::Join": [
+                  ",",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.PrivateSubnet1AID"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.PrivateSubnet2AID"
+                      ]
+                    }
                   ]
                 ]
-              ],
-              "Fn::Join": [
-                ",",
-                [
-                  "Fn::GetAtt": [
-                    "VPCStack",
-                    "Outputs.PrivateSubnet1AID"
-                  ],
-                  "Fn::GetAtt": [
-                    "VPCStack",
-                    "Outputs.PrivateSubnet2AID"
-                  ],
-                  "Fn::GetAtt": [
-                    "VPCStack",
-                    "Outputs.PrivateSubnet3AID"
+              },
+              {
+                "Fn::Join": [
+                  ",",
+                  [
+                    {
+                      "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.PrivateSubnet1AID"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.PrivateSubnet2AID"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.PrivateSubnet3AID"
+                      ]
+                    }
                   ]
                 ]
-              ]
+              }
             ]
           },
           "AvailabilityZones": {

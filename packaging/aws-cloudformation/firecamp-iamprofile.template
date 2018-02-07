@@ -7,7 +7,7 @@
       "Default": "ecs",
       "AllowedValues" : [ "ecs", "swarm" ],
       "Description":"The container orchestration platform."
-    },
+    }
   },
   "Conditions": {
     "ECSContainerPlatformCondition": {
@@ -44,9 +44,9 @@
               "ecs:RegisterContainerInstance",
               "ecs:StartTelemetrySession",
               "ecs:Submit*",
-              "ecs:Update*",
+              "ecs:Update*"
             ],
-            "Resource":"*",
+            "Resource":"*"
           }]
         },
         "Roles": [
@@ -73,7 +73,7 @@
             "Effect":"Allow",
             "Action":[
               "autoscaling:Describe*",
-              "autoscaling:UpdateAutoScalingGroup",
+              "autoscaling:UpdateAutoScalingGroup"
             ],
             "Resource":"*"
           },
@@ -87,7 +87,7 @@
               "dynamodb:GetItem",
               "dynamodb:UpdateItem",
               "dynamodb:DeleteItem",
-              "dynamodb:Query",
+              "dynamodb:Query"
             ],
             "Resource":"*"
           },
@@ -179,7 +179,7 @@
               "ec2:ModifyVpcAttribute",
               "ec2:RebootInstances",
               "ec2:ReleaseAddress",
-              "ec2:ReleaseHosts",
+              "ec2:ReleaseHosts"
             ],
             "Resource":"*"
           }]
