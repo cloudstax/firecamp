@@ -926,13 +926,17 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 
 	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
 
-	if req.Options.Replicas == 1 {
+	if req.Options.Replicas != 1 {
+		// run the init task in the background
+		s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
+	} else {
 		glog.Infoln("single node Cassandra, skip the init task, requuid", requuid, req.Service, req.Options)
-		return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-	}
 
-	// run the init task in the background
-	s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
+		errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+		if errcode != http.StatusOK {
+			return errmsg, errcode
+		}
+	}
 
 	// send back the jmx remote user & passwd
 	userAttr := &common.CasUserAttr{}
