@@ -1416,7 +1416,9 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 			// Here just log the GetServiceStatus error and retry.
 			fmt.Println(time.Now().UTC(), "GetServiceStatus error", err, r)
 		} else {
-			if status.RunningCount == status.DesiredCount {
+			// ECS may return 0 desired count for the service right after the service is created.
+			// If the desired count is 0, wait and retry.
+			if status.RunningCount == status.DesiredCount && status.DesiredCount != 0 {
 				fmt.Println(time.Now().UTC(), "All service containers are running, RunningCount", status.RunningCount)
 				return
 			}
