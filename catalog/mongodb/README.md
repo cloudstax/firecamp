@@ -37,12 +37,6 @@ For the sharded cluster, every shard will have the same local root admin user. T
 
 The MongoDB logs are sent to the Cloud Logs, such as AWS CloudWatch logs. Could easily check what happens to MongoDB through CloudWatch logs.
 
-The current latest Amazon Linux AMI uses Docker 17.03, which does not support the custom logging driver. So the awslogs driver is directly used.
-
-Every service will have its own log group. For example, create the MongoDB service, mymongo, on cluster t1. The log group t1-mymongo-uuid will be created for the service. A log stream is created for every container. The FireCamp MongoDB container will log its service member at startup. We could get the full logs of one service member by simply checking the server member log entry in the log streams.
-
-The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI updates to use higher Docker version and supports the custom loggint driver, we will switch to the FireCamp CloudWatch log driver. The FireCamp CloudWatch log driver will send the logs of one service member to one log stream, no matter where the container runs on.
-
 ## Cache
 
 By default, the MongoDB instance inside the container assumes the whole node's memory could be used, and calculate the cache size accordingly. In case you want to limit the memory size, could set the max-memory when creating the service.
