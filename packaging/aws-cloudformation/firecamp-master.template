@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server.",
+  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,06,2018 (qs-1o5bijc54)",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -165,42 +165,42 @@
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.0.0/19",
-      "Description": "CIDR block for private subnet 1 located in Availability Zone 1.",
+      "Description": "CIDR block for private subnet located in Availability Zone 1.",
       "Type": "String"
     },
     "PrivateSubnet2CIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.32.0/19",
-      "Description": "CIDR block for private subnet 2 located in Availability Zone 2.",
+      "Description": "CIDR block for private subnet located in Availability Zone 2.",
       "Type": "String"
     },
     "PrivateSubnet3CIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.64.0/19",
-      "Description": "CIDR block for private subnet 2 located in Availability Zone 2.",
+      "Description": "CIDR block for private subnet located in Availability Zone 3.",
       "Type": "String"
     },
     "PublicSubnet1CIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.128.0/20",
-      "Description": "CIDR Block for the public DMZ subnet 1 located in Availability Zone 1",
+      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 1.",
       "Type": "String"
     },
     "PublicSubnet2CIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.144.0/20",
-      "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
+      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 2.",
       "Type": "String"
     },
     "PublicSubnet3CIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
       "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
       "Default": "10.0.160.0/20",
-      "Description": "CIDR Block for the public DMZ subnet 2 located in Availability Zone 2",
+      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 3.",
       "Type": "String"
     },
     "RemoteAccessCIDR": {
@@ -293,7 +293,7 @@
       "Type": "String",
       "Default": "latest",
       "AllowedValues": [ "latest", "0.9.3", "0.9.2" ],
-      "Description": "The FireCamp release version"
+      "Description": "The FireCamp release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
     },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",

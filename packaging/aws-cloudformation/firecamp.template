@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template deploys an FireCamp the cluster on an existing VPC.",
+  "Description": "This template deploys an FireCamp the cluster on an existing VPC.  License: Apache 2.0 (Please do not remove) Feb,06,2018 (qs-1o5bijc4u)",
   "Parameters":{
     "ServiceSecurityGroupID": {
       "Type": "AWS::EC2::SecurityGroup::Id",

@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC.",
+  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. License: Apache 2.0 (Please do not remove) Feb,06,2018 (qs-1o5bijc4p)",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -9,9 +9,12 @@
             "default": "Network Configuration"
           },
           "Parameters": [
-            "VPCID",
-            "SubnetIDs",
             "AvailabilityZones",
+            "NumberOfAZs",
+            "VPCID",
+            "PrivateSubnet1ID",
+            "PrivateSubnet2ID",
+            "PrivateSubnet3ID",
             "RemoteAccessCIDR"
           ]
         },
@@ -41,14 +44,23 @@
         }
       ],
       "ParameterLabels": {
+        "AvailabilityZones": {
+          "default": "Availability Zones"
+        },
+        "NumberOfAZs": {
+          "default": "Number of Availability Zones"
+        },
         "VPCID": {
           "default": "VPC ID"
         },
-        "SubnetIDs": {
-          "default": "Subnet IDs"
+        "PrivateSubnet1ID": {
+          "default": "Private Subnet 1 ID"
         },
-        "AvailabilityZones": {
-          "default": "Availability Zones"
+        "PrivateSubnet2ID": {
+          "default": "Private Subnet 2 ID"
+        },
+        "PrivateSubnet3ID": {
+          "default": "Private Subnet 3 ID"
         },
         "RemoteAccessCIDR": {
           "default": "Allowed External Access CIDR"
@@ -89,19 +101,39 @@
     }
   },
   "Parameters":{
-    "VPCID":{
-      "Type":"AWS::EC2::VPC::Id",
-      "Description":"Select a VPC that allows instances to access the Internet."
-    },
-    "SubnetIDs": {
-      "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "The existing subnets in your VPC where you want to deploy node(s). Please make sure the Subnets match the AvailabilityZones.",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
-    },
     "AvailabilityZones": {
       "Type": "List<AWS::EC2::AvailabilityZone::Name>",
       "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets and less or equal to Number of Container Worker Nodes, or else the cluster will not work."
     },
+    "NumberOfAZs": {
+      "AllowedValues": [
+        "2",
+        "3"
+      ],
+      "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
+      "Default": "3",
+      "Type": "String"
+    },
+    "VPCID":{
+      "Type":"AWS::EC2::VPC::Id",
+      "Description":"Select a VPC that allows instances to access the Internet."
+    },
+    "PrivateSubnet1ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "The first existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "PrivateSubnet2ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "The second existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+    "PrivateSubnet3ID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "The third existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones.",
+      "AllowedPattern": "subnet-[0-9a-z]{8}"
+    },
+
     "RemoteAccessCIDR": {
       "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
       "Type": "String",
@@ -132,7 +164,7 @@
       "Type": "String",
       "Default": "latest",
       "AllowedValues": [ "latest", "0.9.3", "0.9.2" ],
-      "Description": "The FireCamp release version"
+      "Description": "The FireCamp release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
     },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
@@ -213,6 +245,14 @@
     }
   },
   "Conditions": {
+    "2AZCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "NumberOfAZs"
+        },
+        2
+      ]
+    },
     "GovCloudCondition": {
       "Fn::Equals": [
         {
@@ -325,10 +365,26 @@
             "Ref": "VPCID"
           },
           "SubnetIDs": {
-            "Fn::Join": [
-              ",",
+            "Fn::If": [
+              "2AZCondition",
               {
-                "Ref": "SubnetIDs"
+                "Fn::Join": [
+                  ",",
+                  [
+                    {"Ref": "PrivateSubnet1ID"},
+                    {"Ref": "PrivateSubnet2ID"}
+                  ]
+                ]
+              },
+              {
+                "Fn::Join": [
+                  ",",
+                  [
+                    {"Ref": "PrivateSubnet1ID"},
+                    {"Ref": "PrivateSubnet2ID"},
+                    {"Ref": "PrivateSubnet3ID"}
+                  ]
+                ]
               }
             ]
           },
