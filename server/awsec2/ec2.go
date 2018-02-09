@@ -81,8 +81,6 @@ func NewAWSEc2(sess *session.Session) *AWSEc2 {
 }
 
 // DetachVolume detaches the volume
-// return error:
-//   - IncorrectState if volume is at like available state
 func (s *AWSEc2) DetachVolume(ctx context.Context, volID string, instanceID string, devName string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -97,8 +95,22 @@ func (s *AWSEc2) DetachVolume(ctx context.Context, volID string, instanceID stri
 
 	if err != nil {
 		if err.(awserr.Error).Code() == errVolumeIncorrectState {
+			// When volume is in-use, sometimes DetachVolume may take long time, and AWS may
+			// actually detach the volume and return IncorrectState. This might be caused by the
+			// incorrect internal retry in AWS EBS code.
 			glog.Infoln("DetachVolume", volID, "instanceID", instanceID, "device", devName,
 				"got IncorrectState", err, "return ErrVolumeIncorrectState, requuid", requuid)
+
+			// if the volume is at the available state, return success.
+			volState, err := s.GetVolumeState(ctx, volID)
+			if volState == volumeStateAvailable {
+				glog.Infoln("Volume is at the available state, return success", volID,
+					"instanceID", instanceID, "device", devName, "requuid", requuid)
+				return nil
+			}
+
+			glog.Errorln("volume state", volState, "error", err, volID, "instanceID",
+				instanceID, "device", devName, "requuid", requuid)
 			return server.ErrVolumeIncorrectState
 		}
 		glog.Errorln("failed to DetachVolume", volID, "instance", instanceID,
