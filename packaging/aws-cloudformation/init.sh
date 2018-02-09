@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -x
 
 version=$1
 clusterName=$2
@@ -55,6 +55,10 @@ sysctl -w vm.overcommit_memory=1
 
 # 2. install docker.
 yum install -y docker
+if [ "$?" != "0" ]; then
+  echo "install docker error"
+  exit 2
+fi
 
 # 3. Create the firecamp data directory.
 # The volume plugin will write the service member to the data directory, so the log plugin
@@ -71,6 +75,10 @@ if [ "$containerPlatform" = "ecs" ]; then
   sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g" /etc/sysconfig/docker
 
   service docker start
+  if [ "$?" != "0" ]; then
+    echo "service docker start error"
+    exit 2
+  fi
 
   sleep 3
 
@@ -102,6 +110,28 @@ if [ "$containerPlatform" = "ecs" ]; then
     --env=ECS_ENABLE_TASK_IAM_ROLE=true \
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
     ${org}firecamp-amazon-ecs-agent:latest
+  if [ "$?" != "0" ]; then
+    # pulling the docker images fails occasionally. retry it.
+    sleep 3
+    docker run --name ecs-agent \
+      --detach=true \
+      --restart=always -d \
+      --volume=/var/run/docker.sock:/var/run/docker.sock \
+      --volume=/var/log/ecs:/log \
+      --volume=/var/lib/ecs/data:/data \
+      --net=host \
+      --env-file=/etc/ecs/ecs.config \
+      --env=ECS_LOGFILE=/log/ecs-agent.log \
+      --env=ECS_DATADIR=/data/ \
+      --env=ECS_ENABLE_TASK_IAM_ROLE=true \
+      --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
+      ${org}firecamp-amazon-ecs-agent:latest
+    if [ "$?" != "0" ]; then
+      echo "run firecamp ecs agent error"
+      exit 3
+    fi
+  fi
+
 
   # wait for ecs agent to be ready
   sleep 6
@@ -109,17 +139,32 @@ if [ "$containerPlatform" = "ecs" ]; then
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp
   docker plugin install --grant-all-permissions ${org}firecamp-volume:$version
+  # If ecs agent is not ready, plugin is installed but not enabled.
+  # The command is taken as failed. not check the install result here.
+  # The following enabled check covers the actual install failure.
 
   # check if volume plugin is enabled
   enabled=$(docker plugin inspect ${org}firecamp-volume:$version | grep Enabled | grep true)
+  if [ "$?" != "0" ]; then
+    echo "install firecamp volume plugin error"
+    exit 3
+  fi
   if [ -z "$enabled" ]; then
     # volume plugin not enabled. this may happen if ecs agent is not ready. wait some time and try to enable it again.
     sleep 10
     docker plugin enable ${org}firecamp-volume:$version
+    if [ "$?" != "0" ]; then
+      echo "enable firecamp volume plugin error"
+      exit 3
+    fi
   fi
 
   # install firecamp docker log plugin
   docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
+  if [ "$?" != "0" ]; then
+    echo "enable firecamp log plugin error"
+    exit 3
+  fi
 
 fi
 
@@ -156,6 +201,10 @@ if [ "$containerPlatform" = "swarm" ]; then
   sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000 $labels\"/g" /etc/sysconfig/docker
 
   service docker start
+  if [ "$?" != "0" ]; then
+    echo "service docker start error"
+    exit 2
+  fi
 
   # get swarminit command to init swarm
   for i in `seq 1 3`
@@ -187,10 +236,18 @@ if [ "$containerPlatform" = "swarm" ]; then
     # install firecamp docker volume plugin
     mkdir -p /var/log/firecamp
     docker plugin install --grant-all-permissions ${org}firecamp-volume:$version PLATFORM="swarm" CLUSTER="$clusterName"
+    if [ "$?" != "0" ]; then
+      echo "install firecamp volume plugin error"
+      exit 3
+    fi
   fi
 
   # install firecamp docker log plugin on worker and manage nodes
   docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
+  if [ "$?" != "0" ]; then
+    echo "install firecamp log plugin error"
+    exit 3
+  fi
 fi
 
 
