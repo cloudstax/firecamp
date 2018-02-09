@@ -15,7 +15,7 @@
             "PrivateSubnet1ID",
             "PrivateSubnet2ID",
             "PrivateSubnet3ID",
-            "RemoteAccessCIDR"
+            "BastionSecurityGroupID"
           ]
         },
         {
@@ -62,8 +62,8 @@
         "PrivateSubnet3ID": {
           "default": "Private Subnet 3 ID"
         },
-        "RemoteAccessCIDR": {
-          "default": "Allowed External Access CIDR"
+        "BastionSecurityGroupID": {
+          "default": "Bastion SecurityGroup ID"
         },
 
         "KeyPairName": {
@@ -107,6 +107,7 @@
     },
     "NumberOfAZs": {
       "AllowedValues": [
+        "1",
         "2",
         "3"
       ],
@@ -134,11 +135,9 @@
       "AllowedPattern": "subnet-[0-9a-z]{8}"
     },
 
-    "RemoteAccessCIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-      "Type": "String",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block to SSH to the nodes. MUST be in the form x.x.x.x/x"
+    "BastionSecurityGroupID": {
+      "Type": "AWS::EC2::SecurityGroup::Id",
+      "Description": "The BastionSecurityGroup to SSH to the nodes."
     },
 
     "KeyPairName":{
@@ -245,6 +244,14 @@
     }
   },
   "Conditions": {
+    "1AZCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "NumberOfAZs"
+        },
+        1
+      ]
+    },
     "2AZCondition": {
       "Fn::Equals": [
         {
@@ -269,7 +276,7 @@
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "Instances with access to the services in the cluster"
+        "GroupDescription": "Application instances with access to the services in cluster"
       }
     },
     "ServiceSecurityGroup": {
@@ -278,20 +285,164 @@
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "The access ports to the services in the cluster",
+        "GroupDescription": "The access ports to the services in cluster",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
             "FromPort": "22",
             "ToPort": "22",
-            "CidrIp": {
-              "Ref": "RemoteAccessCIDR"
+            "SourceSecurityGroupId": {
+              "Ref": "BastionSecurityGroupID"
             }
           },
           {
             "IpProtocol": "tcp",
-            "FromPort": "2000",
-            "ToPort": "30000",
+            "FromPort": "27040",
+            "ToPort": "27040",
+            "SourceSecurityGroupId": {
+              "Ref": "BastionSecurityGroupID"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27017",
+            "ToPort": "27017",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27018",
+            "ToPort": "27018",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "27019",
+            "ToPort": "27019",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5432",
+            "ToPort": "5432",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9042",
+            "ToPort": "9042",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "7199",
+            "ToPort": "7199",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9160",
+            "ToPort": "9160",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "2181",
+            "ToPort": "2181",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9092",
+            "ToPort": "9092",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6379",
+            "ToPort": "6379",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5984",
+            "ToPort": "5984",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6984",
+            "ToPort": "6984",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8300",
+            "ToPort": "8300",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8301",
+            "ToPort": "8301",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9200",
+            "ToPort": "9200",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5601",
+            "ToPort": "5601",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9600",
+            "ToPort": "9600",
+            "SourceSecurityGroupId": {
+              "Ref": "AppAccessSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5044",
+            "ToPort": "5044",
             "SourceSecurityGroupId": {
               "Ref": "AppAccessSecurityGroup"
             }
@@ -305,7 +456,7 @@
         "VpcId": {
           "Ref": "VPCID"
         },
-        "GroupDescription": "The inter-server access ports in the cluster",
+        "GroupDescription": "The inter-server access ports in cluster",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
@@ -366,24 +517,37 @@
           },
           "SubnetIDs": {
             "Fn::If": [
-              "2AZCondition",
+              "1AZCondition",
               {
                 "Fn::Join": [
                   ",",
                   [
-                    {"Ref": "PrivateSubnet1ID"},
-                    {"Ref": "PrivateSubnet2ID"}
+                    {"Ref": "PrivateSubnet1ID"}
                   ]
                 ]
               },
               {
-                "Fn::Join": [
-                  ",",
-                  [
-                    {"Ref": "PrivateSubnet1ID"},
-                    {"Ref": "PrivateSubnet2ID"},
-                    {"Ref": "PrivateSubnet3ID"}
-                  ]
+                "Fn::If": [
+                  "2AZCondition",
+                  {
+                    "Fn::Join": [
+                      ",",
+                      [
+                        {"Ref": "PrivateSubnet1ID"},
+                        {"Ref": "PrivateSubnet2ID"}
+                      ]
+                    ]
+                  },
+                  {
+                    "Fn::Join": [
+                      ",",
+                      [
+                        {"Ref": "PrivateSubnet1ID"},
+                        {"Ref": "PrivateSubnet2ID"},
+                        {"Ref": "PrivateSubnet3ID"}
+                      ]
+                    ]
+                  }
                 ]
               }
             ]
