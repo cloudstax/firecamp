@@ -4,7 +4,14 @@ This doc discusses about the common mechanisms shared by all catalog services.
 
 FireCamp integrates with cloud logs. On AWS, the service logs are sent to AWS CloudWatch.
 
-On AWS, every service will have its own log group: firecamp-clustername-servicename-serviceUUID. Every service member will get the stream name: membername/hostname/containerID. AWS ECS and Docker Swarm will have the same log group and stream. K8s will be slightly different, as K8s has namespace and init container concepts. K8s log group: firecamp-clustername-namespace-servicename-serviceUUID. K8s log stream: membername/containername/hostname/containerID. FireCamp will set the init/stop container name with the init and stop prefix in the pod.
+AWS ECS and Docker Swarm have the same log group and stream names.
+- Every stateful service will have its own log group: firecamp-clustername-servicename-serviceUUID. Every stateful service member will get the stream name: membername/hostname/containerID.
+- The stateful service task, such as the init task, will use the same log group with the stateful service. The log stream has the task type as prefix.
+- The stateless service, such as the FireCamp management service, Kafka Manager service, etc, will have the same log group name with the stateful service. The log stream has the service name as prefix.
+
+K8s will be slightly different. K8s does not support custom log driver like AWS ECS and Docker Swarm supports. K8s simply writes the log to the local files. The Fluentd DaemonSet is used to send the logs to CloudWatch. The log group and stream are different, as K8s has namespace and init container concepts.
+
+K8s log group: firecamp-clustername-namespace-servicename-serviceUUID. K8s log stream: membername/containername/hostname/containerID. FireCamp will set the init/stop container name with the init and stop prefix in the pod. Please refer to [FireCamp K8s Fluentd ConfigMap](https://github.com/cloudstax/firecamp/tree/master/containersvc/k8s/fluentd-cw-configmap.yaml) for the format.
 
 # FireCamp System Configs
 

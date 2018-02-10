@@ -222,15 +222,13 @@ func getJoinToken(ctx context.Context, dbIns *awsdynamodb.DynamoDB, cluster stri
 func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIns *awscloudwatch.Log, cluster string) {
 	serviceUUID := common.SystemName
 
-	logConfig := logIns.CreateServiceLogConfig(ctx, cluster, common.ManageName, serviceUUID)
-	// set the LogServiceMemberKey for the log driver
-	logConfig.Options[common.LogServiceMemberKey] = common.ManageName
-
 	// create the log group
 	err := logIns.InitializeServiceLogConfig(ctx, cluster, common.ManageName, serviceUUID)
 	if err != nil {
 		glog.Fatalln("create the manage service log group error", err, common.ManageName)
 	}
+
+	logConfig := logIns.CreateStreamLogConfig(ctx, cluster, common.ManageName, serviceUUID, common.ManageName)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,
