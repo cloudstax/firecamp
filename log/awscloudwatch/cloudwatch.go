@@ -90,39 +90,18 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 	return nil
 }
 
-// CreateTaskLogConfig creates the LogConfig for the task to send logs to AWS CloudWatch.
+// CreateStreamLogConfig creates the LogConfig for the stateless service, such as the managemen service,
+// or the task of the stateful service, such as init task.
 // The task log directly uses the awslogs driver. There is no need to use firecamp-log-driver.
-func (l *Log) CreateTaskLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, taskType string) *cloudlog.LogConfig {
+func (l *Log) CreateStreamLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, stream string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
 	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
-
-	switch l.platform {
-	case common.ContainerPlatformECS:
-		// not set LogServiceUUIDKey, which is not supported by awslog driver.
-		// The firecamp amazon-ecs-agent will replace the log driver to firecamp-log-driver and set the LogServiceUUIDKey.
-		opts[logStreamPrefix] = fmt.Sprintf("%s-%s", service, taskType)
-		return &cloudlog.LogConfig{
-			Name:    driverName,
-			Options: opts,
-		}
-	case common.ContainerPlatformSwarm:
-		// set the LogServiceUUIDKey for firecamp-log-driver to get the serviceUUID.
-		opts[common.LogServiceUUIDKey] = serviceUUID
-		// reuse the LogServiceMemberKey to pass the taskStream.
-		opts[common.LogServiceMemberKey] = fmt.Sprintf("%s-%s", service, taskType)
-		return &cloudlog.LogConfig{
-			Name:    common.LogDriverName,
-			Options: opts,
-		}
-	case common.ContainerPlatformK8s:
-		// k8s uses the Fluentd daemonset, which will set the LogGroup and LogStream names.
-		glog.Infoln("no log config set for k8s, cluster", cluster, "service", service,
-			"serviceUUID", serviceUUID, "namespace", l.k8snamespace)
-		return nil
+	opts[logStreamPrefix] = stream
+	return &cloudlog.LogConfig{
+		Name:    driverName,
+		Options: opts,
 	}
-	panic(fmt.Sprintf("unsupported container platform %s, cluster %s, service %s", l.platform, cluster, service))
-	return nil
 }
 
 // InitializeServiceLogConfig creates the CloudWatch log group.

@@ -27,7 +27,7 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 	return l.cfg
 }
 
-func (l *Log) CreateTaskLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, taskType string) *cloudlog.LogConfig {
+func (l *Log) CreateStreamLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, stream string) *cloudlog.LogConfig {
 	return l.cfg
 }
 

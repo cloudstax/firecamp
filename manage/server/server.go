@@ -761,7 +761,7 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 		return manage.ConvertToHTTPError(err)
 	}
 
-	logConfig := s.logIns.CreateTaskLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
+	logConfig := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        req.Service.Cluster,

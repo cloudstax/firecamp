@@ -33,11 +33,11 @@ func TestCloudWatchLog(t *testing.T) {
 		t.Fatalf("expect log driver name %s, got %s", driverName, cfg.Name)
 	}
 
-	cfg = ins.CreateTaskLogConfig(ctx, cluster, service, serviceUUID, stream)
+	cfg = ins.CreateStreamLogConfig(ctx, cluster, service, serviceUUID, stream)
 	if cfg.Name != driverName {
 		t.Fatalf("expect log driver name %s, got %s", driverName, cfg.Name)
 	}
-	if cfg.Options[logStreamPrefix] != service+"-"+stream {
+	if cfg.Options[logStreamPrefix] != stream {
 		t.Fatalf("expect log stream %s, got %s", stream, cfg.Options)
 	}
 
