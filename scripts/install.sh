@@ -14,6 +14,8 @@ cd syssvc/firecamp-service-cli; go install; cd -
 
 cd syssvc/firecamp-swarminit; go install; cd -
 
+cd syssvc/firecamp-service-updatedns; go install; cd -
+
 cd $GOPATH/bin; tar -zcf firecamp-service-cli.tgz firecamp-service-cli; cd -
 cd $GOPATH/bin; tar -zcf firecamp-swarminit.tgz firecamp-swarminit; cd -
 
