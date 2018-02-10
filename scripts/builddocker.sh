@@ -1,6 +1,5 @@
 #!/bin/sh
-set -x
-set -e
+set -ex
 
 export TOPWD="$(pwd)"
 
@@ -203,6 +202,16 @@ BuildCatalogImages() {
   image="${org}${target}:1.0"
   path="${TOPWD}/catalog/kafka/1.0/dockerfile/"
   docker build -q -t $image $path
+  docker push $image
+
+  # build kafka-manager docker image
+  echo
+  target=$system"-kafka-manager"
+  image="${org}${target}:1.3.3"
+  path="${TOPWD}/catalog/kafkamanager/1.3.3/dockerfile/"
+  cp ${GOPATH}/bin/firecamp-service-updatedns ${path}
+  docker build -q -t $image $path
+  rm -f ${path}/firecamp-service-updatedns
   docker push $image
 
 

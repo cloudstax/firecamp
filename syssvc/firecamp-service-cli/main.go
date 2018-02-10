@@ -18,6 +18,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
@@ -44,7 +45,7 @@ const (
 
 var (
 	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
-	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|redis|couchdb|consul|elasticsearch|kibana|logstash")
+	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
 	region              = flag.String("region", "", "The AWS region")
@@ -95,6 +96,12 @@ var (
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion")
 	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
+
+	// The kafka manager service creation specific parameters
+	kmHeapSizeMB = flag.Int64("km-heap-size", kafkamanagercatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
+	kmUser       = flag.String("km-user", "", "The Kafka Manager user name")
+	kmPasswd     = flag.String("km-passwd", "", "The Kafka Manager user password")
+	kmZkService  = flag.String("km-zk-service", "", "The ZooKeeper service name that Kafka Manager will talk to")
 
 	// The redis service creation specific parameters.
 	redisShards           = flag.Int64("redis-shards", 1, "The number of shards for the Redis service")
@@ -241,6 +248,13 @@ func usage() {
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-type"))
 			printFlag(flag.Lookup("service-name"))
+			if *serviceType == common.CatalogService_KafkaManager {
+				printFlag(flag.Lookup("km-heap-size"))
+				printFlag(flag.Lookup("km-user"))
+				printFlag(flag.Lookup("km-passwd"))
+				printFlag(flag.Lookup("km-zk-service"))
+				return
+			}
 			printFlag(flag.Lookup("volume-type"))
 			printFlag(flag.Lookup("volume-size"))
 			printFlag(flag.Lookup("volume-iops"))
@@ -383,6 +397,7 @@ func usage() {
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
+			printFlag(flag.Lookup("service-type"))
 		case opGet:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opGet)
 			printFlag(flag.Lookup("region"))
@@ -482,6 +497,8 @@ func main() {
 			createZkService(ctx, cli)
 		case common.CatalogService_Kafka:
 			createKafkaService(ctx, cli)
+		case common.CatalogService_KafkaManager:
+			createKafkaManagerService(ctx, cli)
 		case common.CatalogService_Redis:
 			createRedisService(ctx, cli)
 		case common.CatalogService_CouchDB:
@@ -495,12 +512,13 @@ func main() {
 		case common.CatalogService_Logstash:
 			createLogstashService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				common.CatalogService_MongoDB, common.CatalogService_PostgreSQL,
 				common.CatalogService_Cassandra, common.CatalogService_ZooKeeper,
-				common.CatalogService_Kafka, common.CatalogService_Redis,
-				common.CatalogService_CouchDB, common.CatalogService_Consul,
-				common.CatalogService_ElasticSearch, common.CatalogService_Kibana)
+				common.CatalogService_Kafka, common.CatalogService_KafkaManager,
+				common.CatalogService_Redis, common.CatalogService_CouchDB,
+				common.CatalogService_Consul, common.CatalogService_ElasticSearch,
+				common.CatalogService_Kibana, common.CatalogService_Logstash)
 			os.Exit(-1)
 		}
 
@@ -886,6 +904,47 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The kafka service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" || *kmZkService == "" {
+		fmt.Println("please specify the valid service name and zookeeper service name")
+		os.Exit(-1)
+	}
+	if *kmHeapSizeMB < kafkamanagercatalog.DefaultHeapMB {
+		fmt.Printf("The Kafka Manager heap size is less than %d. Please increase it for production system\n", kafkamanagercatalog.DefaultHeapMB)
+	}
+
+	req := &manage.CatalogCreateKafkaManagerRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+			ServiceType: common.ServiceTypeStateless,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogKafkaManagerOptions{
+			HeapSizeMB:    *kmHeapSizeMB,
+			User:          *kmUser,
+			Password:      *kmPasswd,
+			ZkServiceName: *kmZkService,
+		},
+	}
+
+	err := cli.CatalogCreateKafkaManagerService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "create kafka manager service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println(time.Now().UTC(), "The kafka manager service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1606,6 +1665,10 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
+	}
+
+	if *serviceType == common.CatalogService_KafkaManager {
+		serviceReq.Service.ServiceType = common.ServiceTypeStateless
 	}
 
 	volIDs, err := cli.DeleteService(ctx, serviceReq)
