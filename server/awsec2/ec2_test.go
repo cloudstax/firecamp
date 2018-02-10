@@ -117,8 +117,8 @@ func testEBSVolume(t *testing.T) {
 
 	// negative case - detach available volume
 	err = e.DetachVolume(ctx, az1aVol1, az1aIns1, devName)
-	if err == nil && err != server.ErrVolumeIncorrectState {
-		t.Fatalf("detach available volume, expected ErrVolumeIncorrectState but got %s, vol %s instance %s", err, az1aVol1, az1aIns1)
+	if err != nil {
+		t.Fatalf("detach available volume, expected success but got %s, vol %s instance %s", err, az1aVol1, az1aIns1)
 	}
 
 	// negative case - attach volume to instance at differnt az

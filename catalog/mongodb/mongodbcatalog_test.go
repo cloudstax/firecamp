@@ -207,28 +207,39 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 9 || len(replcfgs[0].Configs) != 3 {
 		t.Fatalf("expect zone %s member name %s 9 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	for i := int64(0); i < int64(9); i++ {
+	// 3 config servers
+	for i := int64(0); i < opts.ConfigServers; i++ {
 		idx := int(i) % len(azs)
 		if replcfgs[i].Zone != azs[idx] {
 			t.Fatalf("expect zone %s for replica config %d, get zone %s", azs[idx], i, replcfgs[i].Zone)
 		}
-		if i < opts.ConfigServers {
-			member = service + "-config-" + strconv.FormatInt(i, 10)
-			if replcfgs[i].MemberName != member {
-				t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[i].MemberName)
+		member = service + "-config-" + strconv.FormatInt(i, 10)
+		if replcfgs[i].MemberName != member {
+			t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[i].MemberName)
+		}
+	}
+	// shards
+	for shard := int64(0); shard < opts.Shards; shard++ {
+		for i := int64(0); i < opts.ReplicasPerShard; i++ {
+			idx := int(shard+i) % len(azs)
+			replIdx := opts.ConfigServers + shard*opts.ReplicasPerShard + i
+			if replcfgs[replIdx].Zone != azs[idx] {
+				t.Fatalf("expect zone %s for replica config %d, get zone %s", azs[idx], i, replcfgs[replIdx].Zone)
 			}
-		} else if i < opts.ConfigServers+opts.ReplicasPerShard {
-			member = service + "-shard0-" + strconv.FormatInt(i-opts.ConfigServers, 10)
-			if replcfgs[i].MemberName != member {
-				t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[i].MemberName)
-			}
-		} else {
-			member = service + "-shard1-" + strconv.FormatInt(i-opts.ConfigServers-opts.ReplicasPerShard, 10)
-			if replcfgs[i].MemberName != member {
-				t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[i].MemberName)
+			if shard == 0 {
+				member = service + "-shard0-" + strconv.FormatInt(i, 10)
+				if replcfgs[replIdx].MemberName != member {
+					t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[replIdx].MemberName)
+				}
+			} else {
+				member = service + "-shard1-" + strconv.FormatInt(i, 10)
+				if replcfgs[replIdx].MemberName != member {
+					t.Fatalf("expect config member name %s for %d, get %s", member, i, replcfgs[replIdx].MemberName)
+				}
 			}
 		}
 	}
+
 	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27019") {
 		t.Fatalf("expect 27019 for replica set, get %s", replcfgs[1].Configs[1].Content)
 	}
