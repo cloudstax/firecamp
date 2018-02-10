@@ -13,6 +13,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
@@ -39,6 +40,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createZkService(ctx, r, requuid)
 	case manage.CatalogCreateKafkaOp:
 		return s.createKafkaService(ctx, r, requuid)
+	case manage.CatalogCreateKafkaManagerOp:
+		return s.createKafkaManagerService(ctx, r, requuid)
 	case manage.CatalogCreateRedisOp:
 		return s.createRedisService(ctx, r, requuid)
 	case manage.CatalogCreateCouchDBOp:
@@ -454,6 +457,59 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 
 	// kafka does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateKafkaManagerRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateKafkaManagerRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("CatalogCreateKafkaManagerRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// get the zk service
+	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ZkServiceName)
+	if err != nil {
+		glog.Errorln("get zk service", req.Options.ZkServiceName, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("get zk service", zksvc, "requuid", requuid)
+
+	zkattr, err := s.dbIns.GetServiceAttr(ctx, zksvc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("get zk service attr", zksvc.ServiceUUID, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// kafka manager is a stateless service. create the service in the container platform directly.
+	// TODO Currently we do not create a record in DB for the stateless service. May add it when necessary.
+	crReq := kafkamanagercatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+		req.Service.ServiceName, req.Options, req.Resource, zkattr)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	serviceUUID := utils.GenUUID()
+
+	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
+	if err != nil {
+		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created kafka manager service", serviceUUID, "requuid", requuid, req.Service)
+
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {

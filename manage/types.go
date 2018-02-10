@@ -25,6 +25,7 @@ const (
 	CatalogCreateCassandraOp     = CatalogOpPrefix + "Create-Cassandra"
 	CatalogCreateZooKeeperOp     = CatalogOpPrefix + "Create-ZooKeeper"
 	CatalogCreateKafkaOp         = CatalogOpPrefix + "Create-Kafka"
+	CatalogCreateKafkaManagerOp  = CatalogOpPrefix + "Create-Kafka-Manager"
 	CatalogCreateRedisOp         = CatalogOpPrefix + "Create-Redis"
 	CatalogCreateCouchDBOp       = CatalogOpPrefix + "Create-CouchDB"
 	CatalogCreateConsulOp        = CatalogOpPrefix + "Create-Consul"
@@ -72,6 +73,9 @@ type ServiceCommonRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
+	// ServiceType: stateful or stateless. default: stateful.
+	// The empty string means stateful as this field is added after 0.9.3.
+	ServiceType string
 }
 
 // CreateServiceRequest contains the parameters for creating a service.
@@ -84,6 +88,10 @@ type CreateServiceRequest struct {
 
 	ContainerImage string
 	Replicas       int64
+	PortMappings   []common.PortMapping
+	Envkvs         []*common.EnvKeyValuePair
+
+	// Below fields are used by the stateful service.
 	// The primary volume for the service data
 	Volume *common.ServiceVolume
 	// The journal volume for the service journal
@@ -91,8 +99,6 @@ type CreateServiceRequest struct {
 	// TODO remove ContainerPath, as the docker entrypoint script simply uses the default path
 	ContainerPath        string // The mount path inside container for the primary volume
 	JournalContainerPath string // The mount path inside container for the journal volume
-	PortMappings         []common.PortMapping
-	Envkvs               []*common.EnvKeyValuePair
 
 	RegisterDNS     bool
 	RequireStaticIP bool
@@ -324,6 +330,27 @@ type CatalogCreateKafkaRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogKafkaOptions
+}
+
+// CatalogKafkaManagerOptions includes the options for Kafka Manager.
+// Currently support 1 replica only.
+type CatalogKafkaManagerOptions struct {
+	// Kafka Manager JVM heap size
+	HeapSizeMB int64
+
+	// Kafka Manager user and password
+	User     string
+	Password string
+
+	// The existing ZooKeeper service that Kafka Manager will use.
+	ZkServiceName string
+}
+
+// CatalogCreateKafkaManagerRequest creates a Kafka Manager service.
+type CatalogCreateKafkaManagerRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogKafkaManagerOptions
 }
 
 // CatalogRedisOptions includes the config options for Redis.

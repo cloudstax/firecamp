@@ -211,6 +211,14 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		},
 	}
 
+	if len(opts.Envkvs) != 0 {
+		env := make([]string, len(opts.Envkvs))
+		for i, e := range opts.Envkvs {
+			env[i] = e.Name + envKVSep + e.Value
+		}
+		taskTemplate.ContainerSpec.Env = env
+	}
+
 	if opts.Place != nil {
 		// the service aims to run on the specified availability zones.
 		// docker node label could only be added on the manager node. This is not easy to automate.

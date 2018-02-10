@@ -7,6 +7,7 @@ const (
 	CatalogService_Cassandra     = "cassandra"
 	CatalogService_ZooKeeper     = "zookeeper"
 	CatalogService_Kafka         = "kafka"
+	CatalogService_KafkaManager  = "kafkamanager"
 	CatalogService_Redis         = "redis"
 	CatalogService_CouchDB       = "couchdb"
 	CatalogService_Consul        = "consul"

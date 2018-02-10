@@ -99,6 +99,9 @@ const (
 	ManageReserveCPUUnits = 256
 	ManageMaxMemMB        = 4096
 	ManageReserveMemMB    = 256
+
+	ServiceTypeStateful  = "stateful"
+	ServiceTypeStateless = "stateless"
 )
 
 type EnvKeyValuePair struct {

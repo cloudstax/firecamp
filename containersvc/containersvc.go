@@ -26,6 +26,7 @@ type CommonOptions struct {
 	Cluster        string
 	ServiceName    string
 	ServiceUUID    string
+	ServiceType    string // stateful or stateless
 	ContainerImage string
 	Resource       *common.Resources
 	LogConfig      *cloudlog.LogConfig
@@ -46,10 +47,7 @@ type Placement struct {
 type CreateServiceOptions struct {
 	Replicas int64
 	Common   *CommonOptions
-	// The volume mount for the service data, must exist.
-	DataVolume *VolumeOptions
-	// The volume mount for the service journal, optional.
-	JournalVolume *VolumeOptions
+
 	// PortMappings include the ports exposed by the services. It includes a "ServicePort" field
 	// for whether the port is a service port, used by k8s headless service for statefulset.
 	// https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#creating-a-statefulset
@@ -59,6 +57,11 @@ type CreateServiceOptions struct {
 	// the placement constraints. If not specified, spread to all zones.
 	Place  *Placement
 	Envkvs []*common.EnvKeyValuePair
+
+	// The volume mount for the service data, must exist.
+	DataVolume *VolumeOptions
+	// The volume mount for the service journal, optional.
+	JournalVolume *VolumeOptions
 
 	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
 	// If only use within k8s, set to false.

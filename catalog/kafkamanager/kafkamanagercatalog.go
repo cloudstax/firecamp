@@ -17,7 +17,8 @@ const (
 
 	listenPort = 9000
 
-	// DefaultHeapMB is the default kafka manager java heap size
+	// DefaultHeapMB is the default kafka manager java heap size.
+	// TODO what is the best heap size for kafka manager?
 	DefaultHeapMB = 4096
 
 	ENV_ZKHOSTS     = "ZK_HOSTS"
@@ -28,7 +29,8 @@ const (
 	zkServerSep = ","
 )
 
-// The Kafka Manager catalog service. Kafka Manager only needs 1 instance running.
+// The Yahoo Kafka Manager catalog service, https://github.com/yahoo/kafka-manager
+// Kafka Manager only needs 1 instance running.
 // Kafka Manager will store the data in ZooKeeper. So Kafka Manager itself is stateless.
 
 // GenDefaultCreateServiceRequest returns the default service creation request.

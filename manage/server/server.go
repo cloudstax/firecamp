@@ -328,7 +328,12 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 		return err
 	}
 	if !exist {
-		logConfig := s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
+		var logConfig *cloudlog.LogConfig
+		if req.Service.ServiceType != common.ServiceTypeStateless {
+			logConfig = s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
+		} else {
+			logConfig = s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID, req.Service.ServiceName)
+		}
 		opts := s.genCreateServiceOptions(req, serviceUUID, logConfig)
 		err = s.containersvcIns.CreateService(ctx, opts)
 		if err != nil {
@@ -347,24 +352,29 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    serviceUUID,
+		ServiceType:    req.Service.ServiceType,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
 		LogConfig:      logConfig,
 	}
 
 	createOpts := &containersvc.CreateServiceOptions{
-		Replicas: req.Replicas,
-		Common:   commonOpts,
-		DataVolume: &containersvc.VolumeOptions{
+		Replicas:         req.Replicas,
+		Common:           commonOpts,
+		PortMappings:     req.PortMappings,
+		Envkvs:           req.Envkvs,
+		ExternalDNS:      req.RegisterDNS,
+		ExternalStaticIP: req.RequireStaticIP,
+	}
+
+	if req.Volume != nil {
+		createOpts.DataVolume = &containersvc.VolumeOptions{
 			MountPath:  req.ContainerPath,
 			VolumeType: req.Volume.VolumeType,
 			SizeGB:     req.Volume.VolumeSizeGB,
 			Iops:       req.Volume.Iops,
 			Encrypted:  req.Volume.Encrypted,
-		},
-		PortMappings:     req.PortMappings,
-		ExternalDNS:      req.RegisterDNS,
-		ExternalStaticIP: req.RequireStaticIP,
+		}
 	}
 	if req.JournalVolume != nil {
 		createOpts.JournalVolume = &containersvc.VolumeOptions{
@@ -376,24 +386,26 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		}
 	}
 
-	zones := make(map[string]bool)
-	for _, replCfg := range req.ReplicaConfigs {
-		zones[replCfg.Zone] = true
-	}
-	if len(zones) != len(s.azs) {
-		placeZones := []string{}
-		for k := range zones {
-			placeZones = append(placeZones, k)
+	if req.Service.ServiceType != common.ServiceTypeStateless {
+		zones := make(map[string]bool)
+		for _, replCfg := range req.ReplicaConfigs {
+			zones[replCfg.Zone] = true
 		}
+		if len(zones) != len(s.azs) {
+			placeZones := []string{}
+			for k := range zones {
+				placeZones = append(placeZones, k)
+			}
 
-		sort.Slice(placeZones, func(i, j int) bool {
-			return placeZones[i] < placeZones[j]
-		})
-		createOpts.Place = &containersvc.Placement{
-			Zones: placeZones,
+			sort.Slice(placeZones, func(i, j int) bool {
+				return placeZones[i] < placeZones[j]
+			})
+			createOpts.Place = &containersvc.Placement{
+				Zones: placeZones,
+			}
+
+			glog.Infoln("deploy to zones", placeZones, "for service", req.Service, "all zones", s.azs)
 		}
-
-		glog.Infoln("deploy to zones", placeZones, "for service", req.Service, "all zones", s.azs)
 	}
 
 	return createOpts
