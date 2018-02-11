@@ -139,6 +139,9 @@ type ServiceAttr struct {
 
 	// The specified resources for the service.
 	Resource Resources
+
+	// ServiceType is added after release 0.9.3, to support stateless service such as kafka manager.
+	ServiceType string
 }
 
 // ServiceUserAttr represents the custom service attributes.
