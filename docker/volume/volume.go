@@ -714,7 +714,7 @@ func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID stri
 	}
 	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
 		d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil, res)
+		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil, res, "")
 
 	return member, attr
 }
