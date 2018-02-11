@@ -91,7 +91,14 @@ type CreateServiceRequest struct {
 	PortMappings   []common.PortMapping
 	Envkvs         []*common.EnvKeyValuePair
 
-	// Below fields are used by the stateful service.
+	// whether need to register DNS
+	RegisterDNS bool
+
+	// The service's custom attributes
+	UserAttr *common.ServiceUserAttr
+
+	// Below fields are used by the stateful service only.
+
 	// The primary volume for the service data
 	Volume *common.ServiceVolume
 	// The journal volume for the service journal
@@ -100,12 +107,11 @@ type CreateServiceRequest struct {
 	ContainerPath        string // The mount path inside container for the primary volume
 	JournalContainerPath string // The mount path inside container for the journal volume
 
-	RegisterDNS     bool
+	// Whether the service requires static ip
 	RequireStaticIP bool
-	ReplicaConfigs  []*ReplicaConfig
 
-	// The service's custom attributes
-	UserAttr *common.ServiceUserAttr
+	// The detail configs for each replica
+	ReplicaConfigs []*ReplicaConfig
 }
 
 // GetServiceAttributesResponse returns the service's attributes.

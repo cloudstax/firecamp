@@ -490,8 +490,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// kafka manager is a stateless service. create the service in the container platform directly.
-	// TODO Currently we do not create a record in DB for the stateless service. May add it when necessary.
+	// create the service in the control plane and the container platform
 	crReq := kafkamanagercatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, zkattr)
 	if err != nil {
@@ -499,9 +498,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return manage.ConvertToHTTPError(err)
 	}
 
-	serviceUUID := utils.GenUUID()
-
-	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
@@ -509,7 +506,8 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 
 	glog.Infoln("created kafka manager service", serviceUUID, "requuid", requuid, req.Service)
 
-	return "", http.StatusOK
+	// kafka manager does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
 func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {

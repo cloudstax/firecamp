@@ -1667,17 +1667,17 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
-	if *serviceType == common.CatalogService_KafkaManager {
-		serviceReq.Service.ServiceType = common.ServiceTypeStateless
-	}
-
 	volIDs, err := cli.DeleteService(ctx, serviceReq)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "DeleteService error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println("Service deleted, please manually delete the EBS volumes\n\t", volIDs)
+	if len(volIDs) != 0 {
+		fmt.Println("Service deleted, please manually delete the EBS volumes\n\t", volIDs)
+	} else {
+		fmt.Println("service deleted")
+	}
 }
 
 func getConfig(ctx context.Context, cli *client.ManageClient) {

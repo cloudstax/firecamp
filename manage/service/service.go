@@ -21,14 +21,15 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-// Service creation requires 5 steps
+// Service creation requires below steps
 // 1. decide the cluster and service name, the number of replicas for the service,
 //    serviceMember size and available zone.
 // 2. call CreateService() to create the service with all service attributes in DB.
 // 3. create the task definition and service in ECS in the target cluster with
 //    the same service name and replica number.
-// 4. create other related resources such as aws cloudwatch log group
-// 5. add the service init task if necessary. The init task will set the service state to ACTIVE.
+// 4. create other related resources such as aws cloudwatch log group.
+// 5. create the container service on the container orchestration framework.
+// 6. add the service init task if necessary. The init task will set the service state to ACTIVE.
 
 // Here is the implementation for step 2.
 // - create device: check device items, assign the next block device name to the service,
@@ -39,6 +40,11 @@ import (
 // - create the service attribute record with CREATING state.
 // - create the desired number of serviceMembers, and create IDLE serviceMember items in DB.
 // - update the service attribute state to INITIALIZING.
+// For the single replica stateless service, only create the service item and service attribute record in DB.
+// Currently, support the single replica stateless service. So there is no need to create
+// the ServiceMember records. If the stateless service needs multiple replicas, could use
+// Load Balancer such as ELB.
+//
 // The failure handling is simple. If the script failed at some step, user will get error and retry.
 // Could have a background scanner to clean up the dead service, in case user didn't retry.
 
@@ -79,15 +85,26 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	domainName string, vpcID string) (serviceUUID string, err error) {
 	// check args
 	if len(req.Service.Cluster) == 0 || len(req.Service.ServiceName) == 0 ||
-		len(req.Service.Region) == 0 || req.Replicas <= 0 || req.Volume.VolumeSizeGB <= 0 || len(vpcID) == 0 {
-		glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.Volume.VolumeSizeGB, "vpc", vpcID)
+		len(req.Service.Region) == 0 || len(vpcID) == 0 {
+		glog.Errorln("invalid args", req.Service, "vpc", vpcID)
 		return "", common.ErrInvalidArgs
 	}
-	if int64(len(req.ReplicaConfigs)) != req.Replicas {
-		errmsg := fmt.Sprintf("invalid args, every replica should have a config file, replica number %d, config file number %d",
-			len(req.ReplicaConfigs), req.Replicas)
-		glog.Errorln(errmsg)
-		return "", errors.New(errmsg)
+	if req.Service.ServiceType != common.ServiceTypeStateless {
+		if req.Replicas <= 0 || req.Volume.VolumeSizeGB <= 0 {
+			glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.Volume.VolumeSizeGB)
+			return "", common.ErrInvalidArgs
+		}
+		if int64(len(req.ReplicaConfigs)) != req.Replicas {
+			errmsg := fmt.Sprintf("invalid args, every replica should have a config file, replica number %d, config file number %d",
+				len(req.ReplicaConfigs), req.Replicas)
+			glog.Errorln(errmsg)
+			return "", errors.New(errmsg)
+		}
+	} else {
+		if req.Replicas != 1 {
+			glog.Errorln("only support 1 replica stateless service", req.Replicas, req.Service)
+			return "", common.ErrInvalidArgs
+		}
 	}
 
 	requuid := utils.GetReqIDFromContext(ctx)
@@ -119,10 +136,13 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	}
 
 	// create service volumes
-	svols, err := s.createServiceVolumes(ctx, req)
-	if err != nil {
-		glog.Errorln("createServiceVolumes error", err, "requuid", requuid, req.Service)
-		return "", err
+	svols := &common.ServiceVolumes{}
+	if req.Service.ServiceType != common.ServiceTypeStateless {
+		svols, err = s.createServiceVolumes(ctx, req)
+		if err != nil {
+			glog.Errorln("createServiceVolumes error", err, "requuid", requuid, req.Service)
+			return "", err
+		}
 	}
 
 	// create service item
@@ -146,10 +166,12 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.CheckAndCreateServiceMembers(ctx, serviceAttr, req)
-	if err != nil {
-		glog.Errorln("CheckAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
-		return "", err
+	if req.Service.ServiceType != common.ServiceTypeStateless {
+		err = s.CheckAndCreateServiceMembers(ctx, serviceAttr, req)
+		if err != nil {
+			glog.Errorln("CheckAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
+			return "", err
+		}
 	}
 
 	// update service status to INITIALIZING
@@ -308,6 +330,31 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		return volIDs, err
 	}
 
+	// for the stateless service, delete the service's dns record, and delete the service record and service attr record in db.
+	if sattr.ServiceType == common.ServiceTypeStateless {
+		// delete service dns
+		dnsname := dns.GenDNSName(sattr.ServiceName, sattr.DomainName)
+		s.deleteDNSRecord(ctx, dnsname, sattr.HostedZoneID, requuid)
+
+		// delete service attr
+		err = s.dbIns.DeleteServiceAttr(ctx, sattr.ServiceUUID)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("DeleteServiceAttr error", err, sattr)
+			return volIDs, err
+		}
+		glog.Infoln("deleted service attr", sattr, "requuid", requuid)
+
+		// delete service
+		err = s.dbIns.DeleteService(ctx, cluster, service)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("DeleteService error", err, "service", service, "cluster", cluster, "requuid", requuid)
+			return volIDs, err
+		}
+
+		glog.Infoln("delete service complete, service", service, "cluster", cluster, "requuid", requuid)
+		return volIDs, nil
+	}
+
 	if sattr.ServiceStatus != common.ServiceStatusDeleting {
 		// set service status to deleting
 		newAttr := db.UpdateServiceStatus(sattr, common.ServiceStatusDeleting)
@@ -335,23 +382,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	for _, m := range members {
 		// delete the member's dns record
 		dnsname := dns.GenDNSName(m.MemberName, sattr.DomainName)
-		hostname, err := s.dnsIns.GetDNSRecord(ctx, dnsname, sattr.HostedZoneID)
-		if err == nil {
-			// delete the dns record
-			err = s.dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, sattr.HostedZoneID)
-			if err == nil {
-				glog.Infoln("deleted dns record, dnsname", dnsname, "HostedZone",
-					sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
-			} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
-				// skip the dns record deletion error
-				glog.Errorln("DeleteDNSRecord error", err, "dnsname", dnsname,
-					"HostedZone", sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
-			}
-		} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
-			// skip the unknown dns error, as it would only leave a garbage in the dns system.
-			glog.Errorln("GetDNSRecord error", err, "dnsname", dnsname,
-				"HostedZone", sattr.HostedZoneID, "requuid", requuid, "serviceMember", m)
-		}
+		s.deleteDNSRecord(ctx, dnsname, sattr.HostedZoneID, requuid)
 
 		// delete the member's static ip
 		if sattr.RequireStaticIP {
@@ -435,6 +466,26 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 	glog.Infoln("delete service complete, service", service, "cluster", cluster, "requuid", requuid)
 	return volIDs, nil
+}
+
+func (s *ManageService) deleteDNSRecord(ctx context.Context, dnsname string, hostedZoneID string, requuid string) {
+	hostname, err := s.dnsIns.GetDNSRecord(ctx, dnsname, hostedZoneID)
+	if err == nil {
+		// delete the dns record
+		err = s.dnsIns.DeleteDNSRecord(ctx, dnsname, hostname, hostedZoneID)
+		if err == nil {
+			glog.Infoln("deleted dns record, dnsname", dnsname, "HostedZone", hostedZoneID, "requuid", requuid)
+		} else if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
+			// skip the dns record deletion error
+			glog.Errorln("DeleteDNSRecord error", err, "dnsname", dnsname, "HostedZone", hostedZoneID, "requuid", requuid)
+		}
+		return
+	}
+
+	if err != dns.ErrDNSRecordNotFound && err != dns.ErrHostedZoneNotFound {
+		// skip the unknown dns error, as it would only leave a garbage in the dns system.
+		glog.Errorln("GetDNSRecord error", err, "dnsname", dnsname, "HostedZone", hostedZoneID, "requuid", requuid)
+	}
 }
 
 func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMember, requuid string) error {
@@ -740,7 +791,8 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Service.Cluster,
-		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, req.UserAttr, *req.Resource)
+		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP,
+		req.UserAttr, *req.Resource, req.Service.ServiceType)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)

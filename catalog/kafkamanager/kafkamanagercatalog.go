@@ -80,6 +80,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		Replicas:     1,
 		PortMappings: portMappings,
 		Envkvs:       envkvs,
+		RegisterDNS:  true,
 	}
 	return req
 }
