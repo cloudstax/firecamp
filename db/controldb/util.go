@@ -67,23 +67,6 @@ func EqualService(a1 *pb.Service, a2 *pb.Service) bool {
 	return false
 }
 
-func GenPbServiceVolume(vol *common.ServiceVolume) *pb.ServiceVolume {
-	return &pb.ServiceVolume{
-		VolumeType:   vol.VolumeType,
-		VolumeSizeGB: vol.VolumeSizeGB,
-		Iops:         vol.Iops,
-	}
-}
-
-func GenPbServiceVolumes(svol *common.ServiceVolumes) *pb.ServiceVolumes {
-	return &pb.ServiceVolumes{
-		PrimaryDeviceName: svol.PrimaryDeviceName,
-		PrimaryVolume:     GenPbServiceVolume(&(svol.PrimaryVolume)),
-		JournalDeviceName: svol.JournalDeviceName,
-		JournalVolume:     GenPbServiceVolume(&(svol.JournalVolume)),
-	}
-}
-
 func GenPbServiceResource(res *common.Resources) *pb.Resources {
 	return &pb.Resources{
 		MaxCPUUnits:     res.MaxCPUUnits,
@@ -94,6 +77,10 @@ func GenPbServiceResource(res *common.Resources) *pb.Resources {
 }
 
 func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
+	volumeBytes, err := json.Marshal(attr.Volumes)
+	if err != nil {
+		return nil, err
+	}
 	pbAttr := &pb.ServiceAttr{
 		ServiceUUID:     attr.ServiceUUID,
 		ServiceStatus:   attr.ServiceStatus,
@@ -101,7 +88,7 @@ func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
 		Replicas:        attr.Replicas,
 		ClusterName:     attr.ClusterName,
 		ServiceName:     attr.ServiceName,
-		Volumes:         GenPbServiceVolumes(&(attr.Volumes)),
+		VolumeBytes:     volumeBytes,
 		RegisterDNS:     attr.RegisterDNS,
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
@@ -117,23 +104,6 @@ func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
 		pbAttr.UserAttrBytes = userAttrBytes
 	}
 	return pbAttr, nil
-}
-
-func GenDbServiceVolume(vol *pb.ServiceVolume) *common.ServiceVolume {
-	return &common.ServiceVolume{
-		VolumeType:   vol.VolumeType,
-		VolumeSizeGB: vol.VolumeSizeGB,
-		Iops:         vol.Iops,
-	}
-}
-
-func GenDbServiceVolumes(svol *pb.ServiceVolumes) *common.ServiceVolumes {
-	return &common.ServiceVolumes{
-		PrimaryDeviceName: svol.PrimaryDeviceName,
-		PrimaryVolume:     *GenDbServiceVolume(svol.PrimaryVolume),
-		JournalDeviceName: svol.JournalDeviceName,
-		JournalVolume:     *GenDbServiceVolume(svol.JournalVolume),
-	}
 }
 
 func GenDbServiceResource(res *pb.Resources) *common.Resources {
@@ -155,6 +125,11 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
 		}
 		userAttr = uattr
 	}
+	vols := &common.ServiceVolumes{}
+	err := json.Unmarshal(attr.VolumeBytes, vols)
+	if err != nil {
+		return nil, err
+	}
 
 	dbAttr := db.CreateServiceAttr(attr.ServiceUUID,
 		attr.ServiceStatus,
@@ -162,7 +137,7 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
 		attr.Replicas,
 		attr.ClusterName,
 		attr.ServiceName,
-		*GenDbServiceVolumes(attr.Volumes),
+		*vols,
 		attr.RegisterDNS,
 		attr.DomainName,
 		attr.HostedZoneID,
@@ -181,7 +156,7 @@ func CopyServiceAttr(attr *pb.ServiceAttr) *pb.ServiceAttr {
 		Replicas:        attr.Replicas,
 		ClusterName:     attr.ClusterName,
 		ServiceName:     attr.ServiceName,
-		Volumes:         CopyServiceVolumes(attr.Volumes),
+		VolumeBytes:     attr.VolumeBytes,
 		RegisterDNS:     attr.RegisterDNS,
 		DomainName:      attr.DomainName,
 		HostedZoneID:    attr.HostedZoneID,
@@ -200,7 +175,6 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.Replicas == a2.Replicas &&
 		a1.ClusterName == a2.ClusterName &&
 		a1.ServiceName == a2.ServiceName &&
-		EqualServiceVolumes(a1.Volumes, a2.Volumes) &&
 		a1.RegisterDNS == a2.RegisterDNS &&
 		a1.DomainName == a2.DomainName &&
 		a1.HostedZoneID == a2.HostedZoneID &&
@@ -221,42 +195,6 @@ func EqualResources(r1 *pb.Resources, r2 *pb.Resources) bool {
 		return true
 	}
 	return false
-}
-
-func EqualServiceVolume(v1 *pb.ServiceVolume, v2 *pb.ServiceVolume) bool {
-	if v1.VolumeType == v2.VolumeType &&
-		v1.VolumeSizeGB == v2.VolumeSizeGB &&
-		v1.Iops == v2.Iops {
-		return true
-	}
-	return false
-}
-
-func EqualServiceVolumes(v1 *pb.ServiceVolumes, v2 *pb.ServiceVolumes) bool {
-	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
-		EqualServiceVolume(v1.PrimaryVolume, v2.PrimaryVolume) &&
-		v1.JournalDeviceName == v2.JournalDeviceName &&
-		EqualServiceVolume(v1.JournalVolume, v2.JournalVolume) {
-		return true
-	}
-	return false
-}
-
-func CopyServiceVolumes(v1 *pb.ServiceVolumes) *pb.ServiceVolumes {
-	return &pb.ServiceVolumes{
-		PrimaryDeviceName: v1.PrimaryDeviceName,
-		PrimaryVolume: &pb.ServiceVolume{
-			VolumeType:   v1.PrimaryVolume.VolumeType,
-			VolumeSizeGB: v1.PrimaryVolume.VolumeSizeGB,
-			Iops:         v1.PrimaryVolume.Iops,
-		},
-		JournalDeviceName: v1.JournalDeviceName,
-		JournalVolume: &pb.ServiceVolume{
-			VolumeType:   v1.JournalVolume.VolumeType,
-			VolumeSizeGB: v1.JournalVolume.VolumeSizeGB,
-			Iops:         v1.JournalVolume.Iops,
-		},
-	}
 }
 
 func CopyResources(r1 *pb.Resources) *pb.Resources {

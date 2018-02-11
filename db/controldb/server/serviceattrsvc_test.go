@@ -66,25 +66,30 @@ func TestAttrReadWriter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal userattr error %s", err)
 	}
+	vols := &common.ServiceVolumes{
+		PrimaryDeviceName: devName,
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: 1,
+		},
+		JournalDeviceName: devName + "journal",
+		JournalVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeIOPSSSD,
+			VolumeSizeGB: 1,
+		},
+	}
+	volBytes, err := json.Marshal(vols)
+	if err != nil {
+		t.Fatalf("Marshal ServiceVolumes error %s", err)
+	}
 
 	attr := &pb.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: serviceStatus,
-		Replicas:      int64(taskCounts),
-		ClusterName:   cluster,
-		ServiceName:   serviceName,
-		Volumes: &pb.ServiceVolumes{
-			PrimaryDeviceName: devName,
-			PrimaryVolume: &pb.ServiceVolume{
-				VolumeType:   common.VolumeTypeGPSSD,
-				VolumeSizeGB: 1,
-			},
-			JournalDeviceName: devName + "journal",
-			JournalVolume: &pb.ServiceVolume{
-				VolumeType:   common.VolumeTypeIOPSSSD,
-				VolumeSizeGB: 1,
-			},
-		},
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   serviceStatus,
+		Replicas:        int64(taskCounts),
+		ClusterName:     cluster,
+		ServiceName:     serviceName,
+		VolumeBytes:     volBytes,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZone,
@@ -193,24 +198,30 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 	hostedZone := "zone1"
 	requireStaticIP := false
 
-	attr := &pb.ServiceAttr{
-		ServiceUUID:   serviceUUID,
-		ServiceStatus: serviceStatus,
-		Replicas:      int64(i),
-		ClusterName:   cluster,
-		ServiceName:   serviceNamePrefix + strconv.Itoa(i),
-		Volumes: &pb.ServiceVolumes{
-			PrimaryDeviceName: devNamePrefix + strconv.Itoa(i),
-			PrimaryVolume: &pb.ServiceVolume{
-				VolumeType:   common.VolumeTypeGPSSD,
-				VolumeSizeGB: int64(i),
-			},
-			JournalDeviceName: devNamePrefix + "journal" + strconv.Itoa(i),
-			JournalVolume: &pb.ServiceVolume{
-				VolumeType:   common.VolumeTypeGPSSD,
-				VolumeSizeGB: int64(i),
-			},
+	vols := &common.ServiceVolumes{
+		PrimaryDeviceName: devNamePrefix + strconv.Itoa(i),
+		PrimaryVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: int64(i),
 		},
+		JournalDeviceName: devNamePrefix + "journal" + strconv.Itoa(i),
+		JournalVolume: common.ServiceVolume{
+			VolumeType:   common.VolumeTypeIOPSSSD,
+			VolumeSizeGB: int64(i),
+		},
+	}
+	volBytes, err := json.Marshal(vols)
+	if err != nil {
+		t.Fatalf("Marshal ServiceVolumes error %s", err)
+	}
+
+	attr := &pb.ServiceAttr{
+		ServiceUUID:     serviceUUID,
+		ServiceStatus:   serviceStatus,
+		Replicas:        int64(i),
+		ClusterName:     cluster,
+		ServiceName:     serviceNamePrefix + strconv.Itoa(i),
+		VolumeBytes:     volBytes,
 		RegisterDNS:     registerDNS,
 		DomainName:      domainPrefix + strconv.Itoa(i),
 		HostedZoneID:    hostedZone,
@@ -218,7 +229,7 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 		Res:             &pb.Resources{},
 		ServiceType:     "",
 	}
-	err := s.CreateServiceAttr(ctx, attr)
+	err = s.CreateServiceAttr(ctx, attr)
 	if err != nil {
 		t.Fatalf("createAttr error %s rootdir %s", err, rootdir, serviceUUID)
 	}

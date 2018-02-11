@@ -100,7 +100,7 @@ message ServiceAttr {
   int64 replicas = 4;
   string clusterName = 5;
   string serviceName = 6;
-  ServiceVolumes volumes = 7;
+  bytes volumeBytes = 7;
 
   // whether the service has the strict membership, such as database replicas.
   // if yes, each serviceMember will be assigned a member name and registered to DNS.
@@ -120,19 +120,6 @@ message Resources {
   int64 ReserveCPUUnits = 2;
   int64 MaxMemMB = 3;
   int64 ReserveMemMB = 4;
-}
-
-message ServiceVolumes {
-  string primaryDeviceName = 1;
-  ServiceVolume primaryVolume = 2;
-  string journalDeviceName = 3;
-  ServiceVolume journalVolume = 4;
-}
-
-message ServiceVolume {
-  string volumeType = 1;
-  int64 volumeSizeGB = 2;
-  int64 iops = 3;
 }
 
 message CreateServiceAttrResponse {
