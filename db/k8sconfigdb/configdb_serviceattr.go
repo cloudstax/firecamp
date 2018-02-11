@@ -48,7 +48,8 @@ func (s *K8sConfigDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Ser
 		oldAttr.RequireStaticIP != newAttr.RequireStaticIP ||
 		oldAttr.ServiceName != newAttr.ServiceName ||
 		!db.EqualResources(&oldAttr.Resource, &newAttr.Resource) ||
-		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) {
+		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) ||
+		oldAttr.ServiceType != newAttr.ServiceType {
 		glog.Errorln("immutable fields could not be updated, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
@@ -150,7 +151,8 @@ func (s *K8sConfigDB) GetServiceAttr(ctx context.Context, serviceUUID string) (a
 		cfgmap.Data[db.HostedZoneID],
 		requireStaticIP,
 		userAttr,
-		res)
+		res,
+		cfgmap.Data[db.ServiceType])
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil
@@ -202,6 +204,7 @@ func (s *K8sConfigDB) attrToConfigMap(attr *common.ServiceAttr, requuid string) 
 			db.HostedZoneID:    attr.HostedZoneID,
 			db.RequireStaticIP: strconv.FormatBool(attr.RequireStaticIP),
 			db.Resource:        string(resBytes),
+			db.ServiceType:     attr.ServiceType,
 		},
 	}
 	if attr.UserAttr != nil {

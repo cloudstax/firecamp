@@ -210,7 +210,7 @@ func TestServiceAttr(t *testing.T) {
 		}
 
 		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, "")
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {

@@ -39,10 +39,10 @@ func TestDBUtils(t *testing.T) {
 
 	mtime := time.Now().UnixNano()
 	attr1 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res, "")
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res, "")
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
@@ -77,10 +77,10 @@ func TestDBUtils(t *testing.T) {
 		AttrBytes:   b,
 	}
 	attr3 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, common.ServiceTypeStateless)
 	attr3.LastModified = mtime
 	attr4 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, common.ServiceTypeStateless)
 	if !EqualServiceAttr(attr3, attr4, false) {
 		t.Fatalf("attr is not the same, %s %s", attr3, attr4)
 	}

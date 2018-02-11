@@ -691,7 +691,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, "")
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -771,7 +771,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res)
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, "")
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)

@@ -107,6 +107,7 @@ func GenPbServiceAttr(attr *common.ServiceAttr) (*pb.ServiceAttr, error) {
 		HostedZoneID:    attr.HostedZoneID,
 		RequireStaticIP: attr.RequireStaticIP,
 		Res:             GenPbServiceResource(&(attr.Resource)),
+		ServiceType:     attr.ServiceType,
 	}
 	if attr.UserAttr != nil {
 		userAttrBytes, err := json.Marshal(attr.UserAttr)
@@ -167,7 +168,8 @@ func GenDbServiceAttr(attr *pb.ServiceAttr) (*common.ServiceAttr, error) {
 		attr.HostedZoneID,
 		attr.RequireStaticIP,
 		userAttr,
-		*GenDbServiceResource(attr.Res))
+		*GenDbServiceResource(attr.Res),
+		attr.ServiceType)
 	return dbAttr, nil
 }
 
@@ -186,6 +188,7 @@ func CopyServiceAttr(attr *pb.ServiceAttr) *pb.ServiceAttr {
 		RequireStaticIP: attr.RequireStaticIP,
 		UserAttrBytes:   attr.UserAttrBytes,
 		Res:             CopyResources(attr.Res),
+		ServiceType:     attr.ServiceType,
 	}
 	return pbAttr
 }
@@ -203,7 +206,8 @@ func EqualAttr(a1 *pb.ServiceAttr, a2 *pb.ServiceAttr, skipMtime bool) bool {
 		a1.HostedZoneID == a2.HostedZoneID &&
 		a1.RequireStaticIP == a2.RequireStaticIP &&
 		bytes.Equal(a1.UserAttrBytes, a2.UserAttrBytes) &&
-		EqualResources(a1.Res, a2.Res) {
+		EqualResources(a1.Res, a2.Res) &&
+		a1.ServiceType == a2.ServiceType {
 		return true
 	}
 	return false

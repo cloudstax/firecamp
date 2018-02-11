@@ -11,7 +11,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/db/controldb"
 	pb "github.com/cloudstax/firecamp/db/controldb/protocols"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -367,49 +366,55 @@ func (r *attrReadWriter) updateAttr(ctx context.Context, req *pb.UpdateServiceAt
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// sanity check
-	if req.OldAttr.ServiceUUID != r.serviceUUID {
-		glog.Errorln("attr is not for service", r.serviceUUID, "OldAttr", req.OldAttr)
-		return db.ErrDBInvalidRequest
-	}
-
 	if r.attr == nil {
 		glog.Errorln("updateAttr, no attr", r.serviceUUID, "requuid", requuid)
 		return db.ErrDBRecordNotFound
 	}
 
-	// only ServiceStatus or Replicas are allowed to change.
-	if req.OldAttr.ServiceStatus != r.attr.ServiceStatus || req.OldAttr.Replicas != r.attr.Replicas {
-		glog.Errorln("oldAttr does not match current attr, requuid", requuid, req.OldAttr, r.attr)
+	if r.attr.ServiceUUID != req.OldAttr.ServiceUUID ||
+		r.attr.ServiceUUID != req.NewAttr.ServiceUUID {
+		glog.Errorln("attr is not for service", r.serviceUUID, "oldAttr", req.OldAttr.ServiceUUID, "newAttr", req.NewAttr.ServiceUUID)
+		return db.ErrDBInvalidRequest
+	}
+	if r.attr.ServiceStatus != req.OldAttr.ServiceStatus ||
+		r.attr.Replicas != req.OldAttr.Replicas ||
+		r.attr.ClusterName != req.OldAttr.ClusterName ||
+		r.attr.DomainName != req.OldAttr.DomainName ||
+		r.attr.HostedZoneID != req.OldAttr.HostedZoneID ||
+		r.attr.RegisterDNS != req.OldAttr.RegisterDNS ||
+		r.attr.RequireStaticIP != req.OldAttr.RequireStaticIP ||
+		r.attr.ServiceName != req.OldAttr.ServiceName ||
+		r.attr.ServiceType != req.OldAttr.ServiceType {
+		glog.Errorln("OldAttr does not match current attr", r.attr, "oldAttr", req.OldAttr, "requuid", requuid)
 		return db.ErrDBConditionalCheckFailed
 	}
-
-	newAttr := controldb.CopyServiceAttr(r.attr)
-	newAttr.LastModified = req.NewAttr.LastModified
-
-	if req.OldAttr.ServiceStatus != req.NewAttr.ServiceStatus {
-		glog.Infoln("update service status from", req.OldAttr.ServiceStatus, "to", req.NewAttr.ServiceStatus, "requuid", requuid)
-		newAttr.ServiceStatus = req.NewAttr.ServiceStatus
-	} else if req.OldAttr.Replicas != req.NewAttr.Replicas {
-		glog.Infoln("update service replicas from", req.OldAttr.Replicas, "to", req.NewAttr.Replicas, "requuid", requuid)
-		newAttr.Replicas = req.NewAttr.Replicas
+	if r.attr.ClusterName != req.NewAttr.ClusterName ||
+		r.attr.DomainName != req.NewAttr.DomainName ||
+		r.attr.HostedZoneID != req.NewAttr.HostedZoneID ||
+		r.attr.RegisterDNS != req.NewAttr.RegisterDNS ||
+		r.attr.RequireStaticIP != req.NewAttr.RequireStaticIP ||
+		r.attr.ServiceName != req.NewAttr.ServiceName ||
+		r.attr.ServiceType != req.NewAttr.ServiceType {
+		glog.Errorln("immutable fields could not be updated, current attr", r.attr, "newAttr", req.NewAttr, "requuid", requuid)
+		return db.ErrDBInvalidRequest
 	}
 
-	data, err := proto.Marshal(newAttr)
+	data, err := proto.Marshal(req.NewAttr)
 	if err != nil {
-		glog.Errorln("updateAttr Marshal ServiceAttr error", err, newAttr, "requuid", requuid)
+		glog.Errorln("updateAttr Marshal ServiceAttr error", err, req.NewAttr, "requuid", requuid)
 		return db.ErrDBInternal
 	}
 
 	err = r.store.CreateNewVersionFile(data, "updateAttr", requuid)
 	if err != nil {
-		glog.Errorln("updateAttr, createNewVersionFile error", err, newAttr, "requuid", requuid)
+		glog.Errorln("updateAttr, createNewVersionFile error", err, r.serviceUUID, "requuid", requuid)
 		return db.ErrDBInternal
 	}
 
 	// successfully created the attr file, update in-memory cache
-	r.attr = newAttr
+	r.attr = req.NewAttr
 
-	glog.Infoln("updateAttr done", r.attr, "requuid", requuid)
+	glog.Infoln("updateAttr done", r.serviceUUID, "requuid", requuid)
 	return nil
 }
 

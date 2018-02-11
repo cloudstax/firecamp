@@ -91,6 +91,11 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			B: userAttrBytes,
 		}
 	}
+	if len(attr.ServiceType) != 0 {
+		params.Item[db.ServiceType] = &dynamodb.AttributeValue{
+			S: aws.String(attr.ServiceType),
+		}
+	}
 
 	_, err = dbsvc.PutItem(params)
 
@@ -115,7 +120,8 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 		oldAttr.RequireStaticIP != newAttr.RequireStaticIP ||
 		oldAttr.ServiceName != newAttr.ServiceName ||
 		!db.EqualResources(&oldAttr.Resource, &newAttr.Resource) ||
-		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) {
+		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) ||
+		oldAttr.ServiceType != newAttr.ServiceType {
 		glog.Errorln("immutable fields could not be updated, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
@@ -280,6 +286,10 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 			return nil, db.ErrDBInternal
 		}
 	}
+	serviceType := ""
+	if _, ok := resp.Item[db.ServiceType]; ok {
+		serviceType = *(resp.Item[db.ServiceType].S)
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -294,7 +304,8 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[db.HostedZoneID].S),
 		*(resp.Item[db.RequireStaticIP].BOOL),
 		userAttr,
-		res)
+		res,
+		serviceType)
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil

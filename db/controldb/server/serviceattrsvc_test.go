@@ -91,6 +91,7 @@ func TestAttrReadWriter(t *testing.T) {
 		RequireStaticIP: requireStaticIP,
 		UserAttrBytes:   userAttrBytes,
 		Res:             &pb.Resources{},
+		ServiceType:     common.ServiceTypeStateless,
 	}
 	err = s.createAttr(ctx, attr)
 	if err != nil {
@@ -215,6 +216,7 @@ func testServiceAttrOp(t *testing.T, s *serviceAttrSvc, serviceUUID string, i in
 		HostedZoneID:    hostedZone,
 		RequireStaticIP: requireStaticIP,
 		Res:             &pb.Resources{},
+		ServiceType:     "",
 	}
 	err := s.CreateServiceAttr(ctx, attr)
 	if err != nil {

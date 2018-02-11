@@ -112,6 +112,7 @@ message ServiceAttr {
 
   bytes userAttrBytes = 12;
   Resources res = 13;
+  string serviceType = 14;
 }
 
 message Resources {

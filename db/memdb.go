@@ -454,6 +454,7 @@ func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
 		RequireStaticIP: t.RequireStaticIP,
 		UserAttr:        t.UserAttr,
 		Resource:        t.Resource,
+		ServiceType:     t.ServiceType,
 	}
 }
 

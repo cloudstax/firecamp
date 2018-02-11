@@ -56,7 +56,8 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string,
 	service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr, res common.Resources) *common.ServiceAttr {
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
+	res common.Resources, serviceType string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
@@ -71,12 +72,14 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
 		Resource:        res,
+		ServiceType:     serviceType,
 	}
 }
 
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
 	cluster string, service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr, res common.Resources) *common.ServiceAttr {
+	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
+	res common.Resources, serviceType string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
@@ -91,6 +94,7 @@ func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas 
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
 		Resource:        res,
+		ServiceType:     serviceType,
 	}
 }
 
@@ -107,7 +111,8 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.HostedZoneID == t2.HostedZoneID &&
 		t1.RequireStaticIP == t2.RequireStaticIP &&
 		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) &&
-		EqualResources(&(t1.Resource), &(t2.Resource)) {
+		EqualResources(&(t1.Resource), &(t2.Resource)) &&
+		t1.ServiceType == t2.ServiceType {
 		return true
 	}
 	return false
@@ -433,6 +438,7 @@ func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceA
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
 		Resource:        t1.Resource,
+		ServiceType:     t1.ServiceType,
 	}
 }
 
@@ -451,6 +457,7 @@ func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.Servi
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
 		Resource:        t1.Resource,
+		ServiceType:     t1.ServiceType,
 	}
 }
 
@@ -469,6 +476,7 @@ func UpdateServiceUserAttr(t1 *common.ServiceAttr, ua *common.ServiceUserAttr) *
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        ua,
 		Resource:        t1.Resource,
+		ServiceType:     t1.ServiceType,
 	}
 }
 
