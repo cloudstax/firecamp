@@ -23,6 +23,8 @@ const (
 )
 
 // K8sConfigDB implements DB interface using k8s configmap.
+// The k8s configmap is stored in Etcd. Etcd has 1MB limit for key. So it is not possible
+// to put all configs in one configmap. We simply store one record as one configmap.
 type K8sConfigDB struct {
 	cliset        *kubernetes.Clientset
 	namespace     string
