@@ -166,16 +166,16 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		// create the cassandra.yaml file
 		customContent := ""
-		if platform == common.ContainerPlatformECS {
-			// ECS allows to use the host network. So we use the host network for better performance.
-			// Cassandra could listen on the member's dnsname.
-			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
-		} else {
+		if platform == common.ContainerPlatformSwarm {
 			// leave listen_address blank and set rpc_address to 0.0.0.0 is for docker swarm.
 			// docker swarm does not allow service to use "host" network. So the container
 			// could not listen on the member's dnsname.
 			// For the blank listen_address, Cassandra will use InetAddress.getLocalHost().
 			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, "", memberHost, catalog.BindAllIP, memberHost)
+		} else {
+			// ECS allows to use the host network. So we use the host network for better performance.
+			// Cassandra could listen on the member's dnsname.
+			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
 		}
 		yamlCfg := &manage.ReplicaConfigFile{
 			FileName: yamlConfFileName,

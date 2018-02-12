@@ -128,6 +128,12 @@ The Cassandra service creation steps:
 
 In case the service creation fails, please simply retry it. Once the service is initialized, you could create a new super user.
 
+## Check Cassandra service status
+
+The Cassandra service creation will return the cassandra jmx password, such as `2018-02-11 21:13:10.524442554 +0000 UTC The catalog service is created, jmx user cassandrajmx password 9ba31d4787504894638611e0aeb91c93`.
+
+To double check Cassandra is successfully initialized and includes all replicas, run `nodetool -h mycas-0.t1-firecamp.com -u cassandrajmx -pw 9ba31d4787504894638611e0aeb91c93 status`. It should include all replicas. In case, if some replica is not included, for example, you create a 6 replicas Cassandra service, but nodetool shows only 5 members, use firecamp-service-cli to stop the services, `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=stop-service -service-name=mycas`, and start again with `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=start-service -service-name=mycas`. Then check with nodetool again.
+
 ## Create the New Super User
 Cassandra has a default super user, name "cassandra" and password "cassandra". After the Cassandra service is initialized, please login to create a new superuser and disable the default "cassandra" superuser. The steps are:
 
