@@ -7,7 +7,8 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
     ca-certificates \
     jq \
-		numactl \
+    numactl \
+    dnsutils \
 	&& rm -rf /var/lib/apt/lists/*
 
 # grab gosu for easy step-down from root

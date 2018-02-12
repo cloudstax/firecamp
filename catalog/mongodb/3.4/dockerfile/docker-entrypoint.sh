@@ -65,7 +65,20 @@ fi
 
 # load the sys config file
 . $syscfgfile
-echo $SERVICE_MEMBER
+# When creating the sharded cluster with 3 config servers, occasionally host $SERVICE_MEMBER
+# returns 127.0.0.1 for some config server container. Not know the root cause.
+# MongoDB config server will then listen on localhost via unix socket, and the config server
+# replicaset may not be initialized.
+#
+# netstat -al | grep 27019
+# tcp        0      0 localhost:27019             *:*                         LISTEN
+# unix  2      [ ACC ]     STREAM     LISTENING     238639 /tmp/mongodb-27019.sock
+host $SERVICE_MEMBER
+memberhost=$(host $SERVICE_MEMBER | awk '{ print $4 }')
+if [ "$memberhost" == "127.0.0.1" ]; then
+  echo "$SERVICE_MEMBER DNS lookup gets 127.0.0.1, exit"
+  exit 2
+fi
 echo ""
 
 if [ "$1" = 'mongod' ]; then
