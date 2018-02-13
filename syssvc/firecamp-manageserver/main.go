@@ -310,7 +310,7 @@ func waitControlDBReady(ctx context.Context, cluster string, containersvcIns con
 			// Here just log the GetServiceStatus error and retry.
 			glog.Errorln("GetServiceStatus error", err)
 		} else {
-			if status.RunningCount == status.DesiredCount {
+			if status.RunningCount == status.DesiredCount && status.DesiredCount != 0 {
 				glog.Infoln("The controldb service is ready")
 				return
 			}
