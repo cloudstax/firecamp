@@ -1,8 +1,24 @@
 # vim:set ft=dockerfile:
-FROM debian:jessie-backports
+FROM debian:stretch-slim
 
 # explicitly set user/group IDs
 RUN groupadd -r cassandra --gid=999 && useradd -r -g cassandra --uid=999 cassandra
+
+RUN set -ex; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+# solves warning: "jemalloc shared library could not be preloaded to speed up memory allocations"
+		libjemalloc1 \
+# free is used by cassandra-env.sh
+		procps \
+	; \
+	if ! command -v gpg > /dev/null; then \
+		apt-get install -y --no-install-recommends \
+			dirmngr \
+			gnupg \
+		; \
+	fi; \
+	rm -rf /var/lib/apt/lists/*
 
 # grab gosu for easy step-down from root
 ENV GOSU_VERSION 1.10
@@ -17,16 +33,6 @@ RUN set -x \
 	&& chmod +x /usr/local/bin/gosu \
 	&& gosu nobody true \
 	&& apt-get purge -y --auto-remove ca-certificates wget
-
-# solves warning: "jemalloc shared library could not be preloaded to speed up memory allocations"
-RUN apt-get update && apt-get install -y --no-install-recommends libjemalloc1 && rm -rf /var/lib/apt/lists/*
-
-# https://github.com/docker-library/cassandra/pull/98#issuecomment-280761137
-RUN { \
-      echo 'Package: openjdk-* ca-certificates-java'; \
-      echo 'Pin: release n=*-backports'; \
-      echo 'Pin-Priority: 990'; \
-    } > /etc/apt/preferences.d/java-backports
 
 # https://wiki.apache.org/cassandra/DebianPackaging#Adding_Repository_Keys
 ENV GPG_KEYS \
@@ -43,15 +49,16 @@ RUN set -ex; \
 	rm -r "$GNUPGHOME"; \
 	apt-key list
 
-RUN echo 'deb http://www.apache.org/dist/cassandra/debian 311x main' >> /etc/apt/sources.list.d/cassandra.list
-
 ENV CASSANDRA_VERSION 3.11.1
 
-RUN apt-get update \
-	&& apt-get install -y \
+RUN set -ex; \
+  mkdir -p /usr/share/man/man1/; \
+  echo 'deb http://www.apache.org/dist/cassandra/debian 311x main' >> /etc/apt/sources.list.d/cassandra.list; \
+  apt-get update; \
+	apt-get install -y \
     cassandra="$CASSANDRA_VERSION" \
-    cassandra-tools="$CASSANDRA_VERSION" \
-	&& rm -rf /var/lib/apt/lists/*
+    cassandra-tools="$CASSANDRA_VERSION"; \
+	rm -rf /var/lib/apt/lists/*
 
 # https://issues.apache.org/jira/browse/CASSANDRA-11661
 RUN sed -ri 's/^(JVM_PATCH_VERSION)=.*/\1=25/' /etc/cassandra/cassandra-env.sh
