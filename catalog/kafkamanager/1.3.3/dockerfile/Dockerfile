@@ -26,6 +26,7 @@ RUN set -ex; \
 
 WORKDIR /kafka-manager-${KM_VERSION}
 
+COPY logback.xml /kafka-manager-${KM_VERSION}/conf/
 COPY firecamp-service-updatedns /kafka-manager-${KM_VERSION}/
 COPY docker-entrypoint.sh /kafka-manager-${KM_VERSION}/
 
