@@ -97,12 +97,17 @@ The default Java heap size, both Xmx and Xms, are set to 8GB. The max heap size 
 
 By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address.
 
+**System Configs**
+
+Follow the [Cassandra Recommended Settings](https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html). The number of file descriptors and threads are increased. The TCP tunings are applied. The memory swapping is disabled, memlock is set to unlimited, and vm_map_count is increased. Please refer to [FireCamp system configs](https://github.com/cloudstax/firecamp/tree/master/catalog/README.md) for the detail configs.
+
 Refs:
 
 [1] [Cassandra on AWS White Paper](https://d0.awsstatic.com/whitepapers/Cassandra_on_AWS.pdf)
 
 [2] [Planning a Cassandra cluster on Amazon EC2](http://docs.datastax.com/en/landing_page/doc/landing_page/planning/planningEC2.html)
 
+[3] [Cassandra Recommended Settings](https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html)
 
 # Tutorials
 

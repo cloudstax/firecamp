@@ -26,32 +26,45 @@ fi
 echo "init version $version, cluster $clusterName, container platform $containerPlatform, role $containerPlatformRole, azs $azs"
 
 # 1. tune the system configs.
-# set never for THP (Transparent Huge Pages), as THP might impact the performance for some services
-# such as MongoDB and Redis. Could set to madvise if some service really benefits from madvise.
+# set madvise for THP (Transparent Huge Pages), as THP might impact the performance for some services
+# such as MongoDB and Redis. Set to madvise as Cassandra may benefit from THP.
 # https://www.kernel.org/doc/Documentation/vm/transhuge.txt
-echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
 
 # increase somaxconn to 512 for such as Redis
 echo "net.core.somaxconn=512" >> /etc/sysctl.conf
-sysctl -w net.core.somaxconn=512
 echo "net.ipv4.tcp_max_syn_backlog=512" >> /etc/sysctl.conf
-sysctl -w net.ipv4.tcp_max_syn_backlog=512
 
-# increase max_map_count to 262144 for ElasticSearch
+# follow https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html
+# They look general settings for other stateful services as well.
+# set idle connection timeout
+echo "net.ipv4.tcp_keepalive_time=60" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_keepalive_probes=3" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_keepalive_intvl=10" >> /etc/sysctl.conf
+# To the handle thousands of concurrent connections used by the database
+echo "net.core.rmem_max=16777216" >> /etc/sysctl.conf
+echo "net.core.wmem_max=16777216" >> /etc/sysctl.conf
+echo "net.core.rmem_default=16777216" >> /etc/sysctl.conf
+echo "net.core.wmem_default=16777216" >> /etc/sysctl.conf
+echo "net.core.optmem_max=40960" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_rmem=4096 87380 16777216" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_wmem=4096 65536 16777216" >> /etc/sysctl.conf
+
+# increase max_map_count to 1048575 for Cassandra.
+# ElasticSearch suggests to use 262144. 1048575 would be fine for ElasticSearch.
+# https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html#configRecommendedSettings__user-resource-limits
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
-echo "vm.max_map_count=262144" >> /etc/sysctl.conf
-sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
 
 # set vm.swappiness to 1 to avoid swapping for ElasticSearch. This could also benefit
 # other services, as usually one node should only run one stateful service in production.
 # https://en.wikipedia.org/wiki/Swappiness
 echo "vm.swappiness=1" >> /etc/sysctl.conf
-sysctl -w vm.swappiness=1
 
 # set overcommit to 1 as required by Redis. Would not cause issue to other services
 echo "vm.overcommit_memory=1" >> /etc/sysctl.conf
-sysctl -w vm.overcommit_memory=1
 
+sysctl -p /etc/sysctl.conf
 
 # 2. install docker.
 yum install -y docker
@@ -65,6 +78,11 @@ fi
 # could know the target service member for the log stream.
 mkdir -p /var/lib/firecamp
 
+# Set the ulimit at docker engine.
+# docker ulimit does not support unlimited. Set memlock to -1.
+# https://github.com/moby/moby/issues/12515
+ulimits="--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000 --default-ulimit memlock=-1"
+
 # 4. Container platform specific initialization.
 if [ "$containerPlatform" = "ecs" ]; then
   # Kafka uses a very large number of files, increase the file descriptor count.
@@ -72,7 +90,7 @@ if [ "$containerPlatform" = "ecs" ]; then
   # The container inherits the docker daemon ulimit.
   # The docker daemon config file is different on different Linux. AWS AMI is /etc/sysconfig/docker.
   # Ubuntu is /etc/init/docker.conf, DOCKER_OPTS
-  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000\"/g" /etc/sysconfig/docker
+  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"$ulimits\"/g" /etc/sysconfig/docker
 
   service docker start
   if [ "$?" != "0" ]; then
@@ -162,8 +180,13 @@ if [ "$containerPlatform" = "ecs" ]; then
   # install firecamp docker log plugin
   docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
   if [ "$?" != "0" ]; then
-    echo "enable firecamp log plugin error"
-    exit 3
+    # wait and retry
+    sleep 10
+    docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
+    if [ "$?" != "0" ]; then
+      echo "enable firecamp log plugin error"
+      exit 3
+    fi
   fi
 
 fi
@@ -198,7 +221,7 @@ if [ "$containerPlatform" = "swarm" ]; then
   done
 
   # set ulimit and labels
-  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"--default-ulimit nofile=100000:100000 --default-ulimit nproc=64000:64000 $labels\"/g" /etc/sysconfig/docker
+  sed -i "s/OPTIONS=\"--default-ulimit.*/OPTIONS=\"$ulimits $labels\"/g" /etc/sysconfig/docker
 
   service docker start
   if [ "$?" != "0" ]; then

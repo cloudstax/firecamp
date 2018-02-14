@@ -31,7 +31,7 @@ ElasticSearch is aware of the server's availability zone, and the awareness is f
 
 **[Important System Configs](https://www.elastic.co/guide/en/elasticsearch/reference/current/system-config.html)**
 
-The nofile and nproc are increased. The vm.swappiness is set to 1. The vm.max_map_count is set to 262144.
+The nofile and nproc are increased. The vm.swappiness is set to 1. The vm.max_map_count is increased.
 
 **[JVM Heap](https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html)**
 
