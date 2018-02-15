@@ -7,57 +7,18 @@
   * [Delete the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-stateful-service)
 
 # Installation on AWS
-This doc always links to the last official release, currently 0.9.3. If you want to test against the latest master branch, which is under developing, manually replace the 0.9.3 to latest for the CloudFormation template and firecamp-service-cli.
 
 ## Install the FireCamp Cluster
-The FireCamp cluster could be easily installed using AWS CloudFormation. The CloudFormation template will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
+The FireCamp cluster can be easily installed via [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/). It will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
 
-Use AWS CLI to create a cluster:
-1. Create the parameters json file, such as stack-master.json. This json config file is for AWS region us-east-1. To create a Docker Swarm cluster, simply change the "ContainerPlatform" from "ecs" to "swarm".
-Currently the template supports 2 and 3 AZs. It is recommended to use 3 AZs for the production environment.
-```
-[
-  {
-    "ParameterKey": "ClusterName",
-    "ParameterValue": "t1"
-  },
-  {
-    "ParameterKey": "AvailabilityZones",
-    "ParameterValue": "us-east-1a,us-east-1b,us-east-1c"
-  },
-  {
-    "ParameterKey": "ContainerPlatform",
-    "ParameterValue": "ecs"
-  },
-  {
-    "ParameterKey": "KeyPairName",
-    "ParameterValue": "mykeyfile"
-  },
-  {
-    "ParameterKey": "RemoteAccessCIDR",
-    "ParameterValue": "0.0.0.0/0"
-  }
-]
-```
-
-2. Run AWS CLI to create the cluster for release 0.9.3.
-```
-#!/bin/sh
-
-version=0.9.3
-
-aws cloudformation create-stack --stack-name t1 --disable-rollback --capabilities CAPABILITY_IAM --template-url https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/templates/firecamp-master.template --parameters file://stack-master.json
-```
-
-You could also use CloudFormation UI to create a cluster:
-1. Go to [FireCamp AWS CloudFormation of release 0.9.3](https://console.aws.amazon.com/cloudformation/home#/stacks/new?templateURL=https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.3/templates/firecamp-master.template), click "Next".
+1. Go to [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/), click "Deploy on AWS into a new VPC", then click "Next".
 
 2. "Specify Details": specify below fields, then click "Next".
 * Specify the "Stack name", such as "t1".
 
   ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+StackName.png)
 
-* Select 3 "AvailabilityZones". The template only supports 3 availability zones. Please make sure you select 3 availability zones.
+* Select 3 "AvailabilityZones".
 
 ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+AvailabilityZones.png)
 
@@ -86,6 +47,42 @@ You could also use CloudFormation UI to create a cluster:
 
 ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+AckIAM.png)
 
+
+You could also use AWS CLI to create a cluster:
+1. Create the parameters json file, such as stack-master.json. This json config file is for AWS region us-east-1. To create a Docker Swarm cluster, simply change the "ContainerPlatform" from "ecs" to "swarm".
+Currently the template supports 2 and 3 AZs. It is recommended to use 3 AZs for the production environment.
+```
+[
+  {
+    "ParameterKey": "ClusterName",
+    "ParameterValue": "t1"
+  },
+  {
+    "ParameterKey": "AvailabilityZones",
+    "ParameterValue": "us-east-1a,us-east-1b,us-east-1c"
+  },
+  {
+    "ParameterKey": "ContainerPlatform",
+    "ParameterValue": "ecs"
+  },
+  {
+    "ParameterKey": "KeyPairName",
+    "ParameterValue": "mykeyfile"
+  },
+  {
+    "ParameterKey": "RemoteAccessCIDR",
+    "ParameterValue": "0.0.0.0/0"
+  }
+]
+```
+
+2. Run AWS CLI to create the cluster.
+```
+#!/bin/sh
+
+aws cloudformation create-stack --stack-name t1 --disable-rollback --capabilities CAPABILITY_IAM --template-url https://s3.amazonaws.com/quickstart-reference/cloudstax/firecamp/latest/templates/firecamp-master.template --parameters file://stack-master.json
+```
+
 ## Install the Application Cluster
 The application could be run on a separate cluster or the FireCamp cluster. The nodes in the FireCamp Cluster could access the stateful services. The CloudFormation template also creates the AppAccessSecurityGroup to protect the outside access to the stateful services running on the FireCamp cluster. You could create the application nodes on the AppAccessSecurityGroup and the same VPC with the FireCamp cluster.
 
@@ -101,7 +98,7 @@ After all stateful services are deleted, delete the CloudFormation stack, which 
 # The FireCamp Service CLI
 A Bastion AutoScaleGroup is created and is the only one that could SSH to the cluster nodes, and access the FireCamp manage server. The nodes in the FireCamp Cluster could also access the manage server.
 
-After the stack is created, could ssh to the Bastion node, get the FireCamp service cli of release 0.9.3.
+After the stack is created, could ssh to the Bastion node, get the FireCamp service cli of the current release 0.9.3.
 
   `wget https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.3/packages/firecamp-service-cli.tgz`
 
@@ -110,7 +107,7 @@ The MongoDB or PostgreSQL cluster could be simply created using the firecamp-ser
 
 For example, the cluster "t1" is created at region us-east-1. To create a 3 replias MongoDB cluster on 3 availability zones, with 100GB data volume and 10GB journal volume for each replica. The default DB user/password is dbadmin/changeme. Run:
 ```
-firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -replicas=3 -volume-size=100 -journal-volume-size=10 -admin=dbadmin -passwd=changeme
+firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=1 -mongo-replicas-pershard=3 -mongo-replicaset-only=true -volume-size=100 -journal-volume-size=10 -admin=admin -password=changeme
 ```
 
 To create a 3 nodes PostgreSQL cluster on 3 availability zones, with 100GB data volume and 10GB journal volume for each replica. The default DB user/password is postgres/changeme, and the PostgreSQL replication user/password is repluser/replpassword. Run:
