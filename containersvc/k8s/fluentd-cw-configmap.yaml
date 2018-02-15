@@ -264,11 +264,10 @@ data:
       enable_ruby true
       <record>
         # group_name format:
-        # - for firecamp service: firecamp-clustername-k8snamespace-servicename-serviceuuid.
-        # - for other service: firecamp-clustername-k8snamespace-podname.
+        # - for firecamp service: clustername-k8snamespace-servicename-serviceuuid.
+        # - for other service: clustername-k8snamespace-podname.
         # FireCamp will set the servicename in the "firecamp-servicename" label, and the serviceuuid in
         # the "firecamp-serviceuuid" label. If "firecamp-servicename" label is not set, it is not a firecamp service.
-        # FIRECAMP_CLUSTER_NAME format is "firecamp" prefix plus the actual cluster name.
         group_name "#{ENV['FIRECAMP_CLUSTER_NAME']}-${record.fetch(\"kubernetes\", Hash.new).fetch(\"namespace_name\", \"unknown_namespace\")}-${if record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).has_key?(\"firecamp-servicename\"); record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).fetch(\"firecamp-servicename\", \"unknown_servicename\") + \"-\" + record.fetch(\"kubernetes\", Hash.new).fetch(\"labels\", Hash.new).fetch(\"firecamp-serviceuuid\", \"unknown_serviceuuid\"); else; record.fetch(\"kubernetes\", Hash.new).fetch(\"pod_name\", \"unknown_podname\"); end;}"
         # stream_name format: podname/containername/hostname/containerID
         # ${hostname} looks get the fluentd container hostname.

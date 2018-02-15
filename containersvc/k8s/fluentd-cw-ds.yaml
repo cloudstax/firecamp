@@ -79,9 +79,8 @@ spec:
         env:
           - name: AWS_REGION
             value: "us-east-1"
-          # FIRECAMP_CLUSTER_NAME format: firecamp-actualclustername
           - name:  FIRECAMP_CLUSTER_NAME
-            value: "firecamp-t1"
+            value: "t1"
         resources:
           limits:
             memory: 200Mi
