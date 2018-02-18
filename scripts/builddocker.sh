@@ -182,9 +182,13 @@ BuildCatalogImages() {
   image="${org}${target}:3.11"
   path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
+  cd $path
+  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
+  docker build -q -t $image .
   docker push $image
+  rm -f Dockerfile
+  cd -
+  rm -f ${path}/waitdns.sh
 
 
   # build zookeeper docker image
