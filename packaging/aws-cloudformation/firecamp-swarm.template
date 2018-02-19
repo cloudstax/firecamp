@@ -101,7 +101,6 @@
           "Fn::Join":[
             "-",
             [
-              "firecamp",
               {
                 "Ref": "ClusterName"
               },
