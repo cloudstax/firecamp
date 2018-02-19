@@ -1,10 +1,12 @@
 package rediscatalog
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/manage"
 )
@@ -25,9 +27,9 @@ func TestRedisConfigs(t *testing.T) {
 		},
 		DisableAOF:      false,
 		AuthPass:        "pass",
-		ReplTimeoutSecs: int64(30),
-		MaxMemPolicy:    "",
-		ConfigCmdName:   "",
+		ReplTimeoutSecs: MinReplTimeoutSecs,
+		MaxMemPolicy:    MaxMemPolicyAllKeysLRU,
+		ConfigCmdName:   "mycfg",
 	}
 
 	// test 3 shards and 2 replicas each shard
@@ -162,13 +164,207 @@ func TestRedisConfigs(t *testing.T) {
 
 }
 
+func TestRedisUpdate(t *testing.T) {
+	region := "region1"
+	platform := common.ContainerPlatformECS
+	cluster := "c1"
+	service := "service1"
+	azs := []string{"az1", "az2", "az3"}
+	res := &common.Resources{
+		MaxCPUUnits:     common.DefaultMaxCPUUnits,
+		ReserveCPUUnits: common.DefaultReserveCPUUnits,
+		MaxMemMB:        common.DefaultMaxMemoryMB,
+		ReserveMemMB:    common.DefaultReserveMemoryMB,
+	}
+	opts := &manage.CatalogRedisOptions{
+		Shards:            int64(1),
+		ReplicasPerShard:  int64(1),
+		MemoryCacheSizeMB: 256,
+		Volume: &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: int64(1),
+		},
+		DisableAOF:      false,
+		AuthPass:        "pass",
+		ReplTimeoutSecs: MinReplTimeoutSecs,
+		MaxMemPolicy:    MaxMemPolicyAllKeysLRU,
+		ConfigCmdName:   "mycfg",
+	}
+
+	crReq, err := GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
+
+	replcfgs := crReq.ReplicaConfigs
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != "service1-0" {
+		t.Fatalf("replica configs zone mismatch, %s", replcfgs)
+	}
+
+	content := strings.TrimSuffix(replcfgs[0].Configs[1].Content, defaultConfigs)
+	content = EnableRedisAuth(content)
+	content += "\n"
+	content1 := fmt.Sprintf(redisConfigs2, "service1-0.c1-firecamp.com", 268435456, "")
+	if content != content1 {
+		t.Fatalf("redis conf content mismatch, %s \nexpect\n %s", content, content1)
+	}
+
+	ua := &common.RedisUserAttr{}
+	err = json.Unmarshal(crReq.UserAttr.AttrBytes, ua)
+	if err != nil {
+		t.Fatalf("Unmarshal RedisUserAttr error %s", err)
+	}
+
+	// update content
+	upReq := &manage.CatalogUpdateRedisRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      region,
+			Cluster:     cluster,
+			ServiceName: service,
+		},
+	}
+
+	if IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is not changed")
+	}
+
+	// disable config cmd
+	upReq.ConfigCmdName = ""
+	upReq.DisableConfigCmd = true
+	if !IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is changed")
+	}
+
+	newContent := UpdateRedisConfig(content, ua, upReq)
+	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
+		catalog.MBToBytes(ua.MemoryCacheSizeMB), ua.MaxMemPolicy, ua.ReplTimeoutSecs, upReq.ConfigCmdName)
+	content1 += fmt.Sprintf(authConfig, ua.AuthPass, ua.AuthPass)
+	content1 += aofConfigs
+	content1 = EnableRedisAuth(content1)
+	content1 += "\n"
+	if newContent != content1 {
+		t.Fatalf("content mismatch, expect %s, get %s", content1, newContent)
+	}
+
+	// change MemoryCacheSizeMB only
+	upReq.ConfigCmdName = opts.ConfigCmdName
+	upReq.DisableConfigCmd = false
+	upReq.MemoryCacheSizeMB = 100
+	if !IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is changed")
+	}
+
+	newContent = UpdateRedisConfig(content, ua, upReq)
+	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), ua.MaxMemPolicy, ua.ReplTimeoutSecs, ua.ConfigCmdName)
+	content1 += fmt.Sprintf(authConfig, ua.AuthPass, ua.AuthPass)
+	content1 += aofConfigs
+	content1 = EnableRedisAuth(content1)
+	content1 += "\n"
+	if newContent != content1 {
+		t.Fatalf("new memory size mismatch, expect %s, get %s", content1, newContent)
+	}
+
+	// change AuthPass only
+	upReq.MemoryCacheSizeMB = opts.MemoryCacheSizeMB
+	upReq.AuthPass = "newpass"
+	if !IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is changed")
+	}
+
+	newContent = UpdateRedisConfig(content, ua, upReq)
+	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), ua.MaxMemPolicy, ua.ReplTimeoutSecs, ua.ConfigCmdName)
+	content1 += fmt.Sprintf(authConfig, upReq.AuthPass, upReq.AuthPass)
+	content1 += aofConfigs
+	content1 = EnableRedisAuth(content1)
+	content1 += "\n"
+	if newContent != content1 {
+		t.Fatalf("new AuthPass mismatch, expect %s, get %s", content1, newContent)
+	}
+
+	// update all parameters
+	upReq.MemoryCacheSizeMB = 100
+	upReq.AuthPass = "newpass"
+	upReq.MaxMemPolicy = MaxMemPolicyAllKeysLFU
+	upReq.ReplTimeoutSecs = 100
+	upReq.ConfigCmdName = "newcfg"
+	if !IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is changed")
+	}
+
+	newContent = UpdateRedisConfig(content, ua, upReq)
+
+	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, upReq.ConfigCmdName)
+	content1 += fmt.Sprintf(authConfig, upReq.AuthPass, upReq.AuthPass)
+	content1 += aofConfigs
+	content1 = EnableRedisAuth(content1)
+	content1 += "\n"
+
+	if newContent != content1 {
+		t.Fatalf("content mismatch, expect %s, get %s", content1, newContent)
+	}
+
+	// AuthPass not enabled at creation, update AuthPass
+	opts = &manage.CatalogRedisOptions{
+		Shards:            int64(1),
+		ReplicasPerShard:  int64(1),
+		MemoryCacheSizeMB: 256,
+		Volume: &common.ServiceVolume{
+			VolumeType:   common.VolumeTypeGPSSD,
+			VolumeSizeGB: int64(1),
+		},
+		DisableAOF:      false,
+		AuthPass:        "",
+		ReplTimeoutSecs: MinReplTimeoutSecs,
+		MaxMemPolicy:    MaxMemPolicyAllKeysLRU,
+		ConfigCmdName:   "",
+	}
+
+	crReq, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
+	}
+
+	content = crReq.ReplicaConfigs[0].Configs[1].Content
+
+	ua = &common.RedisUserAttr{}
+	err = json.Unmarshal(crReq.UserAttr.AttrBytes, ua)
+	if err != nil {
+		t.Fatalf("Unmarshal RedisUserAttr error %s", err)
+	}
+
+	upReq.MemoryCacheSizeMB = 100
+	upReq.AuthPass = "newpass"
+	upReq.MaxMemPolicy = MaxMemPolicyAllKeysLFU
+	upReq.ReplTimeoutSecs = 100
+	upReq.ConfigCmdName = "newcfg"
+	if !IsConfigChanged(ua, upReq) {
+		t.Fatalf("config is changed")
+	}
+
+	newContent = UpdateRedisConfig(content, ua, upReq)
+
+	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, upReq.ConfigCmdName)
+	content1 += aofConfigs
+	content1 += defaultConfigs
+	content1 += fmt.Sprintf(authConfig, upReq.AuthPass, upReq.AuthPass)
+	content1 = EnableRedisAuth(content1)
+
+	if newContent != content1 {
+		t.Fatalf("content mismatch, expect %s, get %s", content1, newContent)
+	}
+}
+
 const redisConfigs1 = `
 bind %s
 port 6379
 
 # Redis memory cache size in bytes. The total memory will be like maxmemory + slave output buffer.
 maxmemory 268435456
-maxmemory-policy noeviction
+maxmemory-policy allkeys-lru
 
 # The filename where to dump the DB
 dbfilename dump.rdb
@@ -193,7 +389,7 @@ client-output-buffer-limit pubsub 32mb 8mb 60
 rename-command FLUSHALL ""
 rename-command FLUSHDB ""
 rename-command SHUTDOWN ""
-rename-command CONFIG ""
+rename-command CONFIG "mycfg"
 
 requirepass pass
 masterauth pass
@@ -220,7 +416,7 @@ port 6379
 
 # Redis memory cache size in bytes. The total memory will be like maxmemory + slave output buffer.
 maxmemory %d
-maxmemory-policy noeviction
+maxmemory-policy allkeys-lru
 
 # The filename where to dump the DB
 dbfilename dump.rdb
@@ -245,7 +441,7 @@ client-output-buffer-limit pubsub 32mb 8mb 60
 rename-command FLUSHALL ""
 rename-command FLUSHDB ""
 rename-command SHUTDOWN ""
-rename-command CONFIG ""
+rename-command CONFIG "mycfg"
 
 requirepass pass
 masterauth pass

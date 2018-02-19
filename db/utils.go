@@ -423,6 +423,19 @@ func CopyCasUserAttr(u1 *common.CasUserAttr) *common.CasUserAttr {
 	}
 }
 
+func CopyRedisUserAttr(u1 *common.RedisUserAttr) *common.RedisUserAttr {
+	return &common.RedisUserAttr{
+		Shards:            u1.Shards,
+		ReplicasPerShard:  u1.ReplicasPerShard,
+		MemoryCacheSizeMB: u1.MemoryCacheSizeMB,
+		DisableAOF:        u1.DisableAOF,
+		AuthPass:          u1.AuthPass,
+		ReplTimeoutSecs:   u1.ReplTimeoutSecs,
+		MaxMemPolicy:      u1.MaxMemPolicy,
+		ConfigCmdName:     u1.ConfigCmdName,
+	}
+}
+
 func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     t1.ServiceUUID,

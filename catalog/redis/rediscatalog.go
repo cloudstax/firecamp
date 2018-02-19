@@ -12,6 +12,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
@@ -28,13 +29,15 @@ const (
 	listenPort  = 6379
 	clusterPort = 16379
 
-	minClusterShards   = 3
-	invalidShards      = 2
-	minReplTimeoutSecs = 60
+	minClusterShards = 3
+	invalidShards    = 2
+	// MinReplTimeoutSecs is the minimal ReplTimeout
+	MinReplTimeoutSecs = 60
 	shardName          = "shard"
 
 	redisConfFileName = "redis.conf"
 
+	// MaxMemPolicies define the MaxMemory eviction policies
 	MaxMemPolicyVolatileLRU    = "volatile-lru"
 	MaxMemPolicyAllKeysLRU     = "allkeys-lru"
 	MaxMemPolicyVolatileLFU    = "volatile-lfu"
@@ -63,16 +66,20 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 	if r.Options.Shards == invalidShards {
 		return errors.New("Redis cluster mode requires at least 3 shards")
 	}
-	if r.Options.MemoryCacheSizeMB <= 0 {
-		return errors.New("Please specify the memory cache size")
-	}
 	if r.Resource.MaxMemMB != common.DefaultMaxMemoryMB && r.Resource.MaxMemMB <= r.Options.MemoryCacheSizeMB {
 		return errors.New("The container max memory should be larger than Redis memory cache size")
 	}
+	if r.Options.ReplTimeoutSecs < MinReplTimeoutSecs {
+		return fmt.Errorf("The minimal ReplTimeout is %d", MinReplTimeoutSecs)
+	}
+	if r.Options.MemoryCacheSizeMB <= 0 {
+		return errors.New("Please specify the memory cache size")
+	}
+	return validateMemPolicy(r.Options.MaxMemPolicy)
+}
 
-	switch r.Options.MaxMemPolicy {
-	case "":
-		return nil
+func validateMemPolicy(maxMemPolicy string) error {
+	switch maxMemPolicy {
 	case MaxMemPolicyAllKeysLRU:
 		return nil
 	case MaxMemPolicyAllKeysLFU:
@@ -92,6 +99,20 @@ func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
 	default:
 		return errors.New("Invalid Redis max memory policy")
 	}
+}
+
+// ValidateUpdateRequest validates the update request
+func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest, ua *common.RedisUserAttr) error {
+	if r.AuthPass == "" && ua.AuthPass != "" {
+		return errors.New("Auth is enabled at creation, not allow to disable it")
+	}
+	if r.ReplTimeoutSecs < MinReplTimeoutSecs {
+		return fmt.Errorf("The minimal ReplTimeout is %d", MinReplTimeoutSecs)
+	}
+	if r.MemoryCacheSizeMB < 0 {
+		return errors.New("Invalid memory cache size")
+	}
+	return validateMemPolicy(r.MaxMemPolicy)
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
@@ -159,16 +180,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
-	// adjust the replTimeoutSecs if needed
-	replTimeoutSecs := opts.ReplTimeoutSecs
-	if replTimeoutSecs < minReplTimeoutSecs {
-		replTimeoutSecs = minReplTimeoutSecs
-	}
-	maxMemPolicy := opts.MaxMemPolicy
-	if len(maxMemPolicy) == 0 {
-		maxMemPolicy = MaxMemPolicyNoEviction
-	}
-
 	memBytes := catalog.MBToBytes(opts.MemoryCacheSizeMB)
 
 	domain := dns.GenDefaultDomainName(cluster)
@@ -189,7 +200,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			if platform == common.ContainerPlatformSwarm {
 				bind = catalog.BindAllIP
 			}
-			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, maxMemPolicy, replTimeoutSecs, opts.ConfigCmdName)
+			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, opts.MaxMemPolicy, opts.ReplTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
 				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
 			}
@@ -362,6 +373,92 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
 		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
 	return envkvs
+}
+
+// IsConfigChanged checks if the config changes.
+func IsConfigChanged(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) bool {
+	return ((req.AuthPass != "" && req.AuthPass != ua.AuthPass) ||
+		(req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB) ||
+		(req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs) ||
+		(req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy) ||
+		(req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName) ||
+		req.DisableConfigCmd)
+}
+
+// UpdateRedisUserAttr updates RedisUserAttr
+func UpdateRedisUserAttr(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) *common.RedisUserAttr {
+	newua := db.CopyRedisUserAttr(ua)
+	if req.AuthPass != "" && req.AuthPass != ua.AuthPass {
+		newua.AuthPass = req.AuthPass
+	}
+	if req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB {
+		newua.MemoryCacheSizeMB = req.MemoryCacheSizeMB
+	}
+	if req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs {
+		newua.ReplTimeoutSecs = req.ReplTimeoutSecs
+	}
+	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
+		newua.MaxMemPolicy = req.MaxMemPolicy
+	}
+	if req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
+		newua.ConfigCmdName = req.ConfigCmdName
+	}
+	if req.ConfigCmdName == "" && req.DisableConfigCmd {
+		newua.ConfigCmdName = ""
+	}
+	return newua
+}
+
+// UpdateRedisConfig updates the redis content
+func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) string {
+	newContent := content
+	if req.AuthPass != "" && req.AuthPass != ua.AuthPass {
+		authContent := fmt.Sprintf(authConfig, req.AuthPass, req.AuthPass)
+		authContent = EnableRedisAuth(authContent)
+		if ua.AuthPass == "" {
+			// check if the content is already updated. this is possible if the update request
+			// is retried as the manage server is restarted.
+			idx := strings.Index(newContent, authContent)
+			if idx == -1 {
+				// auth is not enabled, add authConfig
+				newContent += authContent
+			}
+		} else {
+			// auth is enabled, replace the pass
+			oldAuthContent := fmt.Sprintf(authConfig, ua.AuthPass, ua.AuthPass)
+			oldAuthContent = EnableRedisAuth(oldAuthContent)
+			newContent = strings.Replace(newContent, oldAuthContent, authContent, 1)
+		}
+	}
+	if req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB {
+		newMem := fmt.Sprintf("maxmemory %d", catalog.MBToBytes(req.MemoryCacheSizeMB))
+		oldMem := fmt.Sprintf("maxmemory %d", catalog.MBToBytes(ua.MemoryCacheSizeMB))
+		newContent = strings.Replace(newContent, oldMem, newMem, 1)
+	}
+	if req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs {
+		newCont := fmt.Sprintf("repl-timeout %d", req.ReplTimeoutSecs)
+		oldCont := fmt.Sprintf("repl-timeout %d", ua.ReplTimeoutSecs)
+		newContent = strings.Replace(newContent, oldCont, newCont, 1)
+	}
+	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
+		newPolicy := fmt.Sprintf("maxmemory-policy %s", req.MaxMemPolicy)
+		oldPolicy := fmt.Sprintf("maxmemory-policy %s", ua.MaxMemPolicy)
+		newContent = strings.Replace(newContent, oldPolicy, newPolicy, 1)
+	}
+	if req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
+		newCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", req.ConfigCmdName)
+		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
+		if ua.ConfigCmdName == "" {
+			oldCfgCmd = "rename-command CONFIG \"\""
+		}
+		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
+	}
+	if req.ConfigCmdName == "" && req.DisableConfigCmd {
+		newCfgCmd := "rename-command CONFIG \"\""
+		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
+		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
+	}
+	return newContent
 }
 
 const (

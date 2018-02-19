@@ -109,7 +109,7 @@ var (
 	redisMemSizeMB        = flag.Int64("redis-memory-size", 0, "The Redis memory cache size, unit: MB")
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
 	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
-	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", 60, "The Redis replication timeout value, unit: Seconds")
+	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", rediscatalog.MinReplTimeoutSecs, "The Redis replication timeout value, unit: Seconds")
 	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached")
 	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
 

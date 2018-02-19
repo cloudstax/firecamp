@@ -395,6 +395,19 @@ type CatalogCreateRedisRequest struct {
 	Options *CatalogRedisOptions
 }
 
+// CatalogUpdateRedisRequest updates the configs of the Redis service.
+// If the field is not changed, please leave it 0 or empty.
+type CatalogUpdateRedisRequest struct {
+	Service           *ServiceCommonRequest
+	MemoryCacheSizeMB int64
+	// if auth is enabled, it could not be disabled.
+	AuthPass         string
+	ReplTimeoutSecs  int64
+	MaxMemPolicy     string
+	ConfigCmdName    string
+	DisableConfigCmd bool
+}
+
 // CatalogCouchDBOptions includes the config options for CouchDB.
 type CatalogCouchDBOptions struct {
 	Replicas int64

@@ -268,8 +268,13 @@ if [ "$containerPlatform" = "swarm" ]; then
   # install firecamp docker log plugin on worker and manage nodes
   docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
   if [ "$?" != "0" ]; then
-    echo "install firecamp log plugin error"
-    exit 3
+    # wait and retry
+    sleep 10
+    docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
+    if [ "$?" != "0" ]; then
+      echo "enable firecamp log plugin error"
+      exit 3
+    fi
   fi
 fi
 
