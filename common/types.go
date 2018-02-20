@@ -102,6 +102,11 @@ const (
 
 	ServiceTypeStateful  = "stateful"
 	ServiceTypeStateless = "stateless"
+
+	// The service DNS name will be ServiceName-index.ClusterName-firecamp.com.
+	// Each label of the domain name can be up to 63 bytes long. Reserve 4 bytes for the index.
+	// The ServiceName can be up to 58 bytes.
+	MaxServiceNameLength = 58
 )
 
 type EnvKeyValuePair struct {

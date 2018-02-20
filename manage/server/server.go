@@ -3,6 +3,7 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -203,11 +204,15 @@ func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service st
 
 func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonRequest) error {
 	if !s.validName.MatchString(service.ServiceName) {
-		return errors.New("invalid request, service name is not valid")
+		return errors.New("Invalid request, service name is not valid")
+	}
+
+	if len(service.ServiceName) > common.MaxServiceNameLength {
+		return fmt.Errorf("Invalid Request, service name max length is %d", common.MaxServiceNameLength)
 	}
 
 	if service.Cluster != s.cluster || service.Region != s.region {
-		return errors.New("invalid request, cluster or region not match")
+		return errors.New("Invalid request, cluster or region not match")
 	}
 
 	return nil

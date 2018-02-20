@@ -49,7 +49,7 @@ var (
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
 	region              = flag.String("region", "", "The AWS region")
-	service             = flag.String("service-name", "", "The service name. Can only contain letters, numbers, or hyphens")
+	service             = flag.String("service-name", "", fmt.Sprintf("The service name. Can only contain letters, numbers, or hyphens. The max length is %d", common.MaxServiceNameLength))
 	replicas            = flag.Int64("replicas", 3, "The number of replicas for the service")
 	volType             = flag.String("volume-type", common.VolumeTypeGPSSD, "The EBS volume type: gp2|io1|st1")
 	volIops             = flag.Int64("volume-iops", 100, "The EBS volume Iops when io1 type is chosen, otherwise ignored")
@@ -449,6 +449,10 @@ func main() {
 			fmt.Println("service name must start with a letter and can only contain letters, numbers, or hyphens.")
 			os.Exit(-1)
 		}
+	}
+	if len(*service) > common.MaxServiceNameLength {
+		fmt.Println("service name max length is", common.MaxServiceNameLength)
+		os.Exit(-1)
 	}
 
 	if *tlsEnabled && (*caFile == "" || *certFile == "" || *keyFile == "") {
