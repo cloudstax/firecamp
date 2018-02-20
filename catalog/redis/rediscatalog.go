@@ -199,7 +199,14 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			}
 			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, opts.MaxMemPolicy, opts.ReplTimeoutSecs, opts.ConfigCmdName)
 			if len(opts.AuthPass) != 0 {
+				// auth is disabled by default, as Redis Cluster init script, redis-trib.rb, does not support auth yet.
+				// After Redis Cluster is initialized, the init done will enable auth.
 				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
+				if !IsClusterMode(opts.Shards) {
+					// not cluster mode, no need to run redis-trib.rb to init.
+					// enable auth directly.
+					redisContent = EnableRedisAuth(redisContent)
+				}
 			}
 			if !opts.DisableAOF {
 				redisContent += aofConfigs
