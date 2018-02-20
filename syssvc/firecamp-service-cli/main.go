@@ -112,6 +112,7 @@ var (
 	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", rediscatalog.MinReplTimeoutSecs, "The Redis replication timeout value, unit: Seconds")
 	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached")
 	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
+	redisDisableConfigCmd = flag.Bool("redis-disable-configcmd", false, "Disable Redis CONFIG command in the update request")
 
 	// The couchdb service creation specific parameters.
 	couchdbEnableCors = flag.Bool("couchdb-enable-cors", false, "Whether enable CouchDB Cors")
@@ -288,6 +289,8 @@ func usage() {
 				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("cas-heap-size"))
+				printFlag(flag.Lookup("cas-jmx-user"))
+				printFlag(flag.Lookup("cas-jmx-passwd"))
 			case common.CatalogService_Redis:
 				printFlag(flag.Lookup("redis-memory-size"))
 				printFlag(flag.Lookup("redis-shards"))
@@ -357,11 +360,20 @@ func usage() {
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdate)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			fmt.Println("  -service-type=cassandra")
+			fmt.Println("  -service-type=cassandra|redis")
 			printFlag(flag.Lookup("service-name"))
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
 				printFlag(flag.Lookup("cas-heap-size"))
+				printFlag(flag.Lookup("cas-jmx-user"))
+				printFlag(flag.Lookup("cas-jmx-passwd"))
+			case common.CatalogService_Redis:
+				printFlag(flag.Lookup("redis-memory-size"))
+				printFlag(flag.Lookup("redis-auth-pass"))
+				printFlag(flag.Lookup("redis-repl-timeout"))
+				printFlag(flag.Lookup("redis-maxmem-policy"))
+				printFlag(flag.Lookup("redis-configcmd-name"))
+				printFlag(flag.Lookup("redis-disable-configcmd"))
 			}
 
 		case opScale:
@@ -526,8 +538,10 @@ func main() {
 		switch *serviceType {
 		case common.CatalogService_Cassandra:
 			updateCassandraService(ctx, cli)
+		case common.CatalogService_Redis:
+			updateRedisService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, update service only support cassandra\n")
+			fmt.Printf("Invalid service type, update service only support cassandra|redis\n")
 			os.Exit(-1)
 		}
 
@@ -1016,6 +1030,44 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The service is created, wait for all containers running")
 	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func updateRedisService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *redisMemSizeMB < 0 {
+		fmt.Println("please specify the valid max memory")
+	}
+
+	req := &manage.CatalogUpdateRedisRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		MemoryCacheSizeMB: *redisMemSizeMB,
+		AuthPass:          *redisAuthPass,
+		ReplTimeoutSecs:   *redisReplTimeoutSecs,
+		MaxMemPolicy:      *redisMaxMemPolicy,
+		ConfigCmdName:     *redisConfigCmdName,
+		DisableConfigCmd:  *redisDisableConfigCmd,
+	}
+
+	err := rediscatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogUpdateRedisService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "update redis service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
 func createCouchDBService(ctx context.Context, cli *client.ManageClient) {

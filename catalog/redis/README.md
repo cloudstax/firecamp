@@ -115,6 +115,10 @@ This creates a 3 shards Redis on 3 availability zones. Each shard has 1 master a
 * shard 1, master myredis-2.t1-firecamp.com, slave myredis-3.t1-firecamp.com
 * shard 2, master myredis-4.t1-firecamp.com, slave myredis-5.t1-firecamp.com.
 
+## Update a Redis Service
+
+You could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass```
+
 ## Set and Get Keys
 1. Set Keys
 ```

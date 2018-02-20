@@ -58,6 +58,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
 		return s.setRedisInit(ctx, r, requuid)
+	case manage.CatalogUpdateRedisOp:
+		return s.updateRedisService(ctx, r, requuid)
 	case manage.CatalogUpdateCassandraOp:
 		return s.updateCasService(ctx, r, requuid)
 	case manage.CatalogScaleCassandraOp:
@@ -622,6 +624,12 @@ func (s *ManageHTTPServer) updateRedisService(ctx context.Context, r *http.Reque
 		return err.Error(), http.StatusBadRequest
 	}
 
+	err = rediscatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		glog.Errorln("ValidateUpdateRequest error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusBadRequest
+	}
+
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
@@ -659,12 +667,6 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID s
 			glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req.Service)
 			return err
 		}
-	}
-
-	err = rediscatalog.ValidateUpdateRequest(req, ua)
-	if err != nil {
-		glog.Errorln("ValidateUpdateRequest error", err, "requuid", requuid, req.Service)
-		return err
 	}
 
 	if !rediscatalog.IsConfigChanged(ua, req) {

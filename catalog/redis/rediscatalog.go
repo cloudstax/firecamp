@@ -102,10 +102,7 @@ func validateMemPolicy(maxMemPolicy string) error {
 }
 
 // ValidateUpdateRequest validates the update request
-func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest, ua *common.RedisUserAttr) error {
-	if r.AuthPass == "" && ua.AuthPass != "" {
-		return errors.New("Auth is enabled at creation, not allow to disable it")
-	}
+func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest) error {
 	if r.ReplTimeoutSecs < MinReplTimeoutSecs {
 		return fmt.Errorf("The minimal ReplTimeout is %d", MinReplTimeoutSecs)
 	}
@@ -381,8 +378,8 @@ func IsConfigChanged(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisReq
 		(req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB) ||
 		(req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs) ||
 		(req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy) ||
-		(req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName) ||
-		req.DisableConfigCmd)
+		(!req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName) ||
+		(req.DisableConfigCmd && ua.ConfigCmdName != ""))
 }
 
 // UpdateRedisUserAttr updates RedisUserAttr
@@ -400,10 +397,10 @@ func UpdateRedisUserAttr(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedi
 	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
 		newua.MaxMemPolicy = req.MaxMemPolicy
 	}
-	if req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
+	if !req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
 		newua.ConfigCmdName = req.ConfigCmdName
 	}
-	if req.ConfigCmdName == "" && req.DisableConfigCmd {
+	if req.DisableConfigCmd && ua.ConfigCmdName != "" {
 		newua.ConfigCmdName = ""
 	}
 	return newua
@@ -445,7 +442,7 @@ func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.Cat
 		oldPolicy := fmt.Sprintf("maxmemory-policy %s", ua.MaxMemPolicy)
 		newContent = strings.Replace(newContent, oldPolicy, newPolicy, 1)
 	}
-	if req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
+	if !req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
 		newCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", req.ConfigCmdName)
 		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
 		if ua.ConfigCmdName == "" {
@@ -453,7 +450,7 @@ func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.Cat
 		}
 		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
 	}
-	if req.ConfigCmdName == "" && req.DisableConfigCmd {
+	if req.DisableConfigCmd && ua.ConfigCmdName != "" {
 		newCfgCmd := "rename-command CONFIG \"\""
 		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
 		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)

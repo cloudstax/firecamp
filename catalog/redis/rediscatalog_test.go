@@ -164,6 +164,56 @@ func TestRedisConfigs(t *testing.T) {
 
 }
 
+func TestRedisUpdateFuncs(t *testing.T) {
+	ua := &common.RedisUserAttr{
+		Shards:            1,
+		ReplicasPerShard:  1,
+		MemoryCacheSizeMB: 100,
+		DisableAOF:        false,
+		AuthPass:          "changeme",
+		ReplTimeoutSecs:   MinReplTimeoutSecs,
+		MaxMemPolicy:      MaxMemPolicyAllKeysLRU,
+		ConfigCmdName:     "newcfg",
+	}
+
+	req := &manage.CatalogUpdateRedisRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      "region",
+			Cluster:     "c1",
+			ServiceName: "s1",
+		},
+		MemoryCacheSizeMB: 100,
+		AuthPass:          "changeme",
+		ReplTimeoutSecs:   MinReplTimeoutSecs,
+		MaxMemPolicy:      MaxMemPolicyAllKeysLRU,
+		ConfigCmdName:     "newcfg",
+	}
+
+	if IsConfigChanged(ua, req) {
+		t.Fatalf("config not changed")
+	}
+
+	req.ConfigCmdName = ""
+	if IsConfigChanged(ua, req) {
+		t.Fatalf("config not changed")
+	}
+
+	req.DisableConfigCmd = true
+	if !IsConfigChanged(ua, req) {
+		t.Fatalf("config changed")
+	}
+
+	ua.ConfigCmdName = ""
+	if IsConfigChanged(ua, req) {
+		t.Fatalf("config not changed")
+	}
+
+	req.DisableConfigCmd = true
+	if IsConfigChanged(ua, req) {
+		t.Fatalf("config not changed")
+	}
+}
+
 func TestRedisUpdate(t *testing.T) {
 	region := "region1"
 	platform := common.ContainerPlatformECS

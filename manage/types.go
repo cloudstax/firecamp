@@ -37,6 +37,7 @@ const (
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
 	CatalogUpdateCassandraOp     = CatalogOpPrefix + "Update-Cassandra"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
+	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
