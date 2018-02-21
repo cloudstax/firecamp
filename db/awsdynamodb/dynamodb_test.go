@@ -3,6 +3,7 @@ package awsdynamodb
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"testing"
 	"time"
 
@@ -640,7 +641,7 @@ func TestServiceStaticIPs(t *testing.T) {
 
 func TestSwarm(t *testing.T) {
 	cluster := "c1"
-	addr := "host1:2377"
+	addr := "host:2377"
 
 	ctx := context.Background()
 
@@ -661,6 +662,12 @@ func TestSwarm(t *testing.T) {
 	}
 	if addr1 != addr {
 		t.Fatalf("GetInitManager get addr %s, expect addr %s", addr1, addr)
+	}
+
+	// negative case: createManagerAddrs again
+	err = dbIns.createManagerAddrs(ctx, cluster, addr, "requuid")
+	if err != db.ErrDBConditionalCheckFailed {
+		t.Fatalf("createManagerAddrs expect db.ErrDBConditionalCheckFailed, get error %s", err)
 	}
 
 	tokenm := "manager-token"
@@ -698,5 +705,48 @@ func TestSwarm(t *testing.T) {
 	}
 	if token1 != tokenw {
 		t.Fatalf("GetJoinToken get token %s, expect %s", token1, tokenw)
+	}
+
+	// get manager addrs
+	addrs, err := dbIns.GetManagerAddrs(ctx, cluster)
+	if err != nil {
+		t.Fatalf("GetManagerAddrs error %s", err)
+	}
+	if addrs != addr {
+		t.Fatalf("expect manager addrs %s, get %s", addr, addrs)
+	}
+
+	// add manager addrs
+	addr1 = "host1:2377"
+	newAddrs := fmt.Sprintf("%s,%s", addrs, addr1)
+	err = dbIns.AddManagerAddrs(ctx, cluster, addrs, newAddrs)
+	if err != nil {
+		t.Fatalf("AddManagerAddrs error %s", err, addrs, "newAddrs", newAddrs)
+	}
+
+	// get manager addrs
+	addrs, err = dbIns.GetManagerAddrs(ctx, cluster)
+	if err != nil {
+		t.Fatalf("GetManagerAddrs error %s", err)
+	}
+	if addrs != newAddrs {
+		t.Fatalf("expect manager addrs %s, get %s", newAddrs, addrs)
+	}
+
+	// add manager addrs
+	addr2 := "host2:2377"
+	newAddrs = fmt.Sprintf("%s,%s", addrs, addr2)
+	err = dbIns.AddManagerAddrs(ctx, cluster, addrs, newAddrs)
+	if err != nil {
+		t.Fatalf("AddManagerAddrs error %s", err, addrs, "newAddrs", newAddrs)
+	}
+
+	// get manager addrs
+	addrs, err = dbIns.GetManagerAddrs(ctx, cluster)
+	if err != nil {
+		t.Fatalf("GetManagerAddrs error %s", err)
+	}
+	if addrs != newAddrs {
+		t.Fatalf("expect manager addrs %s, get %s", newAddrs, addrs)
 	}
 }

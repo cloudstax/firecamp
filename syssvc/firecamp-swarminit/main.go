@@ -33,6 +33,7 @@ const (
 	defaultSwarmListenPort = "2377"
 	defaultDockerSockPath  = "/var/run/docker.sock"
 	manageServerConstraint = "node.role==manager"
+	addrSep                = ","
 )
 
 func main() {
@@ -158,32 +159,73 @@ func initManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc,
 func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsdynamodb.DynamoDB, cluster string, addr string, initManagerAddr string) {
 	token := getJoinToken(ctx, dbIns, cluster, awsdynamodb.RoleManager)
 
-	// join the swarm manager
-	err := swarmSvc.SwarmJoin(ctx, addr, initManagerAddr, token)
+	addrs, err := dbIns.GetManagerAddrs(ctx, cluster)
 	if err != nil {
-		glog.Fatalln("SwarmJoin error", err, addr, "init manager", initManagerAddr)
+		glog.Fatalln("GetManagerAddrs error", err, "local addr", addr)
 	}
 
-	glog.Infoln("joined init manager", initManagerAddr, cluster, addr)
+	// join swarm cluster
+	joinCluster(ctx, swarmSvc, dbIns, addrs, addr, token)
+
+	// update manager addrs
+	// TODO remove the possible down manager
+	for i := 0; i < 3; i++ {
+		if idx := strings.Index(addrs, addr); idx == -1 {
+			// add current addr to manager addrs
+			newAddrs := addrs + addrSep + addr
+			err = dbIns.AddManagerAddrs(ctx, cluster, addrs, newAddrs)
+			if err == nil {
+				break
+			}
+
+			if err != db.ErrDBConditionalCheckFailed {
+				glog.Fatalln("AddManagerAddrs error", err, "oldAddrs", addrs, "newAddrs", newAddrs)
+			}
+
+			glog.Errorln("AddManagerAddrs conditional check failed, another manager may update the addr at the same time, oldAddrs", addrs, "newAddrs", newAddrs)
+			addrs, err = dbIns.GetManagerAddrs(ctx, cluster)
+			if err != nil {
+				glog.Fatalln("GetManagerAddrs error", err, addr)
+			}
+		} else {
+			glog.Errorln("manager addr already exists, the new node is assigned the old ip?", addr, "oldAddrs", addrs)
+			break
+		}
+	}
+
+	glog.Infoln("joined addr", addr, "to manager addrs", addrs, "cluster", cluster)
 }
 
 func initWorker(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsdynamodb.DynamoDB, cluster string, addr string) {
-	// the init manager record exists in db, check who is the current init manager.
-	initManagerAddr, err := dbIns.GetInitManager(ctx, cluster)
-	if err != nil {
-		glog.Fatalln("GetInitManager error", err, cluster, addr)
-	}
-
 	token := getJoinToken(ctx, dbIns, cluster, awsdynamodb.RoleWorker)
 
-	// join the swarm manager
-	err = swarmSvc.SwarmJoin(ctx, addr, initManagerAddr, token)
+	// get current swarm managers
+	addrs, err := dbIns.GetManagerAddrs(ctx, cluster)
 	if err != nil {
-		glog.Fatalln("SwarmJoin error", err, addr, "init manager", initManagerAddr)
+		glog.Fatalln("GetManagerAddrs error", err, cluster, addr)
 	}
 
-	glog.Infoln("joined init manager", initManagerAddr, cluster, addr)
+	// join swarm cluster
+	joinCluster(ctx, swarmSvc, dbIns, addrs, addr, token)
+}
 
+func joinCluster(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc,
+	dbIns *awsdynamodb.DynamoDB, addrs string, localAddr string, token string) {
+	// join swarm cluster
+	addrList := strings.Split(addrs, addrSep)
+	for _, a := range addrList {
+		// join the swarm manager
+		err := swarmSvc.SwarmJoin(ctx, localAddr, a, token)
+		if err == nil {
+			glog.Infoln("joined manager", a, "local addr", localAddr)
+			return
+		}
+
+		// SwarmJoin error, try the next manager
+		glog.Errorln("SwarmJoin error", err, localAddr, "manager addr", a)
+	}
+
+	glog.Fatalln("could not join any manager", addrs, "local addr", localAddr)
 }
 
 func getJoinToken(ctx context.Context, dbIns *awsdynamodb.DynamoDB, cluster string, role string) string {
