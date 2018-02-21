@@ -75,6 +75,9 @@ func swarmInitTest(ctx context.Context) {
 
 	mtoken, wtoken, err := svc.GetJoinToken(ctx)
 	fmt.Println("GetJoinToken manager", mtoken, "worker", wtoken, "error", err)
+
+	goodManagers, downManagers, err := svc.ListSwarmManagerNodes(ctx)
+	fmt.Println("goodManagers", goodManagers, "downManagers", downManagers)
 }
 
 func swarmServiceTest(ctx context.Context) {

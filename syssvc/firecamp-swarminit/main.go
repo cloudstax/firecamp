@@ -38,6 +38,7 @@ const (
 
 func main() {
 	flag.Parse()
+	flag.Set("stderrthreshold", "INFO")
 
 	if *cluster == "" || *role == "" || *azs == "" {
 		fmt.Println("ERROR: please speficy the cluster name, role and availability zones", *cluster, *role, *azs)
@@ -168,11 +169,19 @@ func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsd
 	joinCluster(ctx, swarmSvc, dbIns, addrs, addr, token)
 
 	// update manager addrs
-	// TODO remove the possible down manager
 	for i := 0; i < 3; i++ {
 		if idx := strings.Index(addrs, addr); idx == -1 {
-			// add current addr to manager addrs
-			newAddrs := addrs + addrSep + addr
+			// get all good and down managers and update manager addresses in db.
+			// TODO remove the down manager from swarm
+			goodManagers, downManagers, err := swarmSvc.ListSwarmManagerNodes(ctx)
+			if err != nil {
+				glog.Fatalln("ListSwarmManagerNodes error", err, "local addr", addr)
+			}
+
+			glog.Infoln("swarm managers", goodManagers, "down managers", downManagers, "local addr", addr)
+
+			newAddrs := addrListToStrs(goodManagers)
+
 			err = dbIns.AddManagerAddrs(ctx, cluster, addrs, newAddrs)
 			if err == nil {
 				break
@@ -327,4 +336,12 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 	}
 
 	glog.Infoln("created the manage service", cluster)
+}
+
+func addrListToStrs(addrList []string) string {
+	addrs := addrList[0]
+	for i := 1; i < len(addrList); i++ {
+		addrs = addrs + addrSep + addrList[i]
+	}
+	return addrs
 }

@@ -31,6 +31,7 @@ const (
 	filterID               = "id"
 	filterName             = "name"
 	filterNode             = "node"
+	filterRole             = "role"
 	filterDesiredState     = "desired-state"
 	taskStateRunning       = "running"
 	nanoCPUs               = 1000000000
@@ -954,12 +955,51 @@ func (s *SwarmSvc) SwarmJoin(ctx context.Context, addr string, joinAddr string, 
 
 	err = cli.SwarmJoin(ctx, req)
 	if err != nil {
-		glog.Errorln("SwarmJoin error", err, addr, "join addr", joinAddr)
+		glog.Errorln("SwarmJoin error", err, "join manager", joinAddr, "local addr", addr)
 		return err
 	}
 
-	glog.Infoln("SwarmJoin", addr, "join addr", joinAddr)
+	glog.Infoln("joined manager", joinAddr, "local addr", addr)
 	return nil
+}
+
+// ListSwarmManagerNodes returns the good and down managers
+func (s *SwarmSvc) ListSwarmManagerNodes(ctx context.Context) (goodManagers []string, downManagers []string, err error) {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("ListSwarmManagerNodes newClient error", err)
+		return nil, nil, err
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add(filterRole, string(swarm.NodeRoleManager))
+
+	opts := types.NodeListOptions{
+		Filters: filterArgs,
+	}
+
+	nodes, err := cli.NodeList(ctx, opts)
+	if err != nil {
+		glog.Errorln("NodeList error", err)
+		return nil, nil, err
+	}
+
+	for _, n := range nodes {
+		if n.Spec.Role != swarm.NodeRoleManager || n.ManagerStatus == nil {
+			glog.Errorln("internal error - swarm list manager node returns worker nodes", n.Spec, n)
+			return nil, nil, common.ErrInternal
+		}
+		if n.Status.State == swarm.NodeStateDown && n.ManagerStatus.Reachability == swarm.ReachabilityUnreachable {
+			glog.Errorln("manager node is down", n.ManagerStatus, n)
+			downManagers = append(downManagers, n.ManagerStatus.Addr)
+		} else {
+			glog.Infoln("manager node is good", n.ManagerStatus, n)
+			goodManagers = append(goodManagers, n.ManagerStatus.Addr)
+		}
+	}
+
+	return goodManagers, downManagers, nil
+
 }
 
 // CreateServiceVolume is a non-op for swarm.
