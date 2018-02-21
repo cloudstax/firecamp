@@ -90,18 +90,38 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 	return nil
 }
 
-// CreateStreamLogConfig creates the LogConfig for the stateless service, such as the managemen service,
-// or the task of the stateful service, such as init task.
+// CreateStreamLogConfig creates the LogConfig for the stateless service, such as the management service,
+// Kafka Manager service, or the task of the stateful service, such as init task.
 // The task log directly uses the awslogs driver. There is no need to use firecamp-log-driver.
 func (l *Log) CreateStreamLogConfig(ctx context.Context, cluster string, service string, serviceUUID string, stream string) *cloudlog.LogConfig {
 	opts := make(map[string]string)
 	opts[logRegion] = l.region
 	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
-	opts[logStreamPrefix] = stream
-	return &cloudlog.LogConfig{
-		Name:    driverName,
-		Options: opts,
+
+	switch l.platform {
+	case common.ContainerPlatformECS:
+		opts[logStreamPrefix] = stream
+		return &cloudlog.LogConfig{
+			Name:    driverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformSwarm:
+		// set the LogServiceUUIDKey for firecamp-log-driver to get the serviceUUID.
+		opts[common.LogServiceUUIDKey] = serviceUUID
+		// set the LogServiceMemberKey directly
+		opts[common.LogServiceMemberKey] = stream
+		return &cloudlog.LogConfig{
+			Name:    common.LogDriverName,
+			Options: opts,
+		}
+	case common.ContainerPlatformK8s:
+		// k8s uses the Fluentd daemonset, which will set the LogGroup and LogStream names.
+		glog.Infoln("no log config set for k8s, cluster", cluster, "service", service,
+			"serviceUUID", serviceUUID, "namespace", l.k8snamespace)
+		return nil
 	}
+	panic(fmt.Sprintf("unsupported container platform %s, cluster %s, service %s", l.platform, cluster, service))
+	return nil
 }
 
 // InitializeServiceLogConfig creates the CloudWatch log group.
