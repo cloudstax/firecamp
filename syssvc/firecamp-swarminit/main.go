@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -172,8 +173,7 @@ func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsd
 	for i := 0; i < 3; i++ {
 		if idx := strings.Index(addrs, addr); idx == -1 {
 			// get all good and down managers and update manager addresses in db.
-			// TODO remove the down manager from swarm
-			goodManagers, downManagers, err := swarmSvc.ListSwarmManagerNodes(ctx)
+			goodManagers, downManagerNodes, downManagers, err := swarmSvc.ListSwarmManagerNodes(ctx)
 			if err != nil {
 				glog.Fatalln("ListSwarmManagerNodes error", err, "local addr", addr)
 			}
@@ -184,6 +184,7 @@ func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsd
 
 			err = dbIns.AddManagerAddrs(ctx, cluster, addrs, newAddrs)
 			if err == nil {
+				removeDownManager(ctx, swarmSvc, downManagerNodes)
 				break
 			}
 
@@ -203,6 +204,27 @@ func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsd
 	}
 
 	glog.Infoln("joined addr", addr, "to manager addrs", addrs, "cluster", cluster)
+}
+
+func removeDownManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, nodes []swarm.Node) {
+	if len(nodes) == 0 {
+		return
+	}
+
+	sort.SliceStable(nodes[:], func(i, j int) bool {
+		return nodes[i].UpdatedAt.Unix() < nodes[j].UpdatedAt.Unix()
+	})
+
+	for _, n := range nodes {
+		err := swarmSvc.RemoveDownManagerNode(ctx, n)
+		if err != nil {
+			glog.Errorln("RemoveDownManagerNode error", err, n)
+		} else {
+			// remove one down manager, as only a new manager is added.
+			glog.Infoln("removed down manager node", n)
+			break
+		}
+	}
 }
 
 func initWorker(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsdynamodb.DynamoDB, cluster string, addr string) {

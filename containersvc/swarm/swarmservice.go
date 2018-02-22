@@ -1,6 +1,7 @@
 package swarmsvc
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -964,11 +965,11 @@ func (s *SwarmSvc) SwarmJoin(ctx context.Context, addr string, joinAddr string, 
 }
 
 // ListSwarmManagerNodes returns the good and down managers
-func (s *SwarmSvc) ListSwarmManagerNodes(ctx context.Context) (goodManagers []string, downManagers []string, err error) {
+func (s *SwarmSvc) ListSwarmManagerNodes(ctx context.Context) (goodManagers []string, downManagerNodes []swarm.Node, downManagers []string, err error) {
 	cli, err := s.cli.NewClient()
 	if err != nil {
 		glog.Errorln("ListSwarmManagerNodes newClient error", err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	filterArgs := filters.NewArgs()
@@ -981,25 +982,71 @@ func (s *SwarmSvc) ListSwarmManagerNodes(ctx context.Context) (goodManagers []st
 	nodes, err := cli.NodeList(ctx, opts)
 	if err != nil {
 		glog.Errorln("NodeList error", err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	for _, n := range nodes {
 		if n.Spec.Role != swarm.NodeRoleManager || n.ManagerStatus == nil {
-			glog.Errorln("internal error - swarm list manager node returns worker nodes", n.Spec, n)
-			return nil, nil, common.ErrInternal
+			errmsg := fmt.Sprintf("internal error - swarm list manager node returns worker node %s %s, spec %s", n.ID, n.Status.Addr, n.Spec)
+			glog.Errorln(errmsg)
+			return nil, nil, nil, errors.New(errmsg)
 		}
 		if n.Status.State == swarm.NodeStateDown && n.ManagerStatus.Reachability == swarm.ReachabilityUnreachable {
 			glog.Errorln("manager node is down", n.ManagerStatus, n)
 			downManagers = append(downManagers, n.ManagerStatus.Addr)
+			downManagerNodes = append(downManagerNodes, n)
 		} else {
 			glog.Infoln("manager node is good", n.ManagerStatus, n)
 			goodManagers = append(goodManagers, n.ManagerStatus.Addr)
 		}
 	}
 
-	return goodManagers, downManagers, nil
+	return goodManagers, downManagerNodes, downManagers, nil
+}
 
+// RemoveDownManagerNode removes the down manager node.
+func (s *SwarmSvc) RemoveDownManagerNode(ctx context.Context, node swarm.Node) error {
+	// sanity check
+	if node.Spec.Role != swarm.NodeRoleManager || node.ManagerStatus == nil {
+		errmsg := fmt.Sprintf("Node %s %s is not a manager node, spec %s", node.ID, node.Status.Addr, node.Spec)
+		glog.Errorln(errmsg)
+		return errors.New(errmsg)
+	}
+	if node.ManagerStatus.Reachability != swarm.ReachabilityUnreachable {
+		errmsg := fmt.Sprintf("manager node %s %s is not at unreachable status, %s", node.ID, node.Status.Addr, node.ManagerStatus)
+		glog.Errorln(errmsg)
+		return errors.New(errmsg)
+	}
+
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("RemoveDownManagerNode newClient error", err)
+		return err
+	}
+
+	// demote the manager node. Swarm does not allow to remove the down manager node directly.
+	node.Spec.Role = swarm.NodeRoleWorker
+	err = cli.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
+	if err != nil {
+		// TODO check the update error code. it may be possible another node just demoted this node.
+		// this is possible if the cluster has 5 manager nodes and 2 nodes happen to go down around the same time.
+		// if this corner case happens, go ahead to remove the node from cluster. While, it does not harm
+		// to simply leave a down node in the cluster.
+		glog.Errorln("RemoveDownManager NodeUpdate error", err, node)
+		return err
+	}
+
+	glog.Infoln("demoted down manager node", node)
+
+	// remove the node
+	err = cli.NodeRemove(ctx, node.ID, types.NodeRemoveOptions{})
+	if err != nil {
+		glog.Errorln("remove node error", err, node)
+		return err
+	}
+
+	glog.Infoln("removed the down manager node", node.ID, node.Status.Addr)
+	return nil
 }
 
 // CreateServiceVolume is a non-op for swarm.
