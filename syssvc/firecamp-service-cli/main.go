@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opListMembers, opGetConfig))
+	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opListMembers, opGetConfig))
 	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
@@ -176,6 +176,8 @@ const (
 	opStop = "stop-service"
 	// start all service containers
 	opStart = "start-service"
+	// rolling restart service containers
+	opRollingRestart = "restart-service"
 	// scale the service. scale service up will create new volumes for the new service containers.
 	// TODO scale service down will simply mark the members as inactive and stop the corresponding containers.
 	opScale       = "scale-service"
@@ -404,6 +406,11 @@ func usage() {
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
+		case opRollingRestart:
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opRollingRestart)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
 		case opDelete:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opDelete)
 			printFlag(flag.Lookup("region"))
@@ -564,6 +571,9 @@ func main() {
 	case opStart:
 		startService(ctx, cli)
 
+	case opRollingRestart:
+		rollingRestartService(ctx, cli)
+
 	case opCheckInit:
 		checkServiceInit(ctx, cli)
 
@@ -590,8 +600,8 @@ func main() {
 		getConfig(ctx, cli)
 
 	default:
-		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
-			opCreate, opCheckInit, opUpdate, opScale, opStop, opStart, opDelete, opList, opGet, opListMembers, opGetConfig)
+		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+			opCreate, opCheckInit, opUpdate, opScale, opStop, opStart, opRollingRestart, opDelete, opList, opGet, opListMembers, opGetConfig)
 		os.Exit(-1)
 	}
 }
@@ -1706,6 +1716,28 @@ func startService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("Service started")
 
 	waitServiceRunning(ctx, cli, serviceReq)
+}
+
+func rollingRestartService(ctx context.Context, cli *client.ManageClient) {
+	// start the service containers
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	serviceReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
+
+	err := cli.RollingRestartService(ctx, serviceReq)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "RollingRestartService error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("Service is rolling restarted")
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {

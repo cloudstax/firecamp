@@ -45,6 +45,7 @@ import (
 // hosted zone. One federation HostedZone is created for all clusters.
 // Note: the federation HostedZone could include multiple VPCs at multiple Regions.
 type ManageHTTPServer struct {
+	// container platform
 	platform  string
 	region    string
 	cluster   string
@@ -159,6 +160,8 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 			return s.stopService(ctx, w, r, requuid)
 		case manage.StartServiceOp:
 			return s.startService(ctx, w, r, requuid)
+		case manage.RollingRestartServiceOp:
+			return s.rollingRestartService(ctx, w, r, requuid)
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
@@ -279,6 +282,61 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 	}
 
 	glog.Infoln("started container service", req, "requuid", requuid)
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("rollingRestartService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("rollingRestartService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// simply rolling restart the service members in the backward order.
+	// TODO make service aware. For example, for MongoDB ReplicaSet, should gracefully stop
+	// and upgrade the primary member first, and then upgrade other members one by one.
+	// AWS ECS or Docker Swarm
+	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	tasks := make([]string, attr.Replicas)
+	for i := 0; i < len(members); i++ {
+		idx := len(members) - i - 1
+		tasks[i] = members[idx].TaskID
+	}
+
+	// TODO RollingRestartService may take long time. Run it as a task and cli could periodically query the progress.
+	err = s.containersvcIns.RollingRestartService(ctx, req.Cluster, req.ServiceName, attr.Replicas, tasks)
+	if err != nil {
+		glog.Errorln("RollingRestartService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("rolling restarted container service", req, "requuid", requuid)
 	return "", http.StatusOK
 }
 

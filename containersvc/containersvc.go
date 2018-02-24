@@ -94,6 +94,8 @@ type ContainerSvc interface {
 	// DeleteService deletes the service on the container platform.
 	// Expect no error (nil) if service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error
+	// RollingRestartService restarts the tasks one after the other.
+	RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error
 	// List the active (pending and running) tasks of the service.
 	ListActiveServiceTasks(ctx context.Context, cluster string, service string) (serviceTaskIDs map[string]bool, err error)
 	GetServiceTask(ctx context.Context, cluster string, service string, containerInstanceID string) (serviceTaskID string, err error)

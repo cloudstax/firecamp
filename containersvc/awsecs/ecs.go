@@ -722,6 +722,10 @@ func (s *AWSEcs) createEcsTaskDefinitionForTask(ctx context.Context, taskDefFami
 // WaitServiceRunning waits till all service containers are running or maxWaitSeconds reaches.
 func (s *AWSEcs) WaitServiceRunning(ctx context.Context, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
 	ecscli := ecs.New(s.sess)
+	return s.waitServiceRunning(ctx, ecscli, cluster, service, replicas, maxWaitSeconds)
+}
+
+func (s *AWSEcs) waitServiceRunning(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
 	var pending int64
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		svc, err := s.describeService(ctx, ecscli, cluster, service)
@@ -732,10 +736,11 @@ func (s *AWSEcs) WaitServiceRunning(ctx context.Context, cluster string, service
 			}
 			pending = *(svc.PendingCount)
 			if pending == 0 && *(svc.RunningCount) == *(svc.DesiredCount) {
-				glog.Infoln("all tasks are running", svc)
+				glog.Infoln("all tasks are running, service", service, "running count", *svc.RunningCount)
 				return nil
 			}
-			glog.Infoln("not all tasks are running yet", svc)
+			glog.Infoln("not all tasks are running yet, service", service, "pending",
+				*svc.PendingCount, "running", *svc.RunningCount, "desired", *svc.DesiredCount)
 		} else {
 			glog.Errorln("describeService error", err, "service", service, "cluster", cluster)
 		}
@@ -765,18 +770,18 @@ func (s *AWSEcs) GetServiceStatus(ctx context.Context, cluster string, service s
 	return status, nil
 }
 
-// waitServiceStop waits till all service containers are stopped or maxWaitSeconds reaches.
-func (s *AWSEcs) waitServiceStop(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, maxWaitSeconds int64) error {
+// waitServiceTaskStop waits till the service running containers reach targetRunningCount or maxWaitSeconds reaches.
+func (s *AWSEcs) waitServiceTaskStop(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, targetRunningCount int64, maxWaitSeconds int64) error {
 	var running int64
 	for sec := int64(0); sec < maxWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		svc, err := s.describeService(ctx, ecscli, cluster, service)
 		if err == nil {
 			running = *(svc.RunningCount)
-			if running == 0 {
-				glog.Infoln("service", service, "has no running task")
+			if running <= targetRunningCount {
+				glog.Infoln("service", service, "has", targetRunningCount, "running tasks")
 				return nil
 			}
-			glog.Infoln("service", service, "still has", running, "running tasks")
+			glog.Infoln("service", service, "still has", running, "running tasks, target", targetRunningCount)
 		} else {
 			glog.Errorln("describeService error", err, "service", service, "cluster", cluster)
 		}
@@ -784,7 +789,7 @@ func (s *AWSEcs) waitServiceStop(ctx context.Context, ecscli *ecs.ECS, cluster s
 		time.Sleep(time.Duration(common.DefaultRetryWaitSeconds) * time.Second)
 	}
 
-	glog.Errorln("service", service, "still has", running, "running tasks after", maxWaitSeconds)
+	glog.Errorln("service", service, "still has", running, "running tasks after", maxWaitSeconds, "target", targetRunningCount)
 	return common.ErrTimeout
 }
 
@@ -849,9 +854,9 @@ func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string
 		return err
 	}
 
-	err = s.waitServiceStop(ctx, ecscli, cluster, service, common.DefaultServiceWaitSeconds)
+	err = s.waitServiceTaskStop(ctx, ecscli, cluster, service, 0, common.DefaultServiceWaitSeconds)
 	if err != nil {
-		glog.Errorln("waitServiceStop error", err, "service", service)
+		glog.Errorln("waitServiceTaskStop error", err, "service", service)
 		return err
 	}
 
@@ -869,6 +874,58 @@ func (s *AWSEcs) ScaleService(ctx context.Context, cluster string, service strin
 	}
 
 	glog.Infoln("ScaleService complete", service, "desiredCount", desiredCount)
+	return nil
+}
+
+// RollingRestartService restarts the service task one after the other.
+func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error {
+	ecscli := ecs.New(s.sess)
+	reason := "RollingRestartService"
+
+	for _, task := range serviceTasks {
+		// stop task
+		err := s.stopTask(ctx, ecscli, cluster, service, replicas, task, reason)
+		if err != nil {
+			return err
+		}
+
+		glog.Infoln("stopped task", task, "service", service)
+
+		// wait till task is restarted
+		err = s.waitServiceRunning(ctx, ecscli, cluster, service, replicas, common.DefaultServiceWaitSeconds)
+		if err != nil {
+			return err
+		}
+
+		glog.Infoln("task restarted", task, "service", service)
+	}
+
+	glog.Infoln("rolling restarted all service tasks", service)
+	return nil
+}
+
+func (s *AWSEcs) stopTask(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, replicas int64, task string, reason string) error {
+	input := &ecs.StopTaskInput{
+		Cluster: aws.String(cluster),
+		Reason:  aws.String(reason),
+		Task:    aws.String(task),
+	}
+
+	_, err := ecscli.StopTask(input)
+	if err != nil {
+		glog.Errorln("StopTask error", err, "service", service, "task", task)
+		return err
+	}
+
+	glog.Infoln("stopped task", task, "service", service)
+
+	// wait till task is stopped
+	err = s.waitServiceTaskStop(ctx, ecscli, cluster, service, replicas-1, common.DefaultServiceWaitSeconds)
+	if err != nil {
+		glog.Errorln("waitServiceTaskStop error", err, "service", service, "task", task)
+		return err
+	}
+
 	return nil
 }
 

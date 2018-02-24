@@ -38,6 +38,7 @@
               "ecs:ListTasks",
               "ecs:RegisterTaskDefinition",
               "ecs:RunTask",
+              "ecs:StopTask",
               "ecs:UpdateService",
               "ecs:DiscoverPollEndpoint",
               "ecs:Poll",

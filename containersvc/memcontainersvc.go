@@ -172,6 +172,10 @@ func (m *MemContainerSvc) ScaleService(ctx context.Context, cluster string, serv
 	return nil
 }
 
+func (m *MemContainerSvc) RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error {
+	return nil
+}
+
 func (m *MemContainerSvc) DeleteService(ctx context.Context, cluster string, service string) error {
 	key := cluster + service
 
