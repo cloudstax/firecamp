@@ -1,5 +1,5 @@
 
-.PHONY: install docker test lambda
+.PHONY: install docker test
 
 org="cloudstax/"
 version="latest"
@@ -12,9 +12,6 @@ cli:
 
 install:
 	./scripts/install.sh
-
-lambda:
-	./scripts/buildlambda.sh
 
 docker: install
 	./scripts/builddocker.sh $(org) $(version) all
