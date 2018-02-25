@@ -172,7 +172,7 @@ func (m *MemContainerSvc) ScaleService(ctx context.Context, cluster string, serv
 	return nil
 }
 
-func (m *MemContainerSvc) RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error {
+func (m *MemContainerSvc) RollingRestartService(ctx context.Context, cluster string, service string, opts *RollingRestartOptions) error {
 	return nil
 }
 

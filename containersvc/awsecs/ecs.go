@@ -878,24 +878,28 @@ func (s *AWSEcs) ScaleService(ctx context.Context, cluster string, service strin
 }
 
 // RollingRestartService restarts the service task one after the other.
-func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error {
+func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, service string, opts *containersvc.RollingRestartOptions) error {
 	ecscli := ecs.New(s.sess)
 	reason := "RollingRestartService"
 
-	for _, task := range serviceTasks {
+	for i, task := range opts.ServiceTasks {
 		// stop task
-		err := s.stopTask(ctx, ecscli, cluster, service, replicas, task, reason)
+		err := s.stopTask(ctx, ecscli, cluster, service, opts.Replicas, task, reason)
 		if err != nil {
 			return err
 		}
 
-		glog.Infoln("stopped task", task, "service", service)
+		opts.StatusMessage = fmt.Sprintf("stopped %d task %s", i, task)
+
+		glog.Infoln("stopped task", i, task, "service", service)
 
 		// wait till task is restarted
-		err = s.waitServiceRunning(ctx, ecscli, cluster, service, replicas, common.DefaultServiceWaitSeconds)
+		err = s.waitServiceRunning(ctx, ecscli, cluster, service, opts.Replicas, common.DefaultServiceWaitSeconds)
 		if err != nil {
 			return err
 		}
+
+		opts.StatusMessage = fmt.Sprintf("task %d %s is restarted", i, task)
 
 		glog.Infoln("task restarted", task, "service", service)
 	}

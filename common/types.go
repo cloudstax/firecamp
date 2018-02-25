@@ -58,6 +58,7 @@ const (
 	DefaultTaskWaitSeconds    = 120
 	DefaultTaskRetryCounts    = 5
 	DefaultRetryWaitSeconds   = 3
+	CliRetryWaitSeconds       = 5
 
 	DomainSeparator  = "."
 	DomainNameSuffix = SystemName

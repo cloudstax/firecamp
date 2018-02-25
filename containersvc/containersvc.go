@@ -70,6 +70,14 @@ type CreateServiceOptions struct {
 	ExternalStaticIP bool
 }
 
+type RollingRestartOptions struct {
+	Replicas int64
+	// serviceTasks is a list of tasks for ECS, a list of pods for K8s.
+	// swarm currently does not need it.
+	ServiceTasks  []string
+	StatusMessage string
+}
+
 type RunTaskOptions struct {
 	Common   *CommonOptions
 	TaskType string
@@ -95,7 +103,7 @@ type ContainerSvc interface {
 	// Expect no error (nil) if service does not exist.
 	DeleteService(ctx context.Context, cluster string, service string) error
 	// RollingRestartService restarts the tasks one after the other.
-	RollingRestartService(ctx context.Context, cluster string, service string, replicas int64, serviceTasks []string) error
+	RollingRestartService(ctx context.Context, cluster string, service string, opts *RollingRestartOptions) error
 	// List the active (pending and running) tasks of the service.
 	ListActiveServiceTasks(ctx context.Context, cluster string, service string) (serviceTaskIDs map[string]bool, err error)
 	GetServiceTask(ctx context.Context, cluster string, service string, containerInstanceID string) (serviceTaskID string, err error)
