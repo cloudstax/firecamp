@@ -41,6 +41,8 @@ const (
 	// Not sure why yet. There are many similar issues reported, but no one seems to have the answer.
 	// TODO further investigate the reason.
 	maxServiceInitWaitSeconds = time.Duration(300) * time.Second
+	maxWaitSeconds            = time.Duration(common.DefaultServiceWaitSeconds) * time.Second
+	retryWaitSeconds          = time.Duration(common.CliRetryWaitSeconds) * time.Second
 )
 
 var (
@@ -817,8 +819,7 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
-	sleepSeconds := time.Duration(5) * time.Second
-	for sec := time.Duration(0); sec < maxServiceInitWaitSeconds; sec += sleepSeconds {
+	for sec := time.Duration(0); sec < maxServiceInitWaitSeconds; sec += retryWaitSeconds {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err == nil {
 			if initialized {
@@ -829,10 +830,10 @@ func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *man
 		} else {
 			fmt.Println(time.Now().UTC(), "check service init error", err)
 		}
-		time.Sleep(sleepSeconds)
+		time.Sleep(retryWaitSeconds)
 	}
 
-	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", common.DefaultServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceInitWaitSeconds)
 	os.Exit(-1)
 }
 
@@ -1531,8 +1532,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 }
 
 func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
-	sleepSeconds := time.Duration(5) * time.Second
-	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
+	for sec := time.Duration(0); sec < maxWaitSeconds; sec += retryWaitSeconds {
 		status, err := cli.GetServiceStatus(ctx, r)
 		if err != nil {
 			// The service is successfully created. It may be possible there are some
@@ -1550,10 +1550,10 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 			fmt.Println(time.Now().UTC(), "wait the service containers running, RunningCount", status.RunningCount)
 		}
 
-		time.Sleep(sleepSeconds)
+		time.Sleep(retryWaitSeconds)
 	}
 
-	fmt.Println(time.Now().UTC(), "not all service containers are running after", common.DefaultServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "not all service containers are running after", maxWaitSeconds)
 	os.Exit(-1)
 }
 
@@ -1737,7 +1737,22 @@ func rollingRestartService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	fmt.Println("Service is rolling restarted")
+	fmt.Println("Service rolling restart is triggered")
+
+	// wait till all containers are rolling restarted
+	for true {
+		complete, statusMsg, err := cli.GetServiceTaskStatus(ctx, serviceReq)
+		if err != nil {
+			fmt.Println(time.Now().UTC(), "GetServiceTaskStatus error", err)
+			os.Exit(-1)
+		}
+		if complete {
+			fmt.Println(time.Now().UTC(), "complete:", statusMsg)
+			return
+		}
+		fmt.Println(time.Now().UTC(), statusMsg)
+		time.Sleep(retryWaitSeconds)
+	}
 }
 
 func deleteService(ctx context.Context, cli *client.ManageClient) {

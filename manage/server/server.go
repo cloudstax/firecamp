@@ -11,12 +11,12 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
+	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
@@ -24,6 +24,11 @@ import (
 	"github.com/cloudstax/firecamp/manage/service"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
+)
+
+const (
+	// The max concurrent service tasks. 100 would be enough.
+	maxTaskCounts = 100
 )
 
 // The ManageHTTPServer is the management http server for the service management.
@@ -62,6 +67,7 @@ type ManageHTTPServer struct {
 	containersvcIns containersvc.ContainerSvc
 	svc             *manageservice.ManageService
 	catalogSvcInit  *catalogServiceInit
+	taskSvc         *manageTaskService
 }
 
 // NewManageHTTPServer creates a ManageHTTPServer instance
@@ -84,6 +90,7 @@ func NewManageHTTPServer(platform string, cluster string, azs []string, managedn
 		containersvcIns: containersvcIns,
 		svc:             svc,
 		catalogSvcInit:  newCatalogServiceInit(cluster, containersvcIns, dbIns),
+		taskSvc:         newManageTaskService(cluster, containersvcIns),
 	}
 	return s
 }
@@ -307,6 +314,13 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 		return manage.ConvertToHTTPError(err)
 	}
 
+	// check whether the rolling restart task is running
+	has, statusMsg, _ := s.taskSvc.hasTask(svc.ServiceUUID)
+	if has {
+		glog.Infoln("service rolling restart task is already running, statusmsg", statusMsg, "requuid", requuid, req)
+		return "", http.StatusOK
+	}
+
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
@@ -316,27 +330,90 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	// simply rolling restart the service members in the backward order.
 	// TODO make service aware. For example, for MongoDB ReplicaSet, should gracefully stop
 	// and upgrade the primary member first, and then upgrade other members one by one.
-	// AWS ECS or Docker Swarm
-	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+	var serviceTasks []string
+	if s.platform == common.ContainerPlatformK8s {
+		backward := true
+		serviceTasks = k8ssvc.GetStatefulSetPodNames(req.ServiceName, attr.Replicas, backward)
+	} else {
+		// AWS ECS or Docker Swarm
+		members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+		if err != nil {
+			glog.Errorln("ListServiceMembers error", err, "requuid", requuid, req)
+			return manage.ConvertToHTTPError(err)
+		}
+
+		serviceTasks = make([]string, attr.Replicas)
+		for i := 0; i < len(members); i++ {
+			idx := len(members) - i - 1
+			serviceTasks[i] = members[idx].TaskID
+		}
+	}
+
+	task := &manageTask{
+		serviceUUID: attr.ServiceUUID,
+		serviceName: attr.ServiceName,
+		restartOpts: &containersvc.RollingRestartOptions{
+			Replicas:     attr.Replicas,
+			ServiceTasks: serviceTasks,
+		},
+	}
+
+	err = s.taskSvc.addTask(attr.ServiceUUID, task, requuid)
 	if err != nil {
-		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, req)
+		glog.Errorln("add rolling restart task error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	tasks := make([]string, attr.Replicas)
-	for i := 0; i < len(members); i++ {
-		idx := len(members) - i - 1
-		tasks[i] = members[idx].TaskID
+	glog.Infoln("rolling restarted service", req, "requuid", requuid)
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) getServiceTaskStatus(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	// TODO RollingRestartService may take long time. Run it as a task and cli could periodically query the progress.
-	err = s.containersvcIns.RollingRestartService(ctx, req.Cluster, req.ServiceName, attr.Replicas, tasks)
+	err = s.checkCommonRequest(req)
 	if err != nil {
-		glog.Errorln("RollingRestartService error", err, "requuid", requuid, req)
+		glog.Errorln("getServiceTaskStatus invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("rolling restarted container service", req, "requuid", requuid)
+	// check whether the management task is running
+	has, statusMsg, complete := s.taskSvc.hasTask(svc.ServiceUUID)
+	if !has {
+		glog.Errorln("no manage task for service, requuid", requuid, req)
+		statusMsg = "no manage task for service is running"
+		complete = true
+	} else {
+		glog.Infoln("service manage task is running, statusmsg", statusMsg, "requuid", requuid, req)
+	}
+
+	resp := &manage.GetServiceTaskStatusResponse{
+		Complete:      complete,
+		StatusMessage: statusMsg,
+	}
+
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal error", err, "requuid", requuid, req)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
 	return "", http.StatusOK
 }
 
@@ -503,6 +580,9 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 
 		case manage.GetTaskStatusOp:
 			return s.getTaskStatus(ctx, w, r, requuid)
+
+		case manage.GetServiceTaskStatusOp:
+			return s.getServiceTaskStatus(ctx, w, r, requuid)
 
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest

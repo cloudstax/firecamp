@@ -100,26 +100,6 @@ func (c *ManageClient) StartService(ctx context.Context, r *manage.ServiceCommon
 	return manage.ConvertHTTPError(resp)
 }
 
-// RollingRestartService rolling restarts the service containers
-func (c *ManageClient) RollingRestartService(ctx context.Context, r *manage.ServiceCommonRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.RollingRestartServiceOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // GetServiceAttr gets the service details information
 func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
 	b, err := json.Marshal(r)
@@ -401,6 +381,62 @@ func (c *ManageClient) DeleteTask(ctx context.Context, r *manage.DeleteTaskReque
 
 	return manage.ConvertHTTPError(resp)
 }
+
+// Service Management Requests
+
+// RollingRestartService rolling restarts the service containers
+func (c *ManageClient) RollingRestartService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.RollingRestartServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
+// GetServiceTaskStatus gets the service management task status
+func (c *ManageClient) GetServiceTaskStatus(ctx context.Context, r *manage.ServiceCommonRequest) (complete bool, statusMsg string, err error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return false, "", err
+	}
+
+	urlStr := c.serverURL + manage.GetServiceTaskStatusOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return false, "", err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return false, "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.GetServiceTaskStatusResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		return false, "", manage.ConvertHTTPError(resp)
+	}
+
+	return res.Complete, res.StatusMessage, nil
+}
+
+// Catalog Service Requests
 
 // CatalogCreateMongoDBService creates a new catalog MongoDB ReplicaSet service.
 func (c *ManageClient) CatalogCreateMongoDBService(ctx context.Context, r *manage.CatalogCreateMongoDBRequest) (keyfileContent string, err error) {

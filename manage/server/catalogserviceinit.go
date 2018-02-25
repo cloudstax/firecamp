@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	// The max concurrent service tasks. 100 would be enough.
-	maxTaskCounts = 100
 	// Wait some time for service to stabilize before running the init task.
 	waitSecondsBeforeInit = time.Duration(10) * time.Second
 
@@ -31,7 +29,7 @@ type serviceTask struct {
 	// The uuid of the service
 	serviceUUID string
 	serviceName string
-	// The catalog service type, defined in catalog/types.go
+	// The catalog service type, defined in common/service.go
 	serviceType string
 	// The task detail
 	opts *containersvc.RunTaskOptions
@@ -93,12 +91,12 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 		return nil
 	}
 
-	// service does not have running task, run it
 	if len(c.tasks) > maxTaskCounts {
 		glog.Errorln("exceed maxTaskCounts", maxTaskCounts, "could not run task", task, "requuid", requuid)
 		return common.ErrInternal
 	}
 
+	// service does not have running task, run it
 	task.statusMessage = waitServiceRunningInitialMsg
 	c.tasks[task.serviceUUID] = task
 	go c.runInitTask(initCtx, task, requuid)

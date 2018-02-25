@@ -6,19 +6,21 @@ import (
 
 const (
 	// special service operations
-	SpecialOpPrefix         = "?"
-	ListServiceOp           = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp     = SpecialOpPrefix + "List-ServiceMember"
-	GetConfigFileOp         = SpecialOpPrefix + "Get-Config-File"
-	GetServiceStatusOp      = SpecialOpPrefix + "Get-Service-Status"
-	ServiceInitializedOp    = SpecialOpPrefix + "Set-Service-Initialized"
-	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
-	StartServiceOp          = SpecialOpPrefix + "Start-Service"
+	SpecialOpPrefix      = "?"
+	ListServiceOp        = SpecialOpPrefix + "List-Service"
+	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
+	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
+	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
+	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+	StopServiceOp        = SpecialOpPrefix + "Stop-Service"
+	StartServiceOp       = SpecialOpPrefix + "Start-Service"
+	DeleteServiceOp      = SpecialOpPrefix + "Delete-Service"
+	RunTaskOp            = SpecialOpPrefix + "Run-Task"
+	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"
+	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
+	// The service related management task
 	RollingRestartServiceOp = SpecialOpPrefix + "RollingRestart-Service"
-	DeleteServiceOp         = SpecialOpPrefix + "Delete-Service"
-	RunTaskOp               = SpecialOpPrefix + "Run-Task"
-	GetTaskStatusOp         = SpecialOpPrefix + "Get-Task-Status"
-	DeleteTaskOp            = SpecialOpPrefix + "Delete-Task"
+	GetServiceTaskStatusOp  = SpecialOpPrefix + "Get-ServiceTask-Status"
 
 	CatalogOpPrefix              = SpecialOpPrefix + "Catalog-"
 	CatalogCreateMongoDBOp       = CatalogOpPrefix + "Create-MongoDB"
@@ -207,6 +209,14 @@ type GetTaskStatusResponse struct {
 type DeleteTaskRequest struct {
 	Service  *ServiceCommonRequest
 	TaskType string
+}
+
+// Service management task related requests
+
+// GetServiceTaskStatusResponse returns the service management task status.
+type GetServiceTaskStatusResponse struct {
+	Complete      bool
+	StatusMessage string
 }
 
 // The integrated catalog services supported by the system.
