@@ -24,6 +24,8 @@ type manageTask struct {
 type manageTaskService struct {
 	cluster         string
 	containersvcIns containersvc.ContainerSvc
+	// when task completes, wait some time for cli to get the status
+	taskDoneWaitSeconds int64
 
 	// The task map to track whether the service has task running. key: serviceUUID, value: not used.
 	tasks map[string]*manageTask
@@ -32,10 +34,11 @@ type manageTaskService struct {
 
 func newManageTaskService(cluster string, containersvcIns containersvc.ContainerSvc) *manageTaskService {
 	s := &manageTaskService{
-		cluster:         cluster,
-		containersvcIns: containersvcIns,
-		tasks:           make(map[string]*manageTask),
-		tlock:           &sync.Mutex{},
+		cluster:             cluster,
+		containersvcIns:     containersvcIns,
+		taskDoneWaitSeconds: 2 * common.CliRetryWaitSeconds,
+		tasks:               make(map[string]*manageTask),
+		tlock:               &sync.Mutex{},
 	}
 	return s
 }
@@ -98,7 +101,7 @@ func (s *manageTaskService) runTask(ctx context.Context, task *manageTask, requu
 
 func (s *manageTaskService) taskDone(ctx context.Context, task *manageTask, requuid string) {
 	// wait some time for cli to get the results
-	time.Sleep(time.Duration(2*common.CliRetryWaitSeconds) * time.Second)
+	time.Sleep(time.Duration(s.taskDoneWaitSeconds) * time.Second)
 
 	glog.Infoln("deleted service rolling restart task", task, "requuid", requuid)
 

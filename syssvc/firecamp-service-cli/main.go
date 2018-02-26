@@ -40,9 +40,8 @@ const (
 	// The pod init may fail a few times with "FailedMount". But after some time, volume could be finally mounted.
 	// Not sure why yet. There are many similar issues reported, but no one seems to have the answer.
 	// TODO further investigate the reason.
-	maxServiceInitWaitSeconds = time.Duration(300) * time.Second
-	maxWaitSeconds            = time.Duration(common.DefaultServiceWaitSeconds) * time.Second
-	retryWaitSeconds          = time.Duration(common.CliRetryWaitSeconds) * time.Second
+	maxServiceWaitSeconds = time.Duration(300) * time.Second
+	retryWaitSeconds      = time.Duration(common.CliRetryWaitSeconds) * time.Second
 )
 
 var (
@@ -819,7 +818,7 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
-	for sec := time.Duration(0); sec < maxServiceInitWaitSeconds; sec += retryWaitSeconds {
+	for sec := time.Duration(0); sec < maxServiceWaitSeconds; sec += retryWaitSeconds {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err == nil {
 			if initialized {
@@ -833,7 +832,7 @@ func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *man
 		time.Sleep(retryWaitSeconds)
 	}
 
-	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceInitWaitSeconds)
+	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceWaitSeconds)
 	os.Exit(-1)
 }
 
@@ -1532,7 +1531,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 }
 
 func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
-	for sec := time.Duration(0); sec < maxWaitSeconds; sec += retryWaitSeconds {
+	for sec := time.Duration(0); sec < maxServiceWaitSeconds; sec += retryWaitSeconds {
 		status, err := cli.GetServiceStatus(ctx, r)
 		if err != nil {
 			// The service is successfully created. It may be possible there are some
@@ -1553,7 +1552,7 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 		time.Sleep(retryWaitSeconds)
 	}
 
-	fmt.Println(time.Now().UTC(), "not all service containers are running after", maxWaitSeconds)
+	fmt.Println(time.Now().UTC(), "not all service containers are running after", maxServiceWaitSeconds)
 	os.Exit(-1)
 }
 
