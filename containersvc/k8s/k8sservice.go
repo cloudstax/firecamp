@@ -739,6 +739,78 @@ func (s *K8sSvc) ScaleService(ctx context.Context, cluster string, service strin
 	return nil
 }
 
+// RollingRestartService restarts the service tasks one after the other.
+func (s *K8sSvc) RollingRestartService(ctx context.Context, cluster string, service string, opts *containersvc.RollingRestartOptions) error {
+	startTime := metav1.Now()
+	for _, p := range opts.ServiceTasks {
+		// delete the pod
+		err := s.cliset.CoreV1().Pods(s.namespace).Delete(p, &metav1.DeleteOptions{})
+		if err != nil {
+			glog.Errorln("delete pod", p, "error", err, "service", service)
+			return err
+		}
+
+		opts.StatusMessage = fmt.Sprintf("pod %s is deleted, wait for pod terminated", p)
+
+		glog.Infoln("deleted pod", p, "service", service, "start time", startTime)
+
+		// currently k8s pod deletion will wait the pod.ObjectMeta.DeletionGracePeriodSeconds
+		// before creating the pod again, even if the container is successfully terminated.
+		// the default DeletionGracePeriodSeconds are 30 seconds.
+		// here we don't want to wait the full DeletionGracePeriodSeconds. K8s would optimize
+		// to terminate the old pod and create the new pod in the future. We simply check
+		// every 5 seconds. So we will not need to change when K8s adds this optimization.
+		// TODO could we use the Pod Watch API?
+		retryWaitSeconds := time.Duration(5) * time.Second
+		maxWatiSeconds := time.Duration(common.DefaultServiceWaitSeconds) * time.Second
+
+		// wait till the pod is recreated
+		for sec := time.Duration(0); sec < maxWatiSeconds; sec += retryWaitSeconds {
+			// sleep first for the pod container to stop
+			time.Sleep(retryWaitSeconds)
+
+			pod, err := s.cliset.CoreV1().Pods(s.namespace).Get(p, metav1.GetOptions{})
+			if err != nil {
+				// skip the error, simply retry
+				glog.Errorln("get pod", p, "error", err, "service", service)
+			} else {
+				podready := false
+				if pod.Status.Phase == corev1.PodRunning {
+					for _, cond := range pod.Status.Conditions {
+						if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue && !cond.LastTransitionTime.Before(&startTime) {
+							podready = true
+							break
+						}
+					}
+				}
+
+				glog.Infoln("pod", p, "ready", podready, "status", pod.Status)
+
+				if podready {
+					opts.StatusMessage = fmt.Sprintf("pod %s is running", p)
+					break
+				}
+
+				for _, cont := range pod.Status.ContainerStatuses {
+					// the name of the main service container is the service name
+					if cont.Name == service {
+						if cont.State.Waiting != nil {
+							opts.StatusMessage = fmt.Sprintf("pod %s %s", p, cont.State.Waiting.Reason)
+						} else if cont.State.Terminated != nil {
+							opts.StatusMessage = fmt.Sprintf("pod %s is terminated, wait to run", p)
+						}
+					}
+				}
+			}
+		}
+
+		opts.StatusMessage = fmt.Sprintf("pod %s is recreated", p)
+	}
+
+	glog.Infoln("rolling restart service", service)
+	return nil
+}
+
 // DeleteService deletes the service on the container platform.
 // Expect no error (nil) if service does not exist.
 func (s *K8sSvc) DeleteService(ctx context.Context, cluster string, service string) error {

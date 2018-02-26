@@ -16,7 +16,7 @@ metadata:
   namespace: default
 rules:
 - apiGroups: [""] # "" indicates the core API group
-  resources: ["configmaps", "services", "persistentvolumeclaims", "persistentvolumes"]
+  resources: ["configmaps", "services", "pods", "persistentvolumeclaims", "persistentvolumes"]
   verbs: ["create", "delete", "get", "list", "update"]
 - apiGroups: ["apps"]
   resources: ["statefulsets"]

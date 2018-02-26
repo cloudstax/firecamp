@@ -17,6 +17,14 @@ FireCamp minimizes the dependency on the external components. FireCamp does not 
 Kubernetes does not support the custom log driver. FireCamp deploys a Fluentd DaemonSet. The Fluentd is configured to create the log stream for each service member under the same log group. For the detail log stream and group name, please refer to the [Catalog Service Log](https://github.com/cloudstax/firecamp/tree/master/catalog#logging).
 
 
+## FireCamp Kubernetes StatefulSet
+
+**PodManagementPolicy**: The ParallelPodManagement policy is used instead of OrderedReadyPodManagement. The OrderedReadyPodManagement create pods in strictly increasing order. This may introduce some issue when running in cloud. For example, Cassandra service has 3 replicas on 3 AZs. The replica0 is on AZ1. If AZ1 goes down, the pods for replica1 and 2 will keep waiting for replica0.
+
+**StatefulSetUpdateStrategy**: The OnDeleteStatefulSetStrategyType is used instead of RollingUpdateStatefulSetStrategyType. As the RollingUpdateStatefulSetStrategyType is not suitable for the master-slave service, such as MongoDB, Postgres, etc. The graceful update should restart the master first, then the slaves. FireCamp will perform the update according to the service's requirement. FireCamp will track and restart the master container first for the master-slave services.
+
+Note: this is not implemented yet. Currently the service is simply rolling updated.
+
 ## How to Run FireCamp on the existing kubernetes
 
 Currently FireCamp does not set up Kubernetes on AWS. We will integrate with AWS EKS (Elastic Container Service for Kubernetes) for the deployment once EKS is officially announced.
@@ -28,8 +36,12 @@ The detail IAM permissions are described in the firecamp-iamprofile.template.
 
 2. Add FireCamp tag to each node, tag key: firecamp-worker, value: clustername.
 
-3. Create the Fluentd DaemonSet to send logs to CloudWatch: `kubectl create -f fluentd-cw-configmap.yaml` and `kubectl create -f fluentd-cw-ds.yaml`.
+3. Create the Fluentd DaemonSet to send logs to CloudWatch.
+Update the AWS_REGION and FIRECAMP_CLUSTER_NAME in fluentd-cw-ds.yaml, and run `kubectl create -f fluentd-cw-configmap.yaml` and `kubectl create -f fluentd-cw-ds.yaml`.
 
-4. Create the FireCamp manage service ReplicaSet: `kubectl create -f manageservice-rbac.yaml` and `kubectl create -f manageservice-replicaset.yaml`.
+4. Create the FireCamp manage service ReplicaSet.
+Update the AVAILABILITY_ZONES and CLUSTER in manageservice-replicaset.yaml, and run `kubectl create -f manageservice-rbac.yaml` and `kubectl create -f manageservice-replicaset.yaml`.
+
+Note: Kubernetes nodes should run in all AVAILABILITY_ZONES. If one Availability Zone does not have the running node, the stateful service will fail to start. The CLUSTER should be set to the same with FIRECAMP_CLUSTER_NAME in fluentd-cw-ds.yaml.
 
 Then you could login to any k8s node, download firecamp cli and create the stateful service.
