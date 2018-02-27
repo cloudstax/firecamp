@@ -402,16 +402,19 @@ func usage() {
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
+			fmt.Printf("%s stops all service containers in parallel", opStop)
 		case opStart:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opStart)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
+			fmt.Printf("%s starts all service containers in parallel", opStart)
 		case opRollingRestart:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opRollingRestart)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
+			fmt.Printf("%s rolling restart the service containers one by one", opRollingRestart)
 		case opDelete:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opDelete)
 			printFlag(flag.Lookup("region"))

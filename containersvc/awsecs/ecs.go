@@ -882,6 +882,7 @@ func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, serv
 	ecscli := ecs.New(s.sess)
 	reason := "RollingRestartService"
 
+	num := len(opts.ServiceTasks)
 	for i, task := range opts.ServiceTasks {
 		// stop task
 		err := s.stopTask(ctx, ecscli, cluster, service, opts.Replicas, task, reason)
@@ -889,9 +890,9 @@ func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, serv
 			return err
 		}
 
-		opts.StatusMessage = fmt.Sprintf("stopped %d task %s", i, task)
+		opts.StatusMessage = fmt.Sprintf("task %d is stopped, wait for the container to be recreated.", num-i)
 
-		glog.Infoln("stopped task", i, task, "service", service)
+		glog.Infoln("stopped task", num-i, task, "service", service)
 
 		// wait till task is restarted
 		err = s.waitServiceRunning(ctx, ecscli, cluster, service, opts.Replicas, common.DefaultServiceWaitSeconds)
@@ -899,7 +900,7 @@ func (s *AWSEcs) RollingRestartService(ctx context.Context, cluster string, serv
 			return err
 		}
 
-		opts.StatusMessage = fmt.Sprintf("task %d %s is restarted", i, task)
+		opts.StatusMessage = fmt.Sprintf("task %d is restarted", num-i)
 
 		glog.Infoln("task restarted", task, "service", service)
 	}

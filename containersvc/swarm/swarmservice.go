@@ -697,7 +697,7 @@ func (s *SwarmSvc) RollingRestartService(ctx context.Context, cluster string, se
 
 	opts.StatusMessage = "swarm service is updated to trigger the rolling restart"
 
-	glog.Infoln("force swarm service update", service)
+	glog.Infoln("force swarm service updated", service)
 
 	// wait till all containers are restarted.
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds*opts.Replicas; sec += restartWaitSeconds {
@@ -707,18 +707,22 @@ func (s *SwarmSvc) RollingRestartService(ctx context.Context, cluster string, se
 			return err
 		}
 
-		if svc.UpdateStatus.State == swarm.UpdateStateCompleted {
-			glog.Infoln("service rolling restart complete", service, svc.UpdateStatus)
-			return nil
-		}
+		if svc.UpdateStatus != nil {
+			if svc.UpdateStatus.State == swarm.UpdateStateCompleted {
+				glog.Infoln("service rolling restart complete", service, svc.UpdateStatus)
+				return nil
+			}
 
-		if svc.UpdateStatus.State != swarm.UpdateStateUpdating {
-			errmsg := fmt.Sprintf("service %s is not at updating state, %s", service, svc.UpdateStatus)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
+			if svc.UpdateStatus.State != swarm.UpdateStateUpdating {
+				errmsg := fmt.Sprintf("service %s is not at updating state, %s", service, svc.UpdateStatus)
+				glog.Errorln(errmsg)
+				return errors.New(errmsg)
+			}
 
-		opts.StatusMessage = svc.UpdateStatus.Message
+			opts.StatusMessage = svc.UpdateStatus.Message
+
+			glog.Infoln("service update status", service, svc.UpdateStatus)
+		}
 
 		glog.Infoln("service is still at the updating state", service)
 
