@@ -63,7 +63,7 @@ This creates a 3 replicas ZooKeeper on 3 availability zones. Each replica has 20
 ## Create a Kafka service
 Create a Kafka cluster by:
 ```
-firecamp-service-cli -op=create-service -service-type=kafka -region=us-east-1 -cluster=t1  -replicas=3 -volume-size=100 -service-name=mykafka -kafka-zk-service=myzoo
+firecamp-service-cli -op=create-service -service-type=kafka -region=us-east-1 -cluster=t1  -replicas=3 -volume-size=100 -service-name=mykafka -kafka-zk-service=myzoo -kafka-heap-size=6144
 ```
 
 This creates a 3 replicas Kafka on 3 availability zones. The default heap size is 6g. If you want to reduce it for test such as 512MB, set -kafka-heap-size=512. Each replica has 100GB volume. The DNS names of the replicas would be: mykafka-0.t1-firecamp.com, mykafka-1.t1-firecamp.com, mykafka-2.t1-firecamp.com.

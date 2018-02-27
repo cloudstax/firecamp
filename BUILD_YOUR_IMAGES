@@ -19,4 +19,4 @@ Then you could upload the templates to your bucket. For example, your bucket nam
 - Upload AWS VPC templates: upload https://github.com/aws-quickstart/quickstart-aws-vpc/templates to mybucket/aws/vpc/latest/templates.
 - Upload FireCamp templates, packaging/aws-cloudformation/firecamp-*.template, to mybucket/firecamp/releases/latest/templates/firecamp-*.template. Upload the init script, packaging/aws-cloudformation/init.sh, to mybucket/firecamp/releases/latest/scripts/init.sh. And upload $GOPATH/bin/firecamp-service-cli.tgz and $GOPATH/bin/firecamp-swarminit.tgz to mybucket/firecamp/releases/latest/packages/firecamp-*.tgz.
 
-Then you could use mybucket/firecamp/releases/latest/templates/firecamp-master.template or firecamp-existingvpc.template to deploy the cluster and test the stateful service. You will need to set "QSS3BucketName" to "mybucket".
+Then you could use mybucket/firecamp/releases/latest/templates/firecamp-master.template or firecamp.template to deploy the cluster and test the stateful service. You will need to set "QSS3BucketName" to "mybucket".

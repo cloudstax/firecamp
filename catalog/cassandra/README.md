@@ -48,9 +48,9 @@ For ECS, go to [ECS console](https://console.aws.amazon.com/ecs), click the righ
 
 For Docker Swarm, login to swarm manager node, run `docker node ls` and check if the new node is added.
 
-2. Check the firecamp volume plugin is correctly installed.
+2. Check the firecamp volume and log plugin are correctly installed.
 
-Login to the EC2 instance, run `sudo docker plugin ls`. If firecamp-volume plugin is not installed or not enabled, terminate the corresponding EC2 instance. The AutoScalingGroup will create and initialize a new EC2 instance automatically.
+Login to the EC2 instance, run `sudo docker plugin ls`. If firecamp volume or log plugin is not installed or not enabled, terminate the corresponding EC2 instance. The AutoScalingGroup will create and initialize a new EC2 instance automatically.
 
 ## Security
 
@@ -116,7 +116,7 @@ This is a simple tutorial about how to create a Cassandra service and how to use
 ## Create a Cassandra service
 Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Cassandra cluster:
 ```
-firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10
+firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10 -cas-heap-size=8192
 ```
 
 This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512.

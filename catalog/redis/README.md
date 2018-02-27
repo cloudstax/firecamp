@@ -66,6 +66,14 @@ Redis cluster setup tool, redis-trib.rb, does not support auth pass yet. See Red
 
 The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (remove all keys from all databases), FLUSHDB (similar, but from the current database), and SHUTDOWN, are disabled. The CONFIG (reconfiguring server at runtime) command could be renamed when creating the service. It might be useful at some conditions. For example, if you hit latency issue, could enable latency monitor, "CONFIG SET latency-monitor-threshold <milliseconds>", to collect data. Setting the new name to the empty string will disable the CONFIG command.
 
+## Update a Redis Service
+
+If you want to increase the memory size, change the password, etc, you could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass```
+
+The config changes will only be effective after Redis cluster is restarted. Redis persists the in-memory data to disk in the background. If AOF is enabled, which is the default mode, all writes are written into the AOF file and fsync is called for the file every second. If you don't want to lost any data, you should stop the load, wait two seconds, then use firecamp cli to stop-service, update-service and start-service. If AOF is not enabled, you should stop the load, connect to the master or slave of all shards and run “SAVE”. After the "SAVE" completes, could stop-service, update-service and start-service.
+
+If you do not care about losing the in-memory data, you could simply stop-service, update-service with the new configs, and then start-service.
+
 ## Configs
 
 [**Memory size**](http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/CacheNodes.SelectSize.html#CacheNodes.SelectSize.Redis): if you estimate that the total size of all your items to be 12 GB in a 3 shards Redis cluster, each shard will serve 4GB data. The Redis replication buffer is set as 512MB, plus 1GB reserved for OS. The Redis node should have at least 5.5GB memory. When Redis persists the memory data to disk, it may take upto 4GB memory to serve the coming writes during the data persistence. If your application is write heavy, you should double the per node Redis memory to at least 8GB, so the node memory is at least 9.5GB.
@@ -110,14 +118,10 @@ Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/maste
 firecamp-service-cli -op=create-service -service-type=redis -region=us-east-1 -cluster=t1 -redis-shards=3 -redis-replicas-pershard=2 -volume-size=20 -service-name=myredis -redis-memory-size=4096 -redis-auth-pass=changeme
 ```
 
-This creates a 3 shards Redis on 3 availability zones. Each shard has 1 master and 1 slave. The master and slave will be assigned to different availability zone, to tolerate one availability zone failure. Every container has 20GB volume. The DNS names of the members would be:
-* shard 0, master myredis-0.t1-firecamp.com, slave myredis-1.t1-firecamp.com
-* shard 1, master myredis-2.t1-firecamp.com, slave myredis-3.t1-firecamp.com
-* shard 2, master myredis-4.t1-firecamp.com, slave myredis-5.t1-firecamp.com.
-
-## Update a Redis Service
-
-You could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass```
+This creates a 3 shards Redis on 3 availability zones. Each shard has 1 master and 1 slave. The master and slave will be assigned to different availability zones, to tolerate one availability zone failure. Every container has 20GB volume. The DNS names of the members would be:
+* shard 0, master myredis-0.t1-firecamp.com at zone 1, slave myredis-1.t1-firecamp.com at zone 2.
+* shard 1, master myredis-2.t1-firecamp.com at zone 2, slave myredis-3.t1-firecamp.com at zone 3.
+* shard 2, master myredis-4.t1-firecamp.com at zone 3, slave myredis-5.t1-firecamp.com at zone 1.
 
 ## Set and Get Keys
 1. Set Keys

@@ -11,7 +11,7 @@
 ## Install the FireCamp Cluster
 The FireCamp cluster can be easily installed via [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/). It will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
 
-AWS FireCamp QuickStart does not install the latest developing build. If you want to test/develop the latest build, please use the "cloudstax" bucket or create your own bucket. The "cloudstax" bucket has the [master template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp-master.template) and [existingvpc template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp-existingvpc.template). If you use your own bucket, please remember to update the "QSS3BucketName" and "QSS3KeyPrefix" accordingly.
+AWS FireCamp QuickStart does not install the latest developing build. If you want to test/develop the latest build, please use the "cloudstax" bucket or create your own bucket. The "cloudstax" bucket has the [master template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp-master.template) and [existingvpc template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp.template). If you use your own bucket, please remember to update the "QSS3BucketName" and "QSS3KeyPrefix" accordingly.
 
 1. Go to [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/), click "Deploy on AWS into a new VPC", then click "Next".
 

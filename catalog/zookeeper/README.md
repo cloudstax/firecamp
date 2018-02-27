@@ -45,7 +45,7 @@ This is a simple tutorial about how to create a ZooKeeper service and how to use
 ## Create a ZooKeeper service
 Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
 ```
-firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20
+firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20 -zk-heap-size=4096
 ```
 
 This creates a 3 replicas ZooKeeper on 3 availability zones. The default heap size is 4g. If you want to reduce it for test such as 256MB, set -zk-heap-size=256. Each replica has 20GB volume. The DNS names of the replicas would be: myzoo-0.t1-firecamp.com, myzoo-1.t1-firecamp.com, myzoo-2.t1-firecamp.com.
