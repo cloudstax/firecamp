@@ -76,7 +76,7 @@ func swarmInitTest(ctx context.Context) {
 	mtoken, wtoken, err := svc.GetJoinToken(ctx)
 	fmt.Println("GetJoinToken manager", mtoken, "worker", wtoken, "error", err)
 
-	goodManagers, downManagers, err := svc.ListSwarmManagerNodes(ctx)
+	goodManagers, _, downManagers, err := svc.ListSwarmManagerNodes(ctx)
 	fmt.Println("goodManagers", goodManagers, "downManagers", downManagers)
 }
 
@@ -149,8 +149,8 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 
 	// check service not exist
 	exist, err := e.IsServiceExist(ctx, cluster, service)
-	if err != common.ErrNotFound {
-		glog.Errorln("IsServiceExist expect NotFound, got error", err, service, cluster)
+	if err != nil {
+		glog.Errorln("IsServiceExist expect success, got error", err, service, cluster)
 		return err
 	}
 	if exist {

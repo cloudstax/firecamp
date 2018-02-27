@@ -42,6 +42,8 @@ const (
 
 	zoneLabelSep       = "."
 	placeConstraintFmt = "engine.labels.%s == true"
+
+	restartWaitSeconds = 5
 )
 
 // SwarmSvc implements swarm service and task related functions.
@@ -666,6 +668,65 @@ func (s *SwarmSvc) DeleteService(ctx context.Context, cluster string, service st
 
 	glog.Infoln("deleted service", service, "cluster", cluster)
 	return nil
+}
+
+// RollingRestartService restarts the service tasks one after the other.
+func (s *SwarmSvc) RollingRestartService(ctx context.Context, cluster string, service string, opts *containersvc.RollingRestartOptions) error {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("DeleteService newClient error", err, "service", service)
+		return err
+	}
+
+	// get service spec
+	svc, err := s.inspectService(ctx, cli, service)
+	if err != nil {
+		glog.Errorln("inspectService error", err, "service", service)
+		return err
+	}
+
+	// force update service. swarm will restart one service container, wait the container running
+	// and then restart the next container.
+	svc.Spec.TaskTemplate.ForceUpdate++
+
+	resp, err := cli.ServiceUpdate(ctx, service, svc.Version, svc.Spec, types.ServiceUpdateOptions{})
+	if err != nil {
+		glog.Errorln("ServiceUpdate error", err, "resp", resp, svc)
+		return err
+	}
+
+	opts.StatusMessage = "swarm service is updated to trigger the rolling restart"
+
+	glog.Infoln("force swarm service update", service)
+
+	// wait till all containers are restarted.
+	for sec := int64(0); sec < common.DefaultServiceWaitSeconds*opts.Replicas; sec += restartWaitSeconds {
+		svc, err = s.inspectService(ctx, cli, service)
+		if err != nil {
+			glog.Errorln("inspectService error", err, "service", service)
+			return err
+		}
+
+		if svc.UpdateStatus.State == swarm.UpdateStateCompleted {
+			glog.Infoln("service rolling restart complete", service, svc.UpdateStatus)
+			return nil
+		}
+
+		if svc.UpdateStatus.State != swarm.UpdateStateUpdating {
+			errmsg := fmt.Sprintf("service %s is not at updating state, %s", service, svc.UpdateStatus)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
+
+		opts.StatusMessage = svc.UpdateStatus.Message
+
+		glog.Infoln("service is still at the updating state", service)
+
+		time.Sleep(time.Duration(restartWaitSeconds) * time.Second)
+	}
+
+	glog.Errorln("service rolling restart timed out after", common.DefaultServiceWaitSeconds*opts.Replicas, "service", service)
+	return errors.New("service rolling restart timed out")
 }
 
 // RunTask creates and runs the task once.
