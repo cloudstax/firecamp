@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,06,2018 (qs-1o5bijc54)",
+  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc54)",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -312,7 +312,7 @@
     "NodeInstanceType":{
       "Description":"EC2 instance type",
       "Type":"String",
-      "Default":"m4.large",
+      "Default":"m4.xlarge",
       "AllowedValues":[
         "t2.micro",
         "t2.small",
@@ -720,7 +720,7 @@
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp.template",
+            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-common.template",
             {
               "QSS3Region": {
                 "Fn::If": [
