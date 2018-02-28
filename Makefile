@@ -2,7 +2,7 @@
 .PHONY: install docker test
 
 org="cloudstax/"
-version="0.9.4"
+version="latest"
 
 all: install
 
