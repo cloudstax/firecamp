@@ -68,7 +68,7 @@ The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (r
 
 ## Update a Redis Service
 
-If you want to increase the memory size, change the password, etc, you could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass```
+If you want to increase the memory size, change the password, etc, you could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass`
 
 The config changes will only be effective after Redis cluster is restarted. Redis persists the in-memory data to disk in the background. If AOF is enabled, which is the default mode, all writes are written into the AOF file and fsync is called for the file every second. If you don't want to lost any data, you should stop the load, wait two seconds, then use firecamp cli to stop-service, update-service and start-service. If AOF is not enabled, you should stop the load, connect to the master or slave of all shards and run “SAVE”. After the "SAVE" completes, could stop-service, update-service and start-service.
 

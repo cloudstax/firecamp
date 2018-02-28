@@ -68,11 +68,11 @@ curl -X PUT admin:changeme@mycouch-0.t1-firecamp.com:5984/fruits
 ```
 2. Create an ElasticSearch service:
 ```
-firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048
 ```
 3. Create a Logstash service:
 ```
-firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6
+firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6 -ls-heap-size=2048
 ```
 The logstash.conf content:
 ```
