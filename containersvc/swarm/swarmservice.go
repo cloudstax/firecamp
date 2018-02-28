@@ -284,6 +284,16 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		Mode: swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{Replicas: &replicas},
 		},
+		// set the UpdateConfig. The rolling restart triggers the force update.
+		// sometimes, one container may fail to start. For example, EBS detach takes long time,
+		// and cause the container start failed. Swarm will pause the rolling update
+		// as swarm.UpdateFailureActionPause is the default behavior.
+		// Set the default behavior as continue to avoid this.
+		UpdateConfig: &swarm.UpdateConfig{
+			Parallelism:   1,
+			FailureAction: swarm.UpdateFailureActionContinue,
+			Order:         swarm.UpdateOrderStopFirst,
+		},
 	}
 
 	if len(opts.PortMappings) != 0 {
@@ -688,6 +698,10 @@ func (s *SwarmSvc) RollingRestartService(ctx context.Context, cluster string, se
 	// force update service. swarm will restart one service container, wait the container running
 	// and then restart the next container.
 	svc.Spec.TaskTemplate.ForceUpdate++
+	if svc.Spec.UpdateConfig != nil && svc.Spec.UpdateConfig.FailureAction == swarm.UpdateFailureActionPause {
+		// skip the possible error during the rolling restart
+		svc.Spec.UpdateConfig.FailureAction = swarm.UpdateFailureActionContinue
+	}
 
 	resp, err := cli.ServiceUpdate(ctx, service, svc.Version, svc.Spec, types.ServiceUpdateOptions{})
 	if err != nil {
