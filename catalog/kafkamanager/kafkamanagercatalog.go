@@ -1,6 +1,7 @@
 package kafkamanagercatalog
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -32,6 +33,15 @@ const (
 // The Yahoo Kafka Manager catalog service, https://github.com/yahoo/kafka-manager
 // Kafka Manager only needs 1 instance running.
 // Kafka Manager will store the data in ZooKeeper. So Kafka Manager itself is stateless.
+
+// ValidateRequest checks if the request is valid
+func ValidateRequest(req *manage.CatalogCreateKafkaManagerRequest) error {
+	if len(req.Options.User) == 0 || len(req.Options.Password) == 0 {
+		return errors.New("Please specify the user and password")
+	}
+
+	return nil
+}
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string,

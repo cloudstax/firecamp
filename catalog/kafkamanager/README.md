@@ -13,7 +13,10 @@ The default Java heap size, both Xmx and Xms, are set to 4GB. If your Kafka Mana
 By default, JVM caches a successful DNS lookup forever. The [JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) is set to 60 seconds. So when Kafka container or  moves to another node, JVM could lookup the new address.
 
 **User and Password**
-By default, user and password is not required. You could specify the Kafka Manager user and password when creating the service.
+The user and password are required. You MUST specify the Kafka Manager user and password when creating the service.
+
+**Listening port**
+Kafka Manager listens on 9000 port.
 
 ## Logging
 

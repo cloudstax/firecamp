@@ -342,6 +342,12 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	err = kafkamanagercatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("CatalogCreateKafkaManagerRequest parameters are not valid, requuid", requuid, req)
+		return err.Error(), http.StatusBadRequest
+	}
+
 	err = s.checkCommonRequest(req.Service)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest invalid request, local cluster", s.cluster,

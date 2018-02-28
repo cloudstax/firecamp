@@ -969,7 +969,13 @@ func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
-	err := cli.CatalogCreateKafkaManagerService(ctx, req)
+	err := kafkamanagercatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid request", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateKafkaManagerService(ctx, req)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "create kafka manager service error", err)
 		os.Exit(-1)
