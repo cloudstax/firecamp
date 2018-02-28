@@ -29,8 +29,6 @@ const (
 	MaxHeapMB = 14 * 1024
 	// MinHeapMB is the minimal JVM heap size. If heap < 1024, jvm may stall long time at gc.
 	MinHeapMB = 1024
-	// DefaultJmxRemoteUser is the default jmx remote user.
-	DefaultJmxRemoteUser = "cassandrajmx"
 
 	intraNodePort    = 7000
 	tlsIntraNodePort = 7001
@@ -38,13 +36,11 @@ const (
 	cqlPort          = 9042
 	thriftPort       = 9160
 
-	yamlConfFileName            = "cassandra.yaml"
-	rackdcConfFileName          = "cassandra-rackdc.properties"
-	jvmConfFileName             = "jvm.options"
-	logConfFileName             = "logback.xml"
-	jmxRemotePasswdConfFileName = "jmxremote.password"
-
-	jmxRemotePasswdConfFileMode = 0400
+	yamlConfFileName   = "cassandra.yaml"
+	rackdcConfFileName = "cassandra-rackdc.properties"
+	jvmConfFileName    = "jvm.options"
+	logConfFileName    = "logback.xml"
+	// jmx file is defined in catalog/types.go
 )
 
 // The default Cassandra catalog service. By default,
@@ -85,7 +81,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
 	// generate service ReplicaConfigs
 	if len(opts.JmxRemoteUser) == 0 {
-		opts.JmxRemoteUser = DefaultJmxRemoteUser
+		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
 	}
 	if len(opts.JmxRemotePasswd) == 0 {
 		opts.JmxRemotePasswd = utils.GenUUID()
@@ -209,9 +205,9 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		// create the jmxremote.password file
 		jmxCfg := &manage.ReplicaConfigFile{
-			FileName: jmxRemotePasswdConfFileName,
-			FileMode: jmxRemotePasswdConfFileMode,
-			Content:  fmt.Sprintf("%s %s\n", opts.JmxRemoteUser, opts.JmxRemotePasswd),
+			FileName: catalog.JmxRemotePasswdConfFileName,
+			FileMode: catalog.JmxRemotePasswdConfFileMode,
+			Content:  fmt.Sprintf(catalog.JmxFileContent, opts.JmxRemoteUser, opts.JmxRemotePasswd),
 		}
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
@@ -295,12 +291,12 @@ func NewJVMConfContent(heapSizeMB int64) string {
 
 // IsJmxConfFile checks if the file is jmx conf file
 func IsJmxConfFile(filename string) bool {
-	return filename == jmxRemotePasswdConfFileName
+	return filename == catalog.JmxRemotePasswdConfFileName
 }
 
 // NewJmxConfContent returns the new jmxremote.password file content
 func NewJmxConfContent(jmxUser string, jmxPasswd string) string {
-	return fmt.Sprintf("%s %s\n", jmxUser, jmxPasswd)
+	return fmt.Sprintf(catalog.JmxFileContent, jmxUser, jmxPasswd)
 }
 
 const (

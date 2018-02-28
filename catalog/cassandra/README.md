@@ -24,16 +24,16 @@ firecamp-service-cli -op=scale-service -service-type=cassandra -region=us-east-1
 
 3. Use [nodetool status](https://docs.datastax.com/en/cassandra/3.0/cassandra/tools/toolsStatus.html) to verify the new replicas are fully bootstrapped and all other nodes are up (UN).
 ```
-nodetool -h mycas-3.t1-firecamp.com -u cassandrajmx -pw changeme status
-nodetool -h mycas-4.t1-firecamp.com -u cassandrajmx -pw changeme status
-nodetool -h mycas-5.t1-firecamp.com -u cassandrajmx -pw changeme status
+nodetool -h mycas-3.t1-firecamp.com -u jmxuser -pw changeme status
+nodetool -h mycas-4.t1-firecamp.com -u jmxuser -pw changeme status
+nodetool -h mycas-5.t1-firecamp.com -u jmxuser -pw changeme status
 ```
 
 4. Run [nodetool cleanup](https://docs.datastax.com/en/cassandra/3.0/cassandra/tools/toolsCleanup.html) on each of the previously existing nodes to remove the keys that no longer belong to those nodes. Wait for cleanup to complete on one node before running nodetool cleanup on the next node. Cleanup can be safely postponed for low-usage hours.
 ```
-nodetool -h mycas-0.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
-nodetool -h mycas-1.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
-nodetool -h mycas-2.t1-firecamp.com -u cassandrajmx -pw changeme cleanup
+nodetool -h mycas-0.t1-firecamp.com -u jmxuser -pw changeme cleanup
+nodetool -h mycas-1.t1-firecamp.com -u jmxuser -pw changeme cleanup
+nodetool -h mycas-2.t1-firecamp.com -u jmxuser -pw changeme cleanup
 ```
 
 Currently FireCamp only supports scaling from 3 replicas. Scaling from 1 replica is not supported yet. Scaling down the replicas are not supported as well. If you want to stop the service when idle, could run `firecamp-service-cli -op=stop-service -service-name=mycas`. This will stop the service containers, while the volumes are still there. Later could start the containers with `firecamp-service-cli -op=start-service -service-name=mycas`.
@@ -87,7 +87,7 @@ The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
 **[JMX](https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureJmxAuthentication.html)**
 
-By default, JMX is enabled to allow tools such as nodetool to access the Cassandra replica remotely. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "cassandrajmx" and an UUID will be generated as the password.
+By default, JMX is enabled to allow tools such as nodetool to access the Cassandra replica remotely. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "jmxuser" and an UUID will be generated as the password.
 
 **[JVM Configs](https://docs.datastax.com/en/cassandra/2.1/cassandra/operations/ops_tune_jvm_c.html)**
 
@@ -135,9 +135,9 @@ In case the service creation fails, please simply retry it. Once the service is 
 
 ## Check Cassandra service status
 
-The Cassandra service creation will return the cassandra jmx password, such as `2018-02-11 21:13:10.524442554 +0000 UTC The catalog service is created, jmx user cassandrajmx password 9ba31d4787504894638611e0aeb91c93`.
+The Cassandra service creation will return the cassandra jmx password, such as `2018-02-11 21:13:10.524442554 +0000 UTC The catalog service is created, jmx user jmxuser password 9ba31d4787504894638611e0aeb91c93`.
 
-To double check Cassandra is successfully initialized and includes all replicas, run `nodetool -h mycas-0.t1-firecamp.com -u cassandrajmx -pw 9ba31d4787504894638611e0aeb91c93 status`. It should include all replicas. In case, if some replica is not included, for example, you create a 6 replicas Cassandra service, but nodetool shows only 5 members, use firecamp-service-cli to stop the services, `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=stop-service -service-name=mycas`, and start again with `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=start-service -service-name=mycas`. Then check with nodetool again.
+To double check Cassandra is successfully initialized and includes all replicas, run `nodetool -h mycas-0.t1-firecamp.com -u jmxuser -pw 9ba31d4787504894638611e0aeb91c93 status`. It should include all replicas. In case, if some replica is not included, for example, you create a 6 replicas Cassandra service, but nodetool shows only 5 members, use firecamp-service-cli to stop the services, `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=stop-service -service-name=mycas`, and start again with `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=start-service -service-name=mycas`. Then check with nodetool again.
 
 ## Create the New Super User
 Cassandra has a default super user, name "cassandra" and password "cassandra". After the Cassandra service is initialized, please login to create a new superuser and disable the default "cassandra" superuser. The steps are:
