@@ -32,11 +32,18 @@ const (
 	sslPort  = 6984
 
 	// cluster internal ports
-	localPort                       = 5986
-	erlangClusterPort               = 4369
-	erlangClusterListenPortMin      = 9100
-	erlangClusterListenPortMax      = 9200
-	erlangClusterListenPortMaxOnECS = 9190
+	localPort                  = 5986
+	erlangClusterPort          = 4369
+	erlangClusterListenPortMin = 9100
+	// couchdb cluster setup suggests tcp range 9100-9200. It would not actually use 100 ports.
+	//
+	// AWS ECS allows up to 100 ports at a time for one container. If you map more than 100 ports,
+	// ECS will not be able to place the task.
+	// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+	//
+	// 9200 is used by ElasticSearch, and 9160 is used by Cassandra.
+	// Set the max port as 9159. 59 ports would be enough for couchdb. If not, we could find another range.
+	erlangClusterListenPortMax = 9159
 
 	defaultShards      = 8
 	defaultReadCopies  = 2
@@ -93,11 +100,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		m = common.PortMapping{ContainerPort: erlangClusterPort, HostPort: erlangClusterPort}
 		portMappings = append(portMappings, m)
 
-		max := erlangClusterListenPortMax
-		if platform == common.ContainerPlatformECS {
-			max = erlangClusterListenPortMaxOnECS
-		}
-		for i := int64(erlangClusterListenPortMin); i <= int64(max); i++ {
+		for i := int64(erlangClusterListenPortMin); i <= int64(erlangClusterListenPortMax); i++ {
 			m = common.PortMapping{ContainerPort: i, HostPort: i}
 			portMappings = append(portMappings, m)
 		}
@@ -160,14 +163,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		// create vm.args file
 		vmArgsContent := ""
-		// AWS ECS allows up to 100 ports at a time for one container. If you map more than 100 ports,
-		// ECS will not be able to place the task.
-		// http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
-		if platform == common.ContainerPlatformECS {
-			vmArgsContent = fmt.Sprintf(vmArgsConfigs, memberHost, erlangClusterListenPortMaxOnECS)
-		} else {
-			vmArgsContent = fmt.Sprintf(vmArgsConfigs, memberHost, erlangClusterListenPortMax)
-		}
+		vmArgsContent = fmt.Sprintf(vmArgsConfigs, memberHost, erlangClusterListenPortMax)
 		vmArgsCfg := &manage.ReplicaConfigFile{
 			FileName: vmArgsConfFileName,
 			FileMode: common.DefaultConfigFileMode,
