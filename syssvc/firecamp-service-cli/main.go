@@ -98,6 +98,8 @@ var (
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion")
 	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
+	kafkaJmxUser        = flag.String("kafka-jmx-user", catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
+	kafkaJmxPasswd      = flag.String("kafka-jmx-passwd", "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")
 
 	// The kafka manager service creation specific parameters
 	kmHeapSizeMB = flag.Int64("km-heap-size", kafkamanagercatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
@@ -922,20 +924,23 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 				Encrypted:    *volEncrypted,
 			},
 
-			HeapSizeMB:     *kafkaHeapSizeMB,
-			AllowTopicDel:  *kafkaAllowTopicDel,
-			RetentionHours: *kafkaRetentionHours,
-			ZkServiceName:  *kafkaZkService,
+			HeapSizeMB:      *kafkaHeapSizeMB,
+			AllowTopicDel:   *kafkaAllowTopicDel,
+			RetentionHours:  *kafkaRetentionHours,
+			ZkServiceName:   *kafkaZkService,
+			JmxRemoteUser:   *kafkaJmxUser,
+			JmxRemotePasswd: *kafkaJmxPasswd,
 		},
 	}
 
-	err := cli.CatalogCreateKafkaService(ctx, req)
+	jmxUser, jmxPasswd, err := cli.CatalogCreateKafkaService(ctx, req)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "create kafka service error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println(time.Now().UTC(), "The kafka service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The kafka service is created, jmx user", jmxUser, "password", jmxPasswd)
+	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
@@ -1643,6 +1648,15 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 				os.Exit(-1)
 			}
 			fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+
+		case common.CatalogService_Kafka:
+			ua := &common.KafkaUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal KafkaUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Println("Kafka jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
 
 		case common.CatalogService_MongoDB:
 			ua := &common.MongoDBUserAttr{}

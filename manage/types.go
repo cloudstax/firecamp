@@ -341,6 +341,9 @@ type CatalogKafkaOptions struct {
 	RetentionHours int64
 	// the existing ZooKeeper service that Kafka will use.
 	ZkServiceName string
+
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // CatalogCreateKafkaRequest creates a Kafka service.
@@ -348,6 +351,12 @@ type CatalogCreateKafkaRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogKafkaOptions
+}
+
+// CatalogCreateKafkaResponse returns the Kafka JMX user and password.
+type CatalogCreateKafkaResponse struct {
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // CatalogKafkaManagerOptions includes the options for Kafka Manager.

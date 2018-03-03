@@ -20,6 +20,7 @@ const (
 	ContainerImage = common.ContainerNamePrefix + "kafka:" + defaultVersion
 
 	listenPort = 9092
+	jmxPort    = 9093
 
 	// follow http://docs.confluent.io/current/kafka/deployment.html
 	// The KAFKA_JVM_PERFORMANCE_OPTS is combined of the default opts in kafka-run-class.sh and
@@ -34,6 +35,7 @@ const (
 	serverPropConfFileName = "server.properties"
 	javaEnvConfFileName    = "java.env"
 	logConfFileName        = "log4j.properties"
+	// jmx file, common in catalog/types.go
 )
 
 // The default Kafka catalog service. By default,
@@ -44,12 +46,23 @@ const (
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
 	zkattr *common.ServiceAttr) (*manage.CreateServiceRequest, error) {
+	// check and set the jmx remote user and password
+	if len(opts.JmxRemoteUser) == 0 {
+		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
+	}
+	if len(opts.JmxRemotePasswd) == 0 {
+		opts.JmxRemotePasswd = utils.GenUUID()
+	}
+
+	// get the zk server list
 	zkServers := genZkServerList(zkattr)
+
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
+		{ContainerPort: jmxPort, HostPort: jmxPort},
 	}
 
 	reserveMemMB := res.ReserveMemMB
@@ -58,10 +71,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	userAttr := &common.KafkaUserAttr{
-		HeapSizeMB:     opts.HeapSizeMB,
-		AllowTopicDel:  opts.AllowTopicDel,
-		RetentionHours: opts.RetentionHours,
-		ZkServiceName:  opts.ZkServiceName,
+		HeapSizeMB:      opts.HeapSizeMB,
+		AllowTopicDel:   opts.AllowTopicDel,
+		RetentionHours:  opts.RetentionHours,
+		ZkServiceName:   opts.ZkServiceName,
+		JmxRemoteUser:   opts.JmxRemoteUser,
+		JmxRemotePasswd: opts.JmxRemotePasswd,
 	}
 	b, err := json.Marshal(userAttr)
 	if err != nil {
@@ -140,12 +155,15 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the java.env file
-		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB)
+		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB, memberHost, jmxPort)
 		javaEnvCfg := &manage.ReplicaConfigFile{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
+
+		// create the jmxremote.password file
+		jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
 
 		// create the log config file
 		logCfg := &manage.ReplicaConfigFile{
@@ -154,7 +172,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			Content:  logConfConfig,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, logCfg}
+		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, jmxCfg, logCfg}
 
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
@@ -213,6 +231,7 @@ group.initial.rebalance.delay.ms=3000
 	javaEnvConfig = `
 KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
 KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
+KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.password.file=jmxremote.password -Dcom.sun.management.jmxremote.port=%d -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"
 `
 
 	logConfConfig = `

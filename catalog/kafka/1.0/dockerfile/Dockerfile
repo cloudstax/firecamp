@@ -31,4 +31,7 @@ RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "kafka-server-start.sh", "/kafka/config/server.properties"]
 
+# Kafka listen port
 EXPOSE 9092
+# Kafka JMX port
+EXPOSE 9093

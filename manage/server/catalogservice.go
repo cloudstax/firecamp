@@ -316,6 +316,19 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 		return manage.ConvertToHTTPError(err)
 	}
 
+	// JmxRemotePasswd may be generated (uuid) locally.
+	if len(req.Options.JmxRemotePasswd) == 0 {
+		jmxUser, jmxPasswd, err := s.getExistingJmxPasswd(ctx, req.Service, requuid)
+		if err != nil {
+			glog.Errorln("getExistingJmxPasswd error", err, "requuid", requuid, req.Service)
+			return manage.ConvertToHTTPError(err)
+		}
+		if len(jmxPasswd) != 0 {
+			req.Options.JmxRemoteUser = jmxUser
+			req.Options.JmxRemotePasswd = jmxPasswd
+		}
+	}
+
 	// create the service in the control plane and the container platform
 	crReq, err := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, zkattr)

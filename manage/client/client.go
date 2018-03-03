@@ -576,23 +576,31 @@ func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *man
 }
 
 // CatalogCreateKafkaService creates a new catalog Kafka service.
-func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.CatalogCreateKafkaRequest) error {
+func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.CatalogCreateKafkaRequest) (jmxUser string, jmxPasswd string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateKafkaOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	return manage.ConvertHTTPError(resp)
+	if resp.StatusCode != http.StatusOK {
+		return "", "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCreateKafkaResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
 // CatalogCreateKafkaManagerService creates a new catalog Kafka Manager service.

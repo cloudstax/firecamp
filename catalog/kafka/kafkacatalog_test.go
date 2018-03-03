@@ -39,12 +39,14 @@ func TestKafkaCatalog(t *testing.T) {
 	}
 
 	opts := &manage.CatalogKafkaOptions{
-		Replicas:       replicas,
-		Volume:         &vols.PrimaryVolume,
-		HeapSizeMB:     maxMemMB,
-		AllowTopicDel:  allowTopicDel,
-		RetentionHours: retentionHours,
-		ZkServiceName:  zkservice,
+		Replicas:        replicas,
+		Volume:          &vols.PrimaryVolume,
+		HeapSizeMB:      maxMemMB,
+		AllowTopicDel:   allowTopicDel,
+		RetentionHours:  retentionHours,
+		ZkServiceName:   zkservice,
+		JmxRemoteUser:   "u1",
+		JmxRemotePasswd: "p1",
 	}
 	cfgs := GenReplicaConfigs(platform, cluster, kafkaservice, azs, opts, zkservers)
 	if len(cfgs) != int(replicas) {

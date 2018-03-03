@@ -265,7 +265,9 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
 			ua1.AllowTopicDel == ua2.AllowTopicDel &&
 			ua1.RetentionHours == ua2.RetentionHours &&
-			ua1.ZkServiceName == ua2.ZkServiceName {
+			ua1.ZkServiceName == ua2.ZkServiceName &&
+			ua1.JmxRemoteUser == ua2.JmxRemoteUser &&
+			ua1.JmxRemotePasswd == ua2.JmxRemotePasswd {
 			return true
 		}
 		glog.Errorln("KafkaUserAttr mismatch, u1:", ua1, ", u2:", ua2)

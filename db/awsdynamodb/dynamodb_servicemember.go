@@ -235,8 +235,7 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 	requuid := utils.GetReqIDFromContext(ctx)
 	dbsvc := dynamodb.New(d.sess)
 
-	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-	lastEvaluatedKey = nil
+	lastEvaluatedKey := map[string]*dynamodb.AttributeValue{}
 
 	for true {
 		params := &dynamodb.QueryInput{
@@ -267,7 +266,7 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 		}
 
 		glog.Infoln("list serviceMembers succeeded, serviceUUID",
-			serviceUUID, "limit", limit, "requuid", requuid, "resp count", resp.Count)
+			serviceUUID, "limit", limit, "requuid", requuid, "resp count", *resp.Count)
 
 		lastEvaluatedKey = resp.LastEvaluatedKey
 
