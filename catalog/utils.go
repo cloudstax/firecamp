@@ -20,15 +20,37 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 	}
 }
 
+// CreateJmxRemotePasswdConfFile creates the jmx remote password file.
+func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ReplicaConfigFile {
+	return &manage.ReplicaConfigFile{
+		FileName: JmxRemotePasswdConfFileName,
+		FileMode: JmxRemotePasswdConfFileMode,
+		Content:  CreateJmxConfFileContent(jmxUser, jmxPasswd),
+	}
+}
+
+// IsJmxConfFile checks if the file is jmx conf file
+func IsJmxConfFile(filename string) bool {
+	return filename == JmxRemotePasswdConfFileName
+}
+
+// CreateJmxConfFileContent returns the new jmxremote.password file content
+func CreateJmxConfFileContent(jmxUser string, jmxPasswd string) string {
+	return fmt.Sprintf(jmxFileContent, jmxUser, jmxPasswd)
+}
+
+// MBToBytes converts MB to bytes
+func MBToBytes(mb int64) int64 {
+	return mb * 1024 * 1024
+}
+
 const (
 	separator  = "="
 	sysContent = `
 PLATFORM=%s
 SERVICE_MEMBER=%s
 `
-)
 
-// MBToBytes converts MB to bytes
-func MBToBytes(mb int64) int64 {
-	return mb * 1024 * 1024
-}
+	// jmx file content format: "user passwd"
+	jmxFileContent = "%s %s\n"
+)

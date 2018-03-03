@@ -40,7 +40,7 @@ const (
 	rackdcConfFileName = "cassandra-rackdc.properties"
 	jvmConfFileName    = "jvm.options"
 	logConfFileName    = "logback.xml"
-	// jmx file is defined in catalog/types.go
+	// jmx file, common in catalog/types.go
 )
 
 // The default Cassandra catalog service. By default,
@@ -204,11 +204,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		// create the jmxremote.password file
-		jmxCfg := &manage.ReplicaConfigFile{
-			FileName: catalog.JmxRemotePasswdConfFileName,
-			FileMode: catalog.JmxRemotePasswdConfFileMode,
-			Content:  fmt.Sprintf(catalog.JmxFileContent, opts.JmxRemoteUser, opts.JmxRemotePasswd),
-		}
+		jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
 
 		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
@@ -287,16 +283,6 @@ func IsJvmConfFile(filename string) bool {
 // NewJVMConfContent returns the new jvm.options file content
 func NewJVMConfContent(heapSizeMB int64) string {
 	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
-}
-
-// IsJmxConfFile checks if the file is jmx conf file
-func IsJmxConfFile(filename string) bool {
-	return filename == catalog.JmxRemotePasswdConfFileName
-}
-
-// NewJmxConfContent returns the new jmxremote.password file content
-func NewJmxConfContent(jmxUser string, jmxPasswd string) string {
-	return fmt.Sprintf(catalog.JmxFileContent, jmxUser, jmxPasswd)
 }
 
 const (

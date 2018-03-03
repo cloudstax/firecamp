@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
@@ -38,9 +39,9 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 
 	// JmxRemotePasswd may be generated (uuid) locally.
 	if len(req.Options.JmxRemotePasswd) == 0 {
-		jmxUser, jmxPasswd, err := s.getExistingCasJmxPasswd(ctx, req, requuid)
+		jmxUser, jmxPasswd, err := s.getExistingJmxPasswd(ctx, req.Service, requuid)
 		if err != nil {
-			glog.Errorln("getExistingCasJmxPasswd error", err, "requuid", requuid, req.Service)
+			glog.Errorln("getExistingJmxPasswd error", err, "requuid", requuid, req.Service)
 			return manage.ConvertToHTTPError(err)
 		}
 		if len(jmxPasswd) != 0 {
@@ -99,42 +100,6 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	w.Write(b)
 
 	return "", http.StatusOK
-}
-
-func (s *ManageHTTPServer) getExistingCasJmxPasswd(ctx context.Context, req *manage.CatalogCreateCassandraRequest, requuid string) (jmxUser string, jmxPasswd string, err error) {
-	// check if service attributes exist. If yes, this would be a retry request, use the existing JmxRemoteUser & JmxRemotePasswd.
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		if err != db.ErrDBRecordNotFound {
-			glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-			return "", "", err
-		}
-		// service not exist
-		return "", "", nil
-	}
-
-	// service exists
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		if err != db.ErrDBRecordNotFound {
-			glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-			return "", "", err
-		}
-		// service attr not exist
-		return "", "", nil
-	}
-
-	// service attributes exist, use the existing JmxRemoteUser & JmxRemotePasswd
-	userAttr := &common.CasUserAttr{}
-	err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
-	if err != nil {
-		glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req.Service, req.Options, attr)
-		return "", "", err
-	}
-
-	glog.Infoln("service exists, use the existing jmx user and passwd, requuid", requuid, attr)
-
-	return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
 }
 
 func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
@@ -420,7 +385,7 @@ func (s *ManageHTTPServer) updateCasJmx(ctx context.Context, serviceUUID string,
 		var cfg *common.MemberConfig
 		cfgIndex := -1
 		for i, c := range member.Configs {
-			if cascatalog.IsJmxConfFile(c.FileName) {
+			if catalog.IsJmxConfFile(c.FileName) {
 				cfg = c
 				cfgIndex = i
 				break
@@ -436,7 +401,7 @@ func (s *ManageHTTPServer) updateCasJmx(ctx context.Context, serviceUUID string,
 
 		// replace the original member jmx conf file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := cascatalog.NewJmxConfContent(jmxUser, jmxPasswd)
+		newContent := catalog.CreateJmxConfFileContent(jmxUser, jmxPasswd)
 		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)

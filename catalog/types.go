@@ -11,6 +11,4 @@ const (
 	// the default password is uuid for better security
 	// every service will define its own jmx port
 	JmxDefaultRemoteUser = "jmxuser"
-	// jmx file content format: "user passwd"
-	JmxFileContent = "%s %s\n"
 )

@@ -2,6 +2,8 @@ package manageserver
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -845,4 +847,58 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	}
 
 	return nil
+}
+
+func (s *ManageHTTPServer) getExistingJmxPasswd(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (jmxUser string, jmxPasswd string, err error) {
+	// check if service attributes exist. If yes, this would be a retry request, use the existing JmxRemoteUser & JmxRemotePasswd.
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		if err != db.ErrDBRecordNotFound {
+			glog.Errorln("GetService error", err, "requuid", requuid, req)
+			return "", "", err
+		}
+		// service not exist
+		return "", "", nil
+	}
+
+	// service exists
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		if err != db.ErrDBRecordNotFound {
+			glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+			return "", "", err
+		}
+		// service attr not exist
+		return "", "", nil
+	}
+
+	// service attributes exist, use the existing JmxRemoteUser & JmxRemotePasswd
+	switch attr.UserAttr.ServiceType {
+	case common.CatalogService_Cassandra:
+		userAttr := &common.CasUserAttr{}
+		err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+		if err != nil {
+			glog.Errorln("Unmarshal CasUserAttr error", err, "requuid", requuid, req)
+			return "", "", err
+		}
+
+		glog.Infoln("get existing jmx user and passwd for cassandra, requuid", requuid, req)
+		return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
+
+	case common.CatalogService_Kafka:
+		userAttr := &common.KafkaUserAttr{}
+		err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+		if err != nil {
+			glog.Errorln("Unmarshal KafkaUserAttr error", err, "requuid", requuid, req)
+			return "", "", err
+		}
+
+		glog.Infoln("get existing jmx user and passwd for kafka, requuid", requuid, req)
+		return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
+
+	default:
+		errmsg := fmt.Sprintf("service %s does not support jmx user, requuid %s", req, requuid)
+		glog.Errorln(errmsg)
+		return "", "", errors.New(errmsg)
+	}
 }
