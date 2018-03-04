@@ -100,6 +100,9 @@ var (
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 	kafkaJmxUser        = flag.String("kafka-jmx-user", catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
 	kafkaJmxPasswd      = flag.String("kafka-jmx-passwd", "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")
+	// The Kafka service update specific parameters
+	kafkaDisableTopicDel = flag.Bool("kafka-disable-topic-del", false, "Disable Kafka topic deletion in the update request")
+	kafkaEnableTopicDel  = flag.Bool("kafka-enable-topic-del", false, "Enable Kafka topic deletion in the update request")
 
 	// The kafka manager service creation specific parameters
 	kmHeapSizeMB = flag.Int64("km-heap-size", kafkamanagercatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
@@ -315,6 +318,8 @@ func usage() {
 				printFlag(flag.Lookup("kafka-allow-topic-del"))
 				printFlag(flag.Lookup("kafka-retention-hours"))
 				printFlag(flag.Lookup("kafka-zk-service"))
+				printFlag(flag.Lookup("kafka-jmx-user"))
+				printFlag(flag.Lookup("kafka-jmx-passwd"))
 			case common.CatalogService_ElasticSearch:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("es-heap-size"))
@@ -366,7 +371,7 @@ func usage() {
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdate)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			fmt.Println("  -service-type=cassandra|redis")
+			fmt.Println("  -service-type=cassandra|redis|kafka")
 			printFlag(flag.Lookup("service-name"))
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
@@ -380,6 +385,13 @@ func usage() {
 				printFlag(flag.Lookup("redis-maxmem-policy"))
 				printFlag(flag.Lookup("redis-configcmd-name"))
 				printFlag(flag.Lookup("redis-disable-configcmd"))
+			case common.CatalogService_Kafka:
+				printFlag(flag.Lookup("kafka-heap-size"))
+				printFlag(flag.Lookup("kafka-retention-hours"))
+				printFlag(flag.Lookup("kafka-disable-topic-del"))
+				printFlag(flag.Lookup("kafka-enable-topic-del"))
+				printFlag(flag.Lookup("kafka-jmx-user"))
+				printFlag(flag.Lookup("kafka-jmx-passwd"))
 			}
 
 		case opScale:
@@ -558,8 +570,10 @@ func main() {
 			updateCassandraService(ctx, cli)
 		case common.CatalogService_Redis:
 			updateRedisService(ctx, cli)
+		case common.CatalogService_Kafka:
+			updateKafkaService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, update service only support cassandra|redis\n")
+			fmt.Printf("Invalid service type, update service only support cassandra|redis|kafka\n")
 			os.Exit(-1)
 		}
 
@@ -943,6 +957,44 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	// TODO should we use different variable for such as kafkaHeapSizeMB? The customer may create
+	// a kafka service with non-default heap size. If the customer does not set the heap size for the update,
+	// the heap size will be changed to the default heap size.
+	req := &manage.CatalogUpdateKafkaRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		HeapSizeMB:      *kafkaHeapSizeMB,
+		DisableTopicDel: *kafkaDisableTopicDel,
+		EnableTopicDel:  *kafkaEnableTopicDel,
+		RetentionHours:  *kafkaRetentionHours,
+		JmxRemoteUser:   *kafkaJmxUser,
+		JmxRemotePasswd: *kafkaJmxPasswd,
+	}
+
+	err := kafkacatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogUpdateKafkaService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "update service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
 
 func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
