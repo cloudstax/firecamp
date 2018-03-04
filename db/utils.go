@@ -438,6 +438,17 @@ func CopyRedisUserAttr(u1 *common.RedisUserAttr) *common.RedisUserAttr {
 	}
 }
 
+func CopyKafkaUserAttr(u1 *common.KafkaUserAttr) *common.KafkaUserAttr {
+	return &common.KafkaUserAttr{
+		HeapSizeMB:      u1.HeapSizeMB,
+		AllowTopicDel:   u1.AllowTopicDel,
+		RetentionHours:  u1.RetentionHours,
+		ZkServiceName:   u1.ZkServiceName,
+		JmxRemoteUser:   u1.JmxRemoteUser,
+		JmxRemotePasswd: u1.JmxRemotePasswd,
+	}
+}
+
 func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     t1.ServiceUUID,

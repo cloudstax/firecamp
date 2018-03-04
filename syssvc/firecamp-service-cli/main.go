@@ -96,7 +96,7 @@ var (
 	// The kafka service creation specific parameters
 	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
 	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion")
-	kafkaRetentionHours = flag.Int64("kafka-retention-hours", 168, "The Kafka log retention hours")
+	kafkaRetentionHours = flag.Int64("kafka-retention-hours", kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 	kafkaJmxUser        = flag.String("kafka-jmx-user", catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
 	kafkaJmxPasswd      = flag.String("kafka-jmx-passwd", "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")

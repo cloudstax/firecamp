@@ -8,7 +8,6 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
@@ -307,9 +306,9 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 
 	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
 		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
-		err = s.updateCasJmx(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		err = s.updateJmxConfigFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
 		if err != nil {
-			glog.Errorln("updateCasJmx error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			glog.Errorln("updateJmxConfigFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
 		}
 
@@ -377,40 +376,5 @@ func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID st
 	}
 
 	glog.Infoln("updated heap size for cassandra service", serviceUUID, "requuid", requuid)
-	return nil
-}
-
-func (s *ManageHTTPServer) updateCasJmx(ctx context.Context, serviceUUID string, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
-	for _, member := range members {
-		var cfg *common.MemberConfig
-		cfgIndex := -1
-		for i, c := range member.Configs {
-			if catalog.IsJmxConfFile(c.FileName) {
-				cfg = c
-				cfgIndex = i
-				break
-			}
-		}
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		// replace the original member jmx conf file content
-		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.CreateJmxConfFileContent(jmxUser, jmxPasswd)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		glog.Infoln("updated cassandra jmx user & password", jmxUser, jmxPasswd, "for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("updated jmx user & password for cassandra service", serviceUUID, "requuid", requuid)
 	return nil
 }

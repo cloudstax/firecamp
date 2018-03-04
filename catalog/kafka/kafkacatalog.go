@@ -2,8 +2,10 @@ package kafkacatalog
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
@@ -31,6 +33,8 @@ const (
 
 	// DefaultHeapMB is the default kafka java heap size
 	DefaultHeapMB = 6144
+	// DefaultRetentionHours 7 days
+	DefaultRetentionHours = 168
 
 	serverPropConfFileName = "server.properties"
 	javaEnvConfFileName    = "java.env"
@@ -41,6 +45,17 @@ const (
 // The default Kafka catalog service. By default,
 // 1) Distribute the nodes on the availability zones.
 // 2) Listen on the standard ports, 9092.
+
+// ValidateUpdateRequest checks if the update request is valid
+func ValidateUpdateRequest(req *manage.CatalogUpdateKafkaRequest) error {
+	if req.HeapSizeMB < 0 || req.RetentionHours < 0 {
+		return errors.New("heap size and retention hours should be equal to or larger than 0")
+	}
+	if req.DisableTopicDel && req.EnableTopicDel {
+		return errors.New("invalid to enable and disable topic deletion in the update request")
+	}
+	return nil
+}
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
@@ -192,6 +207,39 @@ func genZkServerList(zkattr *common.ServiceAttr) string {
 		zkServers += fmt.Sprintf("%s:%d", dnsname, zkcatalog.ClientPort)
 	}
 	return zkServers
+}
+
+// IsServerPropConfFile checks if the file is server.properties conf file
+func IsServerPropConfFile(filename string) bool {
+	return filename == serverPropConfFileName
+}
+
+// UpdateServerPropFile updates the server properties file
+func UpdateServerPropFile(newua *common.KafkaUserAttr, ua *common.KafkaUserAttr, oldContent string) string {
+	newContent := oldContent
+	if newua.AllowTopicDel != ua.AllowTopicDel {
+		oldstr := fmt.Sprintf("delete.topic.enable=%s", strconv.FormatBool(ua.AllowTopicDel))
+		newstr := fmt.Sprintf("delete.topic.enable=%s", strconv.FormatBool(newua.AllowTopicDel))
+		newContent = strings.Replace(newContent, oldstr, newstr, 1)
+	}
+	if newua.RetentionHours != ua.RetentionHours {
+		oldstr := fmt.Sprintf("log.retention.hours=%d", ua.RetentionHours)
+		newstr := fmt.Sprintf("log.retention.hours=%d", newua.RetentionHours)
+		newContent = strings.Replace(newContent, oldstr, newstr, 1)
+	}
+	return newContent
+}
+
+// IsJvmConfFile checks if the file is jvm conf file
+func IsJvmConfFile(filename string) bool {
+	return filename == javaEnvConfFileName
+}
+
+// UpdateHeapSize updates the heap size in the java.env file content
+func UpdateHeapSize(newHeapSizeMB int64, oldHeapSizeMB int64, oldContent string) string {
+	oldHeap := fmt.Sprintf("-Xmx%dm -Xms%dm", oldHeapSizeMB, oldHeapSizeMB)
+	newHeap := fmt.Sprintf("-Xmx%dm -Xms%dm", newHeapSizeMB, newHeapSizeMB)
+	return strings.Replace(oldContent, oldHeap, newHeap, 1)
 }
 
 const (

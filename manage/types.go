@@ -301,8 +301,10 @@ type CatalogCreateCassandraResponse struct {
 
 // CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
 type CatalogUpdateCassandraRequest struct {
-	Service         *ServiceCommonRequest
-	HeapSizeMB      int64
+	Service    *ServiceCommonRequest
+	HeapSizeMB int64 // 0 means no change
+	// empty JmxRemoteUser means no change, jmx user could not be disabled.
+	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }
@@ -355,6 +357,19 @@ type CatalogCreateKafkaRequest struct {
 
 // CatalogCreateKafkaResponse returns the Kafka JMX user and password.
 type CatalogCreateKafkaResponse struct {
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// CatalogUpdateKafkaRequest updates the configs of the Kafka service.
+type CatalogUpdateKafkaRequest struct {
+	Service         *ServiceCommonRequest
+	HeapSizeMB      int64 // 0 == no change
+	DisableTopicDel bool
+	EnableTopicDel  bool
+	RetentionHours  int64 // 0 == no change
+	// empty JmxRemoteUser means no change, jmx user could not be disabled.
+	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }
@@ -420,11 +435,12 @@ type CatalogCreateRedisRequest struct {
 // If the field is not changed, please leave it 0 or empty.
 type CatalogUpdateRedisRequest struct {
 	Service           *ServiceCommonRequest
-	MemoryCacheSizeMB int64
-	// if auth is enabled, it could not be disabled.
-	AuthPass         string
-	ReplTimeoutSecs  int64
-	MaxMemPolicy     string
+	MemoryCacheSizeMB int64 // 0 == no change
+	// empty == no change. if auth is enabled, it could not be disabled.
+	AuthPass        string
+	ReplTimeoutSecs int64  // 0 == no change
+	MaxMemPolicy    string // empty == no change
+	// the empty ConfigCmdName means no change. To disable ConfigCmd, use DisableConfigCmd
 	ConfigCmdName    string
 	DisableConfigCmd bool
 }
