@@ -71,6 +71,11 @@ func GenCallerID() string {
 	return uuid
 }
 
+// BoolPtr returns the pointer to bool variable
+func BoolPtr(bl bool) *bool {
+	return &bl
+}
+
 func GetServiceJournalVolumeName(serviceUUID string) string {
 	return common.JournalVolumeNamePrefix + common.NameSeparator + serviceUUID
 }

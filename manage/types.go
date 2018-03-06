@@ -364,11 +364,10 @@ type CatalogCreateKafkaResponse struct {
 
 // CatalogUpdateKafkaRequest updates the configs of the Kafka service.
 type CatalogUpdateKafkaRequest struct {
-	Service         *ServiceCommonRequest
-	HeapSizeMB      int64 // 0 == no change
-	DisableTopicDel bool
-	EnableTopicDel  bool
-	RetentionHours  int64 // 0 == no change
+	Service        *ServiceCommonRequest
+	HeapSizeMB     int64 // 0 == no change
+	AllowTopicDel  *bool // nil == no change
+	RetentionHours int64 // 0 == no change
 	// empty JmxRemoteUser means no change, jmx user could not be disabled.
 	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
@@ -441,9 +440,8 @@ type CatalogUpdateRedisRequest struct {
 	AuthPass        string
 	ReplTimeoutSecs int64  // 0 == no change
 	MaxMemPolicy    string // empty == no change
-	// the empty ConfigCmdName means no change. To disable ConfigCmd, use DisableConfigCmd
-	ConfigCmdName    string
-	DisableConfigCmd bool
+	// nil == no change. to disable config cmd, set empty string
+	ConfigCmdName *string
 }
 
 // CatalogCouchDBOptions includes the config options for CouchDB.

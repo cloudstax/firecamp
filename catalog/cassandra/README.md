@@ -79,9 +79,6 @@ The Cassandra key cache is enabled, and the row cache is disabled. The key cache
 
 Note: the FireCamp Cassandra assumes the whole node is only used by Cassandra. We may consider to limit the max cpu and memory for Cassandra container in the future.
 
-## Logging
-
-The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 
 ## Configs
 
@@ -100,6 +97,17 @@ By default, JVM caches a successful DNS lookup forever. If you use Cassandra Jav
 **System Configs**
 
 Follow the [Cassandra Recommended Settings](https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html). The number of file descriptors and threads are increased. The TCP tunings are applied. The memory swapping is disabled, memlock is set to unlimited, and vm_map_count is increased. Please refer to [FireCamp system configs](https://github.com/cloudstax/firecamp/tree/master/catalog/README.md) for the detail configs.
+
+## Update the Service
+
+If you want to increase the heap size, or change the jmx user/password, you could update the config via the cli. For example, to change the heap size, run `firecamp-service-cli -op=update-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -cas-heap-size=9216`. See the firecamp cli help for the detail options, `firecamp-service-cli -op=update-service -service-type=cassandra --help`.
+
+The config changes will only be effective after the service is restarted. You could run `firecamp-service-cli -op=restart-service -service-name=mycas` to rolling restart the service members when the system is not busy.
+
+## Logging
+
+The Cassandra logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
+
 
 Refs:
 

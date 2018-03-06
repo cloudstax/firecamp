@@ -67,11 +67,14 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 
 // ValidateUpdateRequest checks if the update request is valid
 func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
-	if req.HeapSizeMB <= 0 {
-		return errors.New("heap size should be larger than 0")
+	if req.HeapSizeMB < 0 {
+		return errors.New("heap size should not be less than 0")
 	}
 	if req.HeapSizeMB > MaxHeapMB {
 		return errors.New("max heap size is 14GB")
+	}
+	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+		return errors.New("please set the new jmx remote password")
 	}
 	return nil
 }

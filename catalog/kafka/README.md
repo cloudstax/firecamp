@@ -37,6 +37,11 @@ By default, JVM caches a successful DNS lookup forever. Kafka Java client should
 
 By default, JMX is enabled to collect Kafka metrics. The JMX default listen port is 9093. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "jmxuser" and an UUID will be generated as the password.
 
+## Update the Service
+
+If you want to increase the memory size, change the log retention hours, etc, you could update Kafka config via the cli. For example, to change the log retention hours, run `firecamp-service-cli -op=update-service -service-type=kafka -region=us-east-1 -cluster=t1 -service-name=mykafka -kafka-retention-hours=240`. See the firecamp cli help for the detail options, `firecamp-service-cli -op=update-service -service-type=kafka --help`.
+
+The config changes will only be effective after the service is restarted. You could run `firecamp-service-cli -op=restart-service -service-name=mykafka` to rolling restart the service members when the system is not busy.
 
 ## Logging
 

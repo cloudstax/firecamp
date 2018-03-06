@@ -49,10 +49,10 @@ const (
 // ValidateUpdateRequest checks if the update request is valid
 func ValidateUpdateRequest(req *manage.CatalogUpdateKafkaRequest) error {
 	if req.HeapSizeMB < 0 || req.RetentionHours < 0 {
-		return errors.New("heap size and retention hours should be equal to or larger than 0")
+		return errors.New("heap size and retention hours should not be less than 0")
 	}
-	if req.DisableTopicDel && req.EnableTopicDel {
-		return errors.New("invalid to enable and disable topic deletion in the update request")
+	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+		return errors.New("please set the new jmx remote password")
 	}
 	return nil
 }

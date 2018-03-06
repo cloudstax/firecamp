@@ -508,7 +508,7 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 					},
 					RestartPolicy:                corev1.RestartPolicyAlways,
 					ServiceAccountName:           defaultStatefulServiceAccount,
-					AutomountServiceAccountToken: s.boolPtr(true),
+					AutomountServiceAccountToken: utils.BoolPtr(true),
 				},
 			},
 			VolumeClaimTemplates: volClaims,
@@ -1148,10 +1148,6 @@ func (s *K8sSvc) createVolumeAndClaim(volOpts *containersvc.VolumeOptions, scnam
 
 func (s *K8sSvc) int32Ptr(i int32) *int32 {
 	return &i
-}
-
-func (s *K8sSvc) boolPtr(bl bool) *bool {
-	return &bl
 }
 
 func (s *K8sSvc) genDataVolumeStorageClassName(service string) string {

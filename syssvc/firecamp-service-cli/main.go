@@ -43,6 +43,22 @@ const (
 	// TODO further investigate the reason.
 	maxServiceWaitSeconds = time.Duration(300) * time.Second
 	retryWaitSeconds      = time.Duration(common.CliRetryWaitSeconds) * time.Second
+
+	flagKafkaHeapSize       = "kafka-heap-size"
+	flagKafkaRetentionHours = "kafka-retention-hours"
+	flagKafkaAllowTopicDel  = "kafka-allow-topic-del"
+	flagKafkaJmxUser        = "kafka-jmx-user"
+	flagKafkaJmxPasswd      = "kafka-jmx-passwd"
+
+	flagRedisMemSize     = "redis-memory-size"
+	flagRedisAuthPass    = "redis-auth-pass"
+	flagRedisReplTimeout = "redis-repl-timeout"
+	flagRedisMaxMemPol   = "redis-maxmem-policy"
+	flagRedisConfigCmd   = "redis-configcmd-name"
+
+	flagCasHeapSize  = "cas-heap-size"
+	flagCasJmxUser   = "cas-jmx-user"
+	flagCasJmxPasswd = "cas-jmx-passwd"
 )
 
 var (
@@ -81,9 +97,9 @@ var (
 	mongoConfigServers = flag.Int64("mongo-configservers", 3, "The number of config servers in the sharded cluster")
 
 	// The Cassandra service specific parameters
-	casHeapSizeMB = flag.Int64("cas-heap-size", cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
-	casJmxUser    = flag.String("cas-jmx-user", catalog.JmxDefaultRemoteUser, "The Cassandra JMX remote user")
-	casJmxPasswd  = flag.String("cas-jmx-passwd", "", "The Cassandra JMX password. If leave as empty, an uuid will be generated automatically")
+	casHeapSizeMB = flag.Int64(flagCasHeapSize, cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
+	casJmxUser    = flag.String(flagCasJmxUser, catalog.JmxDefaultRemoteUser, "The Cassandra JMX remote user")
+	casJmxPasswd  = flag.String(flagCasJmxPasswd, "", "The Cassandra JMX password. If leave as empty, an uuid will be generated automatically")
 
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
@@ -94,15 +110,12 @@ var (
 	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
 
 	// The kafka service creation specific parameters
-	kafkaHeapSizeMB     = flag.Int64("kafka-heap-size", kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
-	kafkaAllowTopicDel  = flag.Bool("kafka-allow-topic-del", false, "The Kafka config to enable/disable topic deletion")
-	kafkaRetentionHours = flag.Int64("kafka-retention-hours", kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
+	kafkaHeapSizeMB     = flag.Int64(flagKafkaHeapSize, kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
+	kafkaAllowTopicDel  = flag.Bool(flagKafkaAllowTopicDel, false, "The Kafka config to enable/disable topic deletion")
+	kafkaRetentionHours = flag.Int64(flagKafkaRetentionHours, kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
+	kafkaJmxUser        = flag.String(flagKafkaJmxUser, catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
+	kafkaJmxPasswd      = flag.String(flagKafkaJmxPasswd, "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
-	kafkaJmxUser        = flag.String("kafka-jmx-user", catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
-	kafkaJmxPasswd      = flag.String("kafka-jmx-passwd", "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")
-	// The Kafka service update specific parameters
-	kafkaDisableTopicDel = flag.Bool("kafka-disable-topic-del", false, "Disable Kafka topic deletion in the update request")
-	kafkaEnableTopicDel  = flag.Bool("kafka-enable-topic-del", false, "Enable Kafka topic deletion in the update request")
 
 	// The kafka manager service creation specific parameters
 	kmHeapSizeMB = flag.Int64("km-heap-size", kafkamanagercatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
@@ -113,13 +126,12 @@ var (
 	// The redis service creation specific parameters.
 	redisShards           = flag.Int64("redis-shards", 1, "The number of shards for the Redis service")
 	redisReplicasPerShard = flag.Int64("redis-replicas-pershard", 3, "The number of replicas in one Redis shard")
-	redisMemSizeMB        = flag.Int64("redis-memory-size", 0, "The Redis memory cache size, unit: MB")
+	redisMemSizeMB        = flag.Int64(flagRedisMemSize, 0, "The Redis memory cache size, unit: MB")
 	redisDisableAOF       = flag.Bool("redis-disable-aof", false, "Whether disable Redis append only file")
-	redisAuthPass         = flag.String("redis-auth-pass", "", "The Redis AUTH password")
-	redisReplTimeoutSecs  = flag.Int64("redis-repl-timeout", rediscatalog.MinReplTimeoutSecs, "The Redis replication timeout value, unit: Seconds")
-	redisMaxMemPolicy     = flag.String("redis-maxmem-policy", rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached")
-	redisConfigCmdName    = flag.String("redis-configcmd-name", "", "The new name for Redis CONFIG command, empty name means disable the command")
-	redisDisableConfigCmd = flag.Bool("redis-disable-configcmd", false, "Disable Redis CONFIG command in the update request")
+	redisAuthPass         = flag.String(flagRedisAuthPass, "", "The Redis AUTH password")
+	redisReplTimeoutSecs  = flag.Int64(flagRedisReplTimeout, rediscatalog.MinReplTimeoutSecs, "The Redis replication timeout value, unit: Seconds")
+	redisMaxMemPolicy     = flag.String(flagRedisMaxMemPol, rediscatalog.MaxMemPolicyAllKeysLRU, "The Redis eviction policy when the memory limit is reached")
+	redisConfigCmdName    = flag.String(flagRedisConfigCmd, "", "The new name for Redis CONFIG command, empty name means disable the command")
 
 	// The couchdb service creation specific parameters.
 	couchdbEnableCors = flag.Bool("couchdb-enable-cors", false, "Whether enable CouchDB Cors")
@@ -297,29 +309,29 @@ func usage() {
 				printFlag(flag.Lookup("journal-volume-iops"))
 				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("replicas"))
-				printFlag(flag.Lookup("cas-heap-size"))
-				printFlag(flag.Lookup("cas-jmx-user"))
-				printFlag(flag.Lookup("cas-jmx-passwd"))
+				printFlag(flag.Lookup(flagCasHeapSize))
+				printFlag(flag.Lookup(flagCasJmxUser))
+				printFlag(flag.Lookup(flagCasJmxPasswd))
 			case common.CatalogService_Redis:
-				printFlag(flag.Lookup("redis-memory-size"))
 				printFlag(flag.Lookup("redis-shards"))
 				printFlag(flag.Lookup("redis-replicas-pershard"))
+				printFlag(flag.Lookup(flagRedisMemSize))
 				printFlag(flag.Lookup("redis-disable-aof"))
-				printFlag(flag.Lookup("redis-auth-pass"))
-				printFlag(flag.Lookup("redis-maxmem-policy"))
-				printFlag(flag.Lookup("redis-configcmd-name"))
-				printFlag(flag.Lookup("redis-repl-timeout"))
+				printFlag(flag.Lookup(flagRedisAuthPass))
+				printFlag(flag.Lookup(flagRedisMaxMemPol))
+				printFlag(flag.Lookup(flagRedisConfigCmd))
+				printFlag(flag.Lookup(flagRedisReplTimeout))
 			case common.CatalogService_ZooKeeper:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("zk-heap-size"))
 			case common.CatalogService_Kafka:
 				printFlag(flag.Lookup("replicas"))
-				printFlag(flag.Lookup("kafka-heap-size"))
-				printFlag(flag.Lookup("kafka-allow-topic-del"))
-				printFlag(flag.Lookup("kafka-retention-hours"))
+				printFlag(flag.Lookup(flagKafkaHeapSize))
+				printFlag(flag.Lookup(flagKafkaAllowTopicDel))
+				printFlag(flag.Lookup(flagKafkaRetentionHours))
+				printFlag(flag.Lookup(flagKafkaJmxUser))
+				printFlag(flag.Lookup(flagKafkaJmxPasswd))
 				printFlag(flag.Lookup("kafka-zk-service"))
-				printFlag(flag.Lookup("kafka-jmx-user"))
-				printFlag(flag.Lookup("kafka-jmx-passwd"))
 			case common.CatalogService_ElasticSearch:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("es-heap-size"))
@@ -375,23 +387,21 @@ func usage() {
 			printFlag(flag.Lookup("service-name"))
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
-				printFlag(flag.Lookup("cas-heap-size"))
-				printFlag(flag.Lookup("cas-jmx-user"))
-				printFlag(flag.Lookup("cas-jmx-passwd"))
+				printFlag(flag.Lookup(flagCasHeapSize))
+				printFlag(flag.Lookup(flagCasJmxUser))
+				printFlag(flag.Lookup(flagCasJmxPasswd))
 			case common.CatalogService_Redis:
-				printFlag(flag.Lookup("redis-memory-size"))
-				printFlag(flag.Lookup("redis-auth-pass"))
-				printFlag(flag.Lookup("redis-repl-timeout"))
-				printFlag(flag.Lookup("redis-maxmem-policy"))
-				printFlag(flag.Lookup("redis-configcmd-name"))
-				printFlag(flag.Lookup("redis-disable-configcmd"))
+				printFlag(flag.Lookup(flagRedisMemSize))
+				printFlag(flag.Lookup(flagRedisAuthPass))
+				printFlag(flag.Lookup(flagRedisMaxMemPol))
+				printFlag(flag.Lookup(flagRedisConfigCmd))
+				printFlag(flag.Lookup(flagRedisReplTimeout))
 			case common.CatalogService_Kafka:
-				printFlag(flag.Lookup("kafka-heap-size"))
-				printFlag(flag.Lookup("kafka-retention-hours"))
-				printFlag(flag.Lookup("kafka-disable-topic-del"))
-				printFlag(flag.Lookup("kafka-enable-topic-del"))
-				printFlag(flag.Lookup("kafka-jmx-user"))
-				printFlag(flag.Lookup("kafka-jmx-passwd"))
+				printFlag(flag.Lookup(flagKafkaHeapSize))
+				printFlag(flag.Lookup(flagKafkaRetentionHours))
+				printFlag(flag.Lookup(flagKafkaAllowTopicDel))
+				printFlag(flag.Lookup(flagKafkaJmxUser))
+				printFlag(flag.Lookup(flagKafkaJmxPasswd))
 			}
 
 		case opScale:
@@ -778,11 +788,26 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
-	if *casHeapSizeMB < cascatalog.DefaultHeapMB {
-		fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
+
+	// get all set command-line flags
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+
+	heapSizeMB := int64(0)
+	if flagset[flagCasHeapSize] {
+		heapSizeMB = *casHeapSizeMB
+		if *casHeapSizeMB < cascatalog.DefaultHeapMB {
+			fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
+		}
+		if *casHeapSizeMB < cascatalog.MinHeapMB {
+			fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+		}
 	}
-	if *casHeapSizeMB < cascatalog.MinHeapMB {
-		fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+	jmxUser := ""
+	jmxPasswd := ""
+	if flagset[flagCasJmxUser] {
+		jmxUser = *casJmxUser
+		jmxPasswd = *casJmxPasswd
 	}
 
 	req := &manage.CatalogUpdateCassandraRequest{
@@ -791,9 +816,9 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		HeapSizeMB:      *casHeapSizeMB,
-		JmxRemoteUser:   *casJmxUser,
-		JmxRemotePasswd: *casJmxPasswd,
+		HeapSizeMB:      heapSizeMB,
+		JmxRemoteUser:   jmxUser,
+		JmxRemotePasswd: jmxPasswd,
 	}
 
 	err := cascatalog.ValidateUpdateRequest(req)
@@ -965,21 +990,40 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	// TODO should we use different variable for such as kafkaHeapSizeMB? The customer may create
-	// a kafka service with non-default heap size. If the customer does not set the heap size for the update,
-	// the heap size will be changed to the default heap size.
+	// get all set command-line flags
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+
+	heapSizeMB := int64(0)
+	if flagset[flagKafkaHeapSize] {
+		heapSizeMB = *kafkaHeapSizeMB
+	}
+	retentionHours := int64(0)
+	if flagset[flagKafkaRetentionHours] {
+		retentionHours = *kafkaRetentionHours
+	}
+	jmxUser := ""
+	jmxPasswd := ""
+	if flagset[flagKafkaJmxUser] {
+		jmxUser = *kafkaJmxUser
+		jmxPasswd = *kafkaJmxPasswd
+	}
+	var allowTopicDel *bool
+	if flagset[flagKafkaAllowTopicDel] {
+		allowTopicDel = utils.BoolPtr(*kafkaAllowTopicDel)
+	}
+
 	req := &manage.CatalogUpdateKafkaRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		HeapSizeMB:      *kafkaHeapSizeMB,
-		DisableTopicDel: *kafkaDisableTopicDel,
-		EnableTopicDel:  *kafkaEnableTopicDel,
-		RetentionHours:  *kafkaRetentionHours,
-		JmxRemoteUser:   *kafkaJmxUser,
-		JmxRemotePasswd: *kafkaJmxPasswd,
+		HeapSizeMB:      heapSizeMB,
+		AllowTopicDel:   allowTopicDel,
+		RetentionHours:  retentionHours,
+		JmxRemoteUser:   jmxUser,
+		JmxRemotePasswd: jmxPasswd,
 	}
 
 	err := kafkacatalog.ValidateUpdateRequest(req)
@@ -1050,7 +1094,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	if *redisMemSizeMB <= 0 || *volSizeGB <= 0 {
-		fmt.Println("please specify the valid max memory and volume size")
+		fmt.Println("please specify the valid memory and volume size")
 		os.Exit(-1)
 	}
 
@@ -1119,7 +1163,32 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	if *redisMemSizeMB < 0 {
-		fmt.Println("please specify the valid max memory")
+		fmt.Println("please specify the valid memory size")
+	}
+
+	// get all set command-line flags
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+
+	memSizeMB := int64(0)
+	if flagset[flagRedisMemSize] {
+		memSizeMB = *redisMemSizeMB
+	}
+	authPass := ""
+	if flagset[flagRedisAuthPass] {
+		authPass = *redisAuthPass
+	}
+	replTimeout := int64(0)
+	if flagset[flagRedisReplTimeout] {
+		replTimeout = *redisReplTimeoutSecs
+	}
+	maxMemPol := ""
+	if flagset[flagRedisMaxMemPol] {
+		maxMemPol = *redisMaxMemPolicy
+	}
+	var cfgcmdName *string
+	if flagset[flagRedisConfigCmd] {
+		cfgcmdName = &(*redisConfigCmdName)
 	}
 
 	req := &manage.CatalogUpdateRedisRequest{
@@ -1128,12 +1197,11 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		MemoryCacheSizeMB: *redisMemSizeMB,
-		AuthPass:          *redisAuthPass,
-		ReplTimeoutSecs:   *redisReplTimeoutSecs,
-		MaxMemPolicy:      *redisMaxMemPolicy,
-		ConfigCmdName:     *redisConfigCmdName,
-		DisableConfigCmd:  *redisDisableConfigCmd,
+		MemoryCacheSizeMB: memSizeMB,
+		AuthPass:          authPass,
+		ReplTimeoutSecs:   replTimeout,
+		MaxMemPolicy:      maxMemPol,
+		ConfigCmdName:     cfgcmdName,
 	}
 
 	err := rediscatalog.ValidateUpdateRequest(req)
