@@ -176,6 +176,7 @@ func TestRedisUpdateFuncs(t *testing.T) {
 		ConfigCmdName:     "newcfg",
 	}
 
+	newcfg := "newcfg"
 	req := &manage.CatalogUpdateRedisRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      "region",
@@ -186,31 +187,17 @@ func TestRedisUpdateFuncs(t *testing.T) {
 		AuthPass:          "changeme",
 		ReplTimeoutSecs:   MinReplTimeoutSecs,
 		MaxMemPolicy:      MaxMemPolicyAllKeysLRU,
-		ConfigCmdName:     "newcfg",
+		ConfigCmdName:     &newcfg,
 	}
 
 	if IsConfigChanged(ua, req) {
 		t.Fatalf("config not changed")
 	}
 
-	req.ConfigCmdName = ""
-	if IsConfigChanged(ua, req) {
-		t.Fatalf("config not changed")
-	}
-
-	req.DisableConfigCmd = true
+	emptyStr := ""
+	req.ConfigCmdName = &emptyStr
 	if !IsConfigChanged(ua, req) {
 		t.Fatalf("config changed")
-	}
-
-	ua.ConfigCmdName = ""
-	if IsConfigChanged(ua, req) {
-		t.Fatalf("config not changed")
-	}
-
-	req.DisableConfigCmd = true
-	if IsConfigChanged(ua, req) {
-		t.Fatalf("config not changed")
 	}
 }
 
@@ -279,15 +266,15 @@ func TestRedisUpdate(t *testing.T) {
 	}
 
 	// disable config cmd
-	upReq.ConfigCmdName = ""
-	upReq.DisableConfigCmd = true
+	emptyStr := ""
+	upReq.ConfigCmdName = &emptyStr
 	if !IsConfigChanged(ua, upReq) {
 		t.Fatalf("config is changed")
 	}
 
 	newContent := UpdateRedisConfig(content, ua, upReq)
 	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
-		catalog.MBToBytes(ua.MemoryCacheSizeMB), ua.MaxMemPolicy, ua.ReplTimeoutSecs, upReq.ConfigCmdName)
+		catalog.MBToBytes(ua.MemoryCacheSizeMB), ua.MaxMemPolicy, ua.ReplTimeoutSecs, *upReq.ConfigCmdName)
 	content1 += fmt.Sprintf(authConfig, ua.AuthPass, ua.AuthPass)
 	content1 += aofConfigs
 	content1 = EnableRedisAuth(content1)
@@ -297,8 +284,7 @@ func TestRedisUpdate(t *testing.T) {
 	}
 
 	// change MemoryCacheSizeMB only
-	upReq.ConfigCmdName = opts.ConfigCmdName
-	upReq.DisableConfigCmd = false
+	upReq.ConfigCmdName = &(opts.ConfigCmdName)
 	upReq.MemoryCacheSizeMB = 100
 	if !IsConfigChanged(ua, upReq) {
 		t.Fatalf("config is changed")
@@ -338,7 +324,8 @@ func TestRedisUpdate(t *testing.T) {
 	upReq.AuthPass = "newpass"
 	upReq.MaxMemPolicy = MaxMemPolicyAllKeysLFU
 	upReq.ReplTimeoutSecs = 100
-	upReq.ConfigCmdName = "newcfg"
+	newcfg := "newcfg"
+	upReq.ConfigCmdName = &newcfg
 	if !IsConfigChanged(ua, upReq) {
 		t.Fatalf("config is changed")
 	}
@@ -346,7 +333,7 @@ func TestRedisUpdate(t *testing.T) {
 	newContent = UpdateRedisConfig(content, ua, upReq)
 
 	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
-		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, upReq.ConfigCmdName)
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, *upReq.ConfigCmdName)
 	content1 += fmt.Sprintf(authConfig, upReq.AuthPass, upReq.AuthPass)
 	content1 += aofConfigs
 	content1 = EnableRedisAuth(content1)
@@ -389,7 +376,7 @@ func TestRedisUpdate(t *testing.T) {
 	upReq.AuthPass = "newpass"
 	upReq.MaxMemPolicy = MaxMemPolicyAllKeysLFU
 	upReq.ReplTimeoutSecs = 100
-	upReq.ConfigCmdName = "newcfg"
+	upReq.ConfigCmdName = &newcfg
 	if !IsConfigChanged(ua, upReq) {
 		t.Fatalf("config is changed")
 	}
@@ -397,7 +384,7 @@ func TestRedisUpdate(t *testing.T) {
 	newContent = UpdateRedisConfig(content, ua, upReq)
 
 	content1 = fmt.Sprintf(redisConfigs, "service1-0.c1-firecamp.com", listenPort,
-		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, upReq.ConfigCmdName)
+		catalog.MBToBytes(upReq.MemoryCacheSizeMB), upReq.MaxMemPolicy, upReq.ReplTimeoutSecs, *upReq.ConfigCmdName)
 	content1 += aofConfigs
 	content1 += defaultConfigs
 	content1 += fmt.Sprintf(authConfig, upReq.AuthPass, upReq.AuthPass)

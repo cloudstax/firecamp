@@ -66,9 +66,9 @@ Redis cluster setup tool, redis-trib.rb, does not support auth pass yet. See Red
 
 The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (remove all keys from all databases), FLUSHDB (similar, but from the current database), and SHUTDOWN, are disabled. The CONFIG (reconfiguring server at runtime) command could be renamed when creating the service. It might be useful at some conditions. For example, if you hit latency issue, could enable latency monitor, "CONFIG SET latency-monitor-threshold <milliseconds>", to collect data. Setting the new name to the empty string will disable the CONFIG command.
 
-## Update a Redis Service
+## Update the Service
 
-If you want to increase the memory size, change the password, etc, you could update Redis config via the update-service cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass`
+If you want to increase the memory size, change the password, etc, you could update Redis config via the cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass`. See the firecamp cli help for the detail options, `firecamp-service-cli -op=update-service -service-type=redis --help`.
 
 The config changes will only be effective after Redis cluster is restarted. Redis persists the in-memory data to disk in the background. If AOF is enabled, which is the default mode, all writes are written into the AOF file and fsync is called for the file every second. If you don't want to lost any data, you should stop the load, wait two seconds, then use firecamp cli to stop-service, update-service and start-service. If AOF is not enabled, you should stop the load, connect to the master or slave of all shards and run “SAVE”. After the "SAVE" completes, could stop-service, update-service and start-service.
 

@@ -103,13 +103,16 @@ func validateMemPolicy(maxMemPolicy string) error {
 
 // ValidateUpdateRequest validates the update request
 func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest) error {
-	if r.ReplTimeoutSecs < MinReplTimeoutSecs {
+	if r.ReplTimeoutSecs != 0 && r.ReplTimeoutSecs < MinReplTimeoutSecs {
 		return fmt.Errorf("The minimal ReplTimeout is %d", MinReplTimeoutSecs)
 	}
 	if r.MemoryCacheSizeMB < 0 {
 		return errors.New("Invalid memory cache size")
 	}
-	return validateMemPolicy(r.MaxMemPolicy)
+	if len(r.MaxMemPolicy) != 0 {
+		return validateMemPolicy(r.MaxMemPolicy)
+	}
+	return nil
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
@@ -385,8 +388,7 @@ func IsConfigChanged(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisReq
 		(req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB) ||
 		(req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs) ||
 		(req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy) ||
-		(!req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName) ||
-		(req.DisableConfigCmd && ua.ConfigCmdName != ""))
+		(req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName))
 }
 
 // UpdateRedisUserAttr updates RedisUserAttr
@@ -404,11 +406,8 @@ func UpdateRedisUserAttr(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedi
 	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
 		newua.MaxMemPolicy = req.MaxMemPolicy
 	}
-	if !req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
-		newua.ConfigCmdName = req.ConfigCmdName
-	}
-	if req.DisableConfigCmd && ua.ConfigCmdName != "" {
-		newua.ConfigCmdName = ""
+	if req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName {
+		newua.ConfigCmdName = *req.ConfigCmdName
 	}
 	return newua
 }
@@ -449,17 +448,12 @@ func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.Cat
 		oldPolicy := fmt.Sprintf("maxmemory-policy %s", ua.MaxMemPolicy)
 		newContent = strings.Replace(newContent, oldPolicy, newPolicy, 1)
 	}
-	if !req.DisableConfigCmd && req.ConfigCmdName != "" && req.ConfigCmdName != ua.ConfigCmdName {
-		newCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", req.ConfigCmdName)
+	if req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName {
+		newCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", *req.ConfigCmdName)
 		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
 		if ua.ConfigCmdName == "" {
 			oldCfgCmd = "rename-command CONFIG \"\""
 		}
-		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
-	}
-	if req.DisableConfigCmd && ua.ConfigCmdName != "" {
-		newCfgCmd := "rename-command CONFIG \"\""
-		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
 		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
 	}
 	return newContent
