@@ -15,7 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/manage"
 )
 
-func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateKafkaRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -75,7 +75,33 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, r *http.Reque
 	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
 
 	// kafka does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	if errcode != http.StatusOK {
+		return errmsg, errcode
+	}
+
+	// send back the jmx remote user & passwd
+	userAttr := &common.KafkaUserAttr{}
+	err = json.Unmarshal(crReq.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	resp := &manage.CatalogCreateKafkaResponse{
+		JmxRemoteUser:   userAttr.JmxRemoteUser,
+		JmxRemotePasswd: userAttr.JmxRemotePasswd,
+	}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal CatalogCreateKafkaResponse error", err, "requuid", requuid, req.Service, req.Options)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -218,15 +244,12 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 	}
 
 	// update kafka config file
-	if (req.DisableTopicDel && ua.AllowTopicDel) || (req.EnableTopicDel && !ua.AllowTopicDel) ||
+	if (req.AllowTopicDel != nil && *req.AllowTopicDel != ua.AllowTopicDel) ||
 		(req.RetentionHours != 0 && req.RetentionHours != ua.RetentionHours) {
 		// update user attr
 		updated = true
-		if req.DisableTopicDel && ua.AllowTopicDel {
-			newua.AllowTopicDel = false
-		}
-		if req.EnableTopicDel && !ua.AllowTopicDel {
-			newua.AllowTopicDel = true
+		if req.AllowTopicDel != nil && *req.AllowTopicDel != ua.AllowTopicDel {
+			newua.AllowTopicDel = *req.AllowTopicDel
 		}
 		if req.RetentionHours != 0 && req.RetentionHours != ua.RetentionHours {
 			newua.RetentionHours = req.RetentionHours

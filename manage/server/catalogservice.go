@@ -36,7 +36,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	case manage.CatalogCreateZooKeeperOp:
 		return s.createZkService(ctx, r, requuid)
 	case manage.CatalogCreateKafkaOp:
-		return s.createKafkaService(ctx, r, requuid)
+		return s.createKafkaService(ctx, w, r, requuid)
 	case manage.CatalogCreateKafkaManagerOp:
 		return s.createKafkaManagerService(ctx, r, requuid)
 	case manage.CatalogCreateRedisOp:
