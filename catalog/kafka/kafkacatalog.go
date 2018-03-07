@@ -178,7 +178,10 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the jmxremote.password file
-		jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
+		jmxPasswdCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
+
+		// create the jmxremote.access file
+		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
 
 		// create the log config file
 		logCfg := &manage.ReplicaConfigFile{
@@ -187,7 +190,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			Content:  logConfConfig,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, jmxCfg, logCfg}
+		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
 
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
@@ -277,9 +280,10 @@ group.initial.rebalance.delay.ms=3000
 `
 
 	javaEnvConfig = `
-KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
-KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
-KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.password.file=jmxremote.password -Dcom.sun.management.jmxremote.port=%d -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"
+export KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
+export KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
+export KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/data/conf/jmxremote.access -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"
+export JMX_PORT="%d"
 `
 
 	logConfConfig = `

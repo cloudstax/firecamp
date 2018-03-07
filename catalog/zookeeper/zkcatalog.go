@@ -142,7 +142,10 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		// create the jmxremote.password file
-		jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
+		jmxPasswdCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
+
+		// create the jmxremote.access file
+		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
 
 		// create the log config file
 		logCfg := &manage.ReplicaConfigFile{
@@ -151,7 +154,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  logConfContent,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxCfg, logCfg}
+		configs := []*manage.ReplicaConfigFile{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
 
 		index := i % len(azs)
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
@@ -212,7 +215,7 @@ clientPort=2181
 	myidConfig = `%d`
 
 	javaEnvConfig = `
-export JVMFLAGS="-Xmx%dm -Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password"
+export JVMFLAGS="-Xmx%dm -Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/data/conf/jmxremote.access"
 export JMXPORT=%d
 export JMXAUTH=true
 export JMXSSL=false

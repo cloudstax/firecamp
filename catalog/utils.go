@@ -24,19 +24,38 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ReplicaConfigFile {
 	return &manage.ReplicaConfigFile{
 		FileName: JmxRemotePasswdConfFileName,
-		FileMode: JmxRemotePasswdConfFileMode,
-		Content:  CreateJmxConfFileContent(jmxUser, jmxPasswd),
+		FileMode: JmxConfFileMode,
+		Content:  CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd),
 	}
 }
 
-// IsJmxConfFile checks if the file is jmx conf file
-func IsJmxConfFile(filename string) bool {
+// IsJmxPasswdConfFile checks if the file is jmx password conf file
+func IsJmxPasswdConfFile(filename string) bool {
 	return filename == JmxRemotePasswdConfFileName
 }
 
-// CreateJmxConfFileContent returns the new jmxremote.password file content
-func CreateJmxConfFileContent(jmxUser string, jmxPasswd string) string {
-	return fmt.Sprintf(jmxFileContent, jmxUser, jmxPasswd)
+// CreateJmxPasswdConfFileContent returns the jmxremote.password file content
+func CreateJmxPasswdConfFileContent(jmxUser string, jmxPasswd string) string {
+	return fmt.Sprintf(jmxPasswdFileContent, jmxUser, jmxPasswd)
+}
+
+// CreateJmxRemoteAccessConfFile creates the jmx remote access file.
+func CreateJmxRemoteAccessConfFile(jmxUser string, accessPerm string) *manage.ReplicaConfigFile {
+	return &manage.ReplicaConfigFile{
+		FileName: JmxRemoteAccessConfFileName,
+		FileMode: JmxConfFileMode,
+		Content:  CreateJmxAccessConfFileContent(jmxUser, accessPerm),
+	}
+}
+
+// IsJmxAccessConfFile checks if the file is jmx access conf file
+func IsJmxAccessConfFile(filename string) bool {
+	return filename == JmxRemoteAccessConfFileName
+}
+
+// CreateJmxAccessConfFileContent returns the jmxremote.access file content
+func CreateJmxAccessConfFileContent(jmxUser string, accessPerm string) string {
+	return fmt.Sprintf(jmxAccessFileContent, jmxUser, accessPerm)
 }
 
 // MBToBytes converts MB to bytes
@@ -51,6 +70,9 @@ PLATFORM=%s
 SERVICE_MEMBER=%s
 `
 
-	// jmx file content format: "user passwd"
-	jmxFileContent = "%s %s\n"
+	// jmx passwd file content format: "user passwd"
+	jmxPasswdFileContent = "%s %s\n"
+
+	// jmx access file content format: "user accessPermission"
+	jmxAccessFileContent = "%s %s\n"
 )

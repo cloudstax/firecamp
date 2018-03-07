@@ -330,7 +330,7 @@ func (s *ManageHTTPServer) updateJmxConfigFile(ctx context.Context, serviceUUID 
 		var cfg *common.MemberConfig
 		cfgIndex := -1
 		for i, c := range member.Configs {
-			if catalog.IsJmxConfFile(c.FileName) {
+			if catalog.IsJmxPasswdConfFile(c.FileName) {
 				cfg = c
 				cfgIndex = i
 				break
@@ -346,7 +346,7 @@ func (s *ManageHTTPServer) updateJmxConfigFile(ctx context.Context, serviceUUID 
 
 		// replace the original member jmx conf file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.CreateJmxConfFileContent(jmxUser, jmxPasswd)
+		newContent := catalog.CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd)
 		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)

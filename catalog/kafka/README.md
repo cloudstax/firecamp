@@ -33,9 +33,11 @@ Java 1.8 with G1 collector is used. The default Java heap size, both Xmx and Xms
 **Set JVM TTL for Kafka Java client**
 By default, JVM caches a successful DNS lookup forever. Kafka Java client should [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when Kafka container moves to another node, JVM could lookup the new address.
 
-**[JMX](https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureJmxAuthentication.html)**
+**JMX**
 
 By default, JMX is enabled to collect Kafka metrics. The JMX default listen port is 9093. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "jmxuser" and an UUID will be generated as the password.
+
+The Kafka Manager could get and show Kafka metrics using the JMX user and password.
 
 ## Update the Service
 
