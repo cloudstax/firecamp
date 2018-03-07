@@ -34,7 +34,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	case manage.CatalogCreateCassandraOp:
 		return s.createCasService(ctx, w, r, requuid)
 	case manage.CatalogCreateZooKeeperOp:
-		return s.createZkService(ctx, r, requuid)
+		return s.createZkService(ctx, w, r, requuid)
 	case manage.CatalogCreateKafkaOp:
 		return s.createKafkaService(ctx, w, r, requuid)
 	case manage.CatalogCreateKafkaManagerOp:
@@ -251,7 +251,7 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
-func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateZooKeeperRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -265,6 +265,19 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 		glog.Errorln("CatalogCreateZooKeeperRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
 		return err.Error(), http.StatusBadRequest
+	}
+
+	// JmxRemotePasswd may be generated (uuid) locally.
+	if len(req.Options.JmxRemotePasswd) == 0 {
+		jmxUser, jmxPasswd, err := s.getExistingJmxPasswd(ctx, req.Service, requuid)
+		if err != nil {
+			glog.Errorln("getExistingJmxPasswd error", err, "requuid", requuid, req.Service)
+			return manage.ConvertToHTTPError(err)
+		}
+		if len(jmxPasswd) != 0 {
+			req.Options.JmxRemoteUser = jmxUser
+			req.Options.JmxRemotePasswd = jmxPasswd
+		}
 	}
 
 	// create the service in the control plane and the container platform
@@ -283,7 +296,33 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, r *http.Request,
 	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
 
 	// zookeeper does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	if errcode != http.StatusOK {
+		return errmsg, errcode
+	}
+
+	// send back the jmx remote user & passwd
+	userAttr := &common.ZKUserAttr{}
+	err = json.Unmarshal(crReq.UserAttr.AttrBytes, userAttr)
+	if err != nil {
+		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	resp := &manage.CatalogCreateZooKeeperResponse{
+		JmxRemoteUser:   userAttr.JmxRemoteUser,
+		JmxRemotePasswd: userAttr.JmxRemotePasswd,
+	}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal CatalogCreateZooKeeperResponse error", err, "requuid", requuid, req.Service, req.Options)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) updateJmxConfigFile(ctx context.Context, serviceUUID string, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {

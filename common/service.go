@@ -190,7 +190,9 @@ type RedisUserAttr struct {
 
 // ZKUserAttr represents the zookeeper service attributes.
 type ZKUserAttr struct {
-	HeapSizeMB int64
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // KafkaUserAttr represents the kafka service attributes.

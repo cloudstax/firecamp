@@ -918,13 +918,14 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		},
 	}
 
-	err := cli.CatalogCreateZooKeeperService(ctx, req)
+	jmxUser, jmxPasswd, err := cli.CatalogCreateZooKeeperService(ctx, req)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "create zookeeper service error", err)
 		os.Exit(-1)
 	}
 
-	fmt.Println(time.Now().UTC(), "The zookeeper service is created, wait for all containers running")
+	fmt.Println(time.Now().UTC(), "The zookeeper service is created, jmx user", jmxUser, "password", jmxPasswd)
+	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }

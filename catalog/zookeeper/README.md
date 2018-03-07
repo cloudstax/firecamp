@@ -33,6 +33,10 @@ By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memo
 
 By default, JVM caches a successful DNS lookup forever. ZooKeeper Java client should [set JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) to a reasonable value such as 60 seconds. So when ZooKeeper container moves to another node, JVM could lookup the new address.
 
+**JMX**
+
+By default, JMX is enabled to collect ZooKeeper metrics. The JMX default listen port is 2191. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "jmxuser" and an UUID will be generated as the password.
+
 ## Logging
 
 The ZooKeeper logs are sent to the Cloud Logs, such as AWS CloudWatch logs.

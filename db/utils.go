@@ -243,7 +243,9 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			glog.Errorln("Unmarshal user attr error", err, u2)
 			return false
 		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB {
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.JmxRemoteUser == ua2.JmxRemoteUser &&
+			ua1.JmxRemotePasswd == ua2.JmxRemotePasswd {
 			return true
 		}
 		glog.Errorln("ZKUserAttr mismatch, u1:", ua1, ", u2:", ua2)

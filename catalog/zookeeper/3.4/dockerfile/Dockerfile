@@ -40,4 +40,7 @@ RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "zkServer.sh", "start-foreground"]
 
+# expose client port, peer connect port, leader elect port
 EXPOSE 2181 2888 3888
+# expose jmx port
+EXPOSE 2191

@@ -280,7 +280,7 @@ type CatalogCassandraOptions struct {
 
 	// Cassandra JVM heap size. The default volue is 8GB.
 	HeapSizeMB int64
-	// The user for the JMX remote access. If empty, will be set as "cassandra".
+	// The user for the JMX remote access. If empty, will be set as "jmxuser".
 	JmxRemoteUser string
 	// The password for the JMX remote access. If empty, a uuid will be generated
 	// as the password. This will be used by nodetool to access replica remotely.
@@ -323,6 +323,11 @@ type CatalogZooKeeperOptions struct {
 
 	// ZooKeeper JVM heap size
 	HeapSizeMB int64
+
+	// The user for the JMX remote access. If empty, will be set as "jmxuser".
+	JmxRemoteUser string
+	// The password for the JMX remote access. If empty, a uuid will be generated as the password.
+	JmxRemotePasswd string
 }
 
 // CatalogCreateZooKeeperRequest creates a ZooKeeper service.
@@ -330,6 +335,12 @@ type CatalogCreateZooKeeperRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogZooKeeperOptions
+}
+
+// CatalogCreateZooKeeperResponse returns the ZooKeeper JMX user and password.
+type CatalogCreateZooKeeperResponse struct {
+	JmxRemoteUser   string
+	JmxRemotePasswd string
 }
 
 // CatalogKafkaOptions includes the options for Kafka.

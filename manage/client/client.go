@@ -556,23 +556,31 @@ func (c *ManageClient) CatalogScaleCassandraService(ctx context.Context, r *mana
 }
 
 // CatalogCreateZooKeeperService creates a new catalog ZooKeeper service.
-func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *manage.CatalogCreateZooKeeperRequest) error {
+func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *manage.CatalogCreateZooKeeperRequest) (jmxUser string, jmxPasswd string, err error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateZooKeeperOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	return manage.ConvertHTTPError(resp)
+	if resp.StatusCode != http.StatusOK {
+		return "", "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CatalogCreateZooKeeperResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
 // CatalogCreateKafkaService creates a new catalog Kafka service.
