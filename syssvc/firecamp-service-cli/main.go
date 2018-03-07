@@ -44,11 +44,12 @@ const (
 	maxServiceWaitSeconds = time.Duration(300) * time.Second
 	retryWaitSeconds      = time.Duration(common.CliRetryWaitSeconds) * time.Second
 
+	flagJmxUser   = "jmx-user"
+	flagJmxPasswd = "jmx-passwd"
+
 	flagKafkaHeapSize       = "kafka-heap-size"
 	flagKafkaRetentionHours = "kafka-retention-hours"
 	flagKafkaAllowTopicDel  = "kafka-allow-topic-del"
-	flagKafkaJmxUser        = "kafka-jmx-user"
-	flagKafkaJmxPasswd      = "kafka-jmx-passwd"
 
 	flagRedisMemSize     = "redis-memory-size"
 	flagRedisAuthPass    = "redis-auth-pass"
@@ -56,9 +57,7 @@ const (
 	flagRedisMaxMemPol   = "redis-maxmem-policy"
 	flagRedisConfigCmd   = "redis-configcmd-name"
 
-	flagCasHeapSize  = "cas-heap-size"
-	flagCasJmxUser   = "cas-jmx-user"
-	flagCasJmxPasswd = "cas-jmx-passwd"
+	flagCasHeapSize = "cas-heap-size"
 )
 
 var (
@@ -90,6 +89,9 @@ var (
 	certFile    = flag.String("cert-file", "", "the cert file")
 	keyFile     = flag.String("key-file", "", "the key file")
 
+	jmxUser   = flag.String(flagJmxUser, catalog.JmxDefaultRemoteUser, "The Service JMX remote user")
+	jmxPasswd = flag.String(flagJmxPasswd, "", "The Service JMX password. If leave as empty, an uuid will be generated automatically")
+
 	// The MongoDB service specific parameters.
 	mongoShards        = flag.Int64("mongo-shards", 1, "The number of MongoDB shards")
 	mongoReplPerShard  = flag.Int64("mongo-replicas-pershard", 3, "The number of replicas in one MongoDB shard")
@@ -98,8 +100,6 @@ var (
 
 	// The Cassandra service specific parameters
 	casHeapSizeMB = flag.Int64(flagCasHeapSize, cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
-	casJmxUser    = flag.String(flagCasJmxUser, catalog.JmxDefaultRemoteUser, "The Cassandra JMX remote user")
-	casJmxPasswd  = flag.String(flagCasJmxPasswd, "", "The Cassandra JMX password. If leave as empty, an uuid will be generated automatically")
 
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
@@ -113,8 +113,6 @@ var (
 	kafkaHeapSizeMB     = flag.Int64(flagKafkaHeapSize, kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
 	kafkaAllowTopicDel  = flag.Bool(flagKafkaAllowTopicDel, false, "The Kafka config to enable/disable topic deletion")
 	kafkaRetentionHours = flag.Int64(flagKafkaRetentionHours, kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
-	kafkaJmxUser        = flag.String(flagKafkaJmxUser, catalog.JmxDefaultRemoteUser, "The Kafka JMX remote user")
-	kafkaJmxPasswd      = flag.String(flagKafkaJmxPasswd, "", "The Kafka JMX password. If leave as empty, an uuid will be generated automatically")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 
 	// The kafka manager service creation specific parameters
@@ -310,8 +308,8 @@ func usage() {
 				printFlag(flag.Lookup("journal-volume-encrypted"))
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup(flagCasHeapSize))
-				printFlag(flag.Lookup(flagCasJmxUser))
-				printFlag(flag.Lookup(flagCasJmxPasswd))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
 			case common.CatalogService_Redis:
 				printFlag(flag.Lookup("redis-shards"))
 				printFlag(flag.Lookup("redis-replicas-pershard"))
@@ -324,13 +322,15 @@ func usage() {
 			case common.CatalogService_ZooKeeper:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup("zk-heap-size"))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
 			case common.CatalogService_Kafka:
 				printFlag(flag.Lookup("replicas"))
 				printFlag(flag.Lookup(flagKafkaHeapSize))
 				printFlag(flag.Lookup(flagKafkaAllowTopicDel))
 				printFlag(flag.Lookup(flagKafkaRetentionHours))
-				printFlag(flag.Lookup(flagKafkaJmxUser))
-				printFlag(flag.Lookup(flagKafkaJmxPasswd))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
 				printFlag(flag.Lookup("kafka-zk-service"))
 			case common.CatalogService_ElasticSearch:
 				printFlag(flag.Lookup("replicas"))
@@ -388,8 +388,8 @@ func usage() {
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
 				printFlag(flag.Lookup(flagCasHeapSize))
-				printFlag(flag.Lookup(flagCasJmxUser))
-				printFlag(flag.Lookup(flagCasJmxPasswd))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
 			case common.CatalogService_Redis:
 				printFlag(flag.Lookup(flagRedisMemSize))
 				printFlag(flag.Lookup(flagRedisAuthPass))
@@ -400,8 +400,8 @@ func usage() {
 				printFlag(flag.Lookup(flagKafkaHeapSize))
 				printFlag(flag.Lookup(flagKafkaRetentionHours))
 				printFlag(flag.Lookup(flagKafkaAllowTopicDel))
-				printFlag(flag.Lookup(flagKafkaJmxUser))
-				printFlag(flag.Lookup(flagKafkaJmxPasswd))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
 			}
 
 		case opScale:
@@ -752,8 +752,8 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 			},
 			JournalVolume:   journalVol,
 			HeapSizeMB:      *casHeapSizeMB,
-			JmxRemoteUser:   *casJmxUser,
-			JmxRemotePasswd: *casJmxPasswd,
+			JmxRemoteUser:   *jmxUser,
+			JmxRemotePasswd: *jmxPasswd,
 		},
 	}
 
@@ -803,11 +803,11 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 			fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
 		}
 	}
-	jmxUser := ""
-	jmxPasswd := ""
-	if flagset[flagCasJmxUser] {
-		jmxUser = *casJmxUser
-		jmxPasswd = *casJmxPasswd
+	user := ""
+	passwd := ""
+	if flagset[flagJmxUser] {
+		user = *jmxUser
+		passwd = *jmxPasswd
 	}
 
 	req := &manage.CatalogUpdateCassandraRequest{
@@ -817,8 +817,8 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 			ServiceName: *service,
 		},
 		HeapSizeMB:      heapSizeMB,
-		JmxRemoteUser:   jmxUser,
-		JmxRemotePasswd: jmxPasswd,
+		JmxRemoteUser:   user,
+		JmxRemotePasswd: passwd,
 	}
 
 	err := cascatalog.ValidateUpdateRequest(req)
@@ -968,8 +968,8 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 			AllowTopicDel:   *kafkaAllowTopicDel,
 			RetentionHours:  *kafkaRetentionHours,
 			ZkServiceName:   *kafkaZkService,
-			JmxRemoteUser:   *kafkaJmxUser,
-			JmxRemotePasswd: *kafkaJmxPasswd,
+			JmxRemoteUser:   *jmxUser,
+			JmxRemotePasswd: *jmxPasswd,
 		},
 	}
 
@@ -1003,11 +1003,11 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 	if flagset[flagKafkaRetentionHours] {
 		retentionHours = *kafkaRetentionHours
 	}
-	jmxUser := ""
-	jmxPasswd := ""
-	if flagset[flagKafkaJmxUser] {
-		jmxUser = *kafkaJmxUser
-		jmxPasswd = *kafkaJmxPasswd
+	user := ""
+	passwd := ""
+	if flagset[flagJmxUser] {
+		user = *jmxUser
+		passwd = *jmxPasswd
 	}
 	var allowTopicDel *bool
 	if flagset[flagKafkaAllowTopicDel] {
@@ -1023,8 +1023,8 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		HeapSizeMB:      heapSizeMB,
 		AllowTopicDel:   allowTopicDel,
 		RetentionHours:  retentionHours,
-		JmxRemoteUser:   jmxUser,
-		JmxRemotePasswd: jmxPasswd,
+		JmxRemoteUser:   user,
+		JmxRemotePasswd: passwd,
 	}
 
 	err := kafkacatalog.ValidateUpdateRequest(req)
