@@ -37,6 +37,15 @@ By default, JVM caches a successful DNS lookup forever. ZooKeeper Java client sh
 
 By default, JMX is enabled to collect ZooKeeper metrics. The JMX default listen port is 2191. You could specify the JMX user and password when creating the service. If you do not specify the JMX user and password, the default user is "jmxuser" and an UUID will be generated as the password.
 
+ZooKeeper JMX port is used internally for ZooKeeper monitoring. The port is only accessible in the service security group that ZooKeeper cluster runs, and is not exposed to the application access security group.
+
+## Update the Service
+
+If you want to increase the JVM heap size or change jmx remote user/password, you could update ZooKeeper config via the cli. For example, to increase the JVM heap size, run `firecamp-service-cli -op=update-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -zk-heap-size=10240`. See the firecamp cli help for the detail options, `firecamp-service-cli -op=update-service -service-type=zookeeper --help`.
+
+The config changes will only be effective after the service is restarted. You could run `firecamp-service-cli -op=restart-service -service-name=myzoo` to rolling restart the service members when the system is not busy.
+
+
 ## Logging
 
 The ZooKeeper logs are sent to the Cloud Logs, such as AWS CloudWatch logs.

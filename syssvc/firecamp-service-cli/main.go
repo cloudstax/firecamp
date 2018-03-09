@@ -58,6 +58,8 @@ const (
 	flagRedisConfigCmd   = "redis-configcmd-name"
 
 	flagCasHeapSize = "cas-heap-size"
+
+	flagZkHeapSize = "zk-heap-size"
 )
 
 var (
@@ -107,7 +109,7 @@ var (
 	pgContainerImage = flag.String("pg-image", pgcatalog.ContainerImage, "The PostgreSQL container image, "+pgcatalog.ContainerImage+" or "+pgcatalog.PostGISContainerImage)
 
 	// The ZooKeeper service specific parameters
-	zkHeapSizeMB = flag.Int64("zk-heap-size", zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
+	zkHeapSizeMB = flag.Int64(flagZkHeapSize, zkcatalog.DefaultHeapMB, "The ZooKeeper JVM heap size, unit: MB")
 
 	// The kafka service creation specific parameters
 	kafkaHeapSizeMB     = flag.Int64(flagKafkaHeapSize, kafkacatalog.DefaultHeapMB, "The Kafka JVM heap size, unit: MB")
@@ -321,7 +323,7 @@ func usage() {
 				printFlag(flag.Lookup(flagRedisReplTimeout))
 			case common.CatalogService_ZooKeeper:
 				printFlag(flag.Lookup("replicas"))
-				printFlag(flag.Lookup("zk-heap-size"))
+				printFlag(flag.Lookup(flagZkHeapSize))
 				printFlag(flag.Lookup(flagJmxUser))
 				printFlag(flag.Lookup(flagJmxPasswd))
 			case common.CatalogService_Kafka:
@@ -383,7 +385,7 @@ func usage() {
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdate)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			fmt.Println("  -service-type=cassandra|redis|kafka")
+			fmt.Println("  -service-type=cassandra|redis|kafka|zookeeper")
 			printFlag(flag.Lookup("service-name"))
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
@@ -400,6 +402,10 @@ func usage() {
 				printFlag(flag.Lookup(flagKafkaHeapSize))
 				printFlag(flag.Lookup(flagKafkaRetentionHours))
 				printFlag(flag.Lookup(flagKafkaAllowTopicDel))
+				printFlag(flag.Lookup(flagJmxUser))
+				printFlag(flag.Lookup(flagJmxPasswd))
+			case common.CatalogService_ZooKeeper:
+				printFlag(flag.Lookup(flagZkHeapSize))
 				printFlag(flag.Lookup(flagJmxUser))
 				printFlag(flag.Lookup(flagJmxPasswd))
 			}
@@ -582,8 +588,10 @@ func main() {
 			updateRedisService(ctx, cli)
 		case common.CatalogService_Kafka:
 			updateKafkaService(ctx, cli)
+		case common.CatalogService_ZooKeeper:
+			updateZkService(ctx, cli)
 		default:
-			fmt.Printf("Invalid service type, update service only support cassandra|redis|kafka\n")
+			fmt.Printf("Invalid service type, update service only support cassandra|redis|kafka|zookeeper\n")
 			os.Exit(-1)
 		}
 
@@ -928,6 +936,53 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func updateZkService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	// get all set command-line flags
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+
+	heapSizeMB := int64(0)
+	if flagset[flagZkHeapSize] {
+		heapSizeMB = *zkHeapSizeMB
+	}
+	user := ""
+	passwd := ""
+	if flagset[flagJmxUser] {
+		user = *jmxUser
+		passwd = *jmxPasswd
+	}
+
+	req := &manage.CatalogUpdateZooKeeperRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		HeapSizeMB:      heapSizeMB,
+		JmxRemoteUser:   user,
+		JmxRemotePasswd: passwd,
+	}
+
+	err := zkcatalog.ValidateUpdateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogUpdateZooKeeperService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "update service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
 
 func createKafkaService(ctx context.Context, cli *client.ManageClient) {
