@@ -266,10 +266,19 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 	// update jmx file
 	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
 		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
-		err = s.updateJmxConfigFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
 		if err != nil {
-			glog.Errorln("updateJmxConfigFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+			glog.Errorln("updateJmxPasswdFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
+		}
+
+		if req.JmxRemoteUser != ua.JmxRemoteUser {
+			// update jmx access file
+			err = s.updateJmxAccessFile(ctx, serviceUUID, members, req.JmxRemoteUser, ua.JmxRemoteUser, requuid)
+			if err != nil {
+				glog.Errorln("updateJmxAccessFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
+				return err
+			}
 		}
 
 		updated = true

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/manage"
@@ -19,6 +20,8 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 		Content:  content,
 	}
 }
+
+// TODO currently only support one jmx user.
 
 // CreateJmxRemotePasswdConfFile creates the jmx remote password file.
 func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ReplicaConfigFile {
@@ -56,6 +59,11 @@ func IsJmxAccessConfFile(filename string) bool {
 // CreateJmxAccessConfFileContent returns the jmxremote.access file content
 func CreateJmxAccessConfFileContent(jmxUser string, accessPerm string) string {
 	return fmt.Sprintf(jmxAccessFileContent, jmxUser, accessPerm)
+}
+
+// ReplaceJmxUserInAccessConfFile replaces the old jmx user in the access conf file
+func ReplaceJmxUserInAccessConfFile(content string, newUser string, oldUser string) string {
+	return strings.Replace(content, oldUser, newUser, 1)
 }
 
 // MBToBytes converts MB to bytes
