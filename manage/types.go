@@ -42,6 +42,7 @@ const (
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
 	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
+	CatalogUpdateZooKeeperOp     = CatalogOpPrefix + "Update-ZooKeeper"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -339,6 +340,16 @@ type CatalogCreateZooKeeperRequest struct {
 
 // CatalogCreateZooKeeperResponse returns the ZooKeeper JMX user and password.
 type CatalogCreateZooKeeperResponse struct {
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// CatalogUpdateZooKeeperRequest updates the configs of the ZooKeeper service.
+type CatalogUpdateZooKeeperRequest struct {
+	Service    *ServiceCommonRequest
+	HeapSizeMB int64 // 0 == no change
+	// empty JmxRemoteUser means no change, jmx user could not be disabled.
+	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }

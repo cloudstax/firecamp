@@ -451,6 +451,14 @@ func CopyKafkaUserAttr(u1 *common.KafkaUserAttr) *common.KafkaUserAttr {
 	}
 }
 
+func CopyZKUserAttr(u1 *common.ZKUserAttr) *common.ZKUserAttr {
+	return &common.ZKUserAttr{
+		HeapSizeMB:      u1.HeapSizeMB,
+		JmxRemoteUser:   u1.JmxRemoteUser,
+		JmxRemotePasswd: u1.JmxRemotePasswd,
+	}
+}
+
 func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     t1.ServiceUUID,

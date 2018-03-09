@@ -16,7 +16,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/postgres"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
@@ -63,6 +62,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.scaleCasService(ctx, r, requuid)
 	case manage.CatalogUpdateKafkaOp:
 		return s.updateKafkaService(ctx, r, requuid)
+	case manage.CatalogUpdateZooKeeperOp:
+		return s.updateZkService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -249,80 +250,6 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 
 	// PG does not require additional init work. set PG initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-}
-
-func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
-	// parse the request
-	req := &manage.CatalogCreateZooKeeperRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		glog.Errorln("CatalogCreateZooKeeperRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	err = s.checkCommonRequest(req.Service)
-	if err != nil {
-		glog.Errorln("CatalogCreateZooKeeperRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
-	}
-
-	// JmxRemotePasswd may be generated (uuid) locally.
-	if len(req.Options.JmxRemotePasswd) == 0 {
-		jmxUser, jmxPasswd, err := s.getExistingJmxPasswd(ctx, req.Service, requuid)
-		if err != nil {
-			glog.Errorln("getExistingJmxPasswd error", err, "requuid", requuid, req.Service)
-			return manage.ConvertToHTTPError(err)
-		}
-		if len(jmxPasswd) != 0 {
-			req.Options.JmxRemoteUser = jmxUser
-			req.Options.JmxRemotePasswd = jmxPasswd
-		}
-	}
-
-	// create the service in the control plane and the container platform
-	crReq, err := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Options, req.Resource)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
-	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
-
-	// zookeeper does not require additional init work. set service initialized
-	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-	if errcode != http.StatusOK {
-		return errmsg, errcode
-	}
-
-	// send back the jmx remote user & passwd
-	userAttr := &common.ZKUserAttr{}
-	err = json.Unmarshal(crReq.UserAttr.AttrBytes, userAttr)
-	if err != nil {
-		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
-	}
-
-	resp := &manage.CatalogCreateZooKeeperResponse{
-		JmxRemoteUser:   userAttr.JmxRemoteUser,
-		JmxRemotePasswd: userAttr.JmxRemotePasswd,
-	}
-	b, err := json.Marshal(resp)
-	if err != nil {
-		glog.Errorln("Marshal CatalogCreateZooKeeperResponse error", err, "requuid", requuid, req.Service, req.Options)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(b)
-
-	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID string,

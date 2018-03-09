@@ -2,7 +2,9 @@ package zkcatalog
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -35,6 +37,17 @@ const (
 // The default ZooKeeper catalog service. By default,
 // 1) Distribute the node on the availability zones.
 // 2) Listen on the standard ports, 2181 2888 3888.
+
+// ValidateUpdateRequest checks if the update request is valid
+func ValidateUpdateRequest(req *manage.CatalogUpdateZooKeeperRequest) error {
+	if req.HeapSizeMB < 0 {
+		return errors.New("heap size should not be less than 0")
+	}
+	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+		return errors.New("please set the new jmx remote password")
+	}
+	return nil
+}
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
@@ -172,6 +185,18 @@ func genServerList(service string, domain string, replicas int64) string {
 		serverList += server
 	}
 	return serverList
+}
+
+// IsJavaEnvFile checks whether the filename is javaEnvConfFileName
+func IsJavaEnvFile(filename string) bool {
+	return filename == javaEnvConfFileName
+}
+
+// UpdateHeapSize updates the heap size in javaEnvConfFileName
+func UpdateHeapSize(newHeap int64, oldHeap int64, content string) string {
+	old := fmt.Sprintf("-Xmx%dm", oldHeap)
+	new := fmt.Sprintf("-Xmx%dm", newHeap)
+	return strings.Replace(content, old, new, 1)
 }
 
 const (

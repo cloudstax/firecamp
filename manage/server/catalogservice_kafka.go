@@ -193,7 +193,7 @@ func (s *ManageHTTPServer) updateKafkaService(ctx context.Context, r *http.Reque
 
 	err = s.updateKafkaConfigs(ctx, svc.ServiceUUID, req, requuid)
 	if err != nil {
-		glog.Errorln("updateCasConfigs error", err, "requuid", requuid, req.Service, req)
+		glog.Errorln("updateKafkaConfigs error", err, "requuid", requuid, req.Service, req)
 		return manage.ConvertToHTTPError(err)
 	}
 
