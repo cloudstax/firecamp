@@ -209,6 +209,15 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		// create the jmxremote.password file
 		jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
 
+		// not necessary to create jmxremote.access file. by default, the user has the readwrite access.
+		// if LOCAL_JMX is set to "no", cassandra-env.sh enables the jmxremote.password file,
+		// but not jmxremote.access file.
+		// https://github.com/apache/cassandra/blob/trunk/conf/cassandra-env.sh
+		// JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.password.file=/etc/cassandra/jmxremote.password"
+		// #JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.access.file=/etc/cassandra/jmxremote.access"
+		// http://cassandra.apache.org/doc/latest/operating/security.html#jmx-access, says it is optionally
+		// to enable access control to limit the scope of what defined users can do via JMX.
+
 		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
