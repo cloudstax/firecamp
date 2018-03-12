@@ -35,6 +35,7 @@ const (
 	CatalogCreateElasticSearchOp = CatalogOpPrefix + "Create-ElasticSearch"
 	CatalogCreateKibanaOp        = CatalogOpPrefix + "Create-Kibana"
 	CatalogCreateLogstashOp      = CatalogOpPrefix + "Create-Logstash"
+	CatalogCreateTelegrafOp      = CatalogOpPrefix + "Create-Telegraf"
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
@@ -610,6 +611,19 @@ type CatalogCreateLogstashRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogLogstashOptions
+}
+
+// CatalogTelegrafOptions defines the Telegraf creation options
+type CatalogTelegrafOptions struct {
+	CollectIntervalSecs int
+	MonitorServiceName  string
+}
+
+// CatalogCreateTelegrafRequest creates a Telegraf service.
+type CatalogCreateTelegrafRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogTelegrafOptions
 }
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.

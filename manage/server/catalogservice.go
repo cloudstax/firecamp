@@ -16,6 +16,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/postgres"
+	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
@@ -50,6 +51,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createKibanaService(ctx, r, requuid)
 	case manage.CatalogCreateLogstashOp:
 		return s.createLogstashService(ctx, r, requuid)
+	case manage.CatalogCreateTelegrafOp:
+		return s.createTelegrafService(ctx, r, requuid)
 	case manage.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
@@ -644,6 +647,76 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	glog.Infoln("created logstash service", serviceUUID, "requuid", requuid, req.Service)
 
 	// logstash does not require additional init work. set service initialized
+	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+}
+
+func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogCreateTelegrafRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogCreateTelegrafRequest decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = telcatalog.ValidateRequest(req)
+	if err != nil {
+		glog.Errorln("CatalogCreateTelegrafRequest parameters are not valid, requuid", requuid, req)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("CatalogCreateTelegrafRequest invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// get the monitor service
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.MonitorServiceName)
+	if err != nil {
+		glog.Errorln("get service", req.Options.MonitorServiceName, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("get service", svc, "requuid", requuid)
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// generate the service specific env variables
+	serviceEnvs, err := telcatalog.GenServiceEnvs(attr)
+	if err != nil {
+		glog.Errorln("GenServiceEnvs error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// create the service in the control plane and the container platform
+	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+		req.Service.ServiceName, attr, members, serviceEnvs, req.Options, req.Resource)
+	if err != nil {
+		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	if err != nil {
+		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("created telegraf service", serviceUUID, "to monitor service", req.Options, "requuid", requuid, req.Service)
+
+	// telegraf does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
