@@ -66,6 +66,10 @@ Redis cluster setup tool, redis-trib.rb, does not support auth pass yet. See Red
 
 The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (remove all keys from all databases), FLUSHDB (similar, but from the current database), and SHUTDOWN, are disabled. The CONFIG (reconfiguring server at runtime) command could be renamed when creating the service. It might be useful at some conditions. For example, if you hit latency issue, could enable latency monitor, "CONFIG SET latency-monitor-threshold <milliseconds>", to collect data. Setting the new name to the empty string will disable the CONFIG command.
 
+## Monitoring
+
+FireCamp uses Telegraf to monitor Redis and send metrics to AWS CloudWatch. You could create a Telegraf service for the Redis Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf).
+
 ## Update the Service
 
 If you want to increase the memory size, change the password, etc, you could update Redis config via the cli. For example, to change the AUTH password, run `firecamp-service-cli -op=update-service -service-type=redis -region=us-east-1 -cluster=t1 -service-name=myredis -redis-auth-pass=newpass`. See the firecamp cli help for the detail options, `firecamp-service-cli -op=update-service -service-type=redis --help`.

@@ -25,6 +25,10 @@ The simple example steps:
 
 In the future, [SASL](https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooKeeper+and+SASL) and [SSL](https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooKeeper+SSL+User+Guide) will be supported.
 
+## Monitoring
+
+FireCamp uses Telegraf to monitor ZooKeeper and send metrics to AWS CloudWatch. You could create a Telegraf service for the ZooKeeper Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf).
+
 ## JVM Configs
 
 By default, the Java heap size is set to 4GB. If your ZooKeeper wants other memory, you could specify the "zk-heap-size" when creating the ZooKeeper service by the firecamp-service-cli.
