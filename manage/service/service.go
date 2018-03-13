@@ -116,24 +116,20 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 		return "", err
 	}
 
-	hostedZoneID := ""
-	if req.RegisterDNS {
-		if len(domainName) == 0 {
-			// use the default domainName
-			domainName = dns.GenDefaultDomainName(req.Service.Cluster)
-		}
-
-		// check if the hosted zone exists
-		private := true
-		hostedZoneID, err = s.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, req.Service.Region, private)
-		if err != nil {
-			glog.Errorln("GetOrCreateHostedZoneIDByName error", err, "domain", domainName,
-				"vpc", vpcID, "requuid", requuid, req.Service)
-			return "", err
-		}
-		glog.Infoln("get hostedZoneID", hostedZoneID, "for domain", domainName,
-			"vpc", vpcID, "requuid", requuid, req.Service)
+	if len(domainName) == 0 {
+		// use the default domainName
+		domainName = dns.GenDefaultDomainName(req.Service.Cluster)
 	}
+
+	// check if the hosted zone exists
+	private := true
+	hostedZoneID, err := s.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, req.Service.Region, private)
+	if err != nil {
+		glog.Errorln("GetOrCreateHostedZoneIDByName error", err, "domain", domainName,
+			"vpc", vpcID, "requuid", requuid, req.Service)
+		return "", err
+	}
+	glog.Infoln("get hostedZoneID", hostedZoneID, "for domain", domainName, "vpc", vpcID, "requuid", requuid, req.Service)
 
 	// create service volumes
 	svols := &common.ServiceVolumes{}
@@ -332,9 +328,11 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 	// for the stateless service, delete the service's dns record, and delete the service record and service attr record in db.
 	if sattr.ServiceType == common.ServiceTypeStateless {
-		// delete service dns
-		dnsname := dns.GenDNSName(sattr.ServiceName, sattr.DomainName)
-		s.deleteDNSRecord(ctx, dnsname, sattr.HostedZoneID, requuid)
+		if sattr.RegisterDNS {
+			// delete service dns
+			dnsname := dns.GenDNSName(sattr.ServiceName, sattr.DomainName)
+			s.deleteDNSRecord(ctx, dnsname, sattr.HostedZoneID, requuid)
+		}
 
 		// delete service attr
 		err = s.dbIns.DeleteServiceAttr(ctx, sattr.ServiceUUID)

@@ -118,6 +118,13 @@
           {
             "Effect":"Allow",
             "Action":[
+              "cloudwatch:PutMetricData"
+            ],
+            "Resource":"*"
+          },
+          {
+            "Effect":"Allow",
+            "Action":[
               "ec2:AssignPrivateIpAddresses",
               "ec2:UnassignPrivateIpAddresses",
               "ec2:AssociateRouteTable",
