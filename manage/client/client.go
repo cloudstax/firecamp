@@ -820,6 +820,26 @@ func (c *ManageClient) CatalogCreateLogstashService(ctx context.Context, r *mana
 	return manage.ConvertHTTPError(resp)
 }
 
+// CatalogCreateTelegrafService creates a new catalog Telegraf service.
+func (c *ManageClient) CatalogCreateTelegrafService(ctx context.Context, r *manage.CatalogCreateTelegrafRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateTelegrafOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // CatalogCheckServiceInit checks if a catalog service is initialized.
 func (c *ManageClient) CatalogCheckServiceInit(ctx context.Context, r *manage.CatalogCheckServiceInitRequest) (initialized bool, statusMsg string, err error) {
 	b, err := json.Marshal(r)

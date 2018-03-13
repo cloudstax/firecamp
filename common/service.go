@@ -14,6 +14,7 @@ const (
 	CatalogService_ElasticSearch = "elasticsearch"
 	CatalogService_Kibana        = "kibana"
 	CatalogService_Logstash      = "logstash"
+	CatalogService_Telegraf      = "telegraf"
 
 	// The status of one service
 	// ServiceStatusCreating: creating the required resources of the service, such as volumes.
@@ -291,7 +292,7 @@ type ServiceMember struct {
 	// This will be useful for some cases. For example, prevent the member container
 	// from running when doing some maintenance for one member.
 	Status string
-	// The service member name, such as mypg-0, myredis-shard0-0
+	// The service member name, such as mypg-0, myredis-0
 	MemberName          string
 	AvailableZone       string
 	TaskID              string

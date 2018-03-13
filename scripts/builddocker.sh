@@ -304,6 +304,13 @@ BuildCatalogImages() {
   rm -f Dockerfile
   cd -
 
+  # build telegraf docker image
+  echo
+  target=$system"-telegraf"
+  image="${org}${target}:1.5"
+  path="${TOPWD}/catalog/telegraf/1.5/dockerfile/"
+  docker build -q -t $image $path
+  docker push $image
 }
 
 if [ "$buildtarget" = "all" ]; then

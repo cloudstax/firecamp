@@ -25,6 +25,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/redis"
+	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
@@ -178,6 +179,10 @@ var (
 	lsPipelineBatchSize     = flag.Int("ls-batch-size", 0, "How many events to retrieve from inputs before sending to filters+workers, 0 means using the default logstash batch size")
 	lsPipelineBatchDelay    = flag.Int("ls-batch-delay", 0, "How long to wait before dispatching an undersized batch to filters+workers, Unit: milliseconds, 0 means using the default logstash batch delay")
 
+	// The telegraf service creation specific parameters
+	telCollectIntervalSecs = flag.Int("tel-collect-interval", telcatalog.DefaultCollectIntervalSecs, "The service metrics collect interval, unit: seconds")
+	telMonitorServiceName  = flag.String("tel-monitor-service-name", "", "The stateful service to minotor")
+
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
 	fileID      = flag.String("fileid", "", "The service config file id")
@@ -270,11 +275,17 @@ func usage() {
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-type"))
 			printFlag(flag.Lookup("service-name"))
-			if *serviceType == common.CatalogService_KafkaManager {
+			// check stateless service first
+			switch *serviceType {
+			case common.CatalogService_KafkaManager:
 				printFlag(flag.Lookup("km-heap-size"))
 				printFlag(flag.Lookup("km-user"))
 				printFlag(flag.Lookup("km-passwd"))
 				printFlag(flag.Lookup("km-zk-service"))
+				return
+			case common.CatalogService_Telegraf:
+				printFlag(flag.Lookup("tel-collect-interval"))
+				printFlag(flag.Lookup("tel-monitor-service-name"))
 				return
 			}
 			printFlag(flag.Lookup("volume-type"))
@@ -569,6 +580,8 @@ func main() {
 			createKibanaService(ctx, cli)
 		case common.CatalogService_Logstash:
 			createLogstashService(ctx, cli)
+		case common.CatalogService_Telegraf:
+			createTelService(ctx, cli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				common.CatalogService_MongoDB, common.CatalogService_PostgreSQL,
@@ -576,7 +589,8 @@ func main() {
 				common.CatalogService_Kafka, common.CatalogService_KafkaManager,
 				common.CatalogService_Redis, common.CatalogService_CouchDB,
 				common.CatalogService_Consul, common.CatalogService_ElasticSearch,
-				common.CatalogService_Kibana, common.CatalogService_Logstash)
+				common.CatalogService_Kibana, common.CatalogService_Logstash,
+				common.CatalogService_Telegraf)
 			os.Exit(-1)
 		}
 
@@ -1717,6 +1731,51 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 	}
 
 	fmt.Println(time.Now().UTC(), "The postgresql service is created, wait for all containers running")
+
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createTelService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *telMonitorServiceName == "" {
+		fmt.Println("please specify the valid monitor service name")
+		os.Exit(-1)
+	}
+
+	req := &manage.CatalogCreateTelegrafRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogTelegrafOptions{
+			CollectIntervalSecs: *telCollectIntervalSecs,
+			MonitorServiceName:  *telMonitorServiceName,
+		},
+	}
+
+	err := telcatalog.ValidateRequest(req)
+	if err != nil {
+		fmt.Println("invalid parameters", err)
+		os.Exit(-1)
+	}
+
+	err = cli.CatalogCreateTelegrafService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "create service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println(time.Now().UTC(), "service is created, wait for all containers running")
 
 	waitServiceRunning(ctx, cli, req.Service)
 }
