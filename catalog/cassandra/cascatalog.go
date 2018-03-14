@@ -35,6 +35,8 @@ const (
 	jmxPort          = 7199
 	cqlPort          = 9042
 	thriftPort       = 9160
+	// TODO support upgrade
+	jolokiaPort = 8778
 
 	yamlConfFileName   = "cassandra.yaml"
 	rackdcConfFileName = "cassandra-rackdc.properties"
@@ -97,6 +99,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		{ContainerPort: jmxPort, HostPort: jmxPort},
 		{ContainerPort: cqlPort, HostPort: cqlPort, IsServicePort: true},
 		{ContainerPort: thriftPort, HostPort: thriftPort},
+		{ContainerPort: jolokiaPort, HostPort: jolokiaPort},
 	}
 
 	reserveMemMB := res.ReserveMemMB

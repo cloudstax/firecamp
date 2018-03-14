@@ -66,6 +66,14 @@ RUN sed -ri 's/^(JVM_PATCH_VERSION)=.*/\1=25/' /etc/cassandra/cassandra-env.sh
 # set the JVM TTL.
 RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/security/java.security
 
+# get jolokia jvm agent
+RUN set -ex; \
+  mkdir -p /opt/jolokia-agent/; \
+	apt-get update; \
+	apt-get install -y wget; \
+  wget http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.5.0/jolokia-jvm-1.5.0-agent.jar -O /opt/jolokia-agent/jolokia-jvm-1.5.0-agent.jar; \
+	rm -rf /var/lib/apt/lists/*
+
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "cassandra", "-f"]
 
@@ -75,3 +83,6 @@ ENTRYPOINT ["/docker-entrypoint.sh", "cassandra", "-f"]
 # 9042: CQL
 # 9160: thrift service
 EXPOSE 7000 7001 7199 9042 9160
+
+# jolokia default port
+EXPOSE 8778

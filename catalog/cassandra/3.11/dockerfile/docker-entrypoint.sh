@@ -82,5 +82,14 @@ fi
 echo $SERVICE_MEMBER
 echo
 
+# enable jolokia agent
+# TODO enable the basic auth, https://jolokia.org/reference/html/agents.html
+if [ "$PLATFORM" = "swarm" ]; then
+  # docker swarm, does not allow not using host network for service, listen on 0.0.0.0
+  export JVM_OPTS="$JVM_OPTS -javaagent:/opt/jolokia-agent/jolokia-jvm-1.5.0-agent.jar=port=8778,host=0.0.0.0"
+else
+  export JVM_OPTS="$JVM_OPTS -javaagent:/opt/jolokia-agent/jolokia-jvm-1.5.0-agent.jar=port=8778,host=$SERVICE_MEMBER"
+fi
+
 echo "$@"
 exec "$@"
