@@ -26,7 +26,7 @@ read -a members <<< "${MONITOR_SERVICE_MEMBERS}"
 IFS=$OIFS
 
 
-# add input plugin
+# add redis input plugin
 if [ "$MONITOR_SERVICE_TYPE" = "redis" ]; then
   # check the service required parameters
   # TODO simply pass redis auth password in the env variable. should fetch from DB or manage server.
@@ -53,7 +53,7 @@ if [ "$MONITOR_SERVICE_TYPE" = "redis" ]; then
   cat /firecamp/input_redis.conf >> /firecamp/telegraf.conf
 fi
 
-# add input plugin
+# add zookeeper input plugin
 if [ "$MONITOR_SERVICE_TYPE" = "zookeeper" ]; then
   servers=""
   i=0
@@ -73,6 +73,31 @@ if [ "$MONITOR_SERVICE_TYPE" = "zookeeper" ]; then
   cat /firecamp/input_zk.conf >> /firecamp/telegraf.conf
 fi
 
+# add cassandra input plugin
+if [ "$MONITOR_SERVICE_TYPE" = "cassandra" ]; then
+  jolokiaPort="8778"
+  servers=""
+  i=0
+  for m in "${members[@]}"; do
+    if [ "$i" = "0" ]; then
+      servers="\"$m:$jolokiaPort\""
+    else
+      servers+=",\"$m:$jolokiaPort\""
+    fi
+    i=$(( $i + 1 ))
+  done
+
+  # update the servers in input conf
+  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" /firecamp/input_cas.conf
+
+  # cassandra has a few system keyspaces, such as system, system_auth, system_schema. The system
+  # keyspace and system_schema keyspace have many tables. Lots of metrics will get published.
+  # TODO monitor table metrics for the user keyspaces.
+  # TODO check and add the user keyspaces automatically.
+
+  # add service input plugin to telegraf.conf
+  cat /firecamp/input_cas.conf >> /firecamp/telegraf.conf
+fi
 
 # add output plugin
 # Note: CloudWatch does not support delete metric, has to wait till it is automatically removed.
