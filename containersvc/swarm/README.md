@@ -26,7 +26,9 @@ FireCamp assigns a unique DNS name for every service member. For example, the cl
 
 The cluster name has to be unique for the swarm clusters in the same VPC. If 2 swarm clusters have the same name and creates the service with the same name as well, the members of these 2 services will have the same DNS name. This will mess up the service membership. Different VPCs will have different DNS servers, different HostedZone in AWS Route53. So the swarm clusters in different VPCs could have the same name.
 
-3. Add the availability zone labels to docker engine at every node.
+3. Add FireCamp tag to each node, tag key: firecamp-worker, value: clustername.
+
+4. Add the availability zone labels to docker engine at every node.
 
 The availability zone labels are required to run the service on part of the availability zones in one cluster. If all availability zones will be included in the service, could skip this step. For example, your swarm cluster has 3 availability zones and you plan to create a 3 or more replicas stateful service such as ZooKeeper.
 
@@ -34,7 +36,7 @@ For example, on the 3 availability zones cluster, Redis may be deployed to 1 or 
 
 If the cluster includes only 1 or 2 availability zones and Redis is deployed to all (1 or 2) availability zones, could also skip this step.
 
-4. Install FireCamp plugin on every swarm worker node.
+5. Install FireCamp plugin on every swarm worker node.
 
 Create the FireCamp directory: `sudo mkdir -p /var/lib/firecamp` and `sudo mkdir -p /var/log/firecamp`.
 
@@ -44,19 +46,19 @@ docker plugin install --grant-all-permissions cloudstax/firecamp-volume:0.9.x PL
 docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.x CLUSTER=c1
 ```
 
-5. Install FireCamp log plugin on every swarm manager node.
+6. Install FireCamp log plugin on every swarm manager node.
 
 Create the FireCamp directory: `sudo mkdir -p /var/lib/firecamp` and `sudo mkdir -p /var/log/firecamp`.
 
 Install plugin for the release, such as release 0.9.x: `docker plugin install --grant-all-permissions cloudstax/firecamp-log:0.9.x CLUSTER=c1`.
 
-6. Create the FireCamp manageserver service on the swarm manager node.
+7. Create the FireCamp manageserver service on the swarm manager node.
 
 The example command for release 0.9.x:
 `docker service create --name firecamp-manageserver --constraint node.role==manager --publish mode=host,target=27040,published=27040 --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --replicas 1 --log-driver=cloudstax/firecamp-log:0.9.x --log-opt ServiceUUID=firecamp --log-opt ServiceMember=manageserver -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a,us-east-1b,us-east-1c -e CLUSTER=c1 cloudstax/firecamp-manageserver:0.9.x`
 
 Please update the AVAILABILITY_ZONES, CLUSTER, the manageserver docker image tag and firecamp log plugin tag accordingly accordingly to your environment. Please do NOT change others.
 
-7. Create the stateful service.
+8. Create the stateful service.
 
 For example, to create a 2 replicas PostgreSQL, copy the firecamp-service-cli to the manager node and simply run: `firecamp-service-cli -cluster=c1 -op=create-service -service-name=pg1 -service-type=postgresql -replicas=2 -volume-size=1`
