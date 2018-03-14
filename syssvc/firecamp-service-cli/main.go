@@ -1781,6 +1781,10 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
+	// sometimes, the container orchestration framework returns NotFound when GetServiceStatus right
+	// after the service is created. sleep some time.
+	time.Sleep(retryWaitSeconds)
+
 	for sec := time.Duration(0); sec < maxServiceWaitSeconds; sec += retryWaitSeconds {
 		status, err := cli.GetServiceStatus(ctx, r)
 		if err != nil {
