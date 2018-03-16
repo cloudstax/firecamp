@@ -1,5 +1,16 @@
 This doc discusses about the common mechanisms shared by all catalog services.
 
+# Monitoring
+
+FireCamp integrates with Telegraf to monitor the stateful services. You could create one telegraf service for one stateful service. For more details, please refer to[FireCamp Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf).
+
+
+# Max Memory and CPU
+
+In general, you could set the reserved and max memory for the stateful service container. By default, the reserved memory is 256MB, and the max memory is unlimited. You could set the them when creating the service, "reserve-memory" and "max-memory". For the JVM based service such as Kafka, the reserved memory will be the max size of JVM heap size and reserved memory, max(JVM heap size, reserved memory).
+
+You could also set the reserved and max cpu for the stateful service container, "reserve-cpuunits" and "max-cpuunits". AWS ECS assigns 1,024 cpu units for every CPU core. By default, the reserved cpu units is 256, and no limit for the max cpu units.
+
 # Logging
 
 FireCamp integrates with cloud logs. On AWS, the service logs are sent to AWS CloudWatch.

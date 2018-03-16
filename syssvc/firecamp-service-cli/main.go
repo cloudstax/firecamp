@@ -275,6 +275,10 @@ func usage() {
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-type"))
 			printFlag(flag.Lookup("service-name"))
+			printFlag(flag.Lookup("max-cpuunits"))
+			printFlag(flag.Lookup("reserve-cpuunits"))
+			printFlag(flag.Lookup("max-memory"))
+			printFlag(flag.Lookup("reserve-memory"))
 			// check stateless service first
 			switch *serviceType {
 			case common.CatalogService_KafkaManager:
@@ -288,6 +292,7 @@ func usage() {
 				printFlag(flag.Lookup("tel-monitor-service-name"))
 				return
 			}
+			// create stateful service
 			printFlag(flag.Lookup("volume-type"))
 			printFlag(flag.Lookup("volume-size"))
 			printFlag(flag.Lookup("volume-iops"))

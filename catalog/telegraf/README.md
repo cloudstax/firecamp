@@ -7,6 +7,10 @@ The FireCamp Telegraf container is based on the [official Telegraf image](https:
 
 One Telegraf service will monitor one stateful service and send the metrics to AWS CloudWatch. For example, you create a Redis service named "myredis" and want to see the Redis metrics. You could create a Telegraf service for the redis service, view the redis metrics and create the dashboard on AWS CloudWatch. By default, FireCamp Telegraf collects the metrics every 60 seconds. If you want to change the collection interval, you could specify "-tel-collect-interval" when creating the service.
 
+You could limit the Telegraf service memory usage by setting the "max-memory" option when creates the service.
+
+## CloudWatch Limits
+
 CloudWatch has a few limitations on the metrics retention. For example, "Data points with a period of 60 seconds (1 minute) are available for 15 days", and "After 15 days this data is still available, but is aggregated and is retrievable only with a resolution of 5 minutes. After 63 days, the data is further aggregated and is available with a resolution of 1 hour.". For more details, please refer to [CloudWatch Metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Metric).
 
 Note: CloudWatch does not support deleting metric, has to wait till it is automatically removed.

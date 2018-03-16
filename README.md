@@ -76,6 +76,7 @@ If the applications use JVM, you will need to set JVM TTL. Please check such as 
 * [ElasticSearch](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch)
 * [Kibana](https://github.com/cloudstax/firecamp/tree/master/catalog/kibana)
 * [Logstash](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash)
+* [Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf)
 * MySQL: coming soon.
 
 ## Questions and Issues
