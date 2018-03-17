@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
@@ -179,6 +180,88 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 	if !exist {
 		t.Fatalf("service %s should exist, cluster %s", service, cluster)
 	}
+
+	// update service
+	uopts := &containersvc.UpdateServiceOptions{
+		Cluster:         cluster,
+		ServiceName:     service,
+		ServiceUUID:     service + "uuid",
+		MaxCPUUnits:     utils.Int64Ptr(200),
+		ReserveCPUUnits: utils.Int64Ptr(100),
+		MaxMemMB:        utils.Int64Ptr(256),
+		ReserveMemMB:    utils.Int64Ptr(128),
+		PortMappings: []common.PortMapping{
+			{ContainerPort: 23011, HostPort: 23011},
+			{ContainerPort: 23012, HostPort: 23012},
+		},
+	}
+
+	contDef := testUpdateService(ctx, t, e, uopts)
+
+	if *contDef.Memory != *uopts.MaxMemMB ||
+		*contDef.MemoryReservation != *uopts.ReserveMemMB ||
+		*contDef.Cpu != *uopts.ReserveCPUUnits {
+		t.Fatalf("expect resource %d %d %d, get %d %d %d", *uopts.MaxMemMB, *uopts.ReserveMemMB,
+			*uopts.ReserveCPUUnits, *contDef.Memory, *contDef.MemoryReservation, *contDef.Cpu)
+	}
+	if len(contDef.PortMappings) != len(uopts.PortMappings) {
+		t.Fatalf("expect %d port mappings, get %d", len(uopts.PortMappings), len(contDef.PortMappings))
+	}
+	for i := 0; i < len(uopts.PortMappings); i++ {
+		if *contDef.PortMappings[i].ContainerPort != uopts.PortMappings[i].ContainerPort ||
+			*contDef.PortMappings[i].HostPort != uopts.PortMappings[i].HostPort {
+			t.Fatalf("expect port %d:%d, get %d:%d", uopts.PortMappings[i].ContainerPort, uopts.PortMappings[i].HostPort,
+				*contDef.PortMappings[i].ContainerPort, *contDef.PortMappings[i].HostPort)
+		}
+	}
+
+	// update service again
+	uopts1 := &containersvc.UpdateServiceOptions{
+		Cluster:      cluster,
+		ServiceName:  service,
+		ServiceUUID:  service + "uuid",
+		MaxMemMB:     utils.Int64Ptr(299),
+		ReserveMemMB: utils.Int64Ptr(199),
+	}
+
+	contDef = testUpdateService(ctx, t, e, uopts1)
+
+	if *contDef.Memory != *uopts1.MaxMemMB ||
+		*contDef.MemoryReservation != *uopts1.ReserveMemMB ||
+		*contDef.Cpu != *uopts.ReserveCPUUnits {
+		t.Fatalf("expect resource %d %d %d, get %d %d %d", *uopts1.MaxMemMB, *uopts1.ReserveMemMB,
+			*uopts.ReserveCPUUnits, *contDef.Memory, *contDef.MemoryReservation, *contDef.Cpu)
+	}
+	if len(contDef.PortMappings) != len(uopts.PortMappings) {
+		t.Fatalf("expect %d port mappings, get %d", len(uopts.PortMappings), len(contDef.PortMappings))
+	}
+	for i := 0; i < len(uopts.PortMappings); i++ {
+		if *contDef.PortMappings[i].ContainerPort != uopts.PortMappings[i].ContainerPort ||
+			*contDef.PortMappings[i].HostPort != uopts.PortMappings[i].HostPort {
+			t.Fatalf("expect port %d:%d, get %d:%d", uopts.PortMappings[i].ContainerPort, uopts.PortMappings[i].HostPort,
+				*contDef.PortMappings[i].ContainerPort, *contDef.PortMappings[i].HostPort)
+		}
+	}
+}
+
+func testUpdateService(ctx context.Context, t *testing.T, e *AWSEcs, uopts *containersvc.UpdateServiceOptions) *ecs.ContainerDefinition {
+	err := e.UpdateService(ctx, uopts)
+	if err != nil {
+		t.Fatalf("UpdateService error %s, cluster %s service %s", err, uopts.Cluster, uopts.ServiceName)
+	}
+
+	// verify the service update
+	taskDefFamily := e.genTaskDefFamilyForService(uopts.Cluster, uopts.ServiceName)
+	descInput := &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: aws.String(taskDefFamily),
+	}
+
+	svc := ecs.New(e.sess)
+	taskDef, err := svc.DescribeTaskDefinition(descInput)
+	if err != nil {
+		t.Fatalf("DescribeTaskDefinition error %s, taskDefFamily %s, cluster %s service %s", err, taskDefFamily, uopts.Cluster, uopts.ServiceName)
+	}
+	return taskDef.TaskDefinition.ContainerDefinitions[0]
 }
 
 func deleteCluster(ctx context.Context, t *testing.T, e *AWSEcs, cluster string) {

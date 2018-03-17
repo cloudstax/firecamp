@@ -11,6 +11,8 @@ In general, you could set the reserved and max memory for the stateful service c
 
 You could also set the reserved and max cpu for the stateful service container, "reserve-cpuunits" and "max-cpuunits". AWS ECS assigns 1,024 cpu units for every CPU core. By default, the reserved cpu units is 256, and no limit for the max cpu units.
 
+Note: AWS ECS does not support to limit the max cpu units. You could only set the reserved cpu units on ECS.
+
 # Logging
 
 FireCamp integrates with cloud logs. On AWS, the service logs are sent to AWS CloudWatch.

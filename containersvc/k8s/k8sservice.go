@@ -478,7 +478,7 @@ func (s *K8sSvc) createStatefulSet(ctx context.Context, opts *containersvc.Creat
 			Labels:    labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas:            s.int32Ptr(int32(opts.Replicas)),
+			Replicas:            utils.Int32Ptr(int32(opts.Replicas)),
 			ServiceName:         opts.Common.ServiceName,
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
@@ -652,6 +652,11 @@ func (s *K8sSvc) GetServiceStatus(ctx context.Context, cluster string, service s
 	return status, nil
 }
 
+// UpdateService updates the service
+func (s *K8sSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateServiceOptions) error {
+	return nil
+}
+
 // StopService stops the service on the container platform, and waits till all containers are stopped.
 // Expect no error (nil) if service is already stopped or does not exist.
 func (s *K8sSvc) StopService(ctx context.Context, cluster string, service string) error {
@@ -703,7 +708,7 @@ func (s *K8sSvc) stopService(cluster string, service string, requuid string) err
 	glog.Infoln("get statefulset for service", service, "requuid", requuid, statefulset.Status)
 
 	// update statefulset Replicas to 0
-	statefulset.Spec.Replicas = s.int32Ptr(0)
+	statefulset.Spec.Replicas = utils.Int32Ptr(0)
 	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
 	if err != nil {
 		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
@@ -728,7 +733,7 @@ func (s *K8sSvc) ScaleService(ctx context.Context, cluster string, service strin
 	glog.Infoln("get statefulset for service", service, "requuid", requuid, statefulset.Status)
 
 	// update statefulset Replicas
-	statefulset.Spec.Replicas = s.int32Ptr(int32(desiredCount))
+	statefulset.Spec.Replicas = utils.Int32Ptr(int32(desiredCount))
 	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
 	if err != nil {
 		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", service, "namespace", s.namespace)
@@ -887,10 +892,10 @@ func (s *K8sSvc) RunTask(ctx context.Context, opts *containersvc.RunTaskOptions)
 			Labels:    labels,
 		},
 		Spec: batchv1.JobSpec{
-			Parallelism: s.int32Ptr(1),
-			Completions: s.int32Ptr(1),
+			Parallelism: utils.Int32Ptr(1),
+			Completions: utils.Int32Ptr(1),
 			// allow restarting the job twice before mark the job failed.
-			BackoffLimit: s.int32Ptr(2),
+			BackoffLimit: utils.Int32Ptr(2),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      taskID,
@@ -1019,7 +1024,7 @@ func (s *K8sSvc) CreateReplicaSet(ctx context.Context, opts *containersvc.Create
 			Labels:    labels,
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Replicas: s.int32Ptr(int32(opts.Replicas)),
+			Replicas: utils.Int32Ptr(int32(opts.Replicas)),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -1144,10 +1149,6 @@ func (s *K8sSvc) createVolumeAndClaim(volOpts *containersvc.VolumeOptions, scnam
 		},
 	}
 	return vol, volClaim
-}
-
-func (s *K8sSvc) int32Ptr(i int32) *int32 {
-	return &i
 }
 
 func (s *K8sSvc) genDataVolumeStorageClassName(service string) string {

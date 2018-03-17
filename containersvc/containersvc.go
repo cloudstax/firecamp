@@ -70,6 +70,19 @@ type CreateServiceOptions struct {
 	ExternalStaticIP bool
 }
 
+type UpdateServiceOptions struct {
+	Cluster     string
+	ServiceName string
+	ServiceUUID string
+	// update cpu and memory limits
+	MaxCPUUnits     *int64
+	ReserveCPUUnits *int64
+	MaxMemMB        *int64
+	ReserveMemMB    *int64
+	// update port mappings
+	PortMappings []common.PortMapping
+}
+
 type RollingRestartOptions struct {
 	Replicas int64
 	// serviceTasks is a list of tasks for ECS, a list of pods for K8s.
@@ -93,6 +106,7 @@ type ContainerSvc interface {
 	// If meets any error, error will be returned.
 	IsServiceExist(ctx context.Context, cluster string, service string) (bool, error)
 	CreateService(ctx context.Context, opts *CreateServiceOptions) error
+	UpdateService(ctx context.Context, opts *UpdateServiceOptions) error
 	GetServiceStatus(ctx context.Context, cluster string, service string) (*common.ServiceStatus, error)
 	// StopService stops the service on the container platform, and waits till all containers are stopped.
 	// Expect no error (nil) if service is already stopped or does not exist.

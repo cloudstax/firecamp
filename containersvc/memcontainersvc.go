@@ -164,6 +164,10 @@ func (m *MemContainerSvc) AddServiceTask(ctx context.Context, cluster string, se
 	return nil
 }
 
+func (m *MemContainerSvc) UpdateService(ctx context.Context, opts *UpdateServiceOptions) error {
+	return nil
+}
+
 func (m *MemContainerSvc) StopService(ctx context.Context, cluster string, service string) error {
 	return nil
 }

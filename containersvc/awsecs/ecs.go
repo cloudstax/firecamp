@@ -719,6 +719,104 @@ func (s *AWSEcs) createEcsTaskDefinitionForTask(ctx context.Context, taskDefFami
 	return taskDef, false, nil
 }
 
+// UpdateService updates the service
+func (s *AWSEcs) UpdateService(ctx context.Context, opts *containersvc.UpdateServiceOptions) error {
+	svc := ecs.New(s.sess)
+
+	// get the latest service task definition
+	taskDefFamily := s.genTaskDefFamilyForService(opts.Cluster, opts.ServiceName)
+
+	descInput := &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: aws.String(taskDefFamily),
+	}
+
+	taskDef, err := svc.DescribeTaskDefinition(descInput)
+	if err != nil {
+		glog.Errorln("DescribeTaskDefinition error", err, taskDefFamily)
+		return err
+	}
+
+	contDef := taskDef.TaskDefinition.ContainerDefinitions[0]
+
+	// update the task definition
+	if opts.ReserveMemMB != nil {
+		glog.Infoln("update reserved memory to", *opts.ReserveMemMB, taskDefFamily)
+		contDef.MemoryReservation = aws.Int64(*opts.ReserveMemMB)
+	}
+	if opts.MaxMemMB != nil {
+		glog.Infoln("update max memory to", *opts.MaxMemMB, taskDefFamily)
+		contDef.Memory = aws.Int64(*opts.MaxMemMB)
+	}
+	if opts.ReserveCPUUnits != nil {
+		glog.Infoln("update reserved cpu to", *opts.ReserveCPUUnits, taskDefFamily)
+		contDef.Cpu = aws.Int64(*opts.ReserveCPUUnits)
+	}
+
+	if len(opts.PortMappings) != 0 {
+		portMappings := make([]*ecs.PortMapping, len(opts.PortMappings))
+		for i, portmap := range opts.PortMappings {
+			p := &ecs.PortMapping{
+				ContainerPort: aws.Int64(portmap.ContainerPort),
+				HostPort:      aws.Int64(portmap.HostPort),
+				Protocol:      aws.String(tcpProtocol),
+			}
+			portMappings[i] = p
+		}
+
+		glog.Infoln("update container port mappings", contDef.PortMappings, "to mappings", portMappings, taskDefFamily)
+
+		contDef.PortMappings = portMappings
+	}
+
+	// write the new task definition
+	regInput := &ecs.RegisterTaskDefinitionInput{
+		ContainerDefinitions: taskDef.TaskDefinition.ContainerDefinitions,
+		Family:               aws.String(taskDefFamily),
+		NetworkMode:          taskDef.TaskDefinition.NetworkMode,
+		PlacementConstraints: taskDef.TaskDefinition.PlacementConstraints,
+		TaskRoleArn:          taskDef.TaskDefinition.TaskRoleArn,
+		Volumes:              taskDef.TaskDefinition.Volumes,
+	}
+
+	resp, err := svc.RegisterTaskDefinition(regInput)
+	if err != nil {
+		glog.Errorln("RegisterTaskDefinition error", err)
+		return err
+	}
+
+	glog.Infoln("update service task definition to", *resp.TaskDefinition.Revision, "old revision", *taskDef.TaskDefinition.Revision, taskDefFamily)
+
+	// update the service
+	newTaskDef := fmt.Sprintf("%s:%d", taskDefFamily, *resp.TaskDefinition.Revision)
+	updateInput := &ecs.UpdateServiceInput{
+		Cluster:        aws.String(opts.Cluster),
+		Service:        aws.String(opts.ServiceName),
+		TaskDefinition: aws.String(newTaskDef),
+	}
+
+	// TODO control the service restart. UpdateService will automatically restart the
+	// service according to the minimum healthy percent and maximum percent parameters.
+	// https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_UpdateService.html
+	_, err = svc.UpdateService(updateInput)
+	if err != nil {
+		glog.Errorln("UpdateService error", err, newTaskDef)
+		return err
+	}
+
+	glog.Infoln("updated service to new revision", newTaskDef)
+
+	// delete the old revision
+	oldTaskDef := fmt.Sprintf("%s:%d", taskDefFamily, *taskDef.TaskDefinition.Revision)
+	err = s.deregisterTaskDefinition(ctx, oldTaskDef)
+	if err != nil {
+		glog.Errorln("deregisterTaskDefinition error", err, oldTaskDef)
+	}
+
+	glog.Infoln("deregistered the old taskDef", oldTaskDef)
+
+	return nil
+}
+
 // WaitServiceRunning waits till all service containers are running or maxWaitSeconds reaches.
 func (s *AWSEcs) WaitServiceRunning(ctx context.Context, cluster string, service string, replicas int64, maxWaitSeconds int64) error {
 	ecscli := ecs.New(s.sess)
@@ -825,7 +923,7 @@ func (s *AWSEcs) describeService(ctx context.Context, ecscli *ecs.ECS, cluster s
 	return resp.Services[0], nil
 }
 
-func (s *AWSEcs) updateService(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, desiredCount int64) error {
+func (s *AWSEcs) updateServiceCount(ctx context.Context, ecscli *ecs.ECS, cluster string, service string, desiredCount int64) error {
 	params := &ecs.UpdateServiceInput{
 		Cluster:      aws.String(cluster),
 		Service:      aws.String(service),
@@ -845,9 +943,9 @@ func (s *AWSEcs) updateService(ctx context.Context, ecscli *ecs.ECS, cluster str
 // StopService stops all service containers
 func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string) error {
 	ecscli := ecs.New(s.sess)
-	err := s.updateService(ctx, ecscli, cluster, service, 0)
+	err := s.updateServiceCount(ctx, ecscli, cluster, service, 0)
 	if err != nil {
-		glog.Errorln("updateService error", err, "service", service, "cluster", cluster)
+		glog.Errorln("updateServiceCount error", err, "service", service, "cluster", cluster)
 		if s.isServiceNotFoundError(err) || err.(awserr.Error).Code() == serviceNotActiveException {
 			return nil
 		}
@@ -867,9 +965,9 @@ func (s *AWSEcs) StopService(ctx context.Context, cluster string, service string
 // ScaleService scales the service containers up/down to the desiredCount.
 func (s *AWSEcs) ScaleService(ctx context.Context, cluster string, service string, desiredCount int64) error {
 	ecscli := ecs.New(s.sess)
-	err := s.updateService(ctx, ecscli, cluster, service, desiredCount)
+	err := s.updateServiceCount(ctx, ecscli, cluster, service, desiredCount)
 	if err != nil {
-		glog.Errorln("updateService error", err, "service", service, "desiredCount", desiredCount)
+		glog.Errorln("updateServiceCount error", err, "service", service, "desiredCount", desiredCount)
 		return err
 	}
 

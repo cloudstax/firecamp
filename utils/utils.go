@@ -71,6 +71,16 @@ func GenCallerID() string {
 	return uuid
 }
 
+// Int32Ptr returns the pointer to int32 variable
+func Int32Ptr(i int32) *int32 {
+	return &i
+}
+
+// Int64Ptr returns the pointer to int64 variable
+func Int64Ptr(i int64) *int64 {
+	return &i
+}
+
 // BoolPtr returns the pointer to bool variable
 func BoolPtr(bl bool) *bool {
 	return &bl

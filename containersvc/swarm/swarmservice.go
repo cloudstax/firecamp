@@ -616,6 +616,11 @@ func (s *SwarmSvc) updateServiceReplicas(ctx context.Context, cli *client.Client
 	return nil
 }
 
+// UpdateService updates the swarm service
+func (s *SwarmSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateServiceOptions) error {
+	return nil
+}
+
 // StopService stops all service containers
 func (s *SwarmSvc) StopService(ctx context.Context, cluster string, service string) error {
 	cli, err := s.cli.NewClient()
