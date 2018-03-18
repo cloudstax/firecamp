@@ -701,7 +701,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+	crReq, err := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, attr, members, serviceEnvs, req.Options, req.Resource)
 	if err != nil {
 		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)

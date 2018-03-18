@@ -44,7 +44,10 @@ func TestKafkaManagerCatalog(t *testing.T) {
 		User:          kmuser,
 		Password:      kmpd,
 	}
-	req := GenDefaultCreateServiceRequest(platform, region, cluster, kmservice, opts, &common.Resources{}, zkattr)
+	req, err := GenDefaultCreateServiceRequest(platform, region, cluster, kmservice, opts, &common.Resources{}, zkattr)
+	if err != nil {
+		t.Fatalf("GenDefaultCreateServiceRequest expect success, get error %s", err)
+	}
 	if req.Replicas != 1 {
 		t.Fatalf("expect 1 replica, get %s", req)
 	}

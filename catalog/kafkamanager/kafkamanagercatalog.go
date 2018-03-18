@@ -1,6 +1,7 @@
 package kafkamanagercatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -46,7 +48,7 @@ func ValidateRequest(req *manage.CatalogCreateKafkaManagerRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string,
 	service string, opts *manage.CatalogKafkaManagerOptions, res *common.Resources,
-	zkattr *common.ServiceAttr) *manage.CreateServiceRequest {
+	zkattr *common.ServiceAttr) (*manage.CreateServiceRequest, error) {
 
 	zkServers := genZkServerList(zkattr)
 
@@ -70,6 +72,19 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		reserveMemMB = opts.HeapSizeMB
 	}
 
+	// TODO support upgrade
+	userAttr := &common.KMUserAttr{
+		HeapSizeMB:    opts.HeapSizeMB,
+		ZkServiceName: opts.ZkServiceName,
+		User:          opts.User,
+		Password:      opts.Password,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
+	}
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -91,8 +106,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		PortMappings: portMappings,
 		Envkvs:       envkvs,
 		RegisterDNS:  true,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_KafkaManager,
+			AttrBytes:   b,
+		},
 	}
-	return req
+	return req, nil
 }
 
 // genZkServerList creates the zookeeper server list

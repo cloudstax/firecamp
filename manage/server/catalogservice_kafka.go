@@ -142,7 +142,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 	}
 
 	// create the service in the control plane and the container platform
-	crReq := kafkamanagercatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+	crReq, err := kafkamanagercatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, zkattr)
 	if err != nil {
 		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)

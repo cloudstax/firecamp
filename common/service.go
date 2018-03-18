@@ -145,126 +145,6 @@ type ServiceAttr struct {
 	ServiceType string
 }
 
-// ServiceUserAttr represents the custom service attributes.
-type ServiceUserAttr struct {
-	// catalog service type such as CatalogService_MongoDB.
-	ServiceType string
-	AttrBytes   []byte
-}
-
-// MongoDBUserAttr represents the custom MongoDB service attributes.
-type MongoDBUserAttr struct {
-	// if ReplicaSetOnly == true and Shards == 1, create a single replicaset, else create a sharded cluster.
-	Shards           int64
-	ReplicasPerShard int64
-	ReplicaSetOnly   bool
-	// the number of config servers, ignored if ReplicaSetOnly == true and Shards == 1.
-	ConfigServers int64
-	// the content of the key file.
-	KeyFileContent string
-}
-
-// CasUserAttr represents the custom Cassandra service attributes.
-type CasUserAttr struct {
-	HeapSizeMB      int64
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// PostgresUserAttr represents the postgresql service attributes.
-type PostgresUserAttr struct {
-	ContainerImage string
-}
-
-// RedisUserAttr represents the custom Redis service attributes.
-type RedisUserAttr struct {
-	Shards           int64
-	ReplicasPerShard int64
-
-	MemoryCacheSizeMB int64
-	DisableAOF        bool
-	AuthPass          string
-	ReplTimeoutSecs   int64
-	MaxMemPolicy      string
-	ConfigCmdName     string
-}
-
-// ZKUserAttr represents the zookeeper service attributes.
-type ZKUserAttr struct {
-	HeapSizeMB      int64
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// KafkaUserAttr represents the kafka service attributes.
-type KafkaUserAttr struct {
-	HeapSizeMB     int64
-	AllowTopicDel  bool
-	RetentionHours int64
-	ZkServiceName  string
-	// jmx remote user is added in 0.9.5
-	// TODO for the service created before 0.9.5, could use the CatalogUpdateKafkaRequest to
-	// add jmx user and password to KafkaUserAttr, update java env file, create jmx password file,
-	// update service spec to expose the jmx listening port.
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// CouchDBUserAttr represents the couchdb service attributes.
-type CouchDBUserAttr struct {
-	Admin           string
-	EncryptedPasswd string
-
-	// CouchDB Cors configs
-	EnableCors  bool
-	Credentials bool
-	Origins     string
-	Headers     string
-	Methods     string
-
-	EnableSSL bool
-}
-
-// ConsulUserAttr represents the consul service attributes.
-type ConsulUserAttr struct {
-	Datacenter string
-	Domain     string
-
-	Encrypt   string
-	EnableTLS bool
-	HTTPSPort int64
-}
-
-// ESUserAttr represents the elasticsearch service attributes.
-type ESUserAttr struct {
-	HeapSizeMB             int64
-	DedicatedMasters       int64
-	DisableDedicatedMaster bool
-	DisableForceAwareness  bool
-}
-
-// KibanaUserAttr represents the kibana service attributes.
-type KibanaUserAttr struct {
-	ESServiceName string
-	ProxyBasePath string
-	EnableSSL     bool
-}
-
-// LSUserAttr represents the logstash service attributes.
-type LSUserAttr struct {
-	HeapSizeMB     int64
-	ContainerImage string
-
-	QueueType             string
-	EnableDeadLetterQueue bool
-
-	PipelineConfigs       string
-	PipelineWorkers       int
-	PipelineOutputWorkers int
-	PipelineBatchSize     int
-	PipelineBatchDelay    int
-}
-
 // ServiceVolumes represent the volumes of one service.
 // For now, allow maximum 2 devices. Could further expand if necessary in the future.
 type ServiceVolumes struct {
@@ -371,4 +251,143 @@ type ServiceStaticIP struct {
 	ServerInstanceID string
 	// The network interface this IP is assigned to.
 	NetworkInterfaceID string
+}
+
+// ServiceUserAttr represents the custom service attributes.
+type ServiceUserAttr struct {
+	// catalog service type such as CatalogService_MongoDB.
+	ServiceType string
+	AttrBytes   []byte
+}
+
+// MongoDBUserAttr represents the custom MongoDB service attributes.
+type MongoDBUserAttr struct {
+	// if ReplicaSetOnly == true and Shards == 1, create a single replicaset, else create a sharded cluster.
+	Shards           int64
+	ReplicasPerShard int64
+	ReplicaSetOnly   bool
+	// the number of config servers, ignored if ReplicaSetOnly == true and Shards == 1.
+	ConfigServers int64
+	// the content of the key file.
+	KeyFileContent string
+}
+
+// CasUserAttr represents the custom Cassandra service attributes.
+type CasUserAttr struct {
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// PostgresUserAttr represents the postgresql service attributes.
+type PostgresUserAttr struct {
+	ContainerImage string
+}
+
+// RedisUserAttr represents the custom Redis service attributes.
+type RedisUserAttr struct {
+	Shards           int64
+	ReplicasPerShard int64
+
+	MemoryCacheSizeMB int64
+	DisableAOF        bool
+	AuthPass          string
+	ReplTimeoutSecs   int64
+	MaxMemPolicy      string
+	ConfigCmdName     string
+}
+
+// ZKUserAttr represents the zookeeper service attributes.
+type ZKUserAttr struct {
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// KafkaUserAttr represents the kafka service attributes.
+type KafkaUserAttr struct {
+	HeapSizeMB     int64
+	AllowTopicDel  bool
+	RetentionHours int64
+	ZkServiceName  string
+	// jmx remote user is added in 0.9.5
+	// TODO for the service created before 0.9.5, could use the CatalogUpdateKafkaRequest to
+	// add jmx user and password to KafkaUserAttr, update java env file, create jmx password file,
+	// update service spec to expose the jmx listening port.
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// KMUserAttr represents the kafka manager service attributes.
+type KMUserAttr struct {
+	// Kafka Manager JVM heap size
+	HeapSizeMB int64
+
+	// Kafka Manager user and password
+	User     string
+	Password string
+
+	// The existing ZooKeeper service that Kafka Manager will use.
+	ZkServiceName string
+}
+
+// CouchDBUserAttr represents the couchdb service attributes.
+type CouchDBUserAttr struct {
+	Admin           string
+	EncryptedPasswd string
+
+	// CouchDB Cors configs
+	EnableCors  bool
+	Credentials bool
+	Origins     string
+	Headers     string
+	Methods     string
+
+	EnableSSL bool
+}
+
+// ConsulUserAttr represents the consul service attributes.
+type ConsulUserAttr struct {
+	Datacenter string
+	Domain     string
+
+	Encrypt   string
+	EnableTLS bool
+	HTTPSPort int64
+}
+
+// ESUserAttr represents the elasticsearch service attributes.
+type ESUserAttr struct {
+	HeapSizeMB             int64
+	DedicatedMasters       int64
+	DisableDedicatedMaster bool
+	DisableForceAwareness  bool
+}
+
+// KibanaUserAttr represents the kibana service attributes.
+type KibanaUserAttr struct {
+	ESServiceName string
+	ProxyBasePath string
+	EnableSSL     bool
+}
+
+// LSUserAttr represents the logstash service attributes.
+type LSUserAttr struct {
+	HeapSizeMB     int64
+	ContainerImage string
+
+	QueueType             string
+	EnableDeadLetterQueue bool
+
+	PipelineConfigs       string
+	PipelineWorkers       int
+	PipelineOutputWorkers int
+	PipelineBatchSize     int
+	PipelineBatchDelay    int
+}
+
+// TGUserAttr represents the telegraf service attributes.
+type TGUserAttr struct {
+	CollectIntervalSecs int
+	MonitorServiceName  string
 }

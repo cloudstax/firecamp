@@ -8,6 +8,7 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/golang/glog"
 )
 
 const (
@@ -40,7 +41,7 @@ func ValidateRequest(req *manage.CatalogCreateTelegrafRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
 	attr *common.ServiceAttr, monitorServiceMembers []*common.ServiceMember, serviceEnvs []*common.EnvKeyValuePair,
-	opts *manage.CatalogTelegrafOptions, res *common.Resources) *manage.CreateServiceRequest {
+	opts *manage.CatalogTelegrafOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
 
 	members := ""
 	for i, m := range monitorServiceMembers {
@@ -64,6 +65,16 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 	for _, env := range serviceEnvs {
 		envkvs = append(envkvs, env)
+	}
+
+	userAttr := &common.TGUserAttr{
+		CollectIntervalSecs: opts.CollectIntervalSecs,
+		MonitorServiceName:  opts.MonitorServiceName,
+	}
+	b, err := json.Marshal(userAttr)
+	if err != nil {
+		glog.Errorln("Marshal UserAttr error", err, opts)
+		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -93,8 +104,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		// Currently firecamp telegraf is only used to monitor the stateful service. So no need to expose
 		// these ports and no need to register DNS for the telegraf service itself.
 		RegisterDNS: false,
+
+		UserAttr: &common.ServiceUserAttr{
+			ServiceType: common.CatalogService_Telegraf,
+			AttrBytes:   b,
+		},
 	}
-	return req
+	return req, nil
 }
 
 // GenServiceEnvs generates the envs for the service.
