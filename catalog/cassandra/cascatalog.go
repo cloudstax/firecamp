@@ -35,7 +35,7 @@ const (
 	jmxPort          = 7199
 	cqlPort          = 9042
 	thriftPort       = 9160
-	// TODO support upgrade
+	// jolokiaPort is added after release 0.9.4
 	jolokiaPort = 8778
 
 	yamlConfFileName   = "cassandra.yaml"
@@ -298,6 +298,33 @@ func IsJvmConfFile(filename string) bool {
 // NewJVMConfContent returns the new jvm.options file content
 func NewJVMConfContent(heapSizeMB int64) string {
 	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
+}
+
+// GenUpgradeRequest generates the UpdateServiceOptions to upgrade the service.
+// This is specific to each release. Only upgrade from the last version to current version is supported.
+func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
+	// upgrade to 0.9.5, expose the Jolokia port
+	if common.Version != common.Version095 {
+		errmsg := fmt.Sprintf("invalid upgrade version %s, target version %s", common.Version, common.Version095)
+		return nil, errors.New(errmsg)
+	}
+
+	portMappings := []common.PortMapping{
+		{ContainerPort: intraNodePort, HostPort: intraNodePort},
+		{ContainerPort: tlsIntraNodePort, HostPort: tlsIntraNodePort},
+		{ContainerPort: jmxPort, HostPort: jmxPort},
+		{ContainerPort: cqlPort, HostPort: cqlPort, IsServicePort: true},
+		{ContainerPort: thriftPort, HostPort: thriftPort},
+		{ContainerPort: jolokiaPort, HostPort: jolokiaPort},
+	}
+
+	opts := &containersvc.UpdateServiceOptions{
+		Cluster:        cluster,
+		ServiceName:    service,
+		PortMappings:   portMappings,
+		ReleaseVersion: common.Version,
+	}
+	return opts, nil
 }
 
 const (

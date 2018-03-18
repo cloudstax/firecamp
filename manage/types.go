@@ -46,6 +46,7 @@ const (
 	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
 	CatalogUpdateZooKeeperOp     = CatalogOpPrefix + "Update-ZooKeeper"
+	CatalogUpgradeCassandraOp    = CatalogOpPrefix + "Upgrade-Cassandra"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"

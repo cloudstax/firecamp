@@ -67,6 +67,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.updateKafkaService(ctx, r, requuid)
 	case manage.CatalogUpdateZooKeeperOp:
 		return s.updateZkService(ctx, r, requuid)
+	case manage.CatalogUpgradeCassandraOp:
+		return s.upgradeCasService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}

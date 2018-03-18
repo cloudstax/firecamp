@@ -3,6 +3,7 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -377,4 +378,58 @@ func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID st
 
 	glog.Infoln("updated heap size for cassandra service", serviceUUID, "requuid", requuid)
 	return nil
+}
+
+func (s *ManageHTTPServer) upgradeCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("upgradeCasService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("upgradeCasService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// check the service type is cassandra.
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	if attr.UserAttr.ServiceType != common.CatalogService_Cassandra {
+		errmsg := fmt.Sprintf("invalid request, service %s is a %s service, not cassandra service", req.ServiceName, attr.UserAttr.ServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// create the update request
+	opts, err := cascatalog.GenUpgradeRequest(s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GenUpgradeRequest error", err, "requuid", requuid, req)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// upgrade the service
+	err = s.containersvcIns.UpdateService(ctx, opts)
+	if err != nil {
+		glog.Errorln("UpdateService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("upgraded cassandra service to release", common.Version, "requuid", requuid, req)
+
+	return "", http.StatusOK
 }
