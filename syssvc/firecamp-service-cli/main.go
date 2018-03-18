@@ -69,7 +69,7 @@ const (
 )
 
 var (
-	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opListMembers, opGetConfig))
+	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opUpgrade, opListMembers, opGetConfig))
 	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
@@ -209,6 +209,8 @@ const (
 	opStart = "start-service"
 	// rolling restart service containers
 	opRollingRestart = "restart-service"
+	// upgrade service
+	opUpgrade = "upgrade-service"
 	// scale the service. scale service up will create new volumes for the new service containers.
 	// TODO scale service down will simply mark the members as inactive and stop the corresponding containers.
 	opScale       = "scale-service"
@@ -454,6 +456,14 @@ func usage() {
 				printFlag(flag.Lookup("replicas"))
 			}
 
+		case opUpgrade:
+			fmt.Printf("Upgrade the service to the current release\n")
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpgrade)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-type"))
+			printFlag(flag.Lookup("service-name"))
+
 		case opCheckInit:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opCheckInit)
 			fmt.Println("  for MongoDB and CouchDB, please set -admin and -password")
@@ -648,6 +658,9 @@ func main() {
 
 	case opStart:
 		startService(ctx, cli)
+
+	case opUpgrade:
+		upgradeService(ctx, cli)
 
 	case opRollingRestart:
 		rollingRestartService(ctx, cli)
@@ -2040,6 +2053,29 @@ func startService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("Service started")
+
+	waitServiceRunning(ctx, cli, serviceReq)
+}
+
+func upgradeService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	serviceReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
+
+	err := cli.UpgradeService(ctx, serviceReq)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "UpgradeService error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("Service upgraded")
 
 	waitServiceRunning(ctx, cli, serviceReq)
 }

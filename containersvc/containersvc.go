@@ -80,6 +80,8 @@ type UpdateServiceOptions struct {
 	ReserveMemMB    *int64
 	// update port mappings
 	PortMappings []common.PortMapping
+	// update the release version, such as 0.9.5. empty means no change.
+	ReleaseVersion string
 }
 
 type RollingRestartOptions struct {

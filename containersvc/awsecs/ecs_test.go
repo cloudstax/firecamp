@@ -240,6 +240,40 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 				*contDef.PortMappings[i].ContainerPort, *contDef.PortMappings[i].HostPort)
 		}
 	}
+
+	// update the release version
+	newVersion := "newversion"
+	uopts2 := &containersvc.UpdateServiceOptions{
+		Cluster:        cluster,
+		ServiceName:    service,
+		ReleaseVersion: newVersion,
+	}
+
+	contDef = testUpdateService(ctx, t, e, uopts2)
+
+	if *contDef.Memory != *uopts1.MaxMemMB ||
+		*contDef.MemoryReservation != *uopts1.ReserveMemMB ||
+		*contDef.Cpu != *uopts.ReserveCPUUnits {
+		t.Fatalf("expect resource %d %d %d, get %d %d %d", *uopts1.MaxMemMB, *uopts1.ReserveMemMB,
+			*uopts.ReserveCPUUnits, *contDef.Memory, *contDef.MemoryReservation, *contDef.Cpu)
+	}
+	if len(contDef.PortMappings) != len(uopts.PortMappings) {
+		t.Fatalf("expect %d port mappings, get %d", len(uopts.PortMappings), len(contDef.PortMappings))
+	}
+	for i := 0; i < len(uopts.PortMappings); i++ {
+		if *contDef.PortMappings[i].ContainerPort != uopts.PortMappings[i].ContainerPort ||
+			*contDef.PortMappings[i].HostPort != uopts.PortMappings[i].HostPort {
+			t.Fatalf("expect port %d:%d, get %d:%d", uopts.PortMappings[i].ContainerPort, uopts.PortMappings[i].HostPort,
+				*contDef.PortMappings[i].ContainerPort, *contDef.PortMappings[i].HostPort)
+		}
+	}
+	for _, ev := range contDef.Environment {
+		if *ev.Name == common.ENV_VERSION {
+			if *ev.Value != newVersion {
+				t.Fatalf("expect firecamp version %s, get %s", newVersion, *ev.Value)
+			}
+		}
+	}
 }
 
 func testUpdateService(ctx context.Context, t *testing.T, e *AWSEcs, uopts *containersvc.UpdateServiceOptions) *ecs.ContainerDefinition {

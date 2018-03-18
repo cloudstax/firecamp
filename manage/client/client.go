@@ -120,6 +120,26 @@ func (c *ManageClient) StartService(ctx context.Context, r *manage.ServiceCommon
 	return manage.ConvertHTTPError(resp)
 }
 
+// UpgradeService upgrades the service to the current release
+func (c *ManageClient) UpgradeService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.UpgradeServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // GetServiceAttr gets the service details information
 func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
 	b, err := json.Marshal(r)

@@ -768,6 +768,18 @@ func (s *AWSEcs) UpdateService(ctx context.Context, opts *containersvc.UpdateSer
 		contDef.PortMappings = portMappings
 	}
 
+	if len(opts.ReleaseVersion) != 0 {
+		// update the firecamp version
+		for _, e := range contDef.Environment {
+			if *e.Name == common.ENV_VERSION {
+				// the release version could be upgraded to new or rollback to old version.
+				glog.Infoln("update the release version from", *e.Value, "to", opts.ReleaseVersion, taskDefFamily)
+				e.Value = aws.String(opts.ReleaseVersion)
+				break
+			}
+		}
+	}
+
 	// write the new task definition
 	regInput := &ecs.RegisterTaskDefinitionInput{
 		ContainerDefinitions: taskDef.TaskDefinition.ContainerDefinitions,

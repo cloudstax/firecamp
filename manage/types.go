@@ -16,6 +16,7 @@ const (
 	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
 	StartServiceOp          = SpecialOpPrefix + "Start-Service"
 	DeleteServiceOp         = SpecialOpPrefix + "Delete-Service"
+	UpgradeServiceOp        = SpecialOpPrefix + "Upgrade-Service"
 	RunTaskOp               = SpecialOpPrefix + "Run-Task"
 	GetTaskStatusOp         = SpecialOpPrefix + "Get-Task-Status"
 	DeleteTaskOp            = SpecialOpPrefix + "Delete-Task"
