@@ -185,7 +185,6 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 	uopts := &containersvc.UpdateServiceOptions{
 		Cluster:         cluster,
 		ServiceName:     service,
-		ServiceUUID:     service + "uuid",
 		MaxCPUUnits:     utils.Int64Ptr(200),
 		ReserveCPUUnits: utils.Int64Ptr(100),
 		MaxMemMB:        utils.Int64Ptr(256),
@@ -219,7 +218,6 @@ func serviceTest(ctx context.Context, t *testing.T, e *AWSEcs, cluster string, s
 	uopts1 := &containersvc.UpdateServiceOptions{
 		Cluster:      cluster,
 		ServiceName:  service,
-		ServiceUUID:  service + "uuid",
 		MaxMemMB:     utils.Int64Ptr(299),
 		ReserveMemMB: utils.Int64Ptr(199),
 	}

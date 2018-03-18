@@ -169,6 +169,8 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 			return s.startService(ctx, w, r, requuid)
 		case manage.RollingRestartServiceOp:
 			return s.rollingRestartService(ctx, w, r, requuid)
+		case manage.UpdateServiceResourceOp:
+			return s.updateServiceResource(ctx, w, r, requuid)
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
@@ -226,6 +228,40 @@ func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonReque
 	}
 
 	return nil
+}
+
+func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.UpdateServiceResourceRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("decode UpdateServiceResourceRequest error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	opts := &containersvc.UpdateServiceOptions{
+		Cluster:         s.cluster,
+		ServiceName:     req.Service.ServiceName,
+		MaxCPUUnits:     req.MaxCPUUnits,
+		ReserveCPUUnits: req.ReserveCPUUnits,
+		MaxMemMB:        req.MaxMemMB,
+		ReserveMemMB:    req.ReserveMemMB,
+	}
+
+	err = s.containersvcIns.UpdateService(ctx, opts)
+	if err != nil {
+		glog.Errorln("update container service error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("updated container service", req.Service, "requuid", requuid)
+	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) stopService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {

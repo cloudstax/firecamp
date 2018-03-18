@@ -42,8 +42,13 @@ const (
 	// The pod init may fail a few times with "FailedMount". But after some time, volume could be finally mounted.
 	// Not sure why yet. There are many similar issues reported, but no one seems to have the answer.
 	// TODO further investigate the reason.
-	maxServiceWaitSeconds = time.Duration(300) * time.Second
-	retryWaitSeconds      = time.Duration(common.CliRetryWaitSeconds) * time.Second
+	maxServiceWaitTime = time.Duration(300) * time.Second
+	retryWaitTime      = time.Duration(common.CliRetryWaitSeconds) * time.Second
+
+	flagMaxMem     = "max-memory"
+	flagReserveMem = "reserve-memory"
+	flagMaxCPU     = "max-cpuunits"
+	flagReserveCPU = "reserve-cpuunits"
 
 	flagJmxUser   = "jmx-user"
 	flagJmxPasswd = "jmx-passwd"
@@ -64,7 +69,7 @@ const (
 )
 
 var (
-	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opListMembers, opGetConfig))
+	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opListMembers, opGetConfig))
 	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
@@ -79,10 +84,10 @@ var (
 	journalVolIops      = flag.Int64("journal-volume-iops", 0, "The service journal EBS volume Iops when io1 type is chosen, otherwise ignored")
 	journalVolSizeGB    = flag.Int64("journal-volume-size", 0, "The service journal EBS volume size, unit: GB")
 	journalVolEncrypted = flag.Bool("journal-volume-encrypted", false, "whether to create encrypted journal volume")
-	maxCPUUnits         = flag.Int64("max-cpuunits", common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
-	reserveCPUUnits     = flag.Int64("reserve-cpuunits", common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
-	maxMemMB            = flag.Int64("max-memory", common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
-	reserveMemMB        = flag.Int64("reserve-memory", common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
+	maxCPUUnits         = flag.Int64(flagMaxCPU, common.DefaultMaxCPUUnits, "The max number of cpu units for the container")
+	reserveCPUUnits     = flag.Int64(flagReserveCPU, common.DefaultReserveCPUUnits, "The number of cpu units to reserve for the container")
+	maxMemMB            = flag.Int64(flagMaxMem, common.DefaultMaxMemoryMB, "The max memory for the container, unit: MB")
+	reserveMemMB        = flag.Int64(flagReserveMem, common.DefaultReserveMemoryMB, "The memory reserved for the container, unit: MB")
 
 	// security parameters
 	admin       = flag.String("admin", "admin", "The DB admin. For PostgreSQL, use default user \"postgres\"")
@@ -196,6 +201,8 @@ const (
 	opDelete    = "delete-service"
 	// update the service configs
 	opUpdate = "update-service"
+	// update the service resource configs
+	opUpdateResource = "update-service-resource"
 	// stop all service containers
 	opStop = "stop-service"
 	// start all service containers
@@ -275,10 +282,10 @@ func usage() {
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-type"))
 			printFlag(flag.Lookup("service-name"))
-			printFlag(flag.Lookup("max-cpuunits"))
-			printFlag(flag.Lookup("reserve-cpuunits"))
-			printFlag(flag.Lookup("max-memory"))
-			printFlag(flag.Lookup("reserve-memory"))
+			printFlag(flag.Lookup(flagMaxCPU))
+			printFlag(flag.Lookup(flagReserveCPU))
+			printFlag(flag.Lookup(flagMaxMem))
+			printFlag(flag.Lookup(flagReserveMem))
 			// check stateless service first
 			switch *serviceType {
 			case common.CatalogService_KafkaManager:
@@ -397,12 +404,22 @@ func usage() {
 				printFlag(flag.Lookup("couchdb-cacert-file"))
 			}
 
+		case opUpdateResource:
+			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdateResource)
+			printFlag(flag.Lookup("region"))
+			printFlag(flag.Lookup("cluster"))
+			printFlag(flag.Lookup("service-name"))
+			printFlag(flag.Lookup(flagMaxMem))
+			printFlag(flag.Lookup(flagReserveMem))
+			printFlag(flag.Lookup(flagMaxCPU))
+			printFlag(flag.Lookup(flagReserveCPU))
+
 		case opUpdate:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpdate)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			fmt.Println("  -service-type=cassandra|redis|kafka|zookeeper")
 			printFlag(flag.Lookup("service-name"))
+			fmt.Println("  -service-type=cassandra|redis|kafka|zookeeper")
 			switch *serviceType {
 			case common.CatalogService_Cassandra:
 				printFlag(flag.Lookup(flagCasHeapSize))
@@ -598,6 +615,9 @@ func main() {
 				common.CatalogService_Telegraf)
 			os.Exit(-1)
 		}
+
+	case opUpdateResource:
+		updateServiceResource(ctx, cli)
 
 	case opUpdate:
 		switch *serviceType {
@@ -890,7 +910,7 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 }
 
 func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
-	for sec := time.Duration(0); sec < maxServiceWaitSeconds; sec += retryWaitSeconds {
+	for sec := time.Duration(0); sec < maxServiceWaitTime; sec += retryWaitTime {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err == nil {
 			if initialized {
@@ -901,10 +921,10 @@ func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *man
 		} else {
 			fmt.Println(time.Now().UTC(), "check service init error", err)
 		}
-		time.Sleep(retryWaitSeconds)
+		time.Sleep(retryWaitTime)
 	}
 
-	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceWaitTime)
 	os.Exit(-1)
 }
 
@@ -1788,9 +1808,9 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
 	// sometimes, the container orchestration framework returns NotFound when GetServiceStatus right
 	// after the service is created. sleep some time.
-	time.Sleep(retryWaitSeconds)
+	time.Sleep(retryWaitTime)
 
-	for sec := time.Duration(0); sec < maxServiceWaitSeconds; sec += retryWaitSeconds {
+	for sec := time.Duration(0); sec < maxServiceWaitTime; sec += retryWaitTime {
 		status, err := cli.GetServiceStatus(ctx, r)
 		if err != nil {
 			// The service is successfully created. It may be possible there are some
@@ -1808,10 +1828,10 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 			fmt.Println(time.Now().UTC(), "wait the service containers running, RunningCount", status.RunningCount)
 		}
 
-		time.Sleep(retryWaitSeconds)
+		time.Sleep(retryWaitTime)
 	}
 
-	fmt.Println(time.Now().UTC(), "not all service containers are running after", maxServiceWaitSeconds)
+	fmt.Println(time.Now().UTC(), "not all service containers are running after", maxServiceWaitTime)
 	os.Exit(-1)
 }
 
@@ -1939,6 +1959,45 @@ func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common
 	return members
 }
 
+func updateServiceResource(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	// get all set command-line flags
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+
+	req := &manage.UpdateServiceResourceRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+	}
+	if flagset[flagMaxCPU] {
+		req.MaxCPUUnits = utils.Int64Ptr(*maxCPUUnits)
+	}
+	if flagset[flagReserveCPU] {
+		req.ReserveCPUUnits = utils.Int64Ptr(*reserveCPUUnits)
+	}
+	if flagset[flagMaxMem] {
+		req.MaxMemMB = utils.Int64Ptr(*maxMemMB)
+	}
+	if flagset[flagReserveMem] {
+		req.ReserveMemMB = utils.Int64Ptr(*reserveMemMB)
+	}
+
+	err := cli.UpdateServiceResource(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "update service resource error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The service is updated")
+}
+
 func stopService(ctx context.Context, cli *client.ManageClient) {
 	// stop the service containers
 	if *service == "" {
@@ -2018,7 +2077,7 @@ func rollingRestartService(ctx context.Context, cli *client.ManageClient) {
 			return
 		}
 		fmt.Println(time.Now().UTC(), statusMsg)
-		time.Sleep(retryWaitSeconds)
+		time.Sleep(retryWaitTime)
 	}
 }
 

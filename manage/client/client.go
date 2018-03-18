@@ -60,6 +60,26 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 	return manage.ConvertHTTPError(resp)
 }
 
+// UpdateServiceResource updates the service resource
+func (c *ManageClient) UpdateServiceResource(ctx context.Context, r *manage.UpdateServiceResourceRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.UpdateServiceResourceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // StopService stops the service containers
 func (c *ManageClient) StopService(ctx context.Context, r *manage.ServiceCommonRequest) error {
 	b, err := json.Marshal(r)

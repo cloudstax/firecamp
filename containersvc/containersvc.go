@@ -73,7 +73,6 @@ type CreateServiceOptions struct {
 type UpdateServiceOptions struct {
 	Cluster     string
 	ServiceName string
-	ServiceUUID string
 	// update cpu and memory limits
 	MaxCPUUnits     *int64
 	ReserveCPUUnits *int64

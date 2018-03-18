@@ -6,18 +6,19 @@ import (
 
 const (
 	// special service operations
-	SpecialOpPrefix      = "?"
-	ListServiceOp        = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
-	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
-	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
-	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
-	StopServiceOp        = SpecialOpPrefix + "Stop-Service"
-	StartServiceOp       = SpecialOpPrefix + "Start-Service"
-	DeleteServiceOp      = SpecialOpPrefix + "Delete-Service"
-	RunTaskOp            = SpecialOpPrefix + "Run-Task"
-	GetTaskStatusOp      = SpecialOpPrefix + "Get-Task-Status"
-	DeleteTaskOp         = SpecialOpPrefix + "Delete-Task"
+	SpecialOpPrefix         = "?"
+	ListServiceOp           = SpecialOpPrefix + "List-Service"
+	ListServiceMemberOp     = SpecialOpPrefix + "List-ServiceMember"
+	GetConfigFileOp         = SpecialOpPrefix + "Get-Config-File"
+	GetServiceStatusOp      = SpecialOpPrefix + "Get-Service-Status"
+	ServiceInitializedOp    = SpecialOpPrefix + "Set-Service-Initialized"
+	UpdateServiceResourceOp = SpecialOpPrefix + "Update-Service-Resource"
+	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
+	StartServiceOp          = SpecialOpPrefix + "Start-Service"
+	DeleteServiceOp         = SpecialOpPrefix + "Delete-Service"
+	RunTaskOp               = SpecialOpPrefix + "Run-Task"
+	GetTaskStatusOp         = SpecialOpPrefix + "Get-Task-Status"
+	DeleteTaskOp            = SpecialOpPrefix + "Delete-Task"
 	// The service related management task
 	RollingRestartServiceOp = SpecialOpPrefix + "RollingRestart-Service"
 	GetServiceTaskStatusOp  = SpecialOpPrefix + "Get-ServiceTask-Status"
@@ -119,6 +120,15 @@ type CreateServiceRequest struct {
 
 	// The detail configs for each replica
 	ReplicaConfigs []*ReplicaConfig
+}
+
+// UpdateServiceResourceRequest updates the service resource.
+type UpdateServiceResourceRequest struct {
+	Service         *ServiceCommonRequest
+	MaxCPUUnits     *int64
+	ReserveCPUUnits *int64
+	MaxMemMB        *int64
+	ReserveMemMB    *int64
 }
 
 // GetServiceAttributesResponse returns the service's attributes.
