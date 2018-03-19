@@ -327,6 +327,11 @@ func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, se
 				break
 			}
 		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("the server properties file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
@@ -360,6 +365,11 @@ func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID 
 				cfgIndex = i
 				break
 			}
+		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("the jvm file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
 		}
 
 		// fetch the config file
@@ -447,6 +457,8 @@ func (s *ManageHTTPServer) upgradeKafkaService(ctx context.Context, r *http.Requ
 	return "", http.StatusOK
 }
 
+// Upgrade to 0.9.5
+
 func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) error {
 	// upgrade kafka service created before version 0.9.5.
 	// - update java env file
@@ -473,16 +485,16 @@ func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *c
 	newua.JmxRemotePasswd = jmxPasswd
 
 	// create jmx password and access files
-	err = s.createKafkaJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
+	err = s.createKafkaJmxFilesVersion095(ctx, members, jmxUser, jmxPasswd, requuid)
 	if err != nil {
-		glog.Errorln("createKafkaJmxFiles error", err, "requuid", requuid, req)
+		glog.Errorln("createKafkaJmxFilesVersion095 error", err, "requuid", requuid, req)
 		return err
 	}
 
 	// upgrade kafka java env file
-	err = s.upgradeKafkaJavaEnvFile(ctx, members, requuid)
+	err = s.upgradeKafkaJavaEnvFileVersion095(ctx, members, requuid)
 	if err != nil {
-		glog.Errorln("upgradeKafkaJavaEnvFile error", err, "requuid", requuid, req)
+		glog.Errorln("upgradeKafkaJavaEnvFileVersion095 error", err, "requuid", requuid, req)
 		return err
 	}
 
@@ -508,7 +520,7 @@ func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *c
 	return nil
 }
 
-func (s *ManageHTTPServer) upgradeKafkaJavaEnvFile(ctx context.Context, members []*common.ServiceMember, requuid string) error {
+func (s *ManageHTTPServer) upgradeKafkaJavaEnvFileVersion095(ctx context.Context, members []*common.ServiceMember, requuid string) error {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -518,6 +530,11 @@ func (s *ManageHTTPServer) upgradeKafkaJavaEnvFile(ctx context.Context, members 
 				cfgIndex = i
 				break
 			}
+		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("not find jvm conf file, service uuid %s, requuid %s", member.ServiceUUID, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
 		}
 
 		// fetch the config file
@@ -542,34 +559,43 @@ func (s *ManageHTTPServer) upgradeKafkaJavaEnvFile(ctx context.Context, members 
 	return nil
 }
 
-func (s *ManageHTTPServer) createKafkaJmxFiles(ctx context.Context, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
-	version := int64(0)
-
+func (s *ManageHTTPServer) createKafkaJmxFilesVersion095(ctx context.Context, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
 	for _, member := range members {
-		// create jmx password file
-		cfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
-		jmxPasswdCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, cfg, version, requuid)
+		// the upgrade request may fail and get retried. if jmx password file exists, update it with the new password.
+		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
+		newcfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
+		err := s.createOrUpdateJmxFileVersion095(ctx, member, cfgIndex, newcfg, requuid)
 		if err != nil {
-			glog.Errorln("create jmx password config file error", err, "requuid", requuid, member)
+			glog.Errorln("create or update jmx password file error", err, "requuid", requuid, member)
 			return err
 		}
 
-		glog.Infoln("created jmx password file for member, requuid", requuid, member)
-
-		// create jmx access file
-		cfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
-		jmxAccessCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, cfg, version, requuid)
+		// the upgrade request may fail and get retried. if jmx access file exists, update it.
+		cfgIndex = s.jmxAccessFileIndex(member.Configs)
+		newcfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
+		err = s.createOrUpdateJmxFileVersion095(ctx, member, cfgIndex, newcfg, requuid)
 		if err != nil {
-			glog.Errorln("create jmx access config file error", err, "requuid", requuid, member)
+			glog.Errorln("create or update jmx access file error", err, "requuid", requuid, member)
 			return err
 		}
+	}
 
-		glog.Infoln("created jmx access file for member, requuid", requuid, member)
+	glog.Infoln("created jmx password and access configs for service", members[0].ServiceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) createOrUpdateJmxFileVersion095(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) error {
+	if cfgIndex < 0 {
+		// jmx file not exists, create it
+		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
+		if err != nil {
+			glog.Errorln("create jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
+			return err
+		}
 
 		// update member configs
-		// update serviceMember to point to the new config file
 		newConfigs := db.CopyMemberConfigs(member.Configs)
-		newConfigs = append(newConfigs, jmxPasswdCfg, jmxAccessCfg)
+		newConfigs = append(newConfigs, jmxCfg)
 
 		newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
 		err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
@@ -578,9 +604,23 @@ func (s *ManageHTTPServer) createKafkaJmxFiles(ctx context.Context, members []*c
 			return err
 		}
 
-		glog.Infoln("created jmx password and access configs for member, requuid", requuid, newMember)
+		glog.Infoln("created jmx config file", newcfg.FileName, "requuid", requuid, member)
+	} else {
+		// jmx file exists, update it
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, member.Configs[cfgIndex].FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, member.Configs[cfgIndex])
+			return err
+		}
+
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newcfg.Content, requuid)
+		if err != nil {
+			glog.Errorln("update the existing jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("updated jmx config file", newcfg.FileName, "requuid", requuid, member)
 	}
 
-	glog.Infoln("created jmx password and access configs for service", members[0].ServiceUUID, "requuid", requuid)
 	return nil
 }

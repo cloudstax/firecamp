@@ -274,6 +274,10 @@ func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServ
 func UpgradeJavaEnvFileContentToVersion095(oldContent string, cluster string, memberName string) string {
 	domain := dns.GenDefaultDomainName(cluster)
 	memberHost := dns.GenDNSName(memberName, domain)
+	if strings.Index(oldContent, memberHost) > 0 {
+		glog.Infoln("java env file already includes jmx configs", oldContent)
+		return oldContent
+	}
 	return oldContent + fmt.Sprintf(jmxConfig, memberHost, jmxPort)
 }
 

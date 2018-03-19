@@ -311,8 +311,8 @@ type KafkaUserAttr struct {
 	RetentionHours int64
 	ZkServiceName  string
 	// jmx remote user is added in 0.9.5, upgrade to 0.9.5 will do:
-	// - add jmx options into java env file
 	// - create jmx password and access file
+	// - add jmx options into java env file
 	// - add jmx user and password to KafkaUserAttr
 	// - update service spec to expose the jmx listening port
 	JmxRemoteUser   string
