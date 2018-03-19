@@ -259,18 +259,26 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
+func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
+	for i, c := range memberConfigs {
+		if catalog.IsJmxPasswdConfFile(c.FileName) {
+			return i
+		}
+	}
+	return -1
+}
+
 func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID string,
 	members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
 	for _, member := range members {
-		var cfg *common.MemberConfig
-		cfgIndex := -1
-		for i, c := range member.Configs {
-			if catalog.IsJmxPasswdConfFile(c.FileName) {
-				cfg = c
-				cfgIndex = i
-				break
-			}
+		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
+		if cfgIndex < 0 {
+			errmsg := fmt.Sprintf("jmx passwd file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
 		}
+
+		cfg := member.Configs[cfgIndex]
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
@@ -295,18 +303,26 @@ func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID 
 	return nil
 }
 
+func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.MemberConfig) int {
+	for i, c := range memberConfigs {
+		if catalog.IsJmxAccessConfFile(c.FileName) {
+			return i
+		}
+	}
+	return -1
+}
+
 func (s *ManageHTTPServer) updateJmxAccessFile(ctx context.Context, serviceUUID string,
 	members []*common.ServiceMember, jmxUser string, oldJmxUser string, requuid string) error {
 	for _, member := range members {
-		var cfg *common.MemberConfig
-		cfgIndex := -1
-		for i, c := range member.Configs {
-			if catalog.IsJmxAccessConfFile(c.FileName) {
-				cfg = c
-				cfgIndex = i
-				break
-			}
+		cfgIndex := s.jmxAccessFileIndex(member.Configs)
+		if cfgIndex < 0 {
+			errmsg := fmt.Sprintf("jmx access file not found for member %s, requuid", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
 		}
+
+		cfg := member.Configs[cfgIndex]
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
@@ -794,6 +810,11 @@ func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member 
 			cfgIndex = i
 			break
 		}
+	}
+	if cfgIndex == -1 {
+		errmsg := fmt.Sprintf("consul config file not found, service uuid %s, requuid %s", member.ServiceUUID, requuid)
+		glog.Errorln(errmsg)
+		return errors.New(errmsg)
 	}
 
 	// fetch the config file

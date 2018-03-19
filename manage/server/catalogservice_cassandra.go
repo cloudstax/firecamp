@@ -356,6 +356,11 @@ func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID st
 				break
 			}
 		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("the jvm file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)

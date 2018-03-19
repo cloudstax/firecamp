@@ -3,6 +3,7 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -211,16 +212,28 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID s
 	return nil
 }
 
+func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requuid string) (cfgIndex int, cfg *common.MemberConfig, err error) {
+	cfgIndex = -1
+	for i, c := range member.Configs {
+		if rediscatalog.IsRedisConfFile(c.FileName) {
+			cfg = c
+			cfgIndex = i
+			break
+		}
+	}
+	if cfgIndex == -1 {
+		errmsg := fmt.Sprintf("the redis config file not found for member %s, requuid %s", member.MemberName, requuid)
+		return -1, nil, errors.New(errmsg)
+	}
+	return cfgIndex, cfg, nil
+}
+
 func (s *ManageHTTPServer) updateRedisMemberConfigs(ctx context.Context, serviceUUID string, members []*common.ServiceMember, ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest, requuid string) error {
 	for _, member := range members {
-		var cfg *common.MemberConfig
-		cfgIndex := -1
-		for i, c := range member.Configs {
-			if rediscatalog.IsRedisConfFile(c.FileName) {
-				cfg = c
-				cfgIndex = i
-				break
-			}
+		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
+		if err != nil {
+			glog.Errorln(err)
+			return err
 		}
 
 		// fetch the config file
@@ -330,14 +343,10 @@ func (s *ManageHTTPServer) updateRedisStaticIPs(ctx context.Context, serviceUUID
 }
 
 func (s *ManageHTTPServer) updateRedisMemberStaticIP(ctx context.Context, member *common.ServiceMember, requuid string) error {
-	var cfg *common.MemberConfig
-	cfgIndex := -1
-	for i, c := range member.Configs {
-		if rediscatalog.IsRedisConfFile(c.FileName) {
-			cfg = c
-			cfgIndex = i
-			break
-		}
+	cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
+	if err != nil {
+		glog.Errorln(err)
+		return err
 	}
 
 	// fetch the config file
@@ -380,14 +389,10 @@ func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID stri
 }
 
 func (s *ManageHTTPServer) enableRedisMemberAuth(ctx context.Context, member *common.ServiceMember, requuid string) error {
-	var cfg *common.MemberConfig
-	cfgIndex := -1
-	for i, c := range member.Configs {
-		if rediscatalog.IsRedisConfFile(c.FileName) {
-			cfg = c
-			cfgIndex = i
-			break
-		}
+	cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
+	if err != nil {
+		glog.Errorln(err)
+		return err
 	}
 
 	// fetch the config file

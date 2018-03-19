@@ -3,6 +3,7 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -230,6 +231,11 @@ func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID str
 				cfgIndex = i
 				break
 			}
+		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("the java env file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
 		}
 
 		// fetch the config file
