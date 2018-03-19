@@ -283,6 +283,10 @@ func usage() {
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-type"))
+			if *serviceType == "" {
+				fmt.Println("\nPlease specify the service type and check the detail help for one service. For example, firecamp-service-cli -op=create-service -service-type=cassandra")
+				return
+			}
 			printFlag(flag.Lookup("service-name"))
 			printFlag(flag.Lookup(flagMaxCPU))
 			printFlag(flag.Lookup(flagReserveCPU))
