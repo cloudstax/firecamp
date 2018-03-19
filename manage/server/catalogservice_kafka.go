@@ -3,16 +3,19 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -378,5 +381,206 @@ func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID 
 	}
 
 	glog.Infoln("updated heap size for kafka service", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) upgradeKafkaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("upgradeKafkaService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("upgradeKafkaService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// check the service type.
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	if attr.UserAttr.ServiceType != common.CatalogService_Kafka {
+		errmsg := fmt.Sprintf("invalid request, service %s is a %s service, not kafka service", req.ServiceName, attr.UserAttr.ServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// upgrade to version 0.9.5, add jmx user & password
+	if common.Version == common.Version095 {
+		err = s.upgradeKafkaToVersion095(ctx, attr, req, requuid)
+		if err != nil {
+			return manage.ConvertToHTTPError(err)
+		}
+	}
+
+	// update container service spec to expose the jmx listening port.
+	// create the update request
+	opts, err := kafkacatalog.GenUpgradeRequest(s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GenUpgradeRequest error", err, "requuid", requuid, req)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// upgrade the service
+	err = s.containersvcIns.UpdateService(ctx, opts)
+	if err != nil {
+		glog.Errorln("UpdateService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("upgraded kafka service to release", common.Version, "requuid", requuid, req)
+
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) error {
+	// upgrade kafka service created before version 0.9.5.
+	// - update java env file
+	// - create jmx password and access files
+	// - add jmx user and password to KafkaUserAttr
+	ua := &common.KafkaUserAttr{}
+	err := json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+	if err != nil {
+		glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req)
+		return err
+	}
+
+	members, err := s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
+		return err
+	}
+
+	jmxUser := catalog.JmxDefaultRemoteUser
+	jmxPasswd := utils.GenUUID()
+
+	newua := db.CopyKafkaUserAttr(ua)
+	newua.JmxRemoteUser = jmxUser
+	newua.JmxRemotePasswd = jmxPasswd
+
+	// create jmx password and access files
+	err = s.createKafkaJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
+	if err != nil {
+		glog.Errorln("createKafkaJmxFiles error", err, "requuid", requuid, req)
+		return err
+	}
+
+	// upgrade kafka java env file
+	err = s.upgradeKafkaJavaEnvFile(ctx, members, requuid)
+	if err != nil {
+		glog.Errorln("upgradeKafkaJavaEnvFile error", err, "requuid", requuid, req)
+		return err
+	}
+
+	// update the user attr
+	b, err := json.Marshal(newua)
+	if err != nil {
+		glog.Errorln("Marshal user attr error", err, "requuid", requuid, req)
+		return err
+	}
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_Kafka,
+		AttrBytes:   b,
+	}
+
+	newAttr := db.UpdateServiceUserAttr(attr, userAttr)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req)
+		return err
+	}
+
+	glog.Infoln("upgraded kafka to version 0.9.5, requuid", requuid, req)
+	return nil
+}
+
+func (s *ManageHTTPServer) upgradeKafkaJavaEnvFile(ctx context.Context, members []*common.ServiceMember, requuid string) error {
+	for _, member := range members {
+		var cfg *common.MemberConfig
+		cfgIndex := -1
+		for i, c := range member.Configs {
+			if kafkacatalog.IsJvmConfFile(c.FileName) {
+				cfg = c
+				cfgIndex = i
+				break
+			}
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// update the original member java env conf file content
+		newContent := kafkacatalog.UpgradeJavaEnvFileContentToVersion095(cfgfile.Content, s.cluster, member.MemberName)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("add jmx configs to java env file for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("upgraded java env file for kafka service, requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) createKafkaJmxFiles(ctx context.Context, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
+	version := int64(0)
+
+	for _, member := range members {
+		// create jmx password file
+		cfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
+		jmxPasswdCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, cfg, version, requuid)
+		if err != nil {
+			glog.Errorln("create jmx password config file error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("created jmx password file for member, requuid", requuid, member)
+
+		// create jmx access file
+		cfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
+		jmxAccessCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, cfg, version, requuid)
+		if err != nil {
+			glog.Errorln("create jmx access config file error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("created jmx access file for member, requuid", requuid, member)
+
+		// update member configs
+		// update serviceMember to point to the new config file
+		newConfigs := db.CopyMemberConfigs(member.Configs)
+		newConfigs = append(newConfigs, jmxPasswdCfg, jmxAccessCfg)
+
+		newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+		err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+		if err != nil {
+			glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("created jmx password and access configs for member, requuid", requuid, newMember)
+	}
+
+	glog.Infoln("created jmx password and access configs for service", members[0].ServiceUUID, "requuid", requuid)
 	return nil
 }

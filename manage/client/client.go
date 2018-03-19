@@ -160,6 +160,26 @@ func (c *ManageClient) CatalogUpgradeCassandraService(ctx context.Context, r *ma
 	return manage.ConvertHTTPError(resp)
 }
 
+// CatalogUpgradeKafkaService upgrades the kafka service
+func (c *ManageClient) CatalogUpgradeKafkaService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogUpgradeKafkaOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // GetServiceAttr gets the service details information
 func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
 	b, err := json.Marshal(r)

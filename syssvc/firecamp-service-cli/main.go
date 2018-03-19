@@ -663,6 +663,8 @@ func main() {
 		switch *serviceType {
 		case common.CatalogService_Cassandra:
 			upgradeCassandraService(ctx, cli)
+		case common.CatalogService_Kafka:
+			upgradeKafkaService(ctx, cli)
 		default:
 			upgradeService(ctx, cli)
 		}
@@ -2098,6 +2100,27 @@ func upgradeCassandraService(ctx context.Context, cli *client.ManageClient) {
 	err := cli.CatalogUpgradeCassandraService(ctx, req)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "upgrade cassandra service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println("The catalog service is upgraded")
+}
+
+func upgradeKafkaService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+
+	req := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
+
+	err := cli.CatalogUpgradeKafkaService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "upgrade kafka service error", err)
 		os.Exit(-1)
 	}
 
