@@ -582,11 +582,11 @@ func main() {
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
 	case opCreate:
-		if *maxMemMB < *reserveMemMB {
+		if *maxMemMB != common.DefaultMaxMemoryMB && *maxMemMB < *reserveMemMB {
 			fmt.Println("Invalid request, max-memory", *maxMemMB, "should be larger than reserve-memory", *reserveMemMB)
 			os.Exit(-1)
 		}
-		if *maxCPUUnits < *reserveCPUUnits {
+		if *maxCPUUnits != common.DefaultMaxCPUUnits && *maxCPUUnits < *reserveCPUUnits {
 			fmt.Println("Invalid request, max-cpuunits", *maxCPUUnits, "should be larger than reserve-cpuunits", *reserveCPUUnits)
 			os.Exit(-1)
 		}
