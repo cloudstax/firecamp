@@ -164,7 +164,10 @@ if [ "$containerPlatform" = "ecs" ]; then
   # check if volume plugin is enabled
   enabled=$(docker plugin inspect ${org}firecamp-volume:$version | grep Enabled | grep true)
   if [ "$?" != "0" ]; then
-    echo "install firecamp volume plugin error"
+    echo "install firecamp volume plugin error, stop ecs agent"
+    # stop ecs agent to avoid this instance to be included in the cluster.
+    docker stop ${org}firecamp-amazon-ecs-agent:latest
+    echo "stop ecs agent result $?"
     exit 3
   fi
   if [ -z "$enabled" ]; then
@@ -172,7 +175,10 @@ if [ "$containerPlatform" = "ecs" ]; then
     sleep 10
     docker plugin enable ${org}firecamp-volume:$version
     if [ "$?" != "0" ]; then
-      echo "enable firecamp volume plugin error"
+      echo "enable firecamp volume plugin error, stop ecs agent"
+      # stop ecs agent to avoid this instance to be included in the cluster.
+      docker stop ${org}firecamp-amazon-ecs-agent:latest
+      echo "stop ecs agent result $?"
       exit 3
     fi
   fi
@@ -184,7 +190,13 @@ if [ "$containerPlatform" = "ecs" ]; then
     sleep 10
     docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
     if [ "$?" != "0" ]; then
-      echo "enable firecamp log plugin error"
+      echo "enable firecamp log plugin error, stop volume plugin and ecs agent"
+      # stop firecamp volume plugin
+      docker plugin disable -f ${org}firecamp-volume:$version
+      echo "disable firecamp volume plugin result $?"
+      # stop ecs agent to avoid this instance to be included in the cluster.
+      docker stop ${org}firecamp-amazon-ecs-agent:latest
+      echo "stop ecs agent result $?"
       exit 3
     fi
   fi
@@ -250,7 +262,9 @@ if [ "$containerPlatform" = "swarm" ]; then
   # initialize the swarm node
   /tmp/firecamp-swarminit -cluster="$clusterName" -role="$containerPlatformRole" -availability-zones="$azs"
   if [ "$?" != "0" ]; then
-    echo "firecamp-swarminit error"
+    echo "firecamp-swarminit error, stop docker engine"
+    service docker stop
+    echo "stop docker engine result $?"
     exit 3
   fi
 
@@ -260,7 +274,9 @@ if [ "$containerPlatform" = "swarm" ]; then
     mkdir -p /var/log/firecamp
     docker plugin install --grant-all-permissions ${org}firecamp-volume:$version PLATFORM="swarm" CLUSTER="$clusterName"
     if [ "$?" != "0" ]; then
-      echo "install firecamp volume plugin error"
+      echo "install firecamp volume plugin error, stop docker engine"
+      service docker stop
+      echo "stop docker engine result $?"
       exit 3
     fi
   fi
@@ -272,10 +288,15 @@ if [ "$containerPlatform" = "swarm" ]; then
     sleep 10
     docker plugin install --grant-all-permissions ${org}firecamp-log:$version CLUSTER="$clusterName"
     if [ "$?" != "0" ]; then
-      echo "enable firecamp log plugin error"
+      echo "enable firecamp log plugin error, stop docker engine"
+      if [ "$containerPlatformRole" = "worker" ]; then
+        echo "stop firecamp volume plugin"
+        docker plugin disable -f ${org}firecamp-volume:$version
+        echo "stop firecamp volume plugin result $?"
+      fi
+      service docker stop
+      echo "stop docker engine result $?"
       exit 3
     fi
   fi
 fi
-
-
