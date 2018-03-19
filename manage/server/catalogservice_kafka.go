@@ -27,7 +27,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -122,7 +122,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return err.Error(), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)

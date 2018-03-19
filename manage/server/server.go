@@ -216,6 +216,18 @@ func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service st
 	return "", http.StatusOK
 }
 
+func (s *ManageHTTPServer) checkRequest(service *manage.ServiceCommonRequest, res *common.Resources) error {
+	if res.MaxMemMB != common.DefaultMaxMemoryMB && res.MaxMemMB < res.ReserveMemMB {
+		return errors.New("Invalid request, max-memory should be larger than reserve-memory")
+	}
+
+	if res.MaxCPUUnits != common.DefaultMaxCPUUnits && res.MaxCPUUnits < res.ReserveCPUUnits {
+		return errors.New("Invalid request, max-cpuunits should be larger than reserve-cpuunits")
+	}
+
+	return s.checkCommonRequest(service)
+}
+
 func (s *ManageHTTPServer) checkCommonRequest(service *manage.ServiceCommonRequest) error {
 	if !s.validName.MatchString(service.ServiceName) {
 		return errors.New("Invalid request, service name is not valid")
@@ -498,7 +510,7 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("createService invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, req.Service, "error", err)

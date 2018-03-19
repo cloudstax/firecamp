@@ -228,7 +228,7 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreatePostgreSQLRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -356,7 +356,7 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateCouchDBRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -466,7 +466,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateConsulRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -539,7 +539,7 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateElasticSearchRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -580,7 +580,7 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKibanaRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -638,7 +638,7 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateLogstashRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
@@ -685,7 +685,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 		return err.Error(), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
+	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateTelegrafRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)

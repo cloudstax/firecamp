@@ -70,7 +70,7 @@ const (
 
 var (
 	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opUpgrade, opListMembers, opGetConfig))
-	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash")
+	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash|telegraf")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
 	region              = flag.String("region", "", "The AWS region")
@@ -578,6 +578,14 @@ func main() {
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
 	case opCreate:
+		if *maxMemMB < *reserveMemMB {
+			fmt.Println("Invalid request, max-memory", *maxMemMB, "should be larger than reserve-memory", *reserveMemMB)
+			os.Exit(-1)
+		}
+		if *maxCPUUnits < *reserveCPUUnits {
+			fmt.Println("Invalid request, max-cpuunits", *maxCPUUnits, "should be larger than reserve-cpuunits", *reserveCPUUnits)
+			os.Exit(-1)
+		}
 		var journalVol *common.ServiceVolume
 		if *journalVolSizeGB != 0 {
 			journalVol = &common.ServiceVolume{
