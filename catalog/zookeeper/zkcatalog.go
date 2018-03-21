@@ -147,7 +147,6 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 
 		// create the java.env file
-		// TODO handle upgrade from 0.9.4
 		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, memberHost, jmxPort)
 		javaEnvCfg := &manage.ReplicaConfigFile{
 			FileName: javaEnvConfFileName,
@@ -202,12 +201,7 @@ func UpdateHeapSize(newHeap int64, oldHeap int64, content string) string {
 
 // GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
 // This is specific to each release. Only upgrade from the last version to current version is supported.
-func GenUpgradeRequestV095(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
-	if common.Version != common.Version095 {
-		errmsg := fmt.Sprintf("invalid upgrade version %s, target version %s", common.Version, common.Version095)
-		return nil, errors.New(errmsg)
-	}
-
+func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
 	// expose jmx port in release 0.9.5
 	portMappings := []common.PortMapping{
 		{ContainerPort: ClientPort, HostPort: ClientPort, IsServicePort: true},
@@ -222,7 +216,7 @@ func GenUpgradeRequestV095(cluster string, service string) (*containersvc.Update
 		PortMappings:   portMappings,
 		ReleaseVersion: common.Version,
 	}
-	return opts, nil
+	return opts
 }
 
 // UpgradeJavaEnvFileContentToV095 adds the jmx configs to java env file

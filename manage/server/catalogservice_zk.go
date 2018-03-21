@@ -12,7 +12,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
@@ -262,74 +261,6 @@ func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID str
 
 	glog.Infoln("updated heap size for zookeeper service", serviceUUID, "requuid", requuid)
 	return nil
-}
-
-func (s *ManageHTTPServer) upgradeZkService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
-	// parse the request
-	req := &manage.ServiceCommonRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		glog.Errorln("upgradeZkService decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	err = s.checkCommonRequest(req)
-	if err != nil {
-		glog.Errorln("upgradeZkService invalid request, local cluster", s.cluster, "region",
-			s.region, "requuid", requuid, req, "error", err)
-		return err.Error(), http.StatusBadRequest
-	}
-
-	// check the service type.
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	if attr.UserAttr.ServiceType != common.CatalogService_ZooKeeper {
-		errmsg := fmt.Sprintf("invalid request, service %s is a %s service, not zookeeper service", req.ServiceName, attr.UserAttr.ServiceType)
-		glog.Errorln(errmsg, "requuid", requuid)
-		return errmsg, http.StatusBadRequest
-	}
-
-	// upgrade to version 0.9.5, add jmx user & password
-	var opts *containersvc.UpdateServiceOptions
-	if common.Version == common.Version095 {
-		err = s.upgradeZkToV095(ctx, attr, req, requuid)
-		if err != nil {
-			return manage.ConvertToHTTPError(err)
-		}
-
-		// update container service spec to expose the jmx listening port.
-		// create the update request
-		opts, err = zkcatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
-		if err != nil {
-			glog.Errorln("GenUpgradeRequestV095 error", err, "requuid", requuid, req)
-			return err.Error(), http.StatusBadRequest
-		}
-	} else {
-		errmsg := fmt.Sprintf("unsupported upgrade to version %s", common.Version)
-		glog.Errorln(errmsg, "requuid", requuid, req)
-		return errmsg, http.StatusBadRequest
-	}
-
-	// upgrade the service
-	err = s.containersvcIns.UpdateService(ctx, opts)
-	if err != nil {
-		glog.Errorln("UpdateService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	glog.Infoln("upgraded zookeeper service to release", common.Version, "requuid", requuid, req)
-
-	return "", http.StatusOK
 }
 
 // Upgrade to 0.9.5

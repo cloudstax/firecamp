@@ -465,7 +465,6 @@ func usage() {
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpgrade)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			printFlag(flag.Lookup("service-type"))
 			printFlag(flag.Lookup("service-name"))
 
 		case opCheckInit:
@@ -672,14 +671,7 @@ func main() {
 		startService(ctx, cli)
 
 	case opUpgrade:
-		switch *serviceType {
-		case common.CatalogService_Cassandra:
-			upgradeCassandraService(ctx, cli)
-		case common.CatalogService_Kafka:
-			upgradeKafkaService(ctx, cli)
-		default:
-			upgradeService(ctx, cli)
-		}
+		upgradeService(ctx, cli)
 
 	case opRollingRestart:
 		rollingRestartService(ctx, cli)
@@ -2095,48 +2087,6 @@ func upgradeService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("Service upgraded")
-}
-
-func upgradeCassandraService(ctx context.Context, cli *client.ManageClient) {
-	if *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
-	}
-
-	req := &manage.ServiceCommonRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceName: *service,
-	}
-
-	err := cli.CatalogUpgradeCassandraService(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "upgrade cassandra service error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("The catalog service is upgraded")
-}
-
-func upgradeKafkaService(ctx context.Context, cli *client.ManageClient) {
-	if *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
-	}
-
-	req := &manage.ServiceCommonRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceName: *service,
-	}
-
-	err := cli.CatalogUpgradeKafkaService(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "upgrade kafka service error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("The catalog service is upgraded")
 }
 
 func rollingRestartService(ctx context.Context, cli *client.ManageClient) {

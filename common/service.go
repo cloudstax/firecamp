@@ -299,7 +299,12 @@ type RedisUserAttr struct {
 
 // ZKUserAttr represents the zookeeper service attributes.
 type ZKUserAttr struct {
-	HeapSizeMB      int64
+	HeapSizeMB int64
+	// jmx remote user is added in 0.9.5, upgrade to 0.9.5 will do:
+	// - create jmx password and access file
+	// - add jmx options into java env file
+	// - add jmx user and password to ZKUserAttr
+	// - update service spec to expose the jmx listening port
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }
@@ -320,6 +325,8 @@ type KafkaUserAttr struct {
 }
 
 // KMUserAttr represents the kafka manager service attributes.
+// This is added in 0.9.5, upgrade to 0.9.5 will create the user attr for
+// the existing kafka manager service.
 type KMUserAttr struct {
 	// Kafka Manager JVM heap size
 	HeapSizeMB int64

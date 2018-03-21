@@ -14,6 +14,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/k8s"
@@ -172,7 +175,7 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 		case manage.UpdateServiceResourceOp:
 			return s.updateServiceResource(ctx, w, r, requuid)
 		case manage.UpgradeServiceOp:
-			return s.upgradeService(ctx, w, r, requuid)
+			return s.upgradeService(ctx, r, requuid)
 		default:
 			return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 		}
@@ -339,40 +342,6 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 	}
 
 	glog.Infoln("started container service", req, "requuid", requuid)
-	return "", http.StatusOK
-}
-
-// upgrades one service to the current release.
-// this is a common upgrade request for all services that do not require specific upgrade options.
-func (s *ManageHTTPServer) upgradeService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
-	// parse the request
-	req := &manage.ServiceCommonRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		glog.Errorln("upgradeService decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	err = s.checkCommonRequest(req)
-	if err != nil {
-		glog.Errorln("upgradeService invalid request, local cluster", s.cluster, "region",
-			s.region, "requuid", requuid, req, "error", err)
-		return err.Error(), http.StatusBadRequest
-	}
-
-	opts := &containersvc.UpdateServiceOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
-		ReleaseVersion: common.Version,
-	}
-
-	err = s.containersvcIns.UpdateService(ctx, opts)
-	if err != nil {
-		glog.Errorln("upgrade service release error", err, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	glog.Infoln("upgraded service release to", common.Version, req, "requuid", requuid)
 	return "", http.StatusOK
 }
 
@@ -749,6 +718,88 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
+	return "", http.StatusOK
+}
+
+// upgrades one service to the current release.
+// this is a common upgrade request for all services that do not require specific upgrade options.
+func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("upgradeService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("upgradeService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	if common.Version == common.Version095 {
+		return s.upgradeServiceToV095(ctx, attr, req, requuid)
+	}
+
+	errmsg = fmt.Sprintf("unsupported upgrade to version %s", common.Version)
+	glog.Errorln(errmsg, "requuid", requuid, req)
+	return errmsg, http.StatusBadRequest
+}
+
+func (s *ManageHTTPServer) upgradeServiceToV095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) (errmsg string, errcode int) {
+	// the default container service update request
+	opts := &containersvc.UpdateServiceOptions{
+		Cluster:        req.Cluster,
+		ServiceName:    req.ServiceName,
+		ReleaseVersion: common.Version,
+	}
+
+	switch attr.UserAttr.ServiceType {
+	case common.CatalogService_Cassandra:
+		// create the container service update request
+		opts = cascatalog.GenUpgradeRequestV095(s.cluster, attr.ServiceName)
+
+	case common.CatalogService_Kafka:
+		err := s.upgradeKafkaToVersion095(ctx, attr, req, requuid)
+		if err != nil {
+			return manage.ConvertToHTTPError(err)
+		}
+
+		// create the container service update request
+		opts = kafkacatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
+
+	case common.CatalogService_ZooKeeper:
+		err := s.upgradeZkToV095(ctx, attr, req, requuid)
+		if err != nil {
+			return manage.ConvertToHTTPError(err)
+		}
+
+		// create the container service update request
+		opts = zkcatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
+	}
+
+	// update the container service
+	err := s.containersvcIns.UpdateService(ctx, opts)
+	if err != nil {
+		glog.Errorln("upgrade service release error", err, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("upgraded service to release 0.9.5, requuid", requuid, req)
 	return "", http.StatusOK
 }
 

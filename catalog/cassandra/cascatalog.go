@@ -300,15 +300,10 @@ func NewJVMConfContent(heapSizeMB int64) string {
 	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
 }
 
-// GenUpgradeRequest generates the UpdateServiceOptions to upgrade the service.
+// GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service to version 095.
 // This is specific to each release. Only upgrade from the last version to current version is supported.
-func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
+func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
 	// upgrade to 0.9.5, expose the Jolokia port
-	if common.Version != common.Version095 {
-		errmsg := fmt.Sprintf("invalid upgrade version %s, target version %s", common.Version, common.Version095)
-		return nil, errors.New(errmsg)
-	}
-
 	portMappings := []common.PortMapping{
 		{ContainerPort: intraNodePort, HostPort: intraNodePort},
 		{ContainerPort: tlsIntraNodePort, HostPort: tlsIntraNodePort},
@@ -324,7 +319,7 @@ func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServ
 		PortMappings:   portMappings,
 		ReleaseVersion: common.Version,
 	}
-	return opts, nil
+	return opts
 }
 
 const (
