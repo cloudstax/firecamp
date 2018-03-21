@@ -259,94 +259,6 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
 }
 
-func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
-	for i, c := range memberConfigs {
-		if catalog.IsJmxPasswdConfFile(c.FileName) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID string,
-	members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
-	for _, member := range members {
-		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
-		if cfgIndex < 0 {
-			errmsg := fmt.Sprintf("jmx passwd file not found for member %s, requuid %s", member.MemberName, requuid)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
-
-		cfg := member.Configs[cfgIndex]
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		// replace the original member jmx passwd file content
-		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		glog.Infoln("updated jmx user & password", jmxUser, "for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("updated jmx user & password for service", serviceUUID, "requuid", requuid)
-	return nil
-}
-
-func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.MemberConfig) int {
-	for i, c := range memberConfigs {
-		if catalog.IsJmxAccessConfFile(c.FileName) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (s *ManageHTTPServer) updateJmxAccessFile(ctx context.Context, serviceUUID string,
-	members []*common.ServiceMember, jmxUser string, oldJmxUser string, requuid string) error {
-	for _, member := range members {
-		cfgIndex := s.jmxAccessFileIndex(member.Configs)
-		if cfgIndex < 0 {
-			errmsg := fmt.Sprintf("jmx access file not found for member %s, requuid", member.MemberName, requuid)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
-
-		cfg := member.Configs[cfgIndex]
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		// replace the original member jmx access file content
-		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.ReplaceJmxUserInAccessConfFile(cfgfile.Content, jmxUser, oldJmxUser)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		glog.Infoln("updated jmx access file", jmxUser, "for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("updated jmx access file for service", serviceUUID, "requuid", requuid)
-	return nil
-}
-
 func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CatalogCreateCouchDBRequest{}
@@ -879,6 +791,94 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	return nil
 }
 
+func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
+	for i, c := range memberConfigs {
+		if catalog.IsJmxPasswdConfFile(c.FileName) {
+			return i
+		}
+	}
+	return -1
+}
+
+func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID string,
+	members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
+	for _, member := range members {
+		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
+		if cfgIndex < 0 {
+			errmsg := fmt.Sprintf("jmx passwd file not found for member %s, requuid %s", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
+
+		cfg := member.Configs[cfgIndex]
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// replace the original member jmx passwd file content
+		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
+		newContent := catalog.CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("updated jmx user & password", jmxUser, "for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("updated jmx user & password for service", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.MemberConfig) int {
+	for i, c := range memberConfigs {
+		if catalog.IsJmxAccessConfFile(c.FileName) {
+			return i
+		}
+	}
+	return -1
+}
+
+func (s *ManageHTTPServer) updateJmxAccessFile(ctx context.Context, serviceUUID string,
+	members []*common.ServiceMember, jmxUser string, oldJmxUser string, requuid string) error {
+	for _, member := range members {
+		cfgIndex := s.jmxAccessFileIndex(member.Configs)
+		if cfgIndex < 0 {
+			errmsg := fmt.Sprintf("jmx access file not found for member %s, requuid", member.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
+
+		cfg := member.Configs[cfgIndex]
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// replace the original member jmx access file content
+		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
+		newContent := catalog.ReplaceJmxUserInAccessConfFile(cfgfile.Content, jmxUser, oldJmxUser)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("updated jmx access file", jmxUser, "for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("updated jmx access file for service", serviceUUID, "requuid", requuid)
+	return nil
+}
+
 func (s *ManageHTTPServer) getExistingJmxPasswd(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (jmxUser string, jmxPasswd string, err error) {
 	// check if service attributes exist. If yes, this would be a retry request, use the existing JmxRemoteUser & JmxRemotePasswd.
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
@@ -931,4 +931,70 @@ func (s *ManageHTTPServer) getExistingJmxPasswd(ctx context.Context, req *manage
 		glog.Errorln(errmsg)
 		return "", "", errors.New(errmsg)
 	}
+}
+
+func (s *ManageHTTPServer) createJmxFiles(ctx context.Context, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) error {
+	for _, member := range members {
+		// the upgrade request may fail and get retried. if jmx password file exists, update it with the new password.
+		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
+		newcfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
+		err := s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
+		if err != nil {
+			glog.Errorln("create or update jmx password file error", err, "requuid", requuid, member)
+			return err
+		}
+
+		// the upgrade request may fail and get retried. if jmx access file exists, update it.
+		cfgIndex = s.jmxAccessFileIndex(member.Configs)
+		newcfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
+		err = s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
+		if err != nil {
+			glog.Errorln("create or update jmx access file error", err, "requuid", requuid, member)
+			return err
+		}
+	}
+
+	glog.Infoln("created jmx password and access configs for service", members[0].ServiceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) error {
+	if cfgIndex < 0 {
+		// jmx file not exists, create it
+		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
+		if err != nil {
+			glog.Errorln("create jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
+			return err
+		}
+
+		// update member configs
+		newConfigs := db.CopyMemberConfigs(member.Configs)
+		newConfigs = append(newConfigs, jmxCfg)
+
+		newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+		err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+		if err != nil {
+			glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("created jmx config file", newcfg.FileName, "requuid", requuid, member)
+	} else {
+		// jmx file exists, update it
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, member.Configs[cfgIndex].FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, member.Configs[cfgIndex])
+			return err
+		}
+
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newcfg.Content, requuid)
+		if err != nil {
+			glog.Errorln("update the existing jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("updated jmx config file", newcfg.FileName, "requuid", requuid, member)
+	}
+
+	return nil
 }

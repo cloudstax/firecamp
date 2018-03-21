@@ -8,6 +8,7 @@ import (
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
@@ -197,6 +198,36 @@ func UpdateHeapSize(newHeap int64, oldHeap int64, content string) string {
 	old := fmt.Sprintf("-Xmx%dm", oldHeap)
 	new := fmt.Sprintf("-Xmx%dm", newHeap)
 	return strings.Replace(content, old, new, 1)
+}
+
+// GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
+// This is specific to each release. Only upgrade from the last version to current version is supported.
+func GenUpgradeRequestV095(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
+	if common.Version != common.Version095 {
+		errmsg := fmt.Sprintf("invalid upgrade version %s, target version %s", common.Version, common.Version095)
+		return nil, errors.New(errmsg)
+	}
+
+	// expose jmx port in release 0.9.5
+	portMappings := []common.PortMapping{
+		{ContainerPort: ClientPort, HostPort: ClientPort, IsServicePort: true},
+		{ContainerPort: peerConnectPort, HostPort: peerConnectPort},
+		{ContainerPort: leaderElectPort, HostPort: leaderElectPort},
+		{ContainerPort: jmxPort, HostPort: jmxPort},
+	}
+
+	opts := &containersvc.UpdateServiceOptions{
+		Cluster:        cluster,
+		ServiceName:    service,
+		PortMappings:   portMappings,
+		ReleaseVersion: common.Version,
+	}
+	return opts, nil
+}
+
+// UpgradeJavaEnvFileContentToV095 adds the jmx configs to java env file
+func UpgradeJavaEnvFileContentToV095(heapSizeMB int64, memberHost string) string {
+	return fmt.Sprintf(javaEnvConfig, heapSizeMB, memberHost, jmxPort)
 }
 
 const (

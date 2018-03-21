@@ -9,10 +9,14 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
+	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -257,5 +261,176 @@ func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID str
 	}
 
 	glog.Infoln("updated heap size for zookeeper service", serviceUUID, "requuid", requuid)
+	return nil
+}
+
+func (s *ManageHTTPServer) upgradeZkService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ServiceCommonRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("upgradeZkService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req)
+	if err != nil {
+		glog.Errorln("upgradeZkService invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// check the service type.
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	if attr.UserAttr.ServiceType != common.CatalogService_ZooKeeper {
+		errmsg := fmt.Sprintf("invalid request, service %s is a %s service, not zookeeper service", req.ServiceName, attr.UserAttr.ServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// upgrade to version 0.9.5, add jmx user & password
+	var opts *containersvc.UpdateServiceOptions
+	if common.Version == common.Version095 {
+		err = s.upgradeZkToV095(ctx, attr, req, requuid)
+		if err != nil {
+			return manage.ConvertToHTTPError(err)
+		}
+
+		// update container service spec to expose the jmx listening port.
+		// create the update request
+		opts, err = zkcatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
+		if err != nil {
+			glog.Errorln("GenUpgradeRequestV095 error", err, "requuid", requuid, req)
+			return err.Error(), http.StatusBadRequest
+		}
+	} else {
+		errmsg := fmt.Sprintf("unsupported upgrade to version %s", common.Version)
+		glog.Errorln(errmsg, "requuid", requuid, req)
+		return errmsg, http.StatusBadRequest
+	}
+
+	// upgrade the service
+	err = s.containersvcIns.UpdateService(ctx, opts)
+	if err != nil {
+		glog.Errorln("UpdateService error", err, "requuid", requuid, req)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("upgraded zookeeper service to release", common.Version, "requuid", requuid, req)
+
+	return "", http.StatusOK
+}
+
+// Upgrade to 0.9.5
+
+func (s *ManageHTTPServer) upgradeZkToV095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) error {
+	// upgrade zookeeper service created before version 0.9.5.
+	// - create jmx password and access files
+	// - update java env file
+	// - add jmx user and password to ZKUserAttr
+	ua := &common.ZKUserAttr{}
+	err := json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+	if err != nil {
+		glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req)
+		return err
+	}
+
+	members, err := s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
+		return err
+	}
+
+	jmxUser := catalog.JmxDefaultRemoteUser
+	jmxPasswd := utils.GenUUID()
+
+	newua := db.CopyZKUserAttr(ua)
+	newua.JmxRemoteUser = jmxUser
+	newua.JmxRemotePasswd = jmxPasswd
+
+	// create jmx password and access files
+	err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
+	if err != nil {
+		glog.Errorln("createJmxFiles error", err, "requuid", requuid, req)
+		return err
+	}
+
+	// upgrade zookeeper java env file
+	err = s.upgradeZkJavaEnvFileV095(ctx, attr, members, ua.HeapSizeMB, requuid)
+	if err != nil {
+		glog.Errorln("upgradeZkJavaEnvFileV095 error", err, "requuid", requuid, req)
+		return err
+	}
+
+	// update the user attr
+	b, err := json.Marshal(newua)
+	if err != nil {
+		glog.Errorln("Marshal user attr error", err, "requuid", requuid, req)
+		return err
+	}
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_ZooKeeper,
+		AttrBytes:   b,
+	}
+
+	newAttr := db.UpdateServiceUserAttr(attr, userAttr)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req)
+		return err
+	}
+
+	glog.Infoln("upgraded zookeeper to version 0.9.5, requuid", requuid, req)
+	return nil
+}
+
+func (s *ManageHTTPServer) upgradeZkJavaEnvFileV095(ctx context.Context, attr *common.ServiceAttr, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
+	for _, member := range members {
+		var cfg *common.MemberConfig
+		cfgIndex := -1
+		for i, c := range member.Configs {
+			if zkcatalog.IsJavaEnvFile(c.FileName) {
+				cfg = c
+				cfgIndex = i
+				break
+			}
+		}
+		if cfgIndex == -1 {
+			errmsg := fmt.Sprintf("not find jvm conf file, service %s, requuid %s", attr.ServiceName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// update the original member java env conf file content
+		memberHost := dns.GenDNSName(member.MemberName, attr.DomainName)
+		newContent := zkcatalog.UpgradeJavaEnvFileContentToV095(heapSizeMB, memberHost)
+		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		glog.Infoln("add jmx configs to java env file for member", member, "requuid", requuid)
+	}
+
+	glog.Infoln("upgraded java env file for kafka service, requuid", requuid)
 	return nil
 }

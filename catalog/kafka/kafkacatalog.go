@@ -171,8 +171,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create the java.env file
-		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB)
-		content += fmt.Sprintf(jmxConfig, memberHost, jmxPort)
+		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB, memberHost, jmxPort)
 		javaEnvCfg := &manage.ReplicaConfigFile{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,
@@ -247,9 +246,9 @@ func UpdateHeapSize(newHeapSizeMB int64, oldHeapSizeMB int64, oldContent string)
 	return strings.Replace(oldContent, oldHeap, newHeap, 1)
 }
 
-// GenUpgradeRequest generates the UpdateServiceOptions to upgrade the service.
+// GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
 // This is specific to each release. Only upgrade from the last version to current version is supported.
-func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
+func GenUpgradeRequestV095(cluster string, service string) (*containersvc.UpdateServiceOptions, error) {
 	if common.Version != common.Version095 {
 		errmsg := fmt.Sprintf("invalid upgrade version %s, target version %s", common.Version, common.Version095)
 		return nil, errors.New(errmsg)
@@ -270,15 +269,9 @@ func GenUpgradeRequest(cluster string, service string) (*containersvc.UpdateServ
 	return opts, nil
 }
 
-// UpgradeJavaEnvFileContentToVersion095 adds the jmx configs to java env file
-func UpgradeJavaEnvFileContentToVersion095(oldContent string, cluster string, memberName string) string {
-	domain := dns.GenDefaultDomainName(cluster)
-	memberHost := dns.GenDNSName(memberName, domain)
-	if strings.Index(oldContent, memberHost) > 0 {
-		glog.Infoln("java env file already includes jmx configs", oldContent)
-		return oldContent
-	}
-	return oldContent + fmt.Sprintf(jmxConfig, memberHost, jmxPort)
+// UpgradeJavaEnvFileContentToV095 adds the jmx configs to java env file
+func UpgradeJavaEnvFileContentToV095(heapSizeMB int64, memberHost string) string {
+	return fmt.Sprintf(javaEnvConfig, heapSizeMB, heapSizeMB, memberHost, jmxPort)
 }
 
 const (
@@ -318,8 +311,6 @@ group.initial.rebalance.delay.ms=3000
 	javaEnvConfig = `
 export KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
 export KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
-`
-	jmxConfig = `
 export KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/data/conf/jmxremote.access -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"
 export JMX_PORT="%d"
 `
