@@ -65,6 +65,10 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.scaleCasService(ctx, r, requuid)
 	case manage.CatalogUpdateKafkaOp:
 		return s.updateKafkaService(ctx, r, requuid)
+	case manage.CatalogUpgradeKafkaManagerOp:
+		// the special upgrade for kafka manager to release 0.9.5 to add the KMUserAttr.
+		// TODO remove it after 0.9.5
+		return s.upgradeKMServiceV095(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}

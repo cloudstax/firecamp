@@ -1,4 +1,4 @@
-package kafkamanagercatalog
+package kmcatalog
 
 import (
 	"encoding/json"
@@ -37,9 +37,15 @@ const (
 // Kafka Manager will store the data in ZooKeeper. So Kafka Manager itself is stateless.
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(req *manage.CatalogCreateKafkaManagerRequest) error {
-	if len(req.Options.User) == 0 || len(req.Options.Password) == 0 {
+func ValidateRequest(opts *manage.CatalogKafkaManagerOptions) error {
+	if len(opts.User) == 0 || len(opts.Password) == 0 {
 		return errors.New("Please specify the user and password")
+	}
+	if opts.HeapSizeMB <= 0 {
+		return errors.New("The heap size should be larger than 0")
+	}
+	if len(opts.ZkServiceName) == 0 {
+		return errors.New("The zookeeper service name could not be empty")
 	}
 
 	return nil
@@ -72,7 +78,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	// TODO support upgrade
 	userAttr := &common.KMUserAttr{
 		HeapSizeMB:    opts.HeapSizeMB,
 		ZkServiceName: opts.ZkServiceName,

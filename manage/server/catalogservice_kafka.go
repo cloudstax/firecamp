@@ -117,7 +117,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = kafkamanagercatalog.ValidateRequest(req)
+	err = kmcatalog.ValidateRequest(req.Options)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest parameters are not valid, requuid", requuid, req)
 		return err.Error(), http.StatusBadRequest
@@ -146,7 +146,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := kafkamanagercatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+	crReq, err := kmcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource, zkattr)
 	if err != nil {
 		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
@@ -496,4 +496,69 @@ func (s *ManageHTTPServer) upgradeKafkaJavaEnvFileVersion095(ctx context.Context
 
 	glog.Infoln("upgraded java env file for kafka service, requuid", requuid)
 	return nil
+}
+
+func (s *ManageHTTPServer) upgradeKMServiceV095(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.CatalogUpgradeKafkaManagerRequestV095{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("CatalogUpgradeKafkaManagerRequestV095 decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = kmcatalog.ValidateRequest(req.Options)
+	if err != nil {
+		glog.Errorln("CatalogUpgradeKafkaManagerRequestV095 parameters are not valid, requuid", requuid, req.Service)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("CatalogUpgradeKafkaManagerRequestV095 invalid request, local cluster", s.cluster,
+			"region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	// get kafka manager service attr
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("get service error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("get service attr", svc.ServiceUUID, "error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// update the user attr
+	newua := &common.KMUserAttr{
+		HeapSizeMB:    req.Options.HeapSizeMB,
+		User:          req.Options.User,
+		Password:      req.Options.Password,
+		ZkServiceName: req.Options.ZkServiceName,
+	}
+
+	b, err := json.Marshal(newua)
+	if err != nil {
+		glog.Errorln("Marshal user attr error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	userAttr := &common.ServiceUserAttr{
+		ServiceType: common.CatalogService_KafkaManager,
+		AttrBytes:   b,
+	}
+
+	newAttr := db.UpdateServiceUserAttr(attr, userAttr)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	glog.Infoln("upgraded kafka manager service to 0.9.5, requuid", requuid, req.Service)
+	return "", http.StatusOK
 }

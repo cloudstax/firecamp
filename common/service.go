@@ -136,6 +136,7 @@ type ServiceAttr struct {
 	RequireStaticIP bool
 
 	// The custom service attributes.
+	// This field should not be nil. Every service will have its own user attr.
 	UserAttr *ServiceUserAttr
 
 	// The specified resources for the service.

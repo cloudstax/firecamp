@@ -1,4 +1,4 @@
-package kafkamanagercatalog
+package kmcatalog
 
 import (
 	"testing"
