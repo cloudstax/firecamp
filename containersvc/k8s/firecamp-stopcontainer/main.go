@@ -11,7 +11,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/cloudstax/firecamp/containersvc/k8s"
-	"github.com/cloudstax/firecamp/docker/network"
+	"github.com/cloudstax/firecamp/plugins/network"
 	"github.com/cloudstax/firecamp/utils"
 )
 

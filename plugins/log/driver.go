@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cloudstax/firecamp/docker/log/awslogs"
+	"github.com/cloudstax/firecamp/plugins/log/awslogs"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	protoio "github.com/gogo/protobuf/io"
@@ -20,8 +20,8 @@ import (
 	"github.com/tonistiigi/fifo"
 
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/docker"
 	"github.com/cloudstax/firecamp/log"
+	"github.com/cloudstax/firecamp/plugins"
 )
 
 const (

@@ -19,8 +19,8 @@ import (
 	"github.com/cloudstax/firecamp/db/k8sconfigdb"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
-	"github.com/cloudstax/firecamp/docker/network"
-	"github.com/cloudstax/firecamp/docker/volume"
+	"github.com/cloudstax/firecamp/plugins/network"
+	"github.com/cloudstax/firecamp/plugins/volume"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )

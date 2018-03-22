@@ -20,8 +20,8 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/docker"
-	"github.com/cloudstax/firecamp/docker/network"
+	"github.com/cloudstax/firecamp/plugins"
+	"github.com/cloudstax/firecamp/plugins/network"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )

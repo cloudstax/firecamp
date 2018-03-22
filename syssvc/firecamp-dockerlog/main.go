@@ -9,7 +9,7 @@ import (
 	"github.com/docker/go-plugins-helpers/sdk"
 
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/docker/log"
+	"github.com/cloudstax/firecamp/plugins/log"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )

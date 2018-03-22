@@ -20,7 +20,7 @@ import (
 	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
-	"github.com/cloudstax/firecamp/docker/volume"
+	"github.com/cloudstax/firecamp/plugins/volume"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
