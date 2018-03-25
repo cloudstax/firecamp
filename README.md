@@ -87,3 +87,5 @@ If you hit an issue or bug, or want to propose some features or improvements, pl
 -   *Specific.* Include as much detail as possible: which version, what environment, etc.
 -   *Unique.* Please do not duplicate existing tickets.
 -   *Scoped to a Single Bug.* One bug per report.
+
+We also welcome you to join us on [Slack](https://cloudstax.herokuapp.com) for more interactive discussion.
