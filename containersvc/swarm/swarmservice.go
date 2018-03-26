@@ -616,8 +616,77 @@ func (s *SwarmSvc) updateServiceReplicas(ctx context.Context, cli *client.Client
 	return nil
 }
 
-// UpdateService updates the swarm service
+// UpdateService updates the service
 func (s *SwarmSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateServiceOptions) error {
+	cli, err := s.cli.NewClient()
+	if err != nil {
+		glog.Errorln("UpdateService newClient error", err, "service", opts.ServiceName)
+		return err
+	}
+
+	// get service spec
+	svc, err := s.inspectService(ctx, cli, opts.ServiceName)
+	if err != nil {
+		glog.Errorln("inspectService error", err, "service", opts.ServiceName)
+		return err
+	}
+
+	if opts.ReserveMemMB != nil {
+		glog.Infoln("update reserve memory to", *opts.ReserveMemMB, opts.ServiceName)
+		svc.Spec.TaskTemplate.Resources.Reservations.MemoryBytes = s.memoryMB2Bytes(*opts.ReserveMemMB)
+	}
+	if opts.MaxMemMB != nil {
+		glog.Infoln("update max memory to", *opts.MaxMemMB, opts.ServiceName)
+		svc.Spec.TaskTemplate.Resources.Limits.MemoryBytes = s.memoryMB2Bytes(*opts.MaxMemMB)
+	}
+	if opts.ReserveCPUUnits != nil {
+		glog.Infoln("update reserve cpu to", *opts.ReserveCPUUnits, opts.ServiceName)
+		svc.Spec.TaskTemplate.Resources.Reservations.NanoCPUs = s.cpuUnits2NanoCPUs(*opts.ReserveCPUUnits)
+	}
+	if opts.MaxCPUUnits != nil {
+		glog.Infoln("update max cpu to", *opts.MaxCPUUnits, opts.ServiceName)
+		svc.Spec.TaskTemplate.Resources.Limits.NanoCPUs = s.cpuUnits2NanoCPUs(*opts.MaxCPUUnits)
+	}
+
+	if len(opts.PortMappings) != 0 {
+		glog.Infoln("update port mappings", opts.PortMappings, opts.ServiceName)
+
+		ports := make([]swarm.PortConfig, len(opts.PortMappings))
+		for i, p := range opts.PortMappings {
+			ports[i] = swarm.PortConfig{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    uint32(p.ContainerPort),
+				PublishedPort: uint32(p.HostPort),
+				PublishMode:   swarm.PortConfigPublishModeHost,
+			}
+		}
+
+		epSpec := &swarm.EndpointSpec{
+			Ports: ports,
+		}
+		svc.Spec.EndpointSpec = epSpec
+	}
+
+	if len(opts.ReleaseVersion) != 0 {
+		glog.Infoln("update volume and log driver version to", common.Version, opts.ServiceName)
+
+		// update the volume driver version
+		for _, m := range svc.Spec.TaskTemplate.ContainerSpec.Mounts {
+			m.VolumeOptions.DriverConfig.Name = common.VolumeDriverName
+		}
+
+		// update the log driver version
+		svc.Spec.TaskTemplate.LogDriver.Name = common.LogDriverName
+	}
+
+	// TODO control the service restart. Swarm UpdateService will automatically restart the service containers.
+	resp, err := cli.ServiceUpdate(ctx, opts.ServiceName, svc.Version, svc.Spec, types.ServiceUpdateOptions{})
+	if err != nil {
+		glog.Errorln("ServiceUpdate error", err, "resp", resp, svc)
+		return err
+	}
+
+	glog.Infoln("update service success", opts.ServiceName)
 	return nil
 }
 

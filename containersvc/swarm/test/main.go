@@ -295,6 +295,37 @@ func testService(ctx context.Context, e *swarmsvc.SwarmSvc) error {
 		return common.ErrInternal
 	}
 
+	// test service update
+	portmapping = common.PortMapping{
+		ContainerPort: 23012,
+		HostPort:      23012,
+	}
+	updateOpts := &containersvc.UpdateServiceOptions{
+		Cluster:         cluster,
+		ServiceName:     service,
+		MaxCPUUnits:     utils.Int64Ptr(100),
+		ReserveCPUUnits: utils.Int64Ptr(10),
+		MaxMemMB:        utils.Int64Ptr(256),
+		ReserveMemMB:    utils.Int64Ptr(10),
+		PortMappings:    []common.PortMapping{portmapping},
+		ExternalDNS:     true,
+	}
+
+	err = e.UpdateService(ctx, updateOpts)
+	if err != nil {
+		glog.Errorln("UpdateService error", err, service)
+		return err
+	}
+	fmt.Println("\nupdated service", service)
+
+	// wait till all tasks are running
+	err = e.WaitServiceRunning(ctx, cluster, service, replicas, maxWaitSeconds)
+	if err != nil {
+		glog.Errorln("WaitServiceRunning error", err, service)
+		return err
+	}
+	fmt.Println("\nall tasks are running after service update", service)
+
 	fmt.Println("\n== service test pass ==")
 	return nil
 }
