@@ -548,6 +548,11 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 		t.Fatalf("Create succeeded, expect error")
 	}
 
+	p = driver.Get(r)
+	if len(p.Err) == 0 {
+		t.Fatalf("Get succeeded, expect error")
+	}
+
 	p = driver.Remove(r)
 	if len(p.Err) != 0 {
 		t.Fatalf("Remove expect success, get error %s", p.Err)

@@ -153,6 +153,21 @@ func (d *FireCampVolumeDriver) Get(r volume.Request) volume.Response {
 		return volume.Response{Err: errmsg}
 	}
 
+	ctx := context.Background()
+	_, err = d.dbIns.GetServiceAttr(ctx, serviceUUID)
+	if err != nil {
+		if err == db.ErrDBRecordNotFound {
+			errmsg := fmt.Sprintf("volume %s is not found", r.Name)
+			glog.Errorln(errmsg)
+			return volume.Response{Err: errmsg}
+		}
+		errmsg := fmt.Sprintf("GetServiceAttr error %s volume %s", err, r.Name)
+		glog.Errorln(errmsg)
+		return volume.Response{Err: errmsg}
+	}
+
+	glog.Infoln("volume exists", r.Name)
+
 	mountPath = d.mountpoint(mountPath)
 
 	member := d.getMountedVolume(serviceUUID)
