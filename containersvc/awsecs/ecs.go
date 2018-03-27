@@ -769,7 +769,7 @@ func (s *AWSEcs) UpdateService(ctx context.Context, opts *containersvc.UpdateSer
 	}
 
 	if len(opts.ReleaseVersion) != 0 {
-		// update the firecamp version
+		// update the firecamp version. The ecs agent patch will update the volume driver and log driver version.
 		for _, e := range contDef.Environment {
 			if *e.Name == common.ENV_VERSION {
 				// the release version could be upgraded to new or rollback to old version.

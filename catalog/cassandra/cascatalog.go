@@ -317,6 +317,7 @@ func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateS
 		Cluster:        cluster,
 		ServiceName:    service,
 		PortMappings:   portMappings,
+		ExternalDNS:    true,
 		ReleaseVersion: common.Version,
 	}
 	return opts

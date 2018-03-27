@@ -173,7 +173,7 @@ func (s *K8sSvc) createPV(service string, pvname string, sclassname string, volI
 		Spec: corev1.PersistentVolumeSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Capacity: corev1.ResourceList{
-				corev1.ResourceStorage: *resource.NewQuantity(volSizeGB*1024*1024*1024, resource.BinarySI),
+				corev1.ResourceStorage: s.volumeQuantity(volSizeGB),
 			},
 			StorageClassName: sclassname,
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
@@ -253,7 +253,7 @@ func (s *K8sSvc) createPVC(service string, pvcname string, pvname string, sclass
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: *resource.NewQuantity(volSizeGB*1024*1024*1024, resource.BinarySI),
+					corev1.ResourceStorage: s.volumeQuantity(volSizeGB),
 				},
 			},
 			StorageClassName: &sclassname,
@@ -654,6 +654,68 @@ func (s *K8sSvc) GetServiceStatus(ctx context.Context, cluster string, service s
 
 // UpdateService updates the service
 func (s *K8sSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateServiceOptions) error {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	// get statefulset
+	statefulset, err := s.cliset.AppsV1beta2().StatefulSets(s.namespace).Get(opts.ServiceName, metav1.GetOptions{})
+	if err != nil {
+		glog.Errorln("get statefulset error", err, "requuid", requuid, "service", opts.ServiceName, "namespace", s.namespace)
+		return err
+	}
+
+	glog.Infoln("get statefulset for service", opts.ServiceName, "requuid", requuid, statefulset.Status)
+
+	if opts.MaxMemMB != nil || opts.MaxCPUUnits != nil {
+		if statefulset.Spec.Template.Spec.Containers[0].Resources.Limits == nil {
+			statefulset.Spec.Template.Spec.Containers[0].Resources.Limits = make(corev1.ResourceList)
+		}
+	}
+	if opts.ReserveMemMB != nil || opts.ReserveCPUUnits != nil {
+		if statefulset.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
+			statefulset.Spec.Template.Spec.Containers[0].Resources.Requests = make(corev1.ResourceList)
+		}
+	}
+
+	if opts.MaxMemMB != nil {
+		glog.Infoln("update max memory to", *opts.MaxMemMB, opts.ServiceName, "requuid", requuid)
+		statefulset.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = s.memoryQuantity(*opts.MaxMemMB)
+	}
+	if opts.MaxCPUUnits != nil {
+		glog.Infoln("update max cpu to", *opts.MaxCPUUnits, opts.ServiceName, "requuid", requuid)
+		statefulset.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = s.cpuMilliQuantity(*opts.MaxCPUUnits)
+	}
+	if opts.ReserveMemMB != nil {
+		glog.Infoln("update reserve memory to", *opts.ReserveMemMB, opts.ServiceName, "requuid", requuid)
+		statefulset.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory] = s.memoryQuantity(*opts.ReserveMemMB)
+	}
+	if opts.ReserveCPUUnits != nil {
+		glog.Infoln("update reserve cpu to", *opts.ReserveCPUUnits, opts.ServiceName, "requuid", requuid)
+		statefulset.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = s.cpuMilliQuantity(*opts.ReserveCPUUnits)
+	}
+
+	if len(opts.PortMappings) != 0 {
+		glog.Infoln("update port mapping to ", opts.PortMappings, opts.ServiceName, "requuid", requuid)
+
+		ports := make([]corev1.ContainerPort, len(opts.PortMappings))
+		for i, p := range opts.PortMappings {
+			ports[i] = corev1.ContainerPort{
+				ContainerPort: int32(p.ContainerPort),
+			}
+			if opts.ExternalDNS {
+				// TODO current needs to expose the host port for ExternalDNS, so replicas could talk with each other.
+				// refactor it when using the k8s external dns project.
+				ports[i].HostPort = int32(p.HostPort)
+			}
+		}
+		statefulset.Spec.Template.Spec.Containers[0].Ports = ports
+	}
+
+	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
+	if err != nil {
+		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", opts.ServiceName, "namespace", s.namespace)
+		return err
+	}
+
 	return nil
 }
 
@@ -1087,20 +1149,20 @@ func (s *K8sSvc) createResource(opts *containersvc.CreateServiceOptions) corev1.
 		if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
 			res.Limits = make(corev1.ResourceList)
 			if opts.Common.Resource.MaxCPUUnits != common.DefaultMaxCPUUnits {
-				res.Limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.MaxCPUUnits, resource.BinarySI)
+				res.Limits[corev1.ResourceCPU] = s.cpuMilliQuantity(opts.Common.Resource.MaxCPUUnits)
 			}
 			if opts.Common.Resource.MaxMemMB != common.DefaultMaxMemoryMB {
-				res.Limits[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.MaxMemMB*1024*1024, resource.BinarySI)
+				res.Limits[corev1.ResourceMemory] = s.memoryQuantity(opts.Common.Resource.MaxMemMB)
 			}
 		}
 
 		if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits || opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
 			res.Requests = make(corev1.ResourceList)
 			if opts.Common.Resource.ReserveCPUUnits != common.DefaultMaxCPUUnits {
-				res.Requests[corev1.ResourceCPU] = *resource.NewMilliQuantity(opts.Common.Resource.ReserveCPUUnits, resource.BinarySI)
+				res.Requests[corev1.ResourceCPU] = s.cpuMilliQuantity(opts.Common.Resource.ReserveCPUUnits)
 			}
 			if opts.Common.Resource.ReserveMemMB != common.DefaultMaxMemoryMB {
-				res.Requests[corev1.ResourceMemory] = *resource.NewQuantity(opts.Common.Resource.ReserveMemMB*1024*1024, resource.BinarySI)
+				res.Requests[corev1.ResourceMemory] = s.memoryQuantity(opts.Common.Resource.ReserveMemMB)
 			}
 		}
 	}
@@ -1142,7 +1204,7 @@ func (s *K8sSvc) createVolumeAndClaim(volOpts *containersvc.VolumeOptions, scnam
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: *resource.NewQuantity(volOpts.SizeGB*1024*1024*1024, resource.BinarySI),
+					corev1.ResourceStorage: s.volumeQuantity(volOpts.SizeGB),
 				},
 			},
 			StorageClassName: &scname,
@@ -1181,4 +1243,16 @@ func (s *K8sSvc) genJournalVolumePVCName(service string, memberIndex int64) stri
 	// Note: this format could not be changed. this is the default k8s format.
 	// statefulset relies on this name to select the pvc.
 	return fmt.Sprintf("%s-%s-%s-%d", service, journalVolumeName, service, memberIndex)
+}
+
+func (s *K8sSvc) volumeQuantity(volSizeGB int64) resource.Quantity {
+	return *resource.NewQuantity(volSizeGB*1024*1024*1024, resource.BinarySI)
+}
+
+func (s *K8sSvc) memoryQuantity(memSizeMB int64) resource.Quantity {
+	return *resource.NewQuantity(memSizeMB*1024*1024, resource.BinarySI)
+}
+
+func (s *K8sSvc) cpuMilliQuantity(cpuUnits int64) resource.Quantity {
+	return *resource.NewMilliQuantity(cpuUnits, resource.BinarySI)
 }

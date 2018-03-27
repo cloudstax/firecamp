@@ -80,6 +80,9 @@ type UpdateServiceOptions struct {
 	ReserveMemMB    *int64
 	// update port mappings
 	PortMappings []common.PortMapping
+	// Whether uses external DNS. For example, set to true if connect with AWS Route53.
+	// If only use within k8s, set to false.
+	ExternalDNS bool
 	// update the release version, such as 0.9.5. empty means no change.
 	ReleaseVersion string
 }

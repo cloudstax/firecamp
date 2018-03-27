@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/k8s"
+	"github.com/cloudstax/firecamp/utils"
 )
 
 var (
@@ -54,6 +55,7 @@ func main() {
 		createVolume(ctx, svc, service, *volID, *volSizeGB, false)
 		createVolume(ctx, svc, service, *jvolID, *jvolSizeGB, true)
 		createService(ctx, svc, cluster, service, replicas)
+		updateService(ctx, svc, cluster, service, replicas)
 		stopService(ctx, svc, cluster, service)
 		scaleService(ctx, svc, cluster, service, replicas)
 		deleteService(ctx, svc, cluster, service)
@@ -239,6 +241,47 @@ func createService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, serv
 		fmt.Println("get service status", status, service, cluster)
 
 		if status.RunningCount == status.DesiredCount && status.RunningCount == opts.Replicas {
+			fmt.Println("all replicas are running")
+			break
+		}
+
+		if i == (maxRetry - 1) {
+			panic(fmt.Sprintf("not all replicas are running after %d seconds", maxRetry*common.DefaultRetryWaitSeconds))
+		}
+
+		time.Sleep(time.Duration(common.DefaultRetryWaitSeconds) * time.Second)
+	}
+}
+
+func updateService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, service string, replicas int64) {
+	opts := &containersvc.UpdateServiceOptions{
+		Cluster:         cluster,
+		ServiceName:     service,
+		MaxCPUUnits:     utils.Int64Ptr(100),
+		ReserveCPUUnits: utils.Int64Ptr(10),
+		MaxMemMB:        utils.Int64Ptr(256),
+		ReserveMemMB:    utils.Int64Ptr(10),
+		PortMappings: []common.PortMapping{
+			{ContainerPort: 5001, HostPort: 5001},
+		},
+		ExternalDNS: false,
+	}
+
+	err := svc.UpdateService(ctx, opts)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	maxRetry := 40
+	for i := 0; i < maxRetry; i++ {
+		status, err := svc.GetServiceStatus(ctx, cluster, service)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		fmt.Println("get service status", status, service, cluster)
+
+		if status.RunningCount == status.DesiredCount && status.RunningCount == replicas {
 			fmt.Println("all replicas are running")
 			break
 		}
