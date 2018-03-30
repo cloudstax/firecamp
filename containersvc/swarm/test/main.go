@@ -55,9 +55,9 @@ func main() {
 
 func swarmInitTest(ctx context.Context) {
 	azs := []string{"local"}
-	svc, err := swarmsvc.NewSwarmSvc(azs)
+	svc, err := swarmsvc.NewSwarmSvcOnManagerNode(azs)
 	if err != nil {
-		fmt.Println("NewSwarmSvc error", err)
+		fmt.Println("NewSwarmSvcOnManagerNode error", err)
 		os.Exit(-1)
 	}
 
@@ -93,9 +93,9 @@ func swarmServiceTest(ctx context.Context) {
 
 	fmt.Println(info.GetContainerClusterID(), info.GetLocalContainerInstanceID())
 	azs := []string{"local"}
-	e, err := swarmsvc.NewSwarmSvc(azs)
+	e, err := swarmsvc.NewSwarmSvcOnManagerNode(azs)
 	if err != nil {
-		fmt.Println("NewSwarmSvc error", err)
+		fmt.Println("NewSwarmSvcOnManagerNode error", err)
 		os.Exit(-1)
 	}
 

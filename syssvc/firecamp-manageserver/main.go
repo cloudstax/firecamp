@@ -139,9 +139,9 @@ func main() {
 		}
 
 		cluster = info.GetContainerClusterID()
-		containersvcIns, err = swarmsvc.NewSwarmSvc(azs)
+		containersvcIns, err = swarmsvc.NewSwarmSvcOnManagerNode(azs)
 		if err != nil {
-			glog.Fatalln("NewSwarmSvc error", err)
+			glog.Fatalln("NewSwarmSvcOnManagerNode error", err)
 		}
 
 	case common.ContainerPlatformK8s:

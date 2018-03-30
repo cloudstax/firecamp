@@ -61,44 +61,46 @@ type SwarmSvc struct {
 	// the availability zones the cluster have
 	azs []string
 
-	// TODO better separate 2 ContainerSvc interfaces.
-	// One for the manage server. One for the volume plugin.
-	// the docker volume plugin could not directly talk with the swarm manager,
-	// as the swarm manager is protected with the internal tls by default.
-	// the plugin will talk with the manageserver.
-	volplugin bool
-	region    string
-	cluster   string
-	mgtCli    *managecli.ManageClient
+	// One for the container running on the swarm manager nodes, such as firecamp manage server.
+	// The other for the container running on the swarm worker nodes, such as firecamp volume plugin.
+	// The container on the swarm worker nodes could not directly talk with the swarm manager,
+	// as the swarm manager is protected with the internal tls by default. Has to talk with the manageserver
+	// via the internal requests.
+	// TODO better separate 2 ContainerSvc interfaces?
+	workerNode bool
+
+	region  string
+	cluster string
+	mgtCli  *managecli.ManageClient
 }
 
-// NewSwarmSvc creates a new SwarmSvc instance
-func NewSwarmSvc(azs []string) (*SwarmSvc, error) {
+// NewSwarmSvcOnManagerNode creates a new SwarmSvc instance on the manager node
+func NewSwarmSvcOnManagerNode(azs []string) (*SwarmSvc, error) {
 	cli, err := NewSwarmClient()
 	if err != nil {
 		return nil, err
 	}
 
 	s := &SwarmSvc{
-		cli:       cli,
-		azs:       azs,
-		volplugin: false,
+		cli:        cli,
+		azs:        azs,
+		workerNode: false,
 	}
 
 	return s, nil
 }
 
-// NewSwarmSvcForVolumePlugin creates a new SwarmSvc instance for the volume plugin.
-func NewSwarmSvcForVolumePlugin(region string, cluster string) (*SwarmSvc, error) {
+// NewSwarmSvcOnWorkerNode creates a new SwarmSvc instance on the worker node for such as volume plugin.
+func NewSwarmSvcOnWorkerNode(region string, cluster string) (*SwarmSvc, error) {
 	serverURL := dns.GetDefaultManageServiceURL(cluster, false)
 	mgtCli := managecli.NewManageClient(serverURL, nil)
 
 	s := &SwarmSvc{
-		cli:       nil,
-		volplugin: true,
-		region:    region,
-		cluster:   cluster,
-		mgtCli:    mgtCli,
+		cli:        nil,
+		workerNode: true,
+		region:     region,
+		cluster:    cluster,
+		mgtCli:     mgtCli,
 	}
 
 	return s, nil
@@ -220,6 +222,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		for i, e := range opts.Envkvs {
 			env[i] = e.Name + envKVSep + e.Value
 		}
+
 		taskTemplate.ContainerSpec.Env = env
 	}
 
@@ -322,7 +325,7 @@ func (s *SwarmSvc) cpuUnits2NanoCPUs(cpuUnits int64) int64 {
 
 // ListActiveServiceTasks lists the active (running and pending) tasks of the service
 func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, service string) (serviceTaskIDs map[string]bool, err error) {
-	if s.volplugin {
+	if s.workerNode {
 		// ListActiveServiceTasks from the manage server running on the swarm manager node
 		r := &manage.InternalListActiveServiceTasksRequest{
 			Region:      s.region,
@@ -367,7 +370,7 @@ func (s *SwarmSvc) ListActiveServiceTasks(ctx context.Context, cluster string, s
 
 // GetServiceTask gets the task running on the containerInstanceID
 func (s *SwarmSvc) GetServiceTask(ctx context.Context, cluster string, service string, containerInstanceID string) (serviceTaskID string, err error) {
-	if s.volplugin {
+	if s.workerNode {
 		// GetServiceTask from the manage server running on the swarm manager node
 		r := &manage.InternalGetServiceTaskRequest{
 			Region:              s.region,

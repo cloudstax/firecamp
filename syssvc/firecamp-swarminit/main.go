@@ -81,9 +81,9 @@ func main() {
 	// init or join swarm
 	azSep := ","
 	zones := strings.Split(*azs, azSep)
-	swarmSvc, err := swarmsvc.NewSwarmSvc(zones)
+	swarmSvc, err := swarmsvc.NewSwarmSvcOnManagerNode(zones)
 	if err != nil {
-		glog.Fatalln("NewSwarmSvc error", err)
+		glog.Fatalln("NewSwarmSvcOnManagerNode error", err)
 	}
 
 	if *role == awsdynamodb.RoleManager {

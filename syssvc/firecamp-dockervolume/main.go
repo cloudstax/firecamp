@@ -113,9 +113,9 @@ func main() {
 
 		info = sinfo
 
-		containersvcIns, err = swarmsvc.NewSwarmSvcForVolumePlugin(region, cluster)
+		containersvcIns, err = swarmsvc.NewSwarmSvcOnWorkerNode(region, cluster)
 		if err != nil {
-			glog.Fatalln("NewSwarmSvc error", err)
+			glog.Fatalln("NewSwarmSvcOnWorkerNode error", err)
 		}
 
 	default:
