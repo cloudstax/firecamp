@@ -40,6 +40,8 @@ const (
 	defaultCPUUnitsPerCore = 1024
 	envKVSep               = "="
 
+	taskSlotEnvKV = "TASK_SLOT={{.Task.Slot}}"
+
 	zoneLabelSep       = "."
 	placeConstraintFmt = "engine.labels.%s == true"
 
@@ -217,14 +219,16 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 		},
 	}
 
-	if len(opts.Envkvs) != 0 {
-		env := make([]string, len(opts.Envkvs))
-		for i, e := range opts.Envkvs {
-			env[i] = e.Name + envKVSep + e.Value
-		}
-
-		taskTemplate.ContainerSpec.Env = env
+	// set -e TASK_SLOT={{.Task.Slot}} for service, to get the service member inside container.
+	// TODO this is currently used for the stateless service. For the stateful service, could
+	// also utilize it after the volume plugin is enhanced to support Task.Slot.
+	env := make([]string, len(opts.Envkvs)+1)
+	env[0] = taskSlotEnvKV
+	for i, e := range opts.Envkvs {
+		env[i+1] = e.Name + envKVSep + e.Value
 	}
+
+	taskTemplate.ContainerSpec.Env = env
 
 	if opts.Place != nil {
 		// the service aims to run on the specified availability zones.
