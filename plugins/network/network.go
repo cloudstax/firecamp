@@ -1,12 +1,15 @@
 package dockernetwork
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/server"
@@ -248,4 +251,119 @@ func (s *ServiceNetwork) AddIP(ip string) error {
 // DeleteIP deletes the ip from the net interface.
 func (s *ServiceNetwork) DeleteIP(ip string) error {
 	return DeleteIP(ip, s.ifname)
+}
+
+// UpdateServiceMemberDNS updates the DNS for the service member.
+// If memberIndex is not specified, an idle member will be assigned.
+func (s *ServiceNetwork) UpdateServiceMemberDNS(ctx context.Context, cluster string, service string, memberIndex int64,
+	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string) (memberName string, domain string, err error) {
+	requuid := utils.GetReqIDFromContext(ctx)
+
+	svc, err := s.dbIns.GetService(ctx, cluster, service)
+	if err != nil {
+		glog.Errorln("GetService error", err, "cluster", cluster, "service", service, "requuid", requuid)
+		return "", "", err
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
+		return "", "", err
+	}
+
+	member, err := s.getMemberForTask(ctx, attr, memberIndex, containersvcIns, localContainerInstanceID, requuid)
+	if err != nil {
+		glog.Errorln("getMemberForTask error", err, "requuid", requuid, svc)
+		return "", "", err
+	}
+
+	err = s.UpdateDNS(ctx, attr.DomainName, attr.HostedZoneID, member)
+	if err != nil {
+		glog.Errorln("UpdateDNS error", err, "requuid", requuid, svc)
+		return "", "", err
+	}
+
+	glog.Infoln("get and update dns for member", member, "requuid", requuid)
+	return member.MemberName, attr.DomainName, nil
+}
+
+// TODO merge getMemberForTask and findIdleMember with volume.getMemberForTask and volume.findIdleMember.
+func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, memberIndex int64,
+	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string, requuid string) (member *common.ServiceMember, err error) {
+	if memberIndex != int64(-1) {
+		glog.Infoln("member index is passed in", memberIndex, "requuid", requuid, serviceAttr)
+
+		member, err = s.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberIndex)
+		if err != nil {
+			glog.Errorln("GetServiceMember error", err, "memberIndex", memberIndex, "requuid", requuid, "service", serviceAttr)
+			return nil, err
+		}
+	} else {
+		// find one idle member
+		member, err = s.findIdleMember(ctx, serviceAttr, containersvcIns, requuid)
+		if err != nil {
+			glog.Errorln("findIdleMember error", err, "requuid", requuid, "service", serviceAttr)
+			return nil, err
+		}
+	}
+
+	localTaskID := ""
+	if memberIndex != int64(-1) {
+		// the container framework passes in the member index for the volume.
+		// no need to get the real task id, simply set to the server instance id.
+		localTaskID = s.serverInfo.GetLocalInstanceID()
+	} else {
+		// get taskID of the local task.
+		// assume only one task on one node for one service. It does not make sense to run
+		// like mongodb primary and standby on the same node.
+		localTaskID, err = containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName, serviceAttr.ServiceName, localContainerInstanceID)
+		if err != nil {
+			glog.Errorln("get local task id error", err, "requuid", requuid, "containerInsID", localContainerInstanceID, "service attr", serviceAttr)
+			return nil, err
+		}
+	}
+
+	// update service member owner in db.
+	// TODO if there are concurrent failures, multiple tasks may select the same idle member.
+	// now, the task will fail and be scheduled again. better have some retries here.
+	newMember := db.UpdateServiceMemberOwner(member, localTaskID, localContainerInstanceID, s.serverInfo.GetLocalInstanceID())
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+	if err != nil {
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, "new", newMember, "old", member)
+		return nil, err
+	}
+
+	glog.Infoln("updated member", member, "to", localTaskID, "requuid", requuid, localContainerInstanceID, s.serverInfo.GetLocalInstanceID())
+
+	return newMember, nil
+}
+
+func (s *ServiceNetwork) findIdleMember(ctx context.Context, serviceAttr *common.ServiceAttr,
+	containersvcIns containersvc.ContainerSvc, requuid string) (member *common.ServiceMember, err error) {
+	taskIDs, err := containersvcIns.ListActiveServiceTasks(ctx, serviceAttr.ClusterName, serviceAttr.ServiceName)
+	if err != nil {
+		glog.Errorln("ListActiveServiceTasks error", err, "service attr", serviceAttr, "requuid", requuid)
+		return nil, err
+	}
+
+	// list all members from DB, e.dbIns.ListServiceMembers(service.ServiceUUID)
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceAttr.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListVolumes error", err, "service", serviceAttr, "requuid", requuid)
+		return nil, err
+	}
+
+	// find one idle volume, the volume's taskID not in the task list
+	for _, member := range members {
+		// check if the member is idle
+		_, ok := taskIDs[member.TaskID]
+		if !ok {
+			glog.Infoln("find idle member", member, "service", serviceAttr, "requuid", requuid)
+			return member, nil
+		}
+	}
+
+	errmsg := fmt.Sprintf("service %s %s has no idle member, requuid %s", serviceAttr.ServiceName, serviceAttr.ServiceUUID, requuid)
+	glog.Errorln(errmsg)
+	return nil, errors.New(errmsg)
 }

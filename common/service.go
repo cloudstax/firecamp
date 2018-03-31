@@ -173,7 +173,7 @@ type ServiceMember struct {
 	// This will be useful for some cases. For example, prevent the member container
 	// from running when doing some maintenance for one member.
 	Status string
-	// The service member name, such as mypg-0, myredis-0
+	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
 	MemberName          string
 	AvailableZone       string
 	TaskID              string
