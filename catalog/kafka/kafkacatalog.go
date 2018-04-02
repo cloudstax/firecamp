@@ -72,7 +72,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	// get the zk server list
-	zkServers := catalog.GenServiceMemberHostsWithPort(zkattr, zkcatalog.ClientPort)
+	zkServers := catalog.GenServiceMemberHostsWithPort(zkattr.ClusterName, zkattr.ServiceName, zkattr.Replicas, zkcatalog.ClientPort)
 
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)

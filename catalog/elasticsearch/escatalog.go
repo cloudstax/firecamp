@@ -83,6 +83,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	userAttr := &common.ESUserAttr{
 		HeapSizeMB:             opts.HeapSizeMB,
+		DataNodes:              opts.Replicas,
 		DedicatedMasters:       opts.DedicatedMasters,
 		DisableForceAwareness:  opts.DisableForceAwareness,
 		DisableDedicatedMaster: opts.DisableDedicatedMaster,
@@ -253,6 +254,24 @@ func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.C
 		}
 	}
 	return unicastHosts, masterNodes, 0
+}
+
+// GenDataNodesURIs creates the list of uris for the Elasticsearch data nodes.
+// example: http://myes-0.t1-firecamp.com:9200,http://myes-1.t1-firecamp.com:9200
+func GenDataNodesURIs(attr *common.ServiceAttr) (uris string, err error) {
+	if attr.UserAttr.ServiceType != common.CatalogService_ElasticSearch {
+		return "", fmt.Errorf("service %s is not an ElasticSearch service, type %s", attr.ServiceName, attr.UserAttr.ServiceType)
+	}
+
+	ua := &common.ESUserAttr{}
+	err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+	if err != nil {
+		glog.Errorln("Unmarshal user attr error", err, attr)
+		return "", err
+	}
+
+	uris = catalog.GenServiceMemberURIs(attr.ClusterName, attr.ServiceName, ua.DataNodes, HTTPPort)
+	return uris, nil
 }
 
 // GetFirstMemberHost returns the first member's dns name

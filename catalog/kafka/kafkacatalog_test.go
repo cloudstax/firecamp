@@ -34,7 +34,7 @@ func TestKafkaCatalog(t *testing.T) {
 	}
 	zkattr := db.CreateServiceAttr("zkuuid", common.ServiceStatusActive, time.Now().UnixNano(),
 		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false, nil, common.Resources{}, "")
-	zkservers := catalog.GenServiceMemberHostsWithPort(zkattr, zkcatalog.ClientPort)
+	zkservers := catalog.GenServiceMemberHostsWithPort(zkattr.ClusterName, zkattr.ServiceName, zkattr.Replicas, zkcatalog.ClientPort)
 	expectZkServers := "zk1-0.c1-firecamp.com:2181,zk1-1.c1-firecamp.com:2181,zk1-2.c1-firecamp.com:2181"
 	if zkservers != expectZkServers {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)

@@ -399,6 +399,9 @@ type ESUserAttr struct {
 	DedicatedMasters       int64
 	DisableDedicatedMaster bool
 	DisableForceAwareness  bool
+	// DataNodes are the number of ElasticSearch data nodes, this field is added in 0.9.5.
+	// Assume no one is using ElasticSearch before 0.9.5. No upgrade is supported.
+	DataNodes int64
 }
 
 // KibanaUserAttr represents the kibana service attributes.

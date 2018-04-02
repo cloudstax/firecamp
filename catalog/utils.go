@@ -10,8 +10,6 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-const hostSep = ","
-
 // CreateSysConfigFile creates the content for the sys.conf file.
 // example:
 //   PLATFORM=ecs
@@ -25,7 +23,25 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 	}
 }
 
-// GenServiceMemberHosts creates the hostname list of all service members.
+// GenServiceMemberURIs creates the list of URIs for all service members,
+// example: http://myes-0.t1-firecamp.com:9200,http://myes-1.t1-firecamp.com:9200
+func GenServiceMemberURIs(cluster string, service string, replicas int64, port int64) string {
+	hosts := ""
+	domain := dns.GenDefaultDomainName(cluster)
+	for i := int64(0); i < replicas; i++ {
+		member := utils.GenServiceMemberName(service, i)
+		dnsname := dns.GenDNSName(member, domain)
+		if len(hosts) == 0 {
+			hosts = fmt.Sprintf("http://%s:%d", dnsname, port)
+		} else {
+			hosts += fmt.Sprintf(",http://%s:%d", dnsname, port)
+		}
+	}
+	return hosts
+}
+
+// GenServiceMemberHosts creates the hostname list of all service members,
+// example: myzoo-0.t1-firecamp.com,myzoo-1.t1-firecamp.com
 // Note: this currently works for the service that all members have a single name format, such as ZooKeeper, Kafka, etc.
 // For service such as ElasticSearch, MongoDB, that has different name formats, this is not suitable.
 func GenServiceMemberHosts(cluster string, service string, replicas int64) string {
@@ -37,18 +53,22 @@ func GenServiceMemberHosts(cluster string, service string, replicas int64) strin
 		if len(hosts) == 0 {
 			hosts = dnsname
 		} else {
-			hosts += hostSep + dnsname
+			hosts += fmt.Sprintf(",%s", dnsname)
 		}
 	}
 	return hosts
 }
 
-// GenServiceMemberHostsWithPort creates the hostname:port list of all service members.
-func GenServiceMemberHostsWithPort(attr *common.ServiceAttr, port int64) string {
+// GenServiceMemberHostsWithPort creates the hostname:port list of all service members,
+// example: myzoo-0.t1-firecamp.com:2181,myzoo-1.t1-firecamp.com:2181
+// Note: this currently works for the service that all members have a single name format, such as ZooKeeper, Kafka, etc.
+// For service such as ElasticSearch, MongoDB, that has different name formats, this is not suitable.
+func GenServiceMemberHostsWithPort(cluster string, service string, replicas int64, port int64) string {
 	hosts := ""
-	for i := int64(0); i < attr.Replicas; i++ {
-		member := utils.GenServiceMemberName(attr.ServiceName, i)
-		dnsname := dns.GenDNSName(member, attr.DomainName)
+	domain := dns.GenDefaultDomainName(cluster)
+	for i := int64(0); i < replicas; i++ {
+		member := utils.GenServiceMemberName(service, i)
+		dnsname := dns.GenDNSName(member, domain)
 		if len(hosts) == 0 {
 			hosts = fmt.Sprintf("%s:%d", dnsname, port)
 		} else {

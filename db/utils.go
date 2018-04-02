@@ -386,6 +386,7 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			return false
 		}
 		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.DataNodes == ua2.DataNodes &&
 			ua1.DedicatedMasters == ua2.DedicatedMasters &&
 			ua1.DisableDedicatedMaster == ua2.DisableDedicatedMaster &&
 			ua1.DisableForceAwareness == ua2.DisableForceAwareness {
