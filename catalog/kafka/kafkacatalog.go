@@ -22,7 +22,8 @@ const (
 	// ContainerImage is the main running container.
 	ContainerImage = common.ContainerNamePrefix + "kafka:" + defaultVersion
 
-	listenPort = 9092
+	// ListenPort is the default kafka listening port
+	ListenPort = 9092
 	jmxPort    = 9093
 
 	// follow http://docs.confluent.io/current/kafka/deployment.html
@@ -71,13 +72,13 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 
 	// get the zk server list
-	zkServers := genZkServerList(zkattr)
+	zkServers := catalog.GenServiceMemberHostsWithPort(zkattr, zkcatalog.ClientPort)
 
 	// generate service ReplicaConfigs
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
 
 	portMappings := []common.PortMapping{
-		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
+		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
 		{ContainerPort: jmxPort, HostPort: jmxPort},
 	}
 
@@ -199,20 +200,6 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
-// genZkServerList creates the zookeeper server list for zookeeper.connect in server.properties
-func genZkServerList(zkattr *common.ServiceAttr) string {
-	zkServers := ""
-	for i := int64(0); i < zkattr.Replicas; i++ {
-		member := utils.GenServiceMemberName(zkattr.ServiceName, i)
-		dnsname := dns.GenDNSName(member, zkattr.DomainName)
-		if len(zkServers) != 0 {
-			zkServers += zkServerSep
-		}
-		zkServers += fmt.Sprintf("%s:%d", dnsname, zkcatalog.ClientPort)
-	}
-	return zkServers
-}
-
 // IsServerPropConfFile checks if the file is server.properties conf file
 func IsServerPropConfFile(filename string) bool {
 	return filename == serverPropConfFileName
@@ -251,7 +238,7 @@ func UpdateHeapSize(newHeapSizeMB int64, oldHeapSizeMB int64, oldContent string)
 func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
 	// expose jmx port in release 0.9.5
 	portMappings := []common.PortMapping{
-		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
+		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
 		{ContainerPort: jmxPort, HostPort: jmxPort},
 	}
 

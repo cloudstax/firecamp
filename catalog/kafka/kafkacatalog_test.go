@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
@@ -32,7 +34,7 @@ func TestKafkaCatalog(t *testing.T) {
 	}
 	zkattr := db.CreateServiceAttr("zkuuid", common.ServiceStatusActive, time.Now().UnixNano(),
 		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false, nil, common.Resources{}, "")
-	zkservers := genZkServerList(zkattr)
+	zkservers := catalog.GenServiceMemberHosts(zkattr, zkcatalog.ClientPort)
 	expectZkServers := "zk1-0.c1-firecamp.com:2181,zk1-1.c1-firecamp.com:2181,zk1-2.c1-firecamp.com:2181"
 	if zkservers != expectZkServers {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)

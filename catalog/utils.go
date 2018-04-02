@@ -5,8 +5,12 @@ import (
 	"strings"
 
 	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/utils"
 )
+
+const hostSep = ","
 
 // CreateSysConfigFile creates the content for the sys.conf file.
 // example:
@@ -19,6 +23,39 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
+}
+
+// GenServiceMemberHosts creates the hostname list of all service members.
+// Note: this currently works for the service that all members have a single name format, such as ZooKeeper, Kafka, etc.
+// For service such as ElasticSearch, MongoDB, that has different name formats, this is not suitable.
+func GenServiceMemberHosts(cluster string, service string, replicas int64) string {
+	hosts := ""
+	domain := dns.GenDefaultDomainName(cluster)
+	for i := int64(0); i < replicas; i++ {
+		member := utils.GenServiceMemberName(service, i)
+		dnsname := dns.GenDNSName(member, domain)
+		if len(hosts) == 0 {
+			hosts = dnsname
+		} else {
+			hosts += hostSep + dnsname
+		}
+	}
+	return hosts
+}
+
+// GenServiceMemberHostsWithPort creates the hostname:port list of all service members.
+func GenServiceMemberHostsWithPort(attr *common.ServiceAttr, port int64) string {
+	hosts := ""
+	for i := int64(0); i < attr.Replicas; i++ {
+		member := utils.GenServiceMemberName(attr.ServiceName, i)
+		dnsname := dns.GenDNSName(member, attr.DomainName)
+		if len(hosts) == 0 {
+			hosts = fmt.Sprintf("%s:%d", dnsname, port)
+		} else {
+			hosts += fmt.Sprintf(",%s:%d", dnsname, port)
+		}
+	}
+	return hosts
 }
 
 // TODO currently only support one jmx user.
