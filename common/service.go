@@ -8,6 +8,7 @@ const (
 	CatalogService_ZooKeeper     = "zookeeper"
 	CatalogService_Kafka         = "kafka"
 	CatalogService_KafkaManager  = "kafkamanager"
+	CatalogService_KafkaSinkES   = "kafkasinkes"
 	CatalogService_Redis         = "redis"
 	CatalogService_CouchDB       = "couchdb"
 	CatalogService_Consul        = "consul"
@@ -34,6 +35,8 @@ const (
 	ServiceMemberStatusActive = "ACTIVE"
 	ServiceMemberStatusPause  = "PAUSE"
 	ServiceMemberStatusBad    = "Bad"
+
+	AnyAvailabilityZone = "any"
 
 	// The status of one task
 	TaskStatusRunning = "RUNNING"
@@ -174,7 +177,8 @@ type ServiceMember struct {
 	// from running when doing some maintenance for one member.
 	Status string
 	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
-	MemberName          string
+	MemberName string
+	// For the stateless service, AvailableZone is ingored, simply set to "any".
 	AvailableZone       string
 	TaskID              string
 	ContainerInstanceID string
@@ -183,6 +187,7 @@ type ServiceMember struct {
 
 	// The volumes of one member. One member could have multiple volumes.
 	// For example, one for DB data, the other for journal.
+	// For the stateless service that does not require volume, it could be empty.
 	Volumes MemberVolumes
 
 	// The static IP assigned to this member
@@ -338,6 +343,29 @@ type KMUserAttr struct {
 
 	// The existing ZooKeeper service that Kafka Manager will use.
 	ZkServiceName string
+}
+
+// KCSinkESUserAttr represents the kafka connect service attributes.
+type KCSinkESUserAttr struct {
+	// Kafka Connect JVM heap size
+	HeapSizeMB int64
+
+	// The Kafka service to sink from
+	KafkaServiceName string
+
+	// The Kafka Topic to read data from
+	Topic string
+
+	// The ElasticSearch service to sink to
+	ESServiceName string
+
+	// The type to use for each index
+	TypeName string
+
+	// The storage replication factor for storage, offset and status topics
+	ConfigReplFactor uint
+	OffsetReplFactor uint
+	StatusReplFactor uint
 }
 
 // CouchDBUserAttr represents the couchdb service attributes.

@@ -275,6 +275,54 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 		glog.Errorln("KafkaUserAttr mismatch, u1:", ua1, ", u2:", ua2)
 		return false
 
+	case common.CatalogService_KafkaManager:
+		ua1 := &common.KMUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.KMUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.User == ua2.User &&
+			ua1.Password == ua2.Password &&
+			ua1.ZkServiceName == ua2.ZkServiceName {
+			return true
+		}
+		glog.Errorln("KMUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
+
+	case common.CatalogService_KafkaSinkES:
+		ua1 := &common.KCSinkESUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.KCSinkESUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
+			ua1.KafkaServiceName == ua2.KafkaServiceName &&
+			ua1.Topic == ua2.Topic &&
+			ua1.ESServiceName == ua2.ESServiceName &&
+			ua1.TypeName == ua2.TypeName &&
+			ua1.ConfigReplFactor == ua2.ConfigReplFactor &&
+			ua1.OffsetReplFactor == ua2.OffsetReplFactor &&
+			ua1.StatusReplFactor == ua2.StatusReplFactor {
+			return true
+		}
+		glog.Errorln("KCSinkESUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
+
 	case common.CatalogService_CouchDB:
 		ua1 := &common.CouchDBUserAttr{}
 		err := json.Unmarshal(u1.AttrBytes, ua1)
@@ -392,6 +440,26 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			return true
 		}
 		glog.Errorln("LSUserAttr mismatch, u1:", ua1, ", u2:", ua2)
+		return false
+
+	case common.CatalogService_Telegraf:
+		ua1 := &common.TGUserAttr{}
+		err := json.Unmarshal(u1.AttrBytes, ua1)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u1)
+			return false
+		}
+		ua2 := &common.TGUserAttr{}
+		err = json.Unmarshal(u2.AttrBytes, ua2)
+		if err != nil {
+			glog.Errorln("Unmarshal user attr error", err, u2)
+			return false
+		}
+		if ua1.CollectIntervalSecs == ua2.CollectIntervalSecs &&
+			ua1.MonitorServiceName == ua2.MonitorServiceName {
+			return true
+		}
+		glog.Errorln("TGUserAttr mismatch, u1:", ua1, ", u2:", ua2)
 		return false
 
 	default:
