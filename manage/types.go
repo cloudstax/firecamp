@@ -30,6 +30,7 @@ const (
 	CatalogCreateCassandraOp     = CatalogOpPrefix + "Create-Cassandra"
 	CatalogCreateZooKeeperOp     = CatalogOpPrefix + "Create-ZooKeeper"
 	CatalogCreateKafkaOp         = CatalogOpPrefix + "Create-Kafka"
+	CatalogCreateKafkaSinkESOp   = CatalogOpPrefix + "Create-Kafka-SinkES"
 	CatalogCreateKafkaManagerOp  = CatalogOpPrefix + "Create-Kafka-Manager"
 	CatalogCreateRedisOp         = CatalogOpPrefix + "Create-Redis"
 	CatalogCreateCouchDBOp       = CatalogOpPrefix + "Create-CouchDB"
@@ -407,6 +408,40 @@ type CatalogUpdateKafkaRequest struct {
 	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
+}
+
+// CatalogKafkaSinkESOptions includes the options for Kafka ElasticSearch Sink Connect.
+type CatalogKafkaSinkESOptions struct {
+	Replicas int64
+
+	// Kafka Connect JVM heap size
+	HeapSizeMB int64
+
+	// The Kafka service to sink from
+	KafkaServiceName string
+
+	// The Kafka Topic to read data from
+	Topic string
+
+	// The ElasticSearch service to sink to
+	ESServiceName string
+
+	// The ElasticSearch index type. This could not be empty for kafka elasticsearch connector.
+	// The "type" is deprecated in ElasticSearch 6.0.0.
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/removal-of-types.html
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-type-field.html
+	// https://www.elastic.co/blog/index-vs-type
+	TypeName string
+
+	// The replication factor for storage, offset and status topics
+	ReplFactor uint
+}
+
+// CatalogCreateKafkaSinkESRequest creates a Kafka ElasticSearch Sink Connect service.
+type CatalogCreateKafkaSinkESRequest struct {
+	Service  *ServiceCommonRequest
+	Resource *common.Resources
+	Options  *CatalogKafkaSinkESOptions
 }
 
 // CatalogKafkaManagerOptions includes the options for Kafka Manager.
