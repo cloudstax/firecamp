@@ -37,6 +37,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.createZkService(ctx, w, r, requuid)
 	case manage.CatalogCreateKafkaOp:
 		return s.createKafkaService(ctx, w, r, requuid)
+	case manage.CatalogCreateKafkaSinkESOp:
+		return s.createKafkaSinkESService(ctx, w, r, requuid)
 	case manage.CatalogCreateKafkaManagerOp:
 		return s.createKafkaManagerService(ctx, r, requuid)
 	case manage.CatalogCreateRedisOp:
@@ -173,6 +175,13 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 					return errmsg, errcode
 				}
 				initialized = true
+
+			case common.CatalogService_KafkaSinkES:
+				s.restartKafkaSinkESInitTask(ctx, req.Service, attr, requuid)
+				if err != nil {
+					glog.Errorln("restartKafkaSinkESInitTask error", err, "requuid", requuid, req.Service)
+					return manage.ConvertToHTTPError(err)
+				}
 
 			case common.CatalogService_Redis:
 				redisUserAttr := &common.RedisUserAttr{}
@@ -675,6 +684,10 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 
 	case common.CatalogService_CouchDB:
 		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+
+	case common.CatalogService_KafkaSinkES:
+		glog.Infoln("set kafka sink elasticsearch service initialized, requuid", requuid, req)
 		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
 	// other services do not require the init task.

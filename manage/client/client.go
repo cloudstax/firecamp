@@ -692,6 +692,26 @@ func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.
 	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
+// CatalogCreateKafkaSinkESService creates a new catalog Kafka sink elasticsearch service.
+func (c *ManageClient) CatalogCreateKafkaSinkESService(ctx context.Context, r *manage.CatalogCreateKafkaSinkESRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.CatalogCreateKafkaSinkESOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // CatalogCreateKafkaManagerService creates a new catalog Kafka Manager service.
 func (c *ManageClient) CatalogCreateKafkaManagerService(ctx context.Context, r *manage.CatalogCreateKafkaManagerRequest) error {
 	b, err := json.Marshal(r)

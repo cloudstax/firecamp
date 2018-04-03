@@ -19,6 +19,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
+	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
@@ -70,7 +71,7 @@ const (
 
 var (
 	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opUpgrade, opUpgradeKM, opListMembers, opGetConfig))
-	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|redis|couchdb|consul|elasticsearch|kibana|logstash|telegraf")
+	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|kafkasinkes|redis|couchdb|consul|elasticsearch|kibana|logstash|telegraf")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
 	region              = flag.String("region", "", "The AWS region")
@@ -122,6 +123,13 @@ var (
 	kafkaAllowTopicDel  = flag.Bool(flagKafkaAllowTopicDel, false, "The Kafka config to enable/disable topic deletion")
 	kafkaRetentionHours = flag.Int64(flagKafkaRetentionHours, kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
+
+	kcHeapSizeMB    = flag.Int64("kc-heap-size", kccatalog.DefaultHeapMB, "The Kafka Connect JVM heap size, unit: MB")
+	kcKafkaService  = flag.String("kc-kafka-service", "", "The Kafka service name that the Connect talks to")
+	kcKafkaTopic    = flag.String("kc-kafka-topic", "", "The Kafka topic that the Connect consumes data from")
+	kcReplFactor    = flag.Uint("kc-replfactor", kccatalog.DEFAULT_REPLICATION_FACTOR, "The replication factor for the Connector's storage, offset and status topics")
+	kcSinkESService = flag.String("kc-sink-es-service", "", "The ElasticSearch service name that the Connect sinks data to")
+	kcSinkESType    = flag.String("kc-sink-es-type", kccatalog.DEFAULT_TYPE_NAME, "The ElasticSearch index type name")
 
 	// The kafka manager service creation specific parameters
 	kmHeapSizeMB = flag.Int64("km-heap-size", kmcatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
@@ -306,6 +314,14 @@ func usage() {
 			case common.CatalogService_Telegraf:
 				printFlag(flag.Lookup("tel-collect-interval"))
 				printFlag(flag.Lookup("tel-monitor-service-name"))
+				return
+			case common.CatalogService_KafkaSinkES:
+				printFlag(flag.Lookup("kc-heap-size"))
+				printFlag(flag.Lookup("kc-kafka-service"))
+				printFlag(flag.Lookup("kc-kafka-topic"))
+				printFlag(flag.Lookup("kc-replfactor"))
+				printFlag(flag.Lookup("kc-sink-es-service"))
+				printFlag(flag.Lookup("kc-sink-es-type"))
 				return
 			}
 			// create stateful service
@@ -623,6 +639,8 @@ func main() {
 			createZkService(ctx, cli)
 		case common.CatalogService_Kafka:
 			createKafkaService(ctx, cli)
+		case common.CatalogService_KafkaSinkES:
+			createKafkaSinkESService(ctx, cli)
 		case common.CatalogService_KafkaManager:
 			createKafkaManagerService(ctx, cli)
 		case common.CatalogService_Redis:
@@ -1117,6 +1135,60 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The kafka service is created, jmx user", jmxUser, "password", jmxPasswd)
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
 
+	waitServiceRunning(ctx, cli, req.Service)
+}
+
+func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
+	if *service == "" {
+		fmt.Println("please specify the valid service name")
+		os.Exit(-1)
+	}
+	if *replicas == 0 || *kcKafkaService == "" || *kcKafkaTopic == "" || *kcSinkESService == "" {
+		fmt.Println("please specify the valid replica number, kafka service name, kafka topic, and elasticsearch service name")
+		os.Exit(-1)
+	}
+	if *kcHeapSizeMB < kccatalog.DefaultHeapMB {
+		fmt.Printf("The Kafka connec heap size is less than %d. Please increase it for production system\n", kccatalog.DefaultHeapMB)
+	}
+
+	req := &manage.CatalogCreateKafkaSinkESRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+			ServiceType: common.ServiceTypeStateless,
+		},
+		Resource: &common.Resources{
+			MaxCPUUnits:     *maxCPUUnits,
+			ReserveCPUUnits: *reserveCPUUnits,
+			MaxMemMB:        *maxMemMB,
+			ReserveMemMB:    *reserveMemMB,
+		},
+		Options: &manage.CatalogKafkaSinkESOptions{
+			Replicas:         *replicas,
+			HeapSizeMB:       *kcHeapSizeMB,
+			KafkaServiceName: *kcKafkaService,
+			Topic:            *kcKafkaTopic,
+			ESServiceName:    *kcSinkESService,
+			TypeName:         *kcSinkESType,
+			ReplFactor:       *kcReplFactor,
+		},
+	}
+
+	err := cli.CatalogCreateKafkaSinkESService(ctx, req)
+	if err != nil {
+		fmt.Println(time.Now().UTC(), "create kafka connect service error", err)
+		os.Exit(-1)
+	}
+
+	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
+
+	initReq := &manage.CatalogCheckServiceInitRequest{
+		ServiceType: common.CatalogService_KafkaSinkES,
+		Service:     req.Service,
+	}
+
+	waitServiceInit(ctx, cli, initReq)
 	waitServiceRunning(ctx, cli, req.Service)
 }
 
@@ -1952,7 +2024,7 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 				fmt.Println("Unmarshal CasUserAttr error", err)
 				os.Exit(-1)
 			}
-			fmt.Println("Cassandra jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+			fmt.Printf("%+v\n", *ua)
 
 		case common.CatalogService_Kafka:
 			ua := &common.KafkaUserAttr{}
@@ -1961,7 +2033,7 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 				fmt.Println("Unmarshal KafkaUserAttr error", err)
 				os.Exit(-1)
 			}
-			fmt.Println("Kafka jmx user", ua.JmxRemoteUser, "password", ua.JmxRemotePasswd)
+			fmt.Printf("%+v\n", *ua)
 
 		case common.CatalogService_MongoDB:
 			ua := &common.MongoDBUserAttr{}
@@ -1971,6 +2043,16 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 				os.Exit(-1)
 			}
 			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_ElasticSearch:
+			ua := &common.ESUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal ESUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
 		}
 	}
 }

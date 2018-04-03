@@ -218,6 +218,26 @@ BuildCatalogImages() {
   rm -f ${path}/firecamp-service-updatedns
   docker push $image
 
+  # build kafka-connect docker image
+  echo
+  target=$system"-kafka-connect"
+  image="${org}${target}:4.0"
+  path="${TOPWD}/catalog/kafkaconnect/4.0/dockerfile/"
+  cp ${GOPATH}/bin/firecamp-selectmember ${path}
+  docker build -q -t $image $path
+  rm -f ${path}/firecamp-selectmember
+  docker push $image
+
+  # build sink-elasticsearch init task docker image
+  echo
+  target=$system"-kafka-sink-elasticsearch-init"
+  image="${org}${target}:4.0"
+  path="${TOPWD}/catalog/kafkaconnect/4.0/sink-elasticsearch-init-dockerfile"
+  cp ${TOPWD}/catalog/waitdns.sh ${path}
+  docker build -q -t $image $path
+  rm -f ${path}/waitdns.sh
+  docker push $image
+
 
   # build redis docker image
   echo
