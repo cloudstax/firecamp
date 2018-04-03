@@ -25,6 +25,11 @@ const (
 	SinkESInitContainerImage = common.ContainerNamePrefix + "kafka-sink-elasticsearch-init:" + defaultVersion
 
 	// connector listen port for managing the connector
+	// Note: could not set rest.advertised.port to a different port. If set to a different port such as 8084,
+	// creating the sink elasticsearch worker to some connector may return error. For example, the connect service
+	// has 2 connectors, mysinkes-0 and mysinkes-1. The sink elasticsearch init task may send the request to mysinkes-0,
+	// which may return "IO Error trying to forward REST request: Connection refused". If the request is sent to
+	// the other connector mysinkes-1, it could succeed.
 	connectRestPort = 8083
 
 	DefaultHeapMB = 1024
@@ -35,8 +40,6 @@ const (
 	STATUS_NAME_SUFFIX         = "status"
 	DEFAULT_REPLICATION_FACTOR = uint(3)
 	MAX_REPLICATION_FACTOR     = uint(7)
-	// by default, only one task per connector
-	DEFAULT_MAX_TASKS = 1
 	// The default ElasticSearch type.
 	DEFAULT_TYPE_NAME = "kafka-connect"
 
@@ -59,6 +62,8 @@ const (
 	ENV_CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE = "CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE"
 	ENV_CONNECT_PLUGIN_PATH                             = "CONNECT_PLUGIN_PATH"
 	defaultConnectPluginPath                            = "/usr/share/java"
+	ENV_CONNECT_LOG4J_LOGGERS                           = "CONNECT_LOG4J_LOGGERS"
+	reflectionLogger                                    = "org.reflections=ERROR"
 
 	ENV_CONNECTOR_NAME  = "CONNECTOR_NAME"
 	ENV_CONNECTOR_HOSTS = "CONNECTOR_HOSTS"
@@ -136,6 +141,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_PLUGIN_PATH, Value: defaultConnectPluginPath},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_LOG4J_LOGGERS, Value: reflectionLogger},
 	}
 
 	typeName := opts.TypeName
@@ -230,7 +236,7 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 	kvport := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_PORT, Value: strconv.Itoa(connectRestPort)}
 
 	name := fmt.Sprintf("%s-%s", req.Cluster, req.ServiceName)
-	configs := fmt.Sprintf(sinkESConfigs, name, DEFAULT_MAX_TASKS, ua.Topic, ua.TypeName, esURIs)
+	configs := fmt.Sprintf(sinkESConfigs, name, replicas, ua.Topic, ua.TypeName, esURIs)
 	kvconfigs := &common.EnvKeyValuePair{Name: ENV_ELASTICSEARCH_CONFIGS, Value: configs}
 	kvname := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_NAME, Value: name}
 
