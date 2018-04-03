@@ -8,5 +8,9 @@ RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /usr/l
 COPY firecamp-selectmember /
 COPY docker-entrypoint.sh /
 
+# The internal advertised port for the workers of different connectors to talk with each other.
+# This port is internal in the private SecurityGroup and not exposed to the application.
+EXPOSE 8084
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/etc/confluent/docker/run"]
