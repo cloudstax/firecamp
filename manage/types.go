@@ -423,8 +423,18 @@ type CatalogKafkaSinkESOptions struct {
 	// The Kafka Topic to read data from
 	Topic string
 
+	// The replication factor for storage, offset and status topics
+	ReplFactor uint
+
 	// The ElasticSearch service to sink to
 	ESServiceName string
+
+	// https://docs.confluent.io/3.1.0/connect/connect-elasticsearch/docs/configuration_options.html
+	// MaxBufferedRecords and BatchSize should be adjusted according to the load.
+	// The ElasticSearch connector default max.buffer.records is 20000, default batch.size is 2000.
+	// For example, one record is 1KB. By default, will buffer 20MB, and batch 2MB.
+	MaxBufferedRecords int
+	BatchSize          int
 
 	// The ElasticSearch index type. This could not be empty for kafka elasticsearch connector.
 	// The "type" is deprecated in ElasticSearch 6.0.0.
@@ -432,9 +442,6 @@ type CatalogKafkaSinkESOptions struct {
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-type-field.html
 	// https://www.elastic.co/blog/index-vs-type
 	TypeName string
-
-	// The replication factor for storage, offset and status topics
-	ReplFactor uint
 }
 
 // CatalogCreateKafkaSinkESRequest creates a Kafka ElasticSearch Sink Connect service.

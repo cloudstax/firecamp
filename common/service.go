@@ -362,6 +362,9 @@ type KCSinkESUserAttr struct {
 	// The type to use for each index
 	TypeName string
 
+	MaxBufferedRecords int
+	BatchSize          int
+
 	// The storage replication factor for storage, offset and status topics
 	ConfigReplFactor uint
 	OffsetReplFactor uint

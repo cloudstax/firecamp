@@ -25,11 +25,6 @@ const (
 	SinkESInitContainerImage = common.ContainerNamePrefix + "kafka-sink-elasticsearch-init:" + defaultVersion
 
 	// connector listen port for managing the connector
-	// Note: could not set rest.advertised.port to a different port. If set to a different port such as 8084,
-	// creating the sink elasticsearch worker to some connector may return error. For example, the connect service
-	// has 2 connectors, mysinkes-0 and mysinkes-1. The sink elasticsearch init task may send the request to mysinkes-0,
-	// which may return "IO Error trying to forward REST request: Connection refused". If the request is sent to
-	// the other connector mysinkes-1, it could succeed.
 	connectRestPort = 8083
 
 	DefaultHeapMB = 1024
@@ -40,9 +35,14 @@ const (
 	STATUS_NAME_SUFFIX         = "status"
 	DEFAULT_REPLICATION_FACTOR = uint(3)
 	MAX_REPLICATION_FACTOR     = uint(7)
+
+	// ElasticSearch default configs
+	DefaultMaxBufferedRecords = 20000
+	DefaultBatchSize          = 2000
 	// The default ElasticSearch type.
 	DEFAULT_TYPE_NAME = "kafka-connect"
 
+	ENV_KAFKA_HEAP_OPTS                                 = "KAFKA_HEAP_OPTS"
 	ENV_CONNECT_REST_PORT                               = "CONNECT_REST_PORT"
 	ENV_CONNECT_BOOTSTRAP_SERVERS                       = "CONNECT_BOOTSTRAP_SERVERS"
 	ENV_CONNECT_GROUP_ID                                = "CONNECT_GROUP_ID"
@@ -123,6 +123,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
 		&common.EnvKeyValuePair{Name: common.ENV_DB_TYPE, Value: common.DBTypeCloudDB},
 		// kafka connect env configs
+		&common.EnvKeyValuePair{Name: ENV_KAFKA_HEAP_OPTS, Value: fmt.Sprintf("-Xmx%dm", opts.HeapSizeMB)},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_BOOTSTRAP_SERVERS, Value: kafkaServers},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_PORT, Value: strconv.Itoa(connectRestPort)},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_GROUP_ID, Value: groupID},
@@ -148,15 +149,26 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 	if len(typeName) == 0 {
 		typeName = DEFAULT_TYPE_NAME
 	}
+	bufferedRecords := DefaultMaxBufferedRecords
+	if opts.MaxBufferedRecords > 0 {
+		bufferedRecords = opts.MaxBufferedRecords
+	}
+	batchSize := DefaultBatchSize
+	if opts.BatchSize > 0 {
+		batchSize = opts.BatchSize
+	}
+
 	userAttr := &common.KCSinkESUserAttr{
-		HeapSizeMB:       opts.HeapSizeMB,
-		KafkaServiceName: opts.KafkaServiceName,
-		Topic:            opts.Topic,
-		ESServiceName:    opts.ESServiceName,
-		TypeName:         typeName,
-		ConfigReplFactor: replFactor,
-		OffsetReplFactor: replFactor,
-		StatusReplFactor: replFactor,
+		HeapSizeMB:         opts.HeapSizeMB,
+		KafkaServiceName:   opts.KafkaServiceName,
+		Topic:              opts.Topic,
+		ESServiceName:      opts.ESServiceName,
+		TypeName:           typeName,
+		MaxBufferedRecords: bufferedRecords,
+		BatchSize:          batchSize,
+		ConfigReplFactor:   replFactor,
+		OffsetReplFactor:   replFactor,
+		StatusReplFactor:   replFactor,
 	}
 	b, err := json.Marshal(userAttr)
 	if err != nil {
@@ -236,7 +248,7 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 	kvport := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_PORT, Value: strconv.Itoa(connectRestPort)}
 
 	name := fmt.Sprintf("%s-%s", req.Cluster, req.ServiceName)
-	configs := fmt.Sprintf(sinkESConfigs, name, replicas, ua.Topic, ua.TypeName, esURIs)
+	configs := fmt.Sprintf(sinkESConfigs, name, replicas, ua.Topic, ua.TypeName, ua.MaxBufferedRecords, ua.BatchSize, esURIs)
 	kvconfigs := &common.EnvKeyValuePair{Name: ENV_ELASTICSEARCH_CONFIGS, Value: configs}
 	kvname := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_NAME, Value: name}
 
@@ -264,5 +276,5 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 }
 
 const (
-	sinkESConfigs = `{"name": "%s", "config": {"connector.class":"io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "tasks.max":"%d", "topics":"%s", "schema.ignore":"true", "key.ignore":"true", "type.name":"%s", "connection.url":"%s"}}`
+	sinkESConfigs = `{"name": "%s", "config": {"connector.class":"io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "tasks.max":"%d", "topics":"%s", "schema.ignore":"true", "key.ignore":"true", "type.name":"%s", "max.buffered.records":"%d", "batch.size":"%d", "connection.url":"%s"}}`
 )

@@ -124,12 +124,14 @@ var (
 	kafkaRetentionHours = flag.Int64(flagKafkaRetentionHours, kafkacatalog.DefaultRetentionHours, "The Kafka log retention hours")
 	kafkaZkService      = flag.String("kafka-zk-service", "", "The ZooKeeper service name that Kafka will talk to")
 
-	kcHeapSizeMB    = flag.Int64("kc-heap-size", kccatalog.DefaultHeapMB, "The Kafka Connect JVM heap size, unit: MB")
-	kcKafkaService  = flag.String("kc-kafka-service", "", "The Kafka service name that the Connect talks to")
-	kcKafkaTopic    = flag.String("kc-kafka-topic", "", "The Kafka topic that the Connect consumes data from")
-	kcReplFactor    = flag.Uint("kc-replfactor", kccatalog.DEFAULT_REPLICATION_FACTOR, "The replication factor for the Connector's storage, offset and status topics")
-	kcSinkESService = flag.String("kc-sink-es-service", "", "The ElasticSearch service name that the Connect sinks data to")
-	kcSinkESType    = flag.String("kc-sink-es-type", kccatalog.DEFAULT_TYPE_NAME, "The ElasticSearch index type name")
+	kcHeapSizeMB            = flag.Int64("kc-heap-size", kccatalog.DefaultHeapMB, "The Kafka Connect JVM heap size, unit: MB")
+	kcKafkaService          = flag.String("kc-kafka-service", "", "The Kafka service name that the Connect talks to")
+	kcKafkaTopic            = flag.String("kc-kafka-topic", "", "The Kafka topic that the Connect consumes data from")
+	kcReplFactor            = flag.Uint("kc-replfactor", kccatalog.DEFAULT_REPLICATION_FACTOR, "The replication factor for the Connector's storage, offset and status topics")
+	kcSinkESService         = flag.String("kc-sink-es-service", "", "The ElasticSearch service name that the Connect sinks data to")
+	kcSinkESType            = flag.String("kc-sink-es-type", kccatalog.DEFAULT_TYPE_NAME, "The ElasticSearch index type name")
+	kcSinkESBufferedRecords = flag.Int("kc-sink-es-buffer-records", kccatalog.DefaultMaxBufferedRecords, "The ElasticSearch max buffered records")
+	kcSinkESBatchSize       = flag.Int("kc-sink-es-batch-size", kccatalog.DefaultBatchSize, "The ElasticSearch batch size")
 
 	// The kafka manager service creation specific parameters
 	kmHeapSizeMB = flag.Int64("km-heap-size", kmcatalog.DefaultHeapMB, "The Kafka Manager JVM heap size, unit: MB")
@@ -322,6 +324,8 @@ func usage() {
 				printFlag(flag.Lookup("kc-replfactor"))
 				printFlag(flag.Lookup("kc-sink-es-service"))
 				printFlag(flag.Lookup("kc-sink-es-type"))
+				printFlag(flag.Lookup("kc-sink-es-buffer-records"))
+				printFlag(flag.Lookup("kc-sink-es-batch-size"))
 				return
 			}
 			// create stateful service
@@ -1165,13 +1169,15 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogKafkaSinkESOptions{
-			Replicas:         *replicas,
-			HeapSizeMB:       *kcHeapSizeMB,
-			KafkaServiceName: *kcKafkaService,
-			Topic:            *kcKafkaTopic,
-			ESServiceName:    *kcSinkESService,
-			TypeName:         *kcSinkESType,
-			ReplFactor:       *kcReplFactor,
+			Replicas:           *replicas,
+			HeapSizeMB:         *kcHeapSizeMB,
+			KafkaServiceName:   *kcKafkaService,
+			Topic:              *kcKafkaTopic,
+			ESServiceName:      *kcSinkESService,
+			TypeName:           *kcSinkESType,
+			MaxBufferedRecords: *kcSinkESBufferedRecords,
+			BatchSize:          *kcSinkESBatchSize,
+			ReplFactor:         *kcReplFactor,
 		},
 	}
 

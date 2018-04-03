@@ -315,6 +315,8 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			ua1.Topic == ua2.Topic &&
 			ua1.ESServiceName == ua2.ESServiceName &&
 			ua1.TypeName == ua2.TypeName &&
+			ua1.MaxBufferedRecords == ua2.MaxBufferedRecords &&
+			ua1.BatchSize == ua2.BatchSize &&
 			ua1.ConfigReplFactor == ua2.ConfigReplFactor &&
 			ua1.OffsetReplFactor == ua2.OffsetReplFactor &&
 			ua1.StatusReplFactor == ua2.StatusReplFactor {
