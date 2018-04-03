@@ -26,8 +26,6 @@ const (
 
 	// connector listen port for managing the connector
 	connectRestPort = 8083
-	// internal port for other workers to connect
-	connectAdvertisedRestPort = 8084
 
 	DefaultHeapMB = 1024
 
@@ -43,7 +41,6 @@ const (
 	DEFAULT_TYPE_NAME = "kafka-connect"
 
 	ENV_CONNECT_REST_PORT                               = "CONNECT_REST_PORT"
-	ENV_CONNECT_REST_ADVERTISED_PORT                    = "CONNECT_REST_ADVERTISED_PORT"
 	ENV_CONNECT_BOOTSTRAP_SERVERS                       = "CONNECT_BOOTSTRAP_SERVERS"
 	ENV_CONNECT_GROUP_ID                                = "CONNECT_GROUP_ID"
 	ENV_CONNECT_CONFIG_STORAGE_TOPIC                    = "CONNECT_CONFIG_STORAGE_TOPIC"
@@ -123,7 +120,6 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		// kafka connect env configs
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_BOOTSTRAP_SERVERS, Value: kafkaServers},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_PORT, Value: strconv.Itoa(connectRestPort)},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_ADVERTISED_PORT, Value: strconv.Itoa(connectAdvertisedRestPort)},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_GROUP_ID, Value: groupID},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_CONFIG_STORAGE_TOPIC, Value: configTopic},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_OFFSET_STORAGE_TOPIC, Value: offsetTopic},
