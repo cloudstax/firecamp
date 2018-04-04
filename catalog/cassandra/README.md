@@ -11,6 +11,15 @@ Cassandra Ec2Snitch could load the AWS region and availability zone from the EC2
 
 Only one region is supported currently. The multi-regions Cassandra will be supported in the future.
 
+## Monitor
+
+FireCamp supports to monitor Cassandra service using Telegraf. Please refer to [FireCamp Telegraf Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf#firecamp-telegraf-internals) for more details. If you customize the metrics you want to monitor, please pay attention to the data format in the metrics file. Each line includes one metric. Every metric should have the quotation marks and end with comma. The last metri should not end with comma. Example:
+```
+    "/org.apache.cassandra.metrics:type=ClientRequest,scope=Read,name=Latency",
+    "/org.apache.cassandra.metrics:type=ClientRequest,scope=Write,name=Latency",
+    "/org.apache.cassandra.metrics:type=Storage,name=Load"
+```
+
 ## Scale
 
 Scaling a FireCamp Cassandra service requires 4 steps. For example, scaling a 3 replicas Cassandra service to 6 replicas. Cassandra service name is "mycas". Cluster name is "t1". If you want to scale to a large number of replicas, please repeat below steps to scale 3 replicas at one time.

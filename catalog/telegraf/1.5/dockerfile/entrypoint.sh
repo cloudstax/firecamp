@@ -9,10 +9,16 @@ if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$SERVICE_NAME" -o -z "$MONITOR_SERVICE
   exit 1
 fi
 
+# telegraf config file directory
+configDir="/firecamp"
+if [ -n "$TEST_CONFIG_DIR" ]; then
+  configDir=$TEST_CONFIG_DIR
+fi
+
 # set telegraf configs
 export TEL_HOSTNAME=$SERVICE_NAME
 export INTERVAL="60s"
-if [ -z "$COLLECT_INTERVAL" ]; then
+if [ -n "$COLLECT_INTERVAL" ]; then
   export INTERVAL=$COLLECT_INTERVAL
 fi
 
@@ -47,10 +53,10 @@ if [ "$MONITOR_SERVICE_TYPE" = "redis" ]; then
   done
 
   # update the servers in input conf
-  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" /firecamp/input_redis.conf
+  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" $configDir/input_redis.conf
 
   # add service input plugin to telegraf.conf
-  cat /firecamp/input_redis.conf >> /firecamp/telegraf.conf
+  cat $configDir/input_redis.conf >> $configDir/telegraf.conf
 fi
 
 # add zookeeper input plugin
@@ -67,10 +73,10 @@ if [ "$MONITOR_SERVICE_TYPE" = "zookeeper" ]; then
   done
 
   # update the servers in input conf
-  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" /firecamp/input_zk.conf
+  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" $configDir/input_zk.conf
 
   # add service input plugin to telegraf.conf
-  cat /firecamp/input_zk.conf >> /firecamp/telegraf.conf
+  cat $configDir/input_zk.conf >> $configDir/telegraf.conf
 fi
 
 # add cassandra input plugin
@@ -87,8 +93,17 @@ if [ "$MONITOR_SERVICE_TYPE" = "cassandra" ]; then
     i=$(( $i + 1 ))
   done
 
+  casfile="$configDir/input_cas.conf"
+  if [ -n "$MONITOR_METRICS" ]; then
+    # custom metrics, update the input_cas_metrics.conf
+    casfile="$configDir/input_cas_metrics.conf"
+    # update metrics
+    echo "$MONITOR_METRICS" >> $casfile
+    echo "  ]" >> $casfile
+  fi
+
   # update the servers in input conf
-  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" /firecamp/input_cas.conf
+  sed -i "s/\"$FIRECAMP_SERVICE_SERVERS\"/$servers/g" $casfile
 
   # cassandra has a few system keyspaces, such as system, system_auth, system_schema. The system
   # keyspace and system_schema keyspace have many tables. Lots of metrics will get published.
@@ -96,7 +111,7 @@ if [ "$MONITOR_SERVICE_TYPE" = "cassandra" ]; then
   # TODO check and add the user keyspaces automatically.
 
   # add service input plugin to telegraf.conf
-  cat /firecamp/input_cas.conf >> /firecamp/telegraf.conf
+  cat $casfile >> $configDir/telegraf.conf
 fi
 
 # add output plugin
@@ -105,9 +120,9 @@ fi
 # - Data points with a period of 60 seconds (1 minute) are available for 15 days".
 # - After 15 days this data is aggregated and is retrievable only with a resolution of 5 minutes. After 63 days, 1 hours.
 # https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html
-cat /firecamp/output_cloudwatch.conf >> /firecamp/telegraf.conf
+cat $configDir/output_cloudwatch.conf >> $configDir/telegraf.conf
 
-cat /firecamp/telegraf.conf
+cat $configDir/telegraf.conf
 
 echo "$@"
 exec "$@"

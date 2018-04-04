@@ -9,6 +9,21 @@ One Telegraf service will monitor one stateful service and send the metrics to A
 
 You could limit the Telegraf service memory usage by setting the "max-memory" option when creates the service.
 
+## Custom Metrics
+
+You will pay for CloudWatch usage. If the service generates lots of metrics, the cost may not be low. Please refer to [CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/) for the details. If you want to reduce the cost, you could customize the metrics to monitor. You could put all the custom metrics in one file, and pass the file "-tel-metrics-file=pathtofile" when creating the service. For example, you could create the file with a few metrics for Cassandra:
+```
+    "/org.apache.cassandra.metrics:type=ClientRequest,scope=Read,name=Latency",
+    "/org.apache.cassandra.metrics:type=ClientRequest,scope=Write,name=Latency",
+    "/org.apache.cassandra.metrics:type=Storage,name=Load"
+```
+
+Customizing the metrics is the advanced configuration. Currently FireCamp does not check the format in the custom file. It is your responsibility to ensure the format and metrics are correct. For example, refer to "metrics" part in [Cassandra configs](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf/1.5/dockerfile/input_cas.conf) for the detail metrics format. FireCamp will simply replace the "metrics" part with the custom metrics in the file.
+
+Currently not every service in Telegraf supports to customize the metrics. For example, Telegraf Redis gathers the results of the [INFO](https://redis.io/commands/info) redis command.
+
+In the later releases, we will support Prometheus and Grafana to store and show the metrics.
+
 ## CloudWatch Limits
 
 CloudWatch has a few limitations on the metrics retention. For example, "Data points with a period of 60 seconds (1 minute) are available for 15 days", and "After 15 days this data is still available, but is aggregated and is retrievable only with a resolution of 5 minutes. After 63 days, the data is further aggregated and is available with a resolution of 1 hour.". For more details, please refer to [CloudWatch Metrics](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Metric).

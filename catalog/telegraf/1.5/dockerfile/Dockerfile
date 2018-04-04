@@ -3,6 +3,7 @@ FROM telegraf:1.5
 RUN mkdir -p /firecamp/
 
 COPY input_cas.conf /firecamp/
+COPY input_cas_metrics.conf /firecamp/
 COPY input_elastic.conf /firecamp/
 COPY input_mongo.conf /firecamp/
 COPY input_mysql.conf /firecamp/
