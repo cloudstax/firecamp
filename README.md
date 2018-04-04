@@ -69,6 +69,7 @@ If the applications use JVM, you will need to set JVM TTL. Please check such as 
 * [Cassandra](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra)
 * [ZooKeeper](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper)
 * [Kafka](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka)
+* [KafkaConnect](https://github.com/cloudstax/firecamp/tree/master/catalog/kafkaconnect)
 * [KafkaManager](https://github.com/cloudstax/firecamp/tree/master/catalog/kafkamanager)
 * [Redis](https://github.com/cloudstax/firecamp/tree/master/catalog/redis)
 * [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
