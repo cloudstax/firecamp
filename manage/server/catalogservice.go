@@ -626,13 +626,6 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// generate the service specific env variables
-	serviceEnvs, err := telcatalog.GenServiceEnvs(attr)
-	if err != nil {
-		glog.Errorln("GenServiceEnvs error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-
 	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("ListServiceMembers error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
@@ -641,7 +634,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 
 	// create the service in the control plane and the container platform
 	crReq, err := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
-		req.Service.ServiceName, attr, members, serviceEnvs, req.Options, req.Resource)
+		req.Service.ServiceName, attr, members, req.Options, req.Resource)
 	if err != nil {
 		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)

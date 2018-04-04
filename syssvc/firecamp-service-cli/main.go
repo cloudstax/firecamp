@@ -197,6 +197,7 @@ var (
 	// The telegraf service creation specific parameters
 	telCollectIntervalSecs = flag.Int("tel-collect-interval", telcatalog.DefaultCollectIntervalSecs, "The service metrics collect interval, unit: seconds")
 	telMonitorServiceName  = flag.String("tel-monitor-service-name", "", "The stateful service to minotor")
+	telMetricsFile         = flag.String("tel-metrics-file", "", "This is an advanced config if you want to customize the metrics to collect. Please follow Telegraf's usage to specify your custom metrics. It is your responsibility to ensure the format and metrics are correct.")
 
 	// the parameters for getting the config file
 	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
@@ -316,6 +317,7 @@ func usage() {
 			case common.CatalogService_Telegraf:
 				printFlag(flag.Lookup("tel-collect-interval"))
 				printFlag(flag.Lookup("tel-monitor-service-name"))
+				printFlag(flag.Lookup("tel-metrics-file"))
 				return
 			case common.CatalogService_KafkaSinkES:
 				printFlag(flag.Lookup("kc-heap-size"))
@@ -1905,6 +1907,16 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 			CollectIntervalSecs: *telCollectIntervalSecs,
 			MonitorServiceName:  *telMonitorServiceName,
 		},
+	}
+
+	if *telMetricsFile != "" {
+		// load the content of the metrics file
+		b, err := ioutil.ReadFile(*telMetricsFile)
+		if err != nil {
+			fmt.Println("read metrics file error", err, *telMetricsFile)
+			os.Exit(-1)
+		}
+		req.Options.MonitorMetrics = string(b)
 	}
 
 	err := telcatalog.ValidateRequest(req)

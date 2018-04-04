@@ -433,4 +433,5 @@ type LSUserAttr struct {
 type TGUserAttr struct {
 	CollectIntervalSecs int
 	MonitorServiceName  string
+	MonitorMetrics      string
 }

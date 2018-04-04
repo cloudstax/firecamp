@@ -23,6 +23,10 @@ const (
 	ENV_MONITOR_SERVICE_NAME     = "MONITOR_SERVICE_NAME"
 	ENV_MONITOR_SERVICE_TYPE     = "MONITOR_SERVICE_TYPE"
 	ENV_MONITOR_SERVICE_MEMBERS  = "MONITOR_SERVICE_MEMBERS"
+	ENV_MONITOR_METRICS          = "MONITOR_METRICS"
+
+	// Limits the max custom metrics size to 16KB
+	maxMetricsLength = 16 * 1024
 
 	ENV_REDIS_AUTH = "REDIS_AUTH"
 )
@@ -34,14 +38,22 @@ func ValidateRequest(req *manage.CatalogCreateTelegrafRequest) error {
 	if req.Options.CollectIntervalSecs <= 0 {
 		return errors.New("Please specify the valid collect interval")
 	}
+	if len(req.Options.MonitorMetrics) > maxMetricsLength {
+		return fmt.Errorf("Max custom metrics length should be within %d bytes", maxMetricsLength)
+	}
 
 	return nil
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
-	attr *common.ServiceAttr, monitorServiceMembers []*common.ServiceMember, serviceEnvs []*common.EnvKeyValuePair,
+	attr *common.ServiceAttr, monitorServiceMembers []*common.ServiceMember,
 	opts *manage.CatalogTelegrafOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
+
+	serviceEnvs, err := genServiceEnvs(attr)
+	if err != nil {
+		return nil, err
+	}
 
 	members := ""
 	for i, m := range monitorServiceMembers {
@@ -61,6 +73,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_NAME, Value: opts.MonitorServiceName},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_TYPE, Value: attr.UserAttr.ServiceType},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_MEMBERS, Value: members},
+		&common.EnvKeyValuePair{Name: ENV_MONITOR_METRICS, Value: opts.MonitorMetrics},
 	}
 
 	for _, env := range serviceEnvs {
@@ -70,6 +83,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	userAttr := &common.TGUserAttr{
 		CollectIntervalSecs: opts.CollectIntervalSecs,
 		MonitorServiceName:  opts.MonitorServiceName,
+		MonitorMetrics:      opts.MonitorMetrics,
 	}
 	b, err := json.Marshal(userAttr)
 	if err != nil {
@@ -113,8 +127,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	return req, nil
 }
 
-// GenServiceEnvs generates the envs for the service.
-func GenServiceEnvs(attr *common.ServiceAttr) (envkvs []*common.EnvKeyValuePair, err error) {
+// genServiceEnvs generates the envs for the service.
+func genServiceEnvs(attr *common.ServiceAttr) (envkvs []*common.EnvKeyValuePair, err error) {
 	switch attr.UserAttr.ServiceType {
 	case common.CatalogService_Redis:
 		ua := &common.RedisUserAttr{}

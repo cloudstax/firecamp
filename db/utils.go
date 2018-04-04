@@ -459,7 +459,8 @@ func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr
 			return false
 		}
 		if ua1.CollectIntervalSecs == ua2.CollectIntervalSecs &&
-			ua1.MonitorServiceName == ua2.MonitorServiceName {
+			ua1.MonitorServiceName == ua2.MonitorServiceName &&
+			ua1.MonitorMetrics == ua2.MonitorMetrics {
 			return true
 		}
 		glog.Errorln("TGUserAttr mismatch, u1:", ua1, ", u2:", ua2)
