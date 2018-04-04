@@ -27,7 +27,7 @@ const (
 	// connector listen port for managing the connector
 	connectRestPort = 8083
 
-	DefaultHeapMB = 1024
+	DefaultHeapMB = 512
 
 	JSON_CONVERTER             = "org.apache.kafka.connect.json.JsonConverter"
 	CONFIG_NAME_SUFFIX         = "config"
