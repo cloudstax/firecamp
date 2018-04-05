@@ -12,10 +12,8 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -181,7 +179,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, opts)
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, int(opts.Replicas))
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -210,25 +208,6 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		},
 	}
 	return req, userAttr, nil
-}
-
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, opts *manage.CatalogKafkaSinkESOptions) []*manage.ReplicaConfig {
-	domain := dns.GenDefaultDomainName(cluster)
-
-	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
-	for i := 0; i < int(opts.Replicas); i++ {
-		// create the sys.conf file
-		member := utils.GenServiceMemberName(service, int64(i))
-		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
-
-		configs := []*manage.ReplicaConfigFile{sysCfg}
-
-		replicaCfg := &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
-		replicaCfgs[i] = replicaCfg
-	}
-	return replicaCfgs
 }
 
 // GenSinkESServiceInitRequest creates the init request for elasticsearch sink connector.

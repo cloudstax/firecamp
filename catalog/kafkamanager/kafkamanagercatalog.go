@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
@@ -90,6 +91,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		return nil, err
 	}
 
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, 1)
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -107,10 +110,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 		ContainerImage: ContainerImage,
 		// Kafka Manager only needs 1 container.
-		Replicas:     1,
-		PortMappings: portMappings,
-		Envkvs:       envkvs,
-		RegisterDNS:  true,
+		Replicas:       1,
+		PortMappings:   portMappings,
+		Envkvs:         envkvs,
+		RegisterDNS:    true,
+		ReplicaConfigs: replicaCfgs,
 
 		UserAttr: &common.ServiceUserAttr{
 			ServiceType: common.CatalogService_KafkaManager,

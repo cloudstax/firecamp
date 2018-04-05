@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
@@ -91,6 +92,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		return nil, err
 	}
 
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, 1)
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -117,7 +120,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		// streaming (tcp, unix) or datagram (udp, unixgram) protocols.
 		// Currently firecamp telegraf is only used to monitor the stateful service. So no need to expose
 		// these ports and no need to register DNS for the telegraf service itself.
-		RegisterDNS: false,
+		RegisterDNS:    false,
+		ReplicaConfigs: replicaCfgs,
 
 		UserAttr: &common.ServiceUserAttr{
 			ServiceType: common.CatalogService_Telegraf,

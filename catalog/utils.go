@@ -23,6 +23,25 @@ func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaC
 	}
 }
 
+// GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
+func GenStatelessServiceReplicaConfigs(platform string, cluster string, service string, replicas int) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+
+	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
+	for i := 0; i < replicas; i++ {
+		// create the sys.conf file
+		member := utils.GenServiceMemberName(service, int64(i))
+		memberHost := dns.GenDNSName(member, domain)
+		sysCfg := CreateSysConfigFile(platform, memberHost)
+
+		configs := []*manage.ReplicaConfigFile{sysCfg}
+
+		replicaCfg := &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
+		replicaCfgs[i] = replicaCfg
+	}
+	return replicaCfgs
+}
+
 // GenServiceMemberURIs creates the list of URIs for all service members,
 // example: http://myes-0.t1-firecamp.com:9200,http://myes-1.t1-firecamp.com:9200
 func GenServiceMemberURIs(cluster string, service string, replicas int64, port int64) string {
