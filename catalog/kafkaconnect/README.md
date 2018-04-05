@@ -80,7 +80,7 @@ If any task is down, such as task 0, could restart the task, `curl -X POST mysin
 
 ## Logging
 
-The Kafka Connect logs are sent to the Cloud Logs, such as AWS CloudWatch logs. For AWS ECS, the container log is not service member aware. The log stream simply has the service name as prefix. For Docker Swarm, the service member name will be the prefix as we utilize swarm "Task.Slot" to pass the service member index to the log driver.
+The Kafka Connect logs are sent to the Cloud Logs, such as AWS CloudWatch logs. The container log is not service member aware. The log stream simply has the service name as prefix. While, the container logs its service member at startup. You could check the begining of the log and find which member the container is for.
 
 
 # Tutorials

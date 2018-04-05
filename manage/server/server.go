@@ -525,8 +525,7 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 		if req.Service.ServiceType != common.ServiceTypeStateless {
 			logConfig = s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
 		} else {
-			memberKey := containersvc.GenServiceMemberTaskSlot(req.Service.ServiceName)
-			logConfig = s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID, memberKey)
+			logConfig = s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID, req.Service.ServiceName)
 		}
 		opts := s.genCreateServiceOptions(req, serviceUUID, logConfig)
 		err = s.containersvcIns.CreateService(ctx, opts)

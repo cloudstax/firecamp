@@ -21,9 +21,3 @@ func GenVolumeSourceForSwarm(source string) string {
 func GenVolumeSourceName(source string, index int64) string {
 	return source + common.NameSeparator + strconv.FormatInt(index, 10)
 }
-
-// GenServiceMemberTaskSlot returns the service member key with task slot, service-slot,
-// for the log driver for swarm service. So the log driver could get the correct service member name.
-func GenServiceMemberTaskSlot(service string) string {
-	return service + common.NameSeparator + taskSlot
-}
