@@ -2036,6 +2036,33 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 			}
 			fmt.Printf("%+v\n", *ua)
 
+		case common.CatalogService_PostgreSQL:
+			ua := &common.PostgresUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal PostgresUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Redis:
+			ua := &common.RedisUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal RedisUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_ZooKeeper:
+			ua := &common.ZKUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal ZKUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
 		case common.CatalogService_Kafka:
 			ua := &common.KafkaUserAttr{}
 			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
@@ -2045,11 +2072,74 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 			}
 			fmt.Printf("%+v\n", *ua)
 
+		case common.CatalogService_KafkaManager:
+			ua := &common.KMUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal KMUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_KafkaSinkES:
+			ua := &common.KCSinkESUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal KCSinkESUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_CouchDB:
+			ua := &common.CouchDBUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal CouchDBUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Consul:
+			ua := &common.ConsulUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal ConsulUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
 		case common.CatalogService_ElasticSearch:
 			ua := &common.ESUserAttr{}
 			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
 			if err != nil {
 				fmt.Println("Unmarshal ESUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Kibana:
+			ua := &common.KibanaUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal KibanaUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Logstash:
+			ua := &common.LSUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal LSUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Telegraf:
+			ua := &common.TGUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal TGUserAttr error", err)
 				os.Exit(-1)
 			}
 			fmt.Printf("%+v\n", *ua)
