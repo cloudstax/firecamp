@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opUpgrade, opUpgradeKM, opListMembers, opGetConfig))
+	op                  = flag.String("op", "", fmt.Sprintf("The operation type, %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", opCreate, opCheckInit, opGet, opUpdate, opUpdateResource, opDelete, opList, opScale, opStop, opStart, opRollingRestart, opUpgrade, opListMembers, opGetConfig))
 	serviceType         = flag.String("service-type", "", "The catalog service type: mongodb|postgresql|cassandra|zookeeper|kafka|kafkamanager|kafkasinkes|redis|couchdb|consul|elasticsearch|kibana|logstash|telegraf")
 	cluster             = flag.String("cluster", "mycluster", "The cluster name. Can only contain letters, numbers, or hyphens")
 	serverURL           = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("mycluster", false))
@@ -222,9 +222,6 @@ const (
 	opRollingRestart = "restart-service"
 	// upgrade service
 	opUpgrade = "upgrade-service"
-	// special upgrade command for kafka manager to release 0.9.5.
-	// TODO remove it after 0.9.5
-	opUpgradeKM = "upgrade-km"
 	// scale the service. scale service up will create new volumes for the new service containers.
 	// TODO scale service down will simply mark the members as inactive and stop the corresponding containers.
 	opScale       = "scale-service"
@@ -492,17 +489,6 @@ func usage() {
 			printFlag(flag.Lookup("cluster"))
 			printFlag(flag.Lookup("service-name"))
 
-		case opUpgradeKM:
-			fmt.Printf("Upgrade the kafka manager service to release 0.9.5\n")
-			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opUpgradeKM)
-			printFlag(flag.Lookup("region"))
-			printFlag(flag.Lookup("cluster"))
-			printFlag(flag.Lookup("service-name"))
-			printFlag(flag.Lookup("km-heap-size"))
-			printFlag(flag.Lookup("km-user"))
-			printFlag(flag.Lookup("km-passwd"))
-			printFlag(flag.Lookup("km-zk-service"))
-
 		case opCheckInit:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opCheckInit)
 			fmt.Println("  for MongoDB and CouchDB, please set -admin and -password")
@@ -710,9 +696,6 @@ func main() {
 
 	case opUpgrade:
 		upgradeService(ctx, cli)
-
-	case opUpgradeKM:
-		upgradeKMServiceV095(ctx, cli)
 
 	case opRollingRestart:
 		rollingRestartService(ctx, cli)
@@ -2044,20 +2027,20 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 			}
 			fmt.Printf("%+v\n", *ua)
 
-		case common.CatalogService_Kafka:
-			ua := &common.KafkaUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KafkaUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
 		case common.CatalogService_MongoDB:
 			ua := &common.MongoDBUserAttr{}
 			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
 			if err != nil {
 				fmt.Println("Unmarshal MongoDBUserAttr error", err)
+				os.Exit(-1)
+			}
+			fmt.Printf("%+v\n", *ua)
+
+		case common.CatalogService_Kafka:
+			ua := &common.KafkaUserAttr{}
+			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
+			if err != nil {
+				fmt.Println("Unmarshal KafkaUserAttr error", err)
 				os.Exit(-1)
 			}
 			fmt.Printf("%+v\n", *ua)
@@ -2204,42 +2187,6 @@ func upgradeService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("Service upgraded")
-}
-
-func upgradeKMServiceV095(ctx context.Context, cli *client.ManageClient) {
-	if *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
-	}
-
-	req := &manage.CatalogUpgradeKafkaManagerRequestV095{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-			ServiceType: common.ServiceTypeStateless,
-		},
-		Options: &manage.CatalogKafkaManagerOptions{
-			HeapSizeMB:    *kmHeapSizeMB,
-			User:          *kmUser,
-			Password:      *kmPasswd,
-			ZkServiceName: *kmZkService,
-		},
-	}
-
-	err := kmcatalog.ValidateRequest(req.Options)
-	if err != nil {
-		fmt.Println("invalid request", err)
-		os.Exit(-1)
-	}
-
-	err = cli.UpgradeKMServiceV095(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "upgrade kafka manager service error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println(time.Now().UTC(), "The kafka manager service is upgraded")
 }
 
 func rollingRestartService(ctx context.Context, cli *client.ManageClient) {

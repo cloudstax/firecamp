@@ -47,7 +47,6 @@ const (
 	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
 	CatalogUpdateZooKeeperOp     = CatalogOpPrefix + "Update-ZooKeeper"
-	CatalogUpgradeKafkaManagerOp = CatalogOpPrefix + "Upgrade-KafkaManager"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -470,15 +469,6 @@ type CatalogCreateKafkaManagerRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 	Options  *CatalogKafkaManagerOptions
-}
-
-// CatalogUpgradeKafkaManagerRequestV095 upgrades the Kafka Manager to release 0.9.5.
-// The Kafka Manager created before 0.9.5 does not have the user attr.
-// This upgrade is to add the user attr for the Kafka Manager service.
-// To simplify the change, it requires to input the creation options.
-type CatalogUpgradeKafkaManagerRequestV095 struct {
-	Service *ServiceCommonRequest
-	Options *CatalogKafkaManagerOptions
 }
 
 // CatalogRedisOptions includes the config options for Redis.

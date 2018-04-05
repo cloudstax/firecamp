@@ -140,27 +140,6 @@ func (c *ManageClient) UpgradeService(ctx context.Context, r *manage.ServiceComm
 	return manage.ConvertHTTPError(resp)
 }
 
-// UpgradeKMServiceV095 upgrades the kafka manager service to release 0.9.5
-// TODO this is specially required for upgrading to 0.9.5, and will be removed after 0.9.5.
-func (c *ManageClient) UpgradeKMServiceV095(ctx context.Context, r *manage.CatalogUpgradeKafkaManagerRequestV095) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpgradeKafkaManagerOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // GetServiceAttr gets the service details information
 func (c *ManageClient) GetServiceAttr(ctx context.Context, r *manage.ServiceCommonRequest) (*common.ServiceAttr, error) {
 	b, err := json.Marshal(r)
