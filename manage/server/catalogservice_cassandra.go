@@ -372,7 +372,7 @@ func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID st
 		// replace the original member jvm conf file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
 		newContent := cascatalog.NewJVMConfContent(heapSizeMB)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err

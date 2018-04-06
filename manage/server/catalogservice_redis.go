@@ -177,13 +177,7 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID s
 		return nil
 	}
 
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req.Service)
-		return err
-	}
-
-	err = s.updateRedisMemberConfigs(ctx, serviceUUID, members, ua, req, requuid)
+	err = s.updateRedisMemberConfigs(ctx, serviceUUID, ua, req, requuid)
 	if err != nil {
 		glog.Errorln("updateRedisMemberConfigs error", err, "requuid", requuid, req.Service)
 		return err
@@ -228,7 +222,13 @@ func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requui
 	return cfgIndex, cfg, nil
 }
 
-func (s *ManageHTTPServer) updateRedisMemberConfigs(ctx context.Context, serviceUUID string, members []*common.ServiceMember, ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest, requuid string) error {
+func (s *ManageHTTPServer) updateRedisMemberConfigs(ctx context.Context, serviceUUID string, ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest, requuid string) error {
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req.Service)
+		return err
+	}
+
 	for _, member := range members {
 		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
 		if err != nil {
@@ -245,7 +245,7 @@ func (s *ManageHTTPServer) updateRedisMemberConfigs(ctx context.Context, service
 
 		// replace the original member redis conf file content
 		newContent := rediscatalog.UpdateRedisConfig(cfgfile.Content, ua, req)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err
@@ -331,42 +331,39 @@ func (s *ManageHTTPServer) updateRedisStaticIPs(ctx context.Context, serviceUUID
 		return err
 	}
 
-	for _, m := range members {
-		err = s.updateRedisMemberStaticIP(ctx, m, requuid)
+	for _, member := range members {
+		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
 		if err != nil {
+			glog.Errorln(err)
+			return err
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// if static ip is already set, return
+		setIP := rediscatalog.NeedToSetClusterAnnounceIP(cfgfile.Content)
+		if !setIP {
+			glog.Infoln("cluster-announce-ip is already set in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+			return nil
+		}
+
+		// cluster-announce-ip not set, set it
+		newContent := rediscatalog.SetClusterAnnounceIP(cfgfile.Content, member.StaticIP)
+
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, member)
 			return err
 		}
 	}
 
 	glog.Infoln("updated redis cluster-announce-ip to the static ip", serviceUUID, "requuid", requuid)
 	return nil
-}
-
-func (s *ManageHTTPServer) updateRedisMemberStaticIP(ctx context.Context, member *common.ServiceMember, requuid string) error {
-	cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
-	if err != nil {
-		glog.Errorln(err)
-		return err
-	}
-
-	// fetch the config file
-	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-		return err
-	}
-
-	// if static ip is already set, return
-	setIP := rediscatalog.NeedToSetClusterAnnounceIP(cfgfile.Content)
-	if !setIP {
-		glog.Infoln("cluster-announce-ip is already set in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
-		return nil
-	}
-
-	// cluster-announce-ip not set, set it
-	newContent := rediscatalog.SetClusterAnnounceIP(cfgfile.Content, member.StaticIP)
-
-	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 }
 
 func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID string, requuid string) error {
@@ -377,40 +374,37 @@ func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID stri
 		return err
 	}
 
-	for _, m := range members {
-		err = s.enableRedisMemberAuth(ctx, m, requuid)
+	for _, member := range members {
+		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
 		if err != nil {
+			glog.Errorln(err)
+			return err
+		}
+
+		// fetch the config file
+		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
+		if err != nil {
+			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
+			return err
+		}
+
+		// if auth is enabled, return
+		enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Content)
+		if !enableAuth {
+			glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+			return nil
+		}
+
+		// auth is not enabled, enable it
+		newContent := rediscatalog.EnableRedisAuth(cfgfile.Content)
+
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, member)
 			return err
 		}
 	}
 
 	glog.Infoln("enabled redis auth, serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
-}
-
-func (s *ManageHTTPServer) enableRedisMemberAuth(ctx context.Context, member *common.ServiceMember, requuid string) error {
-	cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
-	if err != nil {
-		glog.Errorln(err)
-		return err
-	}
-
-	// fetch the config file
-	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-		return err
-	}
-
-	// if auth is enabled, return
-	enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Content)
-	if !enableAuth {
-		glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
-		return nil
-	}
-
-	// auth is not enabled, enable it
-	newContent := rediscatalog.EnableRedisAuth(cfgfile.Content)
-
-	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 }

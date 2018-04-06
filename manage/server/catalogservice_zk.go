@@ -250,7 +250,7 @@ func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID str
 
 		// update the original member jvm conf file content
 		newContent := zkcatalog.UpdateHeapSize(newHeapSizeMB, oldHeapSizeMB, cfgfile.Content)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err
@@ -294,6 +294,16 @@ func (s *ManageHTTPServer) upgradeZkToV095(ctx context.Context, attr *common.Ser
 	err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
 	if err != nil {
 		glog.Errorln("createJmxFiles error", err, "requuid", requuid, req)
+		return err
+	}
+
+	// list members again as createJmxFiles updates the member configs.
+	// could let createJmxFiles function to return the updated members.
+	// to simplify the implementation, simply list members again, as upgrade is
+	// only executed once for one service.
+	members, err = s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
 		return err
 	}
 
@@ -353,7 +363,7 @@ func (s *ManageHTTPServer) upgradeZkJavaEnvFileV095(ctx context.Context, attr *c
 		// update the original member java env conf file content
 		memberHost := dns.GenDNSName(member.MemberName, attr.DomainName)
 		newContent := zkcatalog.UpgradeJavaEnvFileContentToV095(heapSizeMB, memberHost)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err

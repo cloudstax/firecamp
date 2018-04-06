@@ -739,16 +739,17 @@ func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member 
 	// replace the original member dns name by member ip
 	newContent := consulcatalog.ReplaceMemberName(cfgfile.Content, memberips)
 
-	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+	_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+	return err
 }
 
 func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
-	cfgfile *common.ConfigFile, cfgIndex int, newContent string, requuid string) error {
+	cfgfile *common.ConfigFile, cfgIndex int, newContent string, requuid string) (newMember *common.ServiceMember, err error) {
 	// create a new config file
 	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
 	if err != nil {
 		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
-		return err
+		return nil, err
 	}
 
 	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
@@ -757,7 +758,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
 		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
-		return err
+		return nil, err
 	}
 
 	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
@@ -767,11 +768,11 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	newConfigs[cfgIndex].FileID = newcfgfile.FileID
 	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
 
-	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
 	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
 	if err != nil {
 		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return err
+		return nil, err
 	}
 
 	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
@@ -788,7 +789,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
 	}
 
-	return nil
+	return newMember, nil
 }
 
 func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
@@ -822,7 +823,7 @@ func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID 
 		// replace the original member jmx passwd file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
 		newContent := catalog.CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err
@@ -866,7 +867,7 @@ func (s *ManageHTTPServer) updateJmxAccessFile(ctx context.Context, serviceUUID 
 		// replace the original member jmx access file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
 		newContent := catalog.ReplaceJmxUserInAccessConfFile(cfgfile.Content, jmxUser, oldJmxUser)
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
 			return err
@@ -938,44 +939,44 @@ func (s *ManageHTTPServer) createJmxFiles(ctx context.Context, members []*common
 		// the upgrade request may fail and get retried. if jmx password file exists, update it with the new password.
 		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
 		newcfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
-		err := s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
+		newMember, err := s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
 		if err != nil {
 			glog.Errorln("create or update jmx password file error", err, "requuid", requuid, member)
 			return err
 		}
 
 		// the upgrade request may fail and get retried. if jmx access file exists, update it.
-		cfgIndex = s.jmxAccessFileIndex(member.Configs)
+		cfgIndex = s.jmxAccessFileIndex(newMember.Configs)
 		newcfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
-		err = s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
+		_, err = s.createOrUpdateJmxFile(ctx, newMember, cfgIndex, newcfg, requuid)
 		if err != nil {
-			glog.Errorln("create or update jmx access file error", err, "requuid", requuid, member)
+			glog.Errorln("create or update jmx access file error", err, "requuid", requuid, newMember)
 			return err
 		}
 	}
 
-	glog.Infoln("created jmx password and access configs for service", members[0].ServiceUUID, "requuid", requuid)
+	glog.Infoln("created jmx password and access configs, requuid", requuid)
 	return nil
 }
 
-func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) error {
+func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) (newMember *common.ServiceMember, err error) {
 	if cfgIndex < 0 {
 		// jmx file not exists, create it
 		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
 		if err != nil {
 			glog.Errorln("create jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
-			return err
+			return nil, err
 		}
 
 		// update member configs
 		newConfigs := db.CopyMemberConfigs(member.Configs)
 		newConfigs = append(newConfigs, jmxCfg)
 
-		newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+		newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
 		err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
 		if err != nil {
 			glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-			return err
+			return nil, err
 		}
 
 		glog.Infoln("created jmx config file", newcfg.FileName, "requuid", requuid, member)
@@ -984,17 +985,17 @@ func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *co
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, member.Configs[cfgIndex].FileID)
 		if err != nil {
 			glog.Errorln("GetConfigFile error", err, "requuid", requuid, member.Configs[cfgIndex])
-			return err
+			return nil, err
 		}
 
-		err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newcfg.Content, requuid)
+		newMember, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newcfg.Content, requuid)
 		if err != nil {
 			glog.Errorln("update the existing jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
-			return err
+			return nil, err
 		}
 
 		glog.Infoln("updated jmx config file", newcfg.FileName, "requuid", requuid, member)
 	}
 
-	return nil
+	return newMember, nil
 }

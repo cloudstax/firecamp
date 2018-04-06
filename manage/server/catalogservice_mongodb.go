@@ -229,5 +229,6 @@ func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
 	// auth is not enabled, enable it
 	newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Content)
 
-	return s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+	_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+	return err
 }
