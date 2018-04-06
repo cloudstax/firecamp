@@ -368,7 +368,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 
 	// update kafka java env file
 	if req.HeapSizeMB != 0 && req.HeapSizeMB != ua.HeapSizeMB {
-		err = s.updateKafkaHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, ua.HeapSizeMB, requuid)
+		members, err = s.updateKafkaHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, ua.HeapSizeMB, requuid)
 		if err != nil {
 			glog.Errorln("updateKafkaHeapSize error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
@@ -391,7 +391,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 		}
 
 		// update the server properties file
-		err = s.updateKafkaServerPropConfFile(ctx, serviceUUID, members, newua, ua, requuid)
+		members, err = s.updateKafkaServerPropConfFile(ctx, serviceUUID, members, newua, ua, requuid)
 		if err != nil {
 			glog.Errorln("updateKafkaServerPropConfFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
@@ -401,7 +401,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 	// update jmx file
 	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
 		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
-		err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		members, err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
 		if err != nil {
 			glog.Errorln("updateJmxPasswdFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
@@ -409,7 +409,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 
 		if req.JmxRemoteUser != ua.JmxRemoteUser {
 			// update jmx access file
-			err = s.updateJmxAccessFile(ctx, serviceUUID, members, req.JmxRemoteUser, ua.JmxRemoteUser, requuid)
+			members, err = s.updateJmxAccessFile(ctx, serviceUUID, members, req.JmxRemoteUser, ua.JmxRemoteUser, requuid)
 			if err != nil {
 				glog.Errorln("updateJmxAccessFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 				return err
@@ -448,7 +448,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 	return nil
 }
 
-func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newua *common.KafkaUserAttr, ua *common.KafkaUserAttr, requuid string) error {
+func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newua *common.KafkaUserAttr, ua *common.KafkaUserAttr, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -462,32 +462,34 @@ func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, se
 		if cfgIndex == -1 {
 			errmsg := fmt.Sprintf("the server properties file not found for member %s, requuid %s", member.MemberName, requuid)
 			glog.Errorln(errmsg)
-			return errors.New(errmsg)
+			return nil, errors.New(errmsg)
 		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 		if err != nil {
 			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
 
 		// update the original member server properties conf file content
 		newContent := kafkacatalog.UpdateServerPropFile(newua, ua, cfgfile.Content)
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
+
+		newMembers = append(newMembers, newMember)
 
 		glog.Infoln("updated kafka properties file for member", member, "requuid", requuid)
 	}
 
 	glog.Infoln("updated the properties file for kafka service", serviceUUID, "requuid", requuid)
-	return nil
+	return newMembers, nil
 }
 
-func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) error {
+func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -501,29 +503,31 @@ func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID 
 		if cfgIndex == -1 {
 			errmsg := fmt.Sprintf("the jvm file not found for member %s, requuid %s", member.MemberName, requuid)
 			glog.Errorln(errmsg)
-			return errors.New(errmsg)
+			return nil, errors.New(errmsg)
 		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 		if err != nil {
 			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
 
 		// update the original member jvm conf file content
 		newContent := kafkacatalog.UpdateHeapSize(newHeapSizeMB, oldHeapSizeMB, cfgfile.Content)
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
+
+		newMembers = append(newMembers, newMember)
 
 		glog.Infoln("updated kafka heap size from", oldHeapSizeMB, "to", newHeapSizeMB, "for member", member, "requuid", requuid)
 	}
 
 	glog.Infoln("updated heap size for kafka service", serviceUUID, "requuid", requuid)
-	return nil
+	return newMembers, nil
 }
 
 // Upgrade to 0.9.5
@@ -554,19 +558,9 @@ func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *c
 	newua.JmxRemotePasswd = jmxPasswd
 
 	// create jmx password and access files
-	err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
+	members, err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
 	if err != nil {
 		glog.Errorln("createJmxFiles error", err, "requuid", requuid, req)
-		return err
-	}
-
-	// list members again as createJmxFiles updates the member configs.
-	// could let createJmxFiles function to return the updated members.
-	// to simplify the implementation, simply list members again, as upgrade is
-	// only executed once for one service.
-	members, err = s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
 		return err
 	}
 

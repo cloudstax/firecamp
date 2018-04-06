@@ -295,7 +295,7 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 	newua := db.CopyCasUserAttr(ua)
 	updated := false
 	if req.HeapSizeMB != 0 && req.HeapSizeMB != ua.HeapSizeMB {
-		err = s.updateCasHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, requuid)
+		members, err = s.updateCasHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, requuid)
 		if err != nil {
 			glog.Errorln("updateCasHeapSize error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
@@ -307,7 +307,7 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 
 	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
 		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
-		err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		members, err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
 		if err != nil {
 			glog.Errorln("updateJmxPasswdFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req)
 			return err
@@ -345,7 +345,7 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 	return nil
 }
 
-func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
+func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, heapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -359,28 +359,30 @@ func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID st
 		if cfgIndex == -1 {
 			errmsg := fmt.Sprintf("the jvm file not found for member %s, requuid %s", member.MemberName, requuid)
 			glog.Errorln(errmsg)
-			return errors.New(errmsg)
+			return nil, errors.New(errmsg)
 		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 		if err != nil {
 			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
 
 		// replace the original member jvm conf file content
 		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
 		newContent := cascatalog.NewJVMConfContent(heapSizeMB)
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
+
+		newMembers = append(newMembers, newMember)
 
 		glog.Infoln("updated cassandra heap size to", heapSizeMB, "for member", member, "requuid", requuid)
 	}
 
 	glog.Infoln("updated heap size for cassandra service", serviceUUID, "requuid", requuid)
-	return nil
+	return newMembers, nil
 }

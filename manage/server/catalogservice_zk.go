@@ -164,7 +164,7 @@ func (s *ManageHTTPServer) updateZkConfigs(ctx context.Context, serviceUUID stri
 
 	// update the java env file
 	if req.HeapSizeMB != 0 && req.HeapSizeMB != ua.HeapSizeMB {
-		err = s.updateZkHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, ua.HeapSizeMB, requuid)
+		members, err = s.updateZkHeapSize(ctx, serviceUUID, members, req.HeapSizeMB, ua.HeapSizeMB, requuid)
 		if err != nil {
 			glog.Errorln("updateZkHeapSize error", err, "serviceUUID", serviceUUID, "requuid", requuid, req.Service)
 			return err
@@ -177,7 +177,7 @@ func (s *ManageHTTPServer) updateZkConfigs(ctx context.Context, serviceUUID stri
 	// update jmx file
 	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) != 0 &&
 		(req.JmxRemoteUser != ua.JmxRemoteUser || req.JmxRemotePasswd != ua.JmxRemotePasswd) {
-		err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
+		members, err = s.updateJmxPasswdFile(ctx, serviceUUID, members, req.JmxRemoteUser, req.JmxRemotePasswd, requuid)
 		if err != nil {
 			glog.Errorln("updateJmxPasswdFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req.Service)
 			return err
@@ -185,7 +185,7 @@ func (s *ManageHTTPServer) updateZkConfigs(ctx context.Context, serviceUUID stri
 
 		if req.JmxRemoteUser != ua.JmxRemoteUser {
 			// update jmx access file
-			err = s.updateJmxAccessFile(ctx, serviceUUID, members, req.JmxRemoteUser, ua.JmxRemoteUser, requuid)
+			members, err = s.updateJmxAccessFile(ctx, serviceUUID, members, req.JmxRemoteUser, ua.JmxRemoteUser, requuid)
 			if err != nil {
 				glog.Errorln("updateJmxAccessFile error", err, "serviceUUID", serviceUUID, "requuid", requuid, req.Service)
 				return err
@@ -224,7 +224,7 @@ func (s *ManageHTTPServer) updateZkConfigs(ctx context.Context, serviceUUID stri
 	return nil
 }
 
-func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) error {
+func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
 		var cfg *common.MemberConfig
 		cfgIndex := -1
@@ -238,29 +238,31 @@ func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID str
 		if cfgIndex == -1 {
 			errmsg := fmt.Sprintf("the java env file not found for member %s, requuid %s", member.MemberName, requuid)
 			glog.Errorln(errmsg)
-			return errors.New(errmsg)
+			return nil, errors.New(errmsg)
 		}
 
 		// fetch the config file
 		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 		if err != nil {
 			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
 
 		// update the original member jvm conf file content
 		newContent := zkcatalog.UpdateHeapSize(newHeapSizeMB, oldHeapSizeMB, cfgfile.Content)
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
+		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {
 			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
+			return nil, err
 		}
+
+		newMembers = append(newMembers, newMember)
 
 		glog.Infoln("updated zookeeper heap size from", oldHeapSizeMB, "to", newHeapSizeMB, "for member", member, "requuid", requuid)
 	}
 
 	glog.Infoln("updated heap size for zookeeper service", serviceUUID, "requuid", requuid)
-	return nil
+	return newMembers, nil
 }
 
 // Upgrade to 0.9.5
@@ -291,19 +293,9 @@ func (s *ManageHTTPServer) upgradeZkToV095(ctx context.Context, attr *common.Ser
 	newua.JmxRemotePasswd = jmxPasswd
 
 	// create jmx password and access files
-	err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
+	members, err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
 	if err != nil {
 		glog.Errorln("createJmxFiles error", err, "requuid", requuid, req)
-		return err
-	}
-
-	// list members again as createJmxFiles updates the member configs.
-	// could let createJmxFiles function to return the updated members.
-	// to simplify the implementation, simply list members again, as upgrade is
-	// only executed once for one service.
-	members, err = s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
 		return err
 	}
 
