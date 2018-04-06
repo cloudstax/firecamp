@@ -168,8 +168,8 @@
     },
     "Release": {
       "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.9.4", "0.9.3" ],
+      "Default": "0.9.5",
+      "AllowedValues": [ "0.9.5", "0.9.4" ],
       "Description": "The FireCamp release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
     },
     "QSS3BucketName": {
@@ -183,7 +183,7 @@
       "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
       "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
       "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Default": "firecamp/releases/latest/",
+      "Default": "firecamp/releases/0.9.5/",
       "Type": "String"
     },
     "NumberOfManagers":{
