@@ -503,8 +503,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	// TODO test more cases. for example, service at different status, config file exists.
 	// 1. device item exist
 	dev, err := s.createDevice(ctx, cluster, service, "", "requuid")
-	if err != nil || dev != "/dev/loop1" {
-		t.Fatalf("createDevice error %s, expectDev /dev/loop1, got %s", err, dev)
+	if err != nil || dev != "/dev/loop0" {
+		t.Fatalf("createDevice error %s, expectDev /dev/loop0, got %s", err, dev)
 	}
 	svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
 	if err != nil {
@@ -516,11 +516,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if err != nil {
 		t.Fatalf("GetServiceAttr error %s, cluster %s, service %s", err, cluster, service)
 	}
-	if sattr.Volumes.PrimaryDeviceName != "/dev/loop1" {
+	if sattr.Volumes.PrimaryDeviceName != "/dev/loop0" {
 		t.Fatalf("expect primary device for service %s, service volumes %s", service, sattr.Volumes)
 	}
 	if requireJournalVolume {
-		if sattr.Volumes.JournalDeviceName != "/dev/loop2" {
+		if sattr.Volumes.JournalDeviceName != "/dev/loop1" {
 			t.Fatalf("expect journal device for service %s, service volumes %s", service, sattr.Volumes)
 		}
 	} else {
@@ -573,9 +573,9 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	expectDev := "/dev/loop2"
+	expectDev := "/dev/loop1"
 	if requireJournalVolume {
-		expectDev = "/dev/loop3"
+		expectDev = "/dev/loop2"
 	}
 	if err != nil || dev != expectDev {
 		t.Fatalf("createDevice error %s, expectDev %s got %s", err, expectDev, dev)
@@ -601,7 +601,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 	}
 	if requireJournalVolume {
-		expectDev = "/dev/loop4"
+		expectDev = "/dev/loop3"
 		if sattr.Volumes.JournalDeviceName != expectDev {
 			t.Fatalf("expect journal device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 		}
@@ -655,9 +655,9 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	expectDev = "/dev/loop3"
+	expectDev = "/dev/loop2"
 	if requireJournalVolume {
-		expectDev = "/dev/loop5"
+		expectDev = "/dev/loop4"
 	}
 	if err != nil || dev != expectDev {
 		t.Fatalf("createDevice error %s, expectDev %s, got %s", err, expectDev, dev)
@@ -681,8 +681,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	if svols.PrimaryDeviceName != expectDev {
 		t.Fatalf("expect device %s got %s", expectDev, svols.PrimaryDeviceName)
 	}
-	if requireJournalVolume && svols.JournalDeviceName != "/dev/loop6" {
-		t.Fatalf("expect journal device /dev/loop6, get %s", svols.JournalDeviceName)
+	if requireJournalVolume && svols.JournalDeviceName != "/dev/loop5" {
+		t.Fatalf("expect journal device /dev/loop5, get %s", svols.JournalDeviceName)
 	}
 	res := common.Resources{
 		MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -736,9 +736,9 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 
 	dev, err = s.createDevice(ctx, cluster, service, "", "requuid")
-	expectDev = "/dev/loop4"
+	expectDev = "/dev/loop3"
 	if requireJournalVolume {
-		expectDev = "/dev/loop7"
+		expectDev = "/dev/loop6"
 	}
 	if err != nil || dev != expectDev {
 		t.Fatalf("createDevice error %s, expectDev %s, got %s", err, expectDev, dev)
@@ -759,8 +759,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	}
 	if requireJournalVolume {
 		journalDev, err := s.createDevice(ctx, cluster, service, expectDev, "requuid")
-		if err != nil || journalDev != "/dev/loop8" {
-			t.Fatalf("create journal device error %s, expectDev /dev/loop8, got %s", err, journalDev)
+		if err != nil || journalDev != "/dev/loop7" {
+			t.Fatalf("create journal device error %s, expectDev /dev/loop7, got %s", err, journalDev)
 		}
 		vols.JournalDeviceName = journalDev
 		vols.JournalVolume = common.ServiceVolume{
@@ -835,7 +835,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("expect primary device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 	}
 	if requireJournalVolume {
-		expectDev = "/dev/loop8"
+		expectDev = "/dev/loop7"
 		if sattr.Volumes.JournalDeviceName != expectDev {
 			t.Fatalf("expect journal device %s for service %s, service volumes %s", expectDev, service, sattr.Volumes)
 		}

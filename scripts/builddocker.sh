@@ -114,19 +114,6 @@ BuildManageImages() {
   rm -f $path$binfile
   docker push $image
 
-
-  # build controldb docker image
-  echo
-  target=$system"-controldb"
-  image="${org}${target}:${version}"
-  binfile=$target
-  path="${TOPWD}/syssvc/firecamp-controldb/dockerfile/"
-  cp $GOPATH/bin/$binfile $path
-  docker build -q -t $image $path
-  rm -f $path$binfile
-  docker push $image
-  echo
-
 }
 
 BuildCatalogImages() {

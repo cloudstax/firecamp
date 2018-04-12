@@ -32,7 +32,7 @@ func SetLogDir() {
 
 	err := CreateDirIfNotExist(f.Value.String())
 	if err != nil {
-		glog.Fatalln("create/check controldb log dir error", err, f.Value.String())
+		glog.Fatalln("create/check log dir error", err, f.Value.String())
 	}
 }
 
@@ -105,19 +105,6 @@ func GetConfigFileVersion(fileID string) (version int64, err error) {
 	fields := strings.Split(fileID, common.NameSeparator)
 	versionStr := fields[len(fields)-1]
 	return strconv.ParseInt(versionStr, 10, 64)
-}
-
-func GenControlDBServiceUUID(volID string) string {
-	return common.ControlDBUUIDPrefix + volID
-}
-
-func IsControlDBService(serviceUUID string) bool {
-	return strings.HasPrefix(serviceUUID, common.ControlDBUUIDPrefix)
-}
-
-// GetControlDBVolumeID extracts the volume id from the controldb serviceUUID
-func GetControlDBVolumeID(controldbServiceUUID string) string {
-	return strings.TrimPrefix(controldbServiceUUID, common.ControlDBUUIDPrefix)
 }
 
 // GetNextIP gets the next unused ip.

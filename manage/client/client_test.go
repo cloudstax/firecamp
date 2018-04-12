@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log/jsonfile"
 	"github.com/cloudstax/firecamp/manage"
@@ -64,51 +62,6 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
 	cli := NewManageClient(surl, nil)
 	serviceNum := 23
-	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
-
-	lis.Close()
-}
-
-func TestClientMgrOperationsWithControlDB(t *testing.T) {
-	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
-
-	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
-	cluster := "cluster1"
-	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
-	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
-
-	testdb := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 1}
-	go testdb.RunControldbTestServer(cluster)
-	defer testdb.StopControldbTestServer()
-
-	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+1))
-	dnsIns := dns.NewMockDNS()
-	logIns := jsonfilelog.NewLog()
-	serverIns := server.NewMemServer()
-	serverInfo := server.NewMockServerInfo()
-	containersvcIns := containersvc.NewMemContainerSvc()
-
-	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
-		manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
-	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
-
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		t.Fatalf("failed to listen on addr", addr, "error", err)
-	}
-
-	s := &http.Server{
-		Addr:    addr,
-		Handler: mgtsvc,
-	}
-
-	go s.Serve(lis)
-
-	tlsEnabled := false
-	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
-	cli := NewManageClient(surl, nil)
-	serviceNum := 14
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
 
 	lis.Close()

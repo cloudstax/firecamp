@@ -1,10 +1,6 @@
 #!/bin/sh
 set -xe
 
-protoc -I db/controldb/protocols/ db/controldb/protocols/controldb.proto --go_out=plugins=grpc:db/controldb/protocols
-
-cd syssvc/firecamp-controldb; go install; cd -
-
 cd syssvc/firecamp-dockervolume; go install; cd -
 cd syssvc/firecamp-dockerlog; go install; cd -
 
@@ -28,5 +24,4 @@ cd syssvc/tools/firecamp-volume-replace; go install; cd -
 cd $GOPATH/bin; tar -zcf firecamp-volume-replace.tgz firecamp-volume-replace; cd -
 
 # example commands
-cd syssvc/examples/firecamp-cleanup; go install; cd -
 cd syssvc/examples/firecamp-service-creation-example; go install; cd -

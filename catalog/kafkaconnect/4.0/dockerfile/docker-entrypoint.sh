@@ -45,7 +45,7 @@ if [ "$CONTAINER_PLATFORM" = "swarm" ]; then
 fi
 
 # selectmember will select one service member and write the member name to /etc/firecamp-member.
-/firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -container-platform=$CONTAINER_PLATFORM -dbtype=$DB_TYPE
+/firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -container-platform=$CONTAINER_PLATFORM
 
 memberHost=$(cat /etc/firecamp-member)
 echo "$memberHost"

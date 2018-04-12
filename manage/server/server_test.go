@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log/jsonfile"
 	"github.com/cloudstax/firecamp/manage"
@@ -51,34 +49,6 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
 		dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 29
-	testMgrOps(ctx, t, mgtsvc, serviceNum)
-}
-
-func TestServerMgrOperationsWithControlDB(t *testing.T) {
-	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
-
-	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
-	cluster := "cluster1"
-	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
-	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
-
-	s := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 2}
-	go s.RunControldbTestServer(cluster)
-	defer s.StopControldbTestServer()
-
-	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+2))
-	dnsIns := dns.NewMockDNS()
-	logIns := jsonfilelog.NewLog()
-	serverIns := server.NewMemServer()
-	serverInfo := server.NewMockServerInfo()
-	containersvcIns := containersvc.NewMemContainerSvc()
-
-	ctx := context.Background()
-
-	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
-		dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
-	serviceNum := 15
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
 

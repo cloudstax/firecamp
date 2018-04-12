@@ -75,24 +75,9 @@ const (
 	DefaultConfigPath                      = DefaultContainerMountPath + DefaultConfigDir
 	DefaultConfigFileMode                  = 0600
 
-	DBTypeControlDB = "controldb" // the controldb service
-	DBTypeCloudDB   = "clouddb"   // such as AWS DynamoDB
-	DBTypeK8sDB     = "k8sdb"     // db on top of k8s ConfigMap
-	DBTypeMemDB     = "memdb"     // in-memory db, for test only
-
-	ControlDBServerPort  = 27030
-	ControlDBName        = "controldb"
-	ControlDBServiceName = SystemName + NameSeparator + ControlDBName
-	ControlDBDefaultDir  = DefaultContainerMountPath + "/" + ControlDBName
-	// ControlDBUUIDPrefix defines the prefix of the controldb server id.
-	// The service uuid of the controldb service would be ControlDBUUIDPrefix + volumeID.
-	// The volumeID is the ID of the volume created for the controldb service.
-	ControlDBUUIDPrefix      = ControlDBName + NameSeparator
-	ControlDBContainerImage  = OrgName + ControlDBServiceName + ":" + Version
-	ControlDBReserveCPUUnits = 256
-	ControlDBMaxMemMB        = 4096
-	ControlDBReserveMemMB    = 256
-	ControlDBVolumeSizeGB    = int64(4)
+	DBTypeCloudDB = "clouddb" // such as AWS DynamoDB
+	DBTypeK8sDB   = "k8sdb"   // db on top of k8s ConfigMap
+	DBTypeMemDB   = "memdb"   // in-memory db, for test only
 
 	ManageHTTPServerPort  = 27040
 	ManageName            = "manageserver"

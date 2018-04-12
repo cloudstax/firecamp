@@ -41,9 +41,9 @@ func TestDeviceName(t *testing.T) {
 	cluster := "cluster1"
 	servicePrefix := "service-"
 
-	// /dev/xvdg ~ xvdz
-	devSeq := "g"
-	for i := 0; i < 20; i++ {
+	// /dev/xvdf ~ xvdz
+	devSeq := "f"
+	for i := 0; i < 21; i++ {
 		service := servicePrefix + strconv.Itoa(i)
 		expectDev := "/dev/xvd" + devSeq
 		dev, err := s.createDevice(ctx, cluster, service, "", "requuid")

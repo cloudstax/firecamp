@@ -70,7 +70,6 @@ type Server interface {
 	WaitVolumeCreated(ctx context.Context, volID string) error
 	DeleteVolume(ctx context.Context, volID string) error
 
-	GetControlDBDeviceName() string
 	GetFirstDeviceName() string
 	GetNextDeviceName(lastDev string) (devName string, err error)
 

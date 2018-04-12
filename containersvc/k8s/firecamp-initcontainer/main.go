@@ -15,9 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/db/k8sconfigdb"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/plugins/network"
 	"github.com/cloudstax/firecamp/plugins/volume"
@@ -67,10 +65,6 @@ func main() {
 	switch *dbtype {
 	case common.DBTypeCloudDB:
 		dbIns = awsdynamodb.NewDynamoDB(sess, *cluster)
-
-	case common.DBTypeControlDB:
-		addr := dns.GetDefaultControlDBAddr(*cluster)
-		dbIns = controldbcli.NewControlDBCli(addr)
 
 	case common.DBTypeK8sDB:
 		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)

@@ -108,12 +108,6 @@ func (d *FireCampVolumeDriver) Create(r volume.Request) volume.Response {
 		return volume.Response{}
 	}
 
-	if utils.IsControlDBService(serviceUUID) {
-		// controldb service volume, return success
-		glog.Infoln("Create, controldb service volume", serviceUUID)
-		return volume.Response{}
-	}
-
 	ctx := context.Background()
 
 	// volume not in cache, check if service exists in DB
@@ -511,42 +505,8 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 
 func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serviceUUID string,
 	memberIndex int64, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
-	var err error
-	// check if the volume is for the controldb service
-	if utils.IsControlDBService(serviceUUID) {
-		// get the hostedZoneID
-		domainName := dns.GenDefaultDomainName(d.containerInfo.GetContainerClusterID())
-		vpcID := d.serverInfo.GetLocalVpcID()
-		vpcRegion := d.serverInfo.GetLocalRegion()
-		private := true
-		hostedZoneID, err := d.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, vpcRegion, private)
-		if err != nil {
-			errmsg = fmt.Sprintf("GetOrCreateHostedZoneIDByName error %s domain %s vpc %s %s, service %s, requuid %s",
-				err, domainName, vpcID, vpcRegion, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return nil, nil, errmsg
-		}
-		glog.Infoln("get hostedZoneID", hostedZoneID, "for service", serviceUUID,
-			"domain", domainName, "vpc", vpcID, vpcRegion, "requuid", requuid)
-
-		// detach the volume from the last owner
-		err = d.detachControlDBVolume(ctx, utils.GetControlDBVolumeID(serviceUUID), requuid)
-		if err != nil {
-			errmsg = fmt.Sprintf("detachControlDBVolume error %s service %s, requuid %s", err, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return nil, nil, errmsg
-		}
-
-		// get the volume and serviceAttr for the controldb service
-		member, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
-
-		glog.Infoln("get controldb service volume", member, "serviceAttr", serviceAttr, "requuid", requuid)
-		return serviceAttr, member, ""
-	}
-
-	// the application service, talks with the controldb service for volume
 	// get cluster and service names by serviceUUID
-	serviceAttr, err = d.dbIns.GetServiceAttr(ctx, serviceUUID)
+	serviceAttr, err := d.dbIns.GetServiceAttr(ctx, serviceUUID)
 	if err != nil {
 		errmsg := fmt.Sprintf("GetServiceAttr error %s serviceUUID %s requuid %s", err, serviceUUID, requuid)
 		glog.Errorln(errmsg)
@@ -658,80 +618,6 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 		d.containerInfo.GetLocalContainerInstanceID(), d.serverInfo.GetLocalInstanceID())
 
 	return newMember, nil
-}
-
-func (d *FireCampVolumeDriver) detachControlDBVolume(ctx context.Context, volID string, requuid string) error {
-	volInfo, err := d.serverIns.GetVolumeInfo(ctx, volID)
-	if err != nil {
-		glog.Errorln("GetVolumeInfo error", err, volID, "requuid", requuid)
-		return err
-	}
-
-	// sanity check
-	if volInfo.State == server.VolumeStateDetaching || volInfo.State == server.VolumeStateAttaching {
-		if volInfo.Device != d.serverIns.GetControlDBDeviceName() {
-			errmsg := fmt.Sprintf("sanity error, expect controldb device %s, got %s, %s, requuid %s",
-				d.serverIns.GetControlDBDeviceName(), volInfo.Device, volInfo, requuid)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
-	}
-
-	glog.Infoln("get controldb volume", volInfo, "requuid", requuid)
-
-	if len(volInfo.AttachInstanceID) != 0 {
-		// volume was attached to some server, detach it
-		return d.detachVolumeFromLastOwner(ctx, volInfo.VolID, volInfo.AttachInstanceID, volInfo.Device, requuid)
-	}
-	return nil
-}
-
-func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.ServiceMember, *common.ServiceAttr) {
-	mtime := time.Now().UnixNano()
-	// construct the vol for the controldb service
-	// could actually get the taksID, as only one controldb task is running at any time.
-	// but taskID is useless for the controldb service, so simply use empty taskID.
-	taskID := ""
-	mvols := common.MemberVolumes{
-		PrimaryVolumeID:   utils.GetControlDBVolumeID(serviceUUID),
-		PrimaryDeviceName: d.serverIns.GetControlDBDeviceName(),
-	}
-	member := db.CreateServiceMember(serviceUUID,
-		0, // member index
-		common.ServiceMemberStatusActive,
-		common.ControlDBServiceName,
-		d.serverInfo.GetLocalAvailabilityZone(),
-		taskID,
-		d.containerInfo.GetLocalContainerInstanceID(),
-		d.serverInfo.GetLocalInstanceID(),
-		mtime,
-		mvols,
-		"", // static ip
-		nil)
-
-	// construct the serviceAttr for the controldb service
-	// taskCounts and volSizeGB are useless for the controldb service
-	taskCounts := int64(1)
-	registerDNS := true
-	requireStaticIP := false
-	svols := common.ServiceVolumes{
-		PrimaryDeviceName: d.serverIns.GetControlDBDeviceName(),
-		PrimaryVolume: common.ServiceVolume{
-			VolumeType:   common.VolumeTypeGPSSD,
-			VolumeSizeGB: 0,
-		},
-	}
-	res := common.Resources{
-		MaxCPUUnits:     common.DefaultMaxCPUUnits,
-		ReserveCPUUnits: common.DefaultMaxCPUUnits,
-		MaxMemMB:        common.DefaultMaxMemoryMB,
-		ReserveMemMB:    common.DefaultMaxMemoryMB,
-	}
-	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
-		d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil, res, "")
-
-	return member, attr
 }
 
 func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,

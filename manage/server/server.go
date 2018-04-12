@@ -38,9 +38,8 @@ const (
 // It will run in a container, publish a well-known DNS name, which could be accessed
 // publicly or privately depend on the customer.
 //
-// The service creation needs to talk to DB (the controldb, dynamodb, etc), which is
-// accessable inside the cloud platform (aws, etc). For example, the controldb running
-// as the container in AWS ECS, and accessable via the private DNS name.
+// The service creation needs to talk to DB (dynamodb, etc), which is
+// accessable inside the cloud platform (aws, etc).
 // The ManageHTTPServer will accept the calls from the admin, and talk with DB. This also
 // enhance the security. The ManageHTTPServer REST APIs are the only exposed access to
 // the cluster.
