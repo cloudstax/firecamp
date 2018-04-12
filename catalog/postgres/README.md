@@ -48,7 +48,7 @@ The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI
 
 # Tutorials
 
-This is a simple tutorial about how to create a PostgreSQL service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Kafka service name is "mypg".
+This is a simple tutorial about how to create a PostgreSQL service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the PostgreSQL service name is "mypg".
 
 ## Create a PostgreSQL service
 Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a PostgreSQL cluster:

@@ -146,6 +146,7 @@ type ServiceAttr struct {
 	Resource Resources
 
 	// ServiceType is added after release 0.9.3, to support stateless service such as kafka manager.
+	// common.ServiceTypeStateful or ServiceTypeStateless
 	ServiceType string
 }
 

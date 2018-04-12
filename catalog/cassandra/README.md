@@ -63,7 +63,7 @@ Login to the EC2 instance, run `sudo docker plugin ls`. If firecamp volume or lo
 
 ## Security
 
-The FireCamp Cassandra follows the official [security guide](http://cassandra.apache.org/doc/latest/operating/security.html). The Authentication and Authorization are enabled by default.
+The FireCamp Cassandra follows the official [security guide](http://cassandra.apache.org/doc/latest/operating/security.html). The Authentication and Authorization are enabled by default. And the replication factor of the system_auth keyspace (default 1) is set to 3 to tolerate the node down.
 
 The TLS/SSL encryption will be supported in the future. This would not be a big security risk. The Cassandra cluster on the FireCamp platform could only be accessed by the nodes running on the AppAccessSecurityGroup and the same VPC. And both Authentication and Authorization are enabled.
 
