@@ -589,7 +589,7 @@ func UpdateServiceUserAttr(t1 *common.ServiceAttr, ua *common.ServiceUserAttr) *
 }
 
 func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberName string, az string,
-	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
+	vols common.MemberVolumes, staticIP string, configs []*common.ConfigID) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberIndex:         memberIndex,
@@ -608,7 +608,7 @@ func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberNam
 
 func CreateServiceMember(serviceUUID string, memberIndex int64, status string, memberName string,
 	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
-	vols common.MemberVolumes, staticIP string, configs []*common.MemberConfig) *common.ServiceMember {
+	vols common.MemberVolumes, staticIP string, configs []*common.ConfigID) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         serviceUUID,
 		MemberIndex:         memberIndex,
@@ -653,7 +653,7 @@ func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool
 	return false
 }
 
-func equalConfigs(c1 []*common.MemberConfig, c2 []*common.MemberConfig) bool {
+func equalConfigs(c1 []*common.ConfigID, c2 []*common.ConfigID) bool {
 	if len(c1) != len(c2) {
 		return false
 	}
@@ -667,10 +667,10 @@ func equalConfigs(c1 []*common.MemberConfig, c2 []*common.MemberConfig) bool {
 	return true
 }
 
-func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
-	c2 := make([]*common.MemberConfig, len(c1))
+func CopyMemberConfigs(c1 []*common.ConfigID) []*common.ConfigID {
+	c2 := make([]*common.ConfigID, len(c1))
 	for i, c := range c1 {
-		c2[i] = &common.MemberConfig{
+		c2[i] = &common.ConfigID{
 			FileName: c.FileName,
 			FileID:   c.FileID,
 			FileMD5:  c.FileMD5,
@@ -679,7 +679,7 @@ func CopyMemberConfigs(c1 []*common.MemberConfig) []*common.MemberConfig {
 	return c2
 }
 
-func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.MemberConfig) *common.ServiceMember {
+func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.ConfigID) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID:         t1.ServiceUUID,
 		MemberIndex:         t1.MemberIndex,

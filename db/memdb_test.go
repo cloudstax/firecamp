@@ -277,8 +277,8 @@ func TestServiceMembers(t *testing.T) {
 	for i, c := range x {
 		content := cfgContentPrefix + c
 		chksum := utils.GenMD5(content)
-		cfg := &common.MemberConfig{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
-		cfgs := []*common.MemberConfig{cfg}
+		cfg := &common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
+		cfgs := []*common.ConfigID{cfg}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
@@ -299,8 +299,8 @@ func TestServiceMembers(t *testing.T) {
 		c := x[i]
 		content := cfgContentPrefix + c
 		chksum := utils.GenMD5(content)
-		cfg := &common.MemberConfig{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
-		cfgs := []*common.MemberConfig{cfg}
+		cfg := &common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
+		cfgs := []*common.ConfigID{cfg}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,

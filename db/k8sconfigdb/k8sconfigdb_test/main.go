@@ -390,8 +390,8 @@ func testServiceMembers(dbIns *k8sconfigdb.K8sConfigDB) {
 	x := [6]string{"a", "b", "c", "d", "e", "f"}
 	var s1 [6]*common.ServiceMember
 	for i, c := range x {
-		cfg := &common.MemberConfig{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
-		cfgs := []*common.MemberConfig{cfg}
+		cfg := &common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
+		cfgs := []*common.ConfigID{cfg}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
@@ -415,8 +415,8 @@ func testServiceMembers(dbIns *k8sconfigdb.K8sConfigDB) {
 	var s2 [4]*common.ServiceMember
 	for i := 0; i < 4; i++ {
 		c := x[i]
-		cfg := &common.MemberConfig{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
-		cfgs := []*common.MemberConfig{cfg}
+		cfg := &common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
+		cfgs := []*common.ConfigID{cfg}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,

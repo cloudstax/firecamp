@@ -348,7 +348,7 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		return nil, db.ErrDBInternal
 	}
 
-	var configs []*common.MemberConfig
+	var configs []*common.ConfigID
 	err = json.Unmarshal(item[db.MemberConfigs].B, &configs)
 	if err != nil {
 		glog.Errorln("Unmarshal json MemberConfigs error", err, item)

@@ -955,13 +955,13 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 }
 
 func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string,
-	replicaCfg *manage.ReplicaConfig) ([]*common.MemberConfig, error) {
+	replicaCfg *manage.ReplicaConfig) ([]*common.ConfigID, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the first version of the config file
 	version := int64(0)
 
-	configs := make([]*common.MemberConfig, len(replicaCfg.Configs))
+	configs := make([]*common.ConfigID, len(replicaCfg.Configs))
 	for i, cfg := range replicaCfg.Configs {
 		config, err := s.CreateMemberConfig(ctx, serviceUUID, replicaCfg.MemberName, cfg, version, requuid)
 		if err != nil {
@@ -975,7 +975,7 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 
 // CreateMemberConfig creates the member config file
 func (s *ManageService) CreateMemberConfig(ctx context.Context, serviceUUID string, memberName string,
-	cfg *manage.ReplicaConfigFile, version int64, requuid string) (*common.MemberConfig, error) {
+	cfg *manage.ReplicaConfigFile, version int64, requuid string) (*common.ConfigID, error) {
 	fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
 	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
@@ -983,12 +983,12 @@ func (s *ManageService) CreateMemberConfig(ctx context.Context, serviceUUID stri
 		glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
 		return nil, err
 	}
-	config := &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
+	config := &common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
 	return config, nil
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
-	az string, memberIndex int64, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+	az string, memberIndex int64, memberName string, staticIP string, cfgs []*common.ConfigID) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	mvols := common.MemberVolumes{}

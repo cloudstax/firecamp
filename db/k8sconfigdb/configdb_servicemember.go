@@ -176,7 +176,7 @@ func (s *K8sConfigDB) cfgmapToServiceMember(serviceUUID string, cfgmap *corev1.C
 		return nil, db.ErrDBInternal
 	}
 
-	var configs []*common.MemberConfig
+	var configs []*common.ConfigID
 	err = json.Unmarshal([]byte(cfgmap.Data[db.MemberConfigs]), &configs)
 	if err != nil {
 		glog.Errorln("Unmarshal json MemberConfigs error", err, cfgmap.Name, cfgmap.Namespace)

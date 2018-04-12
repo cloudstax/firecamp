@@ -196,7 +196,7 @@ type ServiceMember struct {
 
 	// One member could have multiple config files.
 	// For example, cassandra.yaml and rackdc properties files.
-	Configs []*MemberConfig
+	Configs []*ConfigID
 }
 
 // MemberVolumes represent the volumes of one member.
@@ -215,8 +215,8 @@ type MemberVolumes struct {
 	JournalDeviceName string
 }
 
-// MemberConfig represents the configs of one member
-type MemberConfig struct {
+// ConfigID includes the FileID that keeps the detail configs.
+type ConfigID struct {
 	FileName string
 	// The config file uuid
 	FileID string
@@ -227,12 +227,11 @@ type MemberConfig struct {
 	FileMD5 string
 }
 
-// ConfigFile represents the detail config content of service member.
-// To update the ConfigFile content of one replica, 2 steps are required:
-// 1) create a new ConfigFile with a new FileID, 2) update ServiceMember MemberConfig
-// to point to the new ConfigFile.
+// ConfigFile includes the detail config content.
+// To update the ConfigFile of one replica, 2 steps are required:
+// 1) create a new ConfigFile with a new FileID, 2) update ServiceAttr to point to the new ConfigFile.
 // We could not directly update the old ConfigFile. If node crashes before step2,
-// ServiceMember MemberConfig will not be consistent with ConfigFile.
+// ServiceAttr thinks the ConfigFile is not changed.
 type ConfigFile struct {
 	ServiceUUID  string // partition key
 	FileID       string // sort key

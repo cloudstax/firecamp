@@ -347,7 +347,7 @@ func (s *ManageHTTPServer) updateCasConfigs(ctx context.Context, serviceUUID str
 
 func (s *ManageHTTPServer) updateCasHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, heapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if cascatalog.IsJvmConfFile(c.FileName) {

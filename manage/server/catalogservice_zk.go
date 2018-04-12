@@ -226,7 +226,7 @@ func (s *ManageHTTPServer) updateZkConfigs(ctx context.Context, serviceUUID stri
 
 func (s *ManageHTTPServer) updateZkHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if zkcatalog.IsJavaEnvFile(c.FileName) {
@@ -330,7 +330,7 @@ func (s *ManageHTTPServer) upgradeZkToV095(ctx context.Context, attr *common.Ser
 
 func (s *ManageHTTPServer) upgradeZkJavaEnvFileV095(ctx context.Context, attr *common.ServiceAttr, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if zkcatalog.IsJavaEnvFile(c.FileName) {

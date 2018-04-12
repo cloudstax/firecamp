@@ -107,8 +107,8 @@ func TestDBUtils(t *testing.T) {
 	memberIndex := int64(1)
 	memberName := "member-1"
 	staticIP := "10.0.0.1"
-	cfg := &common.MemberConfig{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
-	cfgs := []*common.MemberConfig{cfg}
+	cfg := &common.ConfigID{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
+	cfgs := []*common.ConfigID{cfg}
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
 		PrimaryDeviceName: svols.PrimaryDeviceName,

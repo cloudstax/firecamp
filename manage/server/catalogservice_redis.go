@@ -206,7 +206,7 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID s
 	return nil
 }
 
-func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requuid string) (cfgIndex int, cfg *common.MemberConfig, err error) {
+func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requuid string) (cfgIndex int, cfg *common.ConfigID, err error) {
 	cfgIndex = -1
 	for i, c := range member.Configs {
 		if rediscatalog.IsRedisConfFile(c.FileName) {

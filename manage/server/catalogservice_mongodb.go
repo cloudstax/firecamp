@@ -212,7 +212,7 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 }
 
 func (s *ManageHTTPServer) enableMongoDBAuth(ctx context.Context,
-	cfg *common.MemberConfig, cfgIndex int, member *common.ServiceMember, requuid string) error {
+	cfg *common.ConfigID, cfgIndex int, member *common.ServiceMember, requuid string) error {
 	// fetch the config file
 	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
 	if err != nil {

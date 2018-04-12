@@ -450,7 +450,7 @@ func (s *ManageHTTPServer) updateKafkaConfigs(ctx context.Context, serviceUUID s
 
 func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newua *common.KafkaUserAttr, ua *common.KafkaUserAttr, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if kafkacatalog.IsServerPropConfFile(c.FileName) {
@@ -491,7 +491,7 @@ func (s *ManageHTTPServer) updateKafkaServerPropConfFile(ctx context.Context, se
 
 func (s *ManageHTTPServer) updateKafkaHeapSize(ctx context.Context, serviceUUID string, members []*common.ServiceMember, newHeapSizeMB int64, oldHeapSizeMB int64, requuid string) (newMembers []*common.ServiceMember, err error) {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if kafkacatalog.IsJvmConfFile(c.FileName) {
@@ -595,7 +595,7 @@ func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *c
 
 func (s *ManageHTTPServer) upgradeKafkaJavaEnvFileVersion095(ctx context.Context, attr *common.ServiceAttr, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
 	for _, member := range members {
-		var cfg *common.MemberConfig
+		var cfg *common.ConfigID
 		cfgIndex := -1
 		for i, c := range member.Configs {
 			if kafkacatalog.IsJvmConfFile(c.FileName) {

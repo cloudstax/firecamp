@@ -716,7 +716,7 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 }
 
 func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member *common.ServiceMember, memberips map[string]string, requuid string) error {
-	var cfg *common.MemberConfig
+	var cfg *common.ConfigID
 	cfgIndex := -1
 	for i, c := range member.Configs {
 		if consulcatalog.IsBasicConfigFile(c.FileName) {
@@ -794,7 +794,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	return newMember, nil
 }
 
-func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
+func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.ConfigID) int {
 	for i, c := range memberConfigs {
 		if catalog.IsJmxPasswdConfFile(c.FileName) {
 			return i
@@ -840,7 +840,7 @@ func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID 
 	return newMembers, nil
 }
 
-func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.MemberConfig) int {
+func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.ConfigID) int {
 	for i, c := range memberConfigs {
 		if catalog.IsJmxAccessConfFile(c.FileName) {
 			return i
