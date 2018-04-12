@@ -264,8 +264,8 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
 		memberName := utils.GenServiceMemberName(service, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: "west-az-1", MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

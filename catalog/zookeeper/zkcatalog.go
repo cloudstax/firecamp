@@ -132,7 +132,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		// create the zoo.cfg file
 		content := fmt.Sprintf(zooConfigs, serverList)
-		zooCfg := &manage.ReplicaConfigFile{
+		zooCfg := &manage.ConfigFileContent{
 			FileName: zooConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -140,7 +140,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		// create the myid file
 		content = fmt.Sprintf(myidConfig, i+1)
-		myidCfg := &manage.ReplicaConfigFile{
+		myidCfg := &manage.ConfigFileContent{
 			FileName: myidConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -148,7 +148,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		// create the java.env file
 		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, memberHost, jmxPort)
-		javaEnvCfg := &manage.ReplicaConfigFile{
+		javaEnvCfg := &manage.ConfigFileContent{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -161,13 +161,13 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
 
 		// create the log config file
-		logCfg := &manage.ReplicaConfigFile{
+		logCfg := &manage.ConfigFileContent{
 			FileName: logConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  logConfContent,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
 
 		index := i % len(azs)
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}

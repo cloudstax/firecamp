@@ -164,7 +164,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		// create vm.args file
 		vmArgsContent := ""
 		vmArgsContent = fmt.Sprintf(vmArgsConfigs, memberHost, erlangClusterListenPortMax)
-		vmArgsCfg := &manage.ReplicaConfigFile{
+		vmArgsCfg := &manage.ConfigFileContent{
 			FileName: vmArgsConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  vmArgsContent,
@@ -212,22 +212,22 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			couchContent += sslContent
 		}
 
-		couchCfg := &manage.ReplicaConfigFile{
+		couchCfg := &manage.ConfigFileContent{
 			FileName: localIniConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  couchContent,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, vmArgsCfg, couchCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, vmArgsCfg, couchCfg}
 
 		// add ssl config files
 		if opts.EnableSSL {
-			certCfg := &manage.ReplicaConfigFile{
+			certCfg := &manage.ConfigFileContent{
 				FileName: certConfFileName,
 				FileMode: common.DefaultConfigFileMode,
 				Content:  opts.CertFileContent,
 			}
-			keyCfg := &manage.ReplicaConfigFile{
+			keyCfg := &manage.ConfigFileContent{
 				FileName: privateKeyConfFileName,
 				FileMode: common.DefaultConfigFileMode,
 				Content:  opts.KeyFileContent,
@@ -235,7 +235,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			configs = append(configs, certCfg, keyCfg)
 
 			if len(opts.CACertFileContent) != 0 {
-				caCfg := &manage.ReplicaConfigFile{
+				caCfg := &manage.ConfigFileContent{
 					FileName: caCertConfFileName,
 					FileMode: common.DefaultConfigFileMode,
 					Content:  opts.CACertFileContent,

@@ -975,7 +975,7 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 
 // CreateMemberConfig creates the member config file
 func (s *ManageService) CreateMemberConfig(ctx context.Context, serviceUUID string, memberName string,
-	cfg *manage.ReplicaConfigFile, version int64, requuid string) (*common.ConfigID, error) {
+	cfg *manage.ConfigFileContent, version int64, requuid string) (*common.ConfigID, error) {
 	fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
 	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)

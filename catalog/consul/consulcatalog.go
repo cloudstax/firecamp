@@ -155,13 +155,13 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 		content += configFooter
 
-		basicCfg := &manage.ReplicaConfigFile{
+		basicCfg := &manage.ConfigFileContent{
 			FileName: basicConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, basicCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, basicCfg}
 
 		azIndex := int(i) % len(azs)
 		az := azs[azIndex]

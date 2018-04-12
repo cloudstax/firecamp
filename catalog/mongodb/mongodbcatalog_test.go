@@ -26,7 +26,7 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	az := "az1"
 	azs := []string{"az1", "az2", "az3"}
 	maxMemMB := int64(256)
-	keyfileCfg := &manage.ReplicaConfigFile{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
+	keyfileCfg := &manage.ConfigFileContent{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
 
 	replSetName := getConfigServerName(service)
 	role := configRole

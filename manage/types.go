@@ -66,11 +66,11 @@ type ReplicaConfig struct {
 	// The replica's member name.
 	MemberName string
 	// The detail config files for this replica.
-	Configs []*ReplicaConfigFile
+	Configs []*ConfigFileContent
 }
 
-// ReplicaConfigFile contains the detail config file name and content.
-type ReplicaConfigFile struct {
+// ConfigFileContent contains the detail config file name and content.
+type ConfigFileContent struct {
 	FileName string
 	FileMode uint32
 	Content  string

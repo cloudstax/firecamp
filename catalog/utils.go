@@ -14,9 +14,9 @@ import (
 // example:
 //   PLATFORM=ecs
 //   SERVICE_MEMBER=mycas-0.cluster-firecamp.com
-func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaConfigFile {
+func CreateSysConfigFile(platform string, memberDNSName string) *manage.ConfigFileContent {
 	content := fmt.Sprintf(sysContent, platform, memberDNSName)
-	return &manage.ReplicaConfigFile{
+	return &manage.ConfigFileContent{
 		FileName: SYS_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
@@ -34,7 +34,7 @@ func GenStatelessServiceReplicaConfigs(platform string, cluster string, service 
 		memberHost := dns.GenDNSName(member, domain)
 		sysCfg := CreateSysConfigFile(platform, memberHost)
 
-		configs := []*manage.ReplicaConfigFile{sysCfg}
+		configs := []*manage.ConfigFileContent{sysCfg}
 
 		replicaCfg := &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
@@ -100,8 +100,8 @@ func GenServiceMemberHostsWithPort(cluster string, service string, replicas int6
 // TODO currently only support one jmx user.
 
 // CreateJmxRemotePasswdConfFile creates the jmx remote password file.
-func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ReplicaConfigFile {
-	return &manage.ReplicaConfigFile{
+func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ConfigFileContent {
+	return &manage.ConfigFileContent{
 		FileName: JmxRemotePasswdConfFileName,
 		FileMode: JmxConfFileMode,
 		Content:  CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd),
@@ -119,8 +119,8 @@ func CreateJmxPasswdConfFileContent(jmxUser string, jmxPasswd string) string {
 }
 
 // CreateJmxRemoteAccessConfFile creates the jmx remote access file.
-func CreateJmxRemoteAccessConfFile(jmxUser string, accessPerm string) *manage.ReplicaConfigFile {
-	return &manage.ReplicaConfigFile{
+func CreateJmxRemoteAccessConfFile(jmxUser string, accessPerm string) *manage.ConfigFileContent {
+	return &manage.ConfigFileContent{
 		FileName: JmxRemoteAccessConfFileName,
 		FileMode: JmxConfFileMode,
 		Content:  CreateJmxAccessConfFileContent(jmxUser, accessPerm),

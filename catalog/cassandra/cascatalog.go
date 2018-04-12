@@ -179,7 +179,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			// Cassandra could listen on the member's dnsname.
 			customContent = fmt.Sprintf(yamlConfigs, cluster, seeds, memberHost, memberHost, memberHost, memberHost)
 		}
-		yamlCfg := &manage.ReplicaConfigFile{
+		yamlCfg := &manage.ConfigFileContent{
 			FileName: yamlConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  customContent + yamlSecurityConfigs + yamlDefaultConfigs,
@@ -187,7 +187,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		index := int(i) % len(azs)
 		content := fmt.Sprintf(rackdcProps, region, azs[index])
-		rackdcCfg := &manage.ReplicaConfigFile{
+		rackdcCfg := &manage.ConfigFileContent{
 			FileName: rackdcConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -196,14 +196,14 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		// create the jvm.options file
 		content = fmt.Sprintf(jvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
 		content += jvmConfigs
-		jvmCfg := &manage.ReplicaConfigFile{
+		jvmCfg := &manage.ConfigFileContent{
 			FileName: jvmConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
 		// create the logback.xml file
-		logCfg := &manage.ReplicaConfigFile{
+		logCfg := &manage.ConfigFileContent{
 			FileName: logConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  logConfContent,
@@ -221,7 +221,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		// http://cassandra.apache.org/doc/latest/operating/security.html#jmx-access, says it is optionally
 		// to enable access control to limit the scope of what defined users can do via JMX.
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, yamlCfg, rackdcCfg, jvmCfg, logCfg, jmxCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

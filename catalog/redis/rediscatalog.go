@@ -227,13 +227,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 			redisContent += defaultConfigs
 
-			redisCfg := &manage.ReplicaConfigFile{
+			redisCfg := &manage.ConfigFileContent{
 				FileName: redisConfFileName,
 				FileMode: common.DefaultConfigFileMode,
 				Content:  redisContent,
 			}
 
-			configs := []*manage.ReplicaConfigFile{sysCfg, redisCfg}
+			configs := []*manage.ConfigFileContent{sysCfg, redisCfg}
 
 			// distribute the masters to different availability zones and
 			// distribute the slaves of one master to different availability zones

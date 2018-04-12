@@ -195,7 +195,7 @@ func genReplicaConfig(platform string, service string, domain string, member str
 		content += fmt.Sprintf(forceZone, forceazs)
 	}
 
-	esCfg := &manage.ReplicaConfigFile{
+	esCfg := &manage.ConfigFileContent{
 		FileName: esConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
@@ -204,13 +204,13 @@ func genReplicaConfig(platform string, service string, domain string, member str
 	// create the jvm.options file
 	content = fmt.Sprintf(ESJvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
 	content += ESJvmConfigs
-	jvmCfg := &manage.ReplicaConfigFile{
+	jvmCfg := &manage.ConfigFileContent{
 		FileName: jvmConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
 
-	configs := []*manage.ReplicaConfigFile{sysCfg, esCfg, jvmCfg}
+	configs := []*manage.ConfigFileContent{sysCfg, esCfg, jvmCfg}
 	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 

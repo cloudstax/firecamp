@@ -111,22 +111,22 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		if len(opts.ProxyBasePath) != 0 {
 			content += fmt.Sprintf(kbServerBasePath, opts.ProxyBasePath)
 		}
-		kbCfg := &manage.ReplicaConfigFile{
+		kbCfg := &manage.ConfigFileContent{
 			FileName: kbConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, kbCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, kbCfg}
 
 		// create ssl key & cert files if enabled
 		if opts.EnableSSL {
-			sslKeyCfg := &manage.ReplicaConfigFile{
+			sslKeyCfg := &manage.ConfigFileContent{
 				FileName: kbsslConfFileName,
 				FileMode: common.DefaultConfigFileMode,
 				Content:  opts.SSLKey,
 			}
-			sslCertCfg := &manage.ReplicaConfigFile{
+			sslCertCfg := &manage.ConfigFileContent{
 				FileName: kbcertConfFileName,
 				FileMode: common.DefaultConfigFileMode,
 				Content:  opts.SSLCert,

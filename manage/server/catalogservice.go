@@ -967,7 +967,7 @@ func (s *ManageHTTPServer) createJmxFiles(ctx context.Context, members []*common
 	return newMembers, nil
 }
 
-func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) (newMember *common.ServiceMember, err error) {
+func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ConfigFileContent, requuid string) (newMember *common.ServiceMember, err error) {
 	if cfgIndex < 0 {
 		// jmx file not exists, create it
 		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)

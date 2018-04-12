@@ -54,8 +54,8 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount1)
 		for i := 0; i < taskCount1; i++ {
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-			configs := []*manage.ReplicaConfigFile{cfg}
+			cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+			configs := []*manage.ConfigFileContent{cfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
@@ -190,8 +190,8 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount2)
 		for i := 0; i < taskCount2; i++ {
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-			configs := []*manage.ReplicaConfigFile{cfg}
+			cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+			configs := []*manage.ConfigFileContent{cfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
@@ -344,8 +344,8 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 		replicaCfgs := make([]*manage.ReplicaConfig, taskCount3)
 		for i := 0; i < taskCount3; i++ {
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-			configs := []*manage.ReplicaConfigFile{cfg}
+			cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+			configs := []*manage.ConfigFileContent{cfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
@@ -451,8 +451,8 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
 		memberName := utils.GenServiceMemberName(service, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

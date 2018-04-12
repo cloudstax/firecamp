@@ -148,7 +148,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			content += fmt.Sprintf(plBatchDelayConfig, opts.PipelineBatchDelay)
 		}
 
-		lsCfg := &manage.ReplicaConfigFile{
+		lsCfg := &manage.ConfigFileContent{
 			FileName: lsConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -157,20 +157,20 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		// create the jvm.options file
 		content = fmt.Sprintf(jvmHeapConfigs, opts.HeapSizeMB, opts.HeapSizeMB)
 		content += jvmConfigs
-		jvmCfg := &manage.ReplicaConfigFile{
+		jvmCfg := &manage.ConfigFileContent{
 			FileName: jvmConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
 		// create the pipeline config file
-		plCfg := &manage.ReplicaConfigFile{
+		plCfg := &manage.ConfigFileContent{
 			FileName: pipelineConfigFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  opts.PipelineConfigs,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, lsCfg, jvmCfg, plCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, lsCfg, jvmCfg, plCfg}
 
 		azIndex := int(i) % len(azs)
 		az := azs[azIndex]

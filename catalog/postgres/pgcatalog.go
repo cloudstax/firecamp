@@ -148,7 +148,7 @@ func genPrimaryConfig(platform string, az string, member string, primaryHost str
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
-	cfg1 := &manage.ReplicaConfigFile{
+	cfg1 := &manage.ConfigFileContent{
 		FileName: serviceConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
@@ -159,7 +159,7 @@ func genPrimaryConfig(platform string, az string, member string, primaryHost str
 	if platform == common.ContainerPlatformSwarm {
 		bind = catalog.BindAllIP
 	}
-	cfg2 := &manage.ReplicaConfigFile{
+	cfg2 := &manage.ConfigFileContent{
 		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  fmt.Sprintf(listenAddrConf, bind) + primaryPostgresConf,
@@ -167,13 +167,13 @@ func genPrimaryConfig(platform string, az string, member string, primaryHost str
 
 	// create pg_hba.conf
 	content = fmt.Sprintf(primaryPgHbaConf, replUser)
-	cfg3 := &manage.ReplicaConfigFile{
+	cfg3 := &manage.ConfigFileContent{
 		FileName: pgHbaConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
 
-	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3}
+	configs := []*manage.ConfigFileContent{cfg0, cfg1, cfg2, cfg3}
 	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 
@@ -184,7 +184,7 @@ func genStandbyConfig(platform, az string, member string, memberHost string, pri
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
-	cfg1 := &manage.ReplicaConfigFile{
+	cfg1 := &manage.ConfigFileContent{
 		FileName: serviceConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
@@ -195,14 +195,14 @@ func genStandbyConfig(platform, az string, member string, memberHost string, pri
 	if platform == common.ContainerPlatformSwarm {
 		bind = catalog.BindAllIP
 	}
-	cfg2 := &manage.ReplicaConfigFile{
+	cfg2 := &manage.ConfigFileContent{
 		FileName: postgresConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  fmt.Sprintf(listenAddrConf, bind) + standbyPostgresConf,
 	}
 
 	// create pg_hba.conf
-	cfg3 := &manage.ReplicaConfigFile{
+	cfg3 := &manage.ConfigFileContent{
 		FileName: pgHbaConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  standbyPgHbaConf,
@@ -211,13 +211,13 @@ func genStandbyConfig(platform, az string, member string, memberHost string, pri
 	// create recovery.conf
 	primaryConnInfo := fmt.Sprintf(standbyPrimaryConnInfo, primaryHost, port, replUser, replPasswd)
 	content = fmt.Sprintf(standbyRecoveryConf, primaryConnInfo, standbyRestoreCmd)
-	cfg4 := &manage.ReplicaConfigFile{
+	cfg4 := &manage.ConfigFileContent{
 		FileName: recoveryConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
 
-	configs := []*manage.ReplicaConfigFile{cfg0, cfg1, cfg2, cfg3, cfg4}
+	configs := []*manage.ConfigFileContent{cfg0, cfg1, cfg2, cfg3, cfg4}
 	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 

@@ -165,7 +165,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 		content := fmt.Sprintf(serverPropConfig, i, azs[index], strconv.FormatBool(opts.AllowTopicDel), numPartitions, bind, memberHost,
 			replFactor, replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
-		serverCfg := &manage.ReplicaConfigFile{
+		serverCfg := &manage.ConfigFileContent{
 			FileName: serverPropConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -173,7 +173,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		// create the java.env file
 		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB, memberHost, jmxPort)
-		javaEnvCfg := &manage.ReplicaConfigFile{
+		javaEnvCfg := &manage.ConfigFileContent{
 			FileName: javaEnvConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
@@ -186,13 +186,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
 
 		// create the log config file
-		logCfg := &manage.ReplicaConfigFile{
+		logCfg := &manage.ConfigFileContent{
 			FileName: logConfFileName,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  logConfConfig,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, serverCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
+		configs := []*manage.ConfigFileContent{sysCfg, serverCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
 
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg

@@ -175,7 +175,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 func GenReplicaConfigs(platform string, azs []string, cluster string, service string,
 	maxMemMB int64, keyfileContent string, opts *manage.CatalogMongoDBOptions) []*manage.ReplicaConfig {
 
-	keyfileCfg := &manage.ReplicaConfigFile{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
+	keyfileCfg := &manage.ConfigFileContent{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
 
 	domain := dns.GenDefaultDomainName(cluster)
 	replicaCfgs := []*manage.ReplicaConfig{}
@@ -230,7 +230,7 @@ func getShardName(service string, shardNumber int64) string {
 }
 
 func genReplicaConfig(platform string, domain string, member string, replSetName string,
-	role string, az string, maxMemMB int64, keyfileCfg *manage.ReplicaConfigFile) *manage.ReplicaConfig {
+	role string, az string, maxMemMB int64, keyfileCfg *manage.ConfigFileContent) *manage.ReplicaConfig {
 	// create the sys.conf file
 	memberHost := dns.GenDNSName(member, domain)
 	sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
@@ -273,12 +273,12 @@ func genReplicaConfig(platform string, domain string, member string, replSetName
 
 	content += fmt.Sprintf(mongoDBConfRepl, replSetName) + mongoDBConfEnd
 
-	mongoCfg := &manage.ReplicaConfigFile{
+	mongoCfg := &manage.ConfigFileContent{
 		FileName: mongoDBConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
-	configs := []*manage.ReplicaConfigFile{sysCfg, mongoCfg, keyfileCfg}
+	configs := []*manage.ConfigFileContent{sysCfg, mongoCfg, keyfileCfg}
 	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 

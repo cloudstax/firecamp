@@ -138,8 +138,8 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 		replicaCfgs := make([]*manage.ReplicaConfig, repNum)
 		for i := 0; i < repNum; i++ {
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-			configs := []*manage.ReplicaConfigFile{cfg}
+			cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+			configs := []*manage.ConfigFileContent{cfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: "us-west-1c", MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
