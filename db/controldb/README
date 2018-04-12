@@ -1,3 +1,0 @@
-The control db is one of the db alternative to manage the services.
-
-The control db has 3 parts, client, server and protocol. The server side is the central service for the services. The control server will register a well-known DNS name. The client side implements the DB interface, and talks to the control server via the DNS name. The protocol defines the internal communication protocols between client and server. The protocol is definied by GPB, and use gRPC for communication.
