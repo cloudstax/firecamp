@@ -326,7 +326,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	// create the service config file if necessary
 	mpath := d.mountpoint(member.ServiceUUID)
 	configDirPath := filepath.Join(mpath, common.DefaultConfigDir)
-	err = CreateConfigFile(ctx, configDirPath, member, d.dbIns)
+	err = CreateConfigFile(ctx, configDirPath, serviceAttr, member, d.dbIns)
 	if err == nil {
 		// create the service member so the log driver could know the service member.
 		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.MemberName, requuid)

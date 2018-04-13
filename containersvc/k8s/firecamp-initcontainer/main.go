@@ -112,7 +112,7 @@ func main() {
 	}
 
 	// create the config files if necessary
-	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, member, dbIns)
+	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, attr, member, dbIns)
 	if err != nil {
 		glog.Fatalln("CreateConfigFile error", err, "requuid", requuid, member)
 	}
