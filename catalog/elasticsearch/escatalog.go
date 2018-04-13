@@ -159,12 +159,12 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 func genReplicaConfig(platform string, service string, domain string, member string, azs []string, idx int64, unicastHosts string,
 	minMasterNodes int64, dedicateMaster bool, masterEligible bool, opts *manage.CatalogElasticSearchOptions) *manage.ReplicaConfig {
 
-	// create the sys.conf file
-	memberHost := dns.GenDNSName(member, domain)
-	sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
-
 	azIndex := int(idx) % len(azs)
 	az := azs[azIndex]
+
+	// create the sys.conf file
+	memberHost := dns.GenDNSName(member, domain)
+	sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 	// create the elasticsearch.yml file
 	bind := memberHost

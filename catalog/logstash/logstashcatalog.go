@@ -123,10 +123,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := int64(0); i < opts.Replicas; i++ {
+		azIndex := int(i) % len(azs)
+		az := azs[azIndex]
+
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 		// create the logstash.yml file
 		bind := memberHost
@@ -172,8 +175,6 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 		configs := []*manage.ConfigFileContent{sysCfg, lsCfg, jvmCfg, plCfg}
 
-		azIndex := int(i) % len(azs)
-		az := azs[azIndex]
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

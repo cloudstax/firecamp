@@ -127,8 +127,12 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 	for i := int64(0); i < opts.Replicas; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
+
+		azIndex := int(i) % len(azs)
+		az := azs[azIndex]
+
 		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 		// create basic_config.json file
 		consulDomain := opts.Domain
@@ -163,8 +167,6 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		configs := []*manage.ConfigFileContent{sysCfg, basicCfg}
 
-		azIndex := int(i) % len(azs)
-		az := azs[azIndex]
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

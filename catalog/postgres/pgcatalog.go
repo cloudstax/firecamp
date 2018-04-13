@@ -70,7 +70,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
 		HostPort:      defaultPort,
-		IsServicePort:   true,
+		IsServicePort: true,
 	}
 
 	image := ContainerImage
@@ -144,7 +144,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 func genPrimaryConfig(platform string, az string, member string, primaryHost string,
 	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(platform, primaryHost)
+	cfg0 := catalog.CreateSysConfigFile(platform, az, primaryHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
@@ -180,7 +180,7 @@ func genPrimaryConfig(platform string, az string, member string, primaryHost str
 func genStandbyConfig(platform, az string, member string, memberHost string, primaryHost string,
 	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
 	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(platform, memberHost)
+	cfg0 := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 	// create service.conf file
 	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)

@@ -233,7 +233,7 @@ func genReplicaConfig(platform string, domain string, member string, replSetName
 	role string, az string, maxMemMB int64, keyfileCfg *manage.ConfigFileContent) *manage.ReplicaConfig {
 	// create the sys.conf file
 	memberHost := dns.GenDNSName(member, domain)
-	sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+	sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 	// create the mongod.conf file
 	content := mongoDBConfHead

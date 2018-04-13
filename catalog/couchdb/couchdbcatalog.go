@@ -158,8 +158,13 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 
+		// The CouchDB init task follows the same way to assign the az to each node.
+		// If the az selection algo is changed here, please also update the init task.
+		azIndex := int(i) % len(azs)
+		az := azs[azIndex]
+
 		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
 		// create vm.args file
 		vmArgsContent := ""
@@ -169,11 +174,6 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			FileMode: common.DefaultConfigFileMode,
 			Content:  vmArgsContent,
 		}
-
-		// The CouchDB init task follows the same way to assign the az to each node.
-		// If the az selection algo is changed here, please also update the init task.
-		azIndex := int(i) % len(azs)
-		az := azs[azIndex]
 
 		// create the local.ini file
 		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member,

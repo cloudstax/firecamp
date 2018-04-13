@@ -13,9 +13,10 @@ import (
 // CreateSysConfigFile creates the content for the sys.conf file.
 // example:
 //   PLATFORM=ecs
+//   AVAILABILITY_ZONE=us-east-1a
 //   SERVICE_MEMBER=mycas-0.cluster-firecamp.com
-func CreateSysConfigFile(platform string, memberDNSName string) *manage.ConfigFileContent {
-	content := fmt.Sprintf(sysContent, platform, memberDNSName)
+func CreateSysConfigFile(platform string, az string, memberDNSName string) *manage.ConfigFileContent {
+	content := fmt.Sprintf(sysContent, platform, az, memberDNSName)
 	return &manage.ConfigFileContent{
 		FileName: SYS_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -32,7 +33,7 @@ func GenStatelessServiceReplicaConfigs(platform string, cluster string, service 
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := CreateSysConfigFile(platform, memberHost)
+		sysCfg := CreateSysConfigFile(platform, common.AnyAvailabilityZone, memberHost)
 
 		configs := []*manage.ConfigFileContent{sysCfg}
 
@@ -151,6 +152,7 @@ const (
 	separator  = "="
 	sysContent = `
 PLATFORM=%s
+AVAILABILITY_ZONE=%s
 SERVICE_MEMBER=%s
 `
 

@@ -152,13 +152,14 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := 0; i < int(opts.Replicas); i++ {
+		index := i % len(azs)
+
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
 
 		// create the server.properties file
-		index := i % len(azs)
 		bind := memberHost
 		if platform == common.ContainerPlatformSwarm {
 			bind = catalog.BindAllIP

@@ -190,10 +190,14 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
 
 		for i := int64(0); i < opts.ReplicasPerShard; i++ {
+			// distribute the masters to different availability zones and
+			// distribute the slaves of one master to different availability zones
+			azIndex := int(shard+i) % len(azs)
+
 			// create the sys.conf file
 			member := genServiceShardMemberName(service, opts.ReplicasPerShard, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
-			sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+			sysCfg := catalog.CreateSysConfigFile(platform, azs[azIndex], memberHost)
 
 			// create the redis.conf file
 			bind := memberHost
@@ -235,9 +239,6 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 
 			configs := []*manage.ConfigFileContent{sysCfg, redisCfg}
 
-			// distribute the masters to different availability zones and
-			// distribute the slaves of one master to different availability zones
-			azIndex := int(shard+i) % len(azs)
 			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], MemberName: member, Configs: configs}
 
 			replicaCfgs[opts.ReplicasPerShard*shard+i] = replicaCfg

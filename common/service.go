@@ -242,8 +242,6 @@ type ConfigFile struct {
 	FileMode     uint32
 	LastModified int64
 	Content      string // The content of the config file.
-	// whether the config file needs to be copied to volume
-	CopyToVolume bool
 }
 
 // ServiceStaticIP represents the owner service of one static IP.

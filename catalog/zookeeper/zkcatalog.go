@@ -125,10 +125,12 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := 0; i < int(opts.Replicas); i++ {
+		index := i % len(azs)
+
 		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
 
 		// create the zoo.cfg file
 		content := fmt.Sprintf(zooConfigs, serverList)
@@ -169,7 +171,6 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 
 		configs := []*manage.ConfigFileContent{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
 
-		index := i % len(azs)
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

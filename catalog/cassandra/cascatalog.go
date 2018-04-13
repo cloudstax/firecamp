@@ -163,8 +163,10 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 
+		index := int(i) % len(azs)
+
 		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
+		sysCfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
 
 		// create the cassandra.yaml file
 		customContent := ""
@@ -185,7 +187,6 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  customContent + yamlSecurityConfigs + yamlDefaultConfigs,
 		}
 
-		index := int(i) % len(azs)
 		content := fmt.Sprintf(rackdcProps, region, azs[index])
 		rackdcCfg := &manage.ConfigFileContent{
 			FileName: rackdcConfFileName,
