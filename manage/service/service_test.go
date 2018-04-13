@@ -173,8 +173,11 @@ func TestUnassignedIPs(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
+	serviceCfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
 	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1",
-		"service1", vols, true, "domain1", "hostedZone1", true, userAttr, res, "")
+		"service1", vols, true, "domain1", "hostedZone1", true, userAttr, serviceCfgs, res, "")
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	// case: 1 network interface with 0 private ip
@@ -384,8 +387,11 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
+	serviceCfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
 	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1",
-		vols, true, "domain1", "hostedZone1", true, nil, res, "")
+		vols, true, "domain1", "hostedZone1", true, nil, serviceCfgs, res, "")
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)
@@ -470,8 +476,11 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
+	serviceCfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
 	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1",
-		vols, true, "domain1", "hostedZone1", true, nil, res, "")
+		vols, true, "domain1", "hostedZone1", true, nil, serviceCfgs, res, "")
 	sattr.ServiceStatus = common.ServiceStatusActive
 
 	assignedIPs := make(map[string]string)

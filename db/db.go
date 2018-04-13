@@ -16,6 +16,7 @@ const (
 	ServiceName     = "ServiceName"
 	ServiceStatus   = "ServiceStatus"
 	ServiceUUID     = "ServiceUUID"
+	ServiceConfigs  = "ServiceConfigs"
 	ServiceVolumes  = "ServiceVolumes"
 	ServiceType     = "ServiceType"
 	Replicas        = "Replicas"

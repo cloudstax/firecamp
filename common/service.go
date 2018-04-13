@@ -142,6 +142,9 @@ type ServiceAttr struct {
 	// This field should not be nil. Every service will have its own user attr.
 	UserAttr *ServiceUserAttr
 
+	// ServiceConfigs includes the configs for the service.
+	ServiceConfigs []*ConfigID
+
 	// The specified resources for the service.
 	Resource Resources
 
@@ -194,8 +197,7 @@ type ServiceMember struct {
 	// The static IP assigned to this member
 	StaticIP string
 
-	// One member could have multiple config files.
-	// For example, cassandra.yaml and rackdc properties files.
+	// The specific configs for one member. The common service configs are kept in ServiceAttr.ServiceConfigs.
 	Configs []*ConfigID
 }
 
@@ -240,6 +242,8 @@ type ConfigFile struct {
 	FileMode     uint32
 	LastModified int64
 	Content      string // The content of the config file.
+	// whether the config file needs to be copied to volume
+	CopyToVolume bool
 }
 
 // ServiceStaticIP represents the owner service of one static IP.

@@ -91,6 +91,16 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 			B: userAttrBytes,
 		}
 	}
+	if len(attr.ServiceConfigs) != 0 {
+		cfgBytes, err := json.Marshal(attr.ServiceConfigs)
+		if err != nil {
+			glog.Errorln("Marshal ServiceConfigs error", err, "requuid", requuid, attr)
+			return err
+		}
+		params.Item[db.ServiceConfigs] = &dynamodb.AttributeValue{
+			B: cfgBytes,
+		}
+	}
 	if len(attr.ServiceType) != 0 {
 		params.Item[db.ServiceType] = &dynamodb.AttributeValue{
 			S: aws.String(attr.ServiceType),
@@ -109,7 +119,7 @@ func (d *DynamoDB) CreateServiceAttr(ctx context.Context, attr *common.ServiceAt
 }
 
 // UpdateServiceAttr updates the ServiceAttr in DB.
-// Only support updating ServiceStatus, Replicas or UserAttr at v1, all other attributes are immutable.
+// Only support updating ServiceStatus, Replicas, ServiceConfigs or UserAttr at v1, all other attributes are immutable.
 func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -140,11 +150,25 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 		},
 	}
 
-	if oldAttr.ServiceStatus != newAttr.ServiceStatus {
-		glog.Infoln("update service status from", oldAttr.ServiceStatus, "to", newAttr.ServiceStatus, "requuid", requuid, newAttr)
+	if oldAttr.ServiceStatus != newAttr.ServiceStatus ||
+		oldAttr.Replicas != newAttr.Replicas ||
+		!db.EqualConfigs(oldAttr.ServiceConfigs, newAttr.ServiceConfigs) {
 
-		updateExpr := "SET " + db.ServiceStatus + " = :v1, " + db.LastModified + " = :v2"
-		conditionExpr := db.ServiceStatus + " = :cv1"
+		glog.Infoln("update service status, replicas or configs from", oldAttr, "to", newAttr, "requuid", requuid)
+
+		oldCfgBytes, err := json.Marshal(oldAttr.ServiceConfigs)
+		if err != nil {
+			glog.Errorln("Marshal old ServiceConfigs error", err, "requuid", requuid, oldAttr)
+			return err
+		}
+		newCfgBytes, err := json.Marshal(newAttr.ServiceConfigs)
+		if err != nil {
+			glog.Errorln("Marshal new ServiceConfigs error", err, "requuid", requuid, newAttr)
+			return err
+		}
+
+		updateExpr := "SET " + db.ServiceStatus + " = :v1, " + db.Replicas + " = :v2, " + db.ServiceConfigs + " = :v3, " + db.LastModified + " = :v4"
+		conditionExpr := db.ServiceStatus + " = :cv1 AND " + db.Replicas + " = :cv2 AND " + db.ServiceConfigs + " = :cv3"
 		params.UpdateExpression = aws.String(updateExpr)
 		params.ConditionExpression = aws.String(conditionExpr)
 		params.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
@@ -152,28 +176,22 @@ func (d *DynamoDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.Servic
 				S: aws.String(newAttr.ServiceStatus),
 			},
 			":v2": {
+				N: aws.String(strconv.FormatInt(newAttr.Replicas, 10)),
+			},
+			":v3": {
+				B: newCfgBytes,
+			},
+			":v4": {
 				N: aws.String(strconv.FormatInt(newAttr.LastModified, 10)),
 			},
 			":cv1": {
 				S: aws.String(oldAttr.ServiceStatus),
 			},
-		}
-	} else if oldAttr.Replicas != newAttr.Replicas {
-		glog.Infoln("update service replicas from", oldAttr.Replicas, "to", newAttr.Replicas, "requuid", requuid, newAttr)
-
-		updateExpr := "SET " + db.Replicas + " = :v1, " + db.LastModified + " = :v2"
-		conditionExpr := db.Replicas + " = :cv1"
-		params.UpdateExpression = aws.String(updateExpr)
-		params.ConditionExpression = aws.String(conditionExpr)
-		params.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
-			":v1": {
-				N: aws.String(strconv.FormatInt(newAttr.Replicas, 10)),
-			},
-			":v2": {
-				N: aws.String(strconv.FormatInt(newAttr.LastModified, 10)),
-			},
-			":cv1": {
+			":cv2": {
 				N: aws.String(strconv.FormatInt(oldAttr.Replicas, 10)),
+			},
+			":cv3": {
+				B: oldCfgBytes,
 			},
 		}
 	} else if newAttr.UserAttr != nil && !db.EqualServiceUserAttr(oldAttr.UserAttr, newAttr.UserAttr) {
@@ -290,6 +308,14 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 	if _, ok := resp.Item[db.ServiceType]; ok {
 		serviceType = *(resp.Item[db.ServiceType].S)
 	}
+	var cfgs []*common.ConfigID
+	if _, ok := resp.Item[db.ServiceConfigs]; ok {
+		err = json.Unmarshal(resp.Item[db.ServiceConfigs].B, &cfgs)
+		if err != nil {
+			glog.Errorln("Unmarshal ServiceConfigs error", err, "requuid", requuid, resp)
+			return nil, db.ErrDBInternal
+		}
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -304,6 +330,7 @@ func (d *DynamoDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr
 		*(resp.Item[db.HostedZoneID].S),
 		*(resp.Item[db.RequireStaticIP].BOOL),
 		userAttr,
+		cfgs,
 		res,
 		serviceType)
 

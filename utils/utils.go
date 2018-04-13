@@ -94,11 +94,11 @@ func GenServiceMemberName(serviceName string, index int64) string {
 	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }
 
-func GenMemberConfigFileID(memberName string, configFileName string, version int64) string {
+func GenConfigFileID(prefix string, configFileName string, version int64) string {
 	// configFileName may include the '_', such as pg_hba.conf for postgres.
 	// The '_' is not supported as k8s configmap name. convert configFileName to md5.
 	fileID := GenMD5(configFileName)
-	return memberName + common.NameSeparator + fileID + common.NameSeparator + strconv.FormatInt(version, 10)
+	return prefix + common.NameSeparator + fileID + common.NameSeparator + strconv.FormatInt(version, 10)
 }
 
 func GetConfigFileVersion(fileID string) (version int64, err error) {

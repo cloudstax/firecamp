@@ -772,10 +772,17 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	domainName string, hostedZoneID string, req *manage.CreateServiceRequest) (serviceCreated bool, sattr *common.ServiceAttr, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// check and create the config file first
+	cfgs, err := s.checkAndCreateConfigFile(ctx, serviceUUID, req.Service.ServiceName, req.ServiceConfigs)
+	if err != nil {
+		glog.Errorln("checkAndCreateConfigFile error", err, "service", req.Service.ServiceName, "requuid", requuid)
+		return false, nil, err
+	}
+
 	// create service attr
 	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Service.Cluster,
 		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP,
-		req.UserAttr, *req.Resource, req.Service.ServiceType)
+		req.UserAttr, cfgs, *req.Resource, req.Service.ServiceType)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -907,7 +914,7 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 		glog.Infoln("updated member dns", dnsname, "to", hostIP, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 
 		// check and create the config file first
-		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, replicaCfg)
+		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, replicaCfg.MemberName, replicaCfg.Configs)
 		if err != nil {
 			glog.Errorln("checkAndCreateConfigFile error", err, "service", sattr.ServiceUUID,
 				"member", replicaCfg.MemberName, "requuid", requuid)
@@ -955,28 +962,26 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 }
 
 func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string,
-	replicaCfg *manage.ReplicaConfig) ([]*common.ConfigID, error) {
+	prefix string, cfgs []*manage.ConfigFileContent) (configs []*common.ConfigID, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the first version of the config file
 	version := int64(0)
-
-	configs := make([]*common.ConfigID, len(replicaCfg.Configs))
-	for i, cfg := range replicaCfg.Configs {
-		config, err := s.CreateMemberConfig(ctx, serviceUUID, replicaCfg.MemberName, cfg, version, requuid)
+	for _, cfg := range cfgs {
+		config, err := s.CreateConfig(ctx, serviceUUID, prefix, cfg, version, requuid)
 		if err != nil {
-			glog.Errorln("createConfigFile error", err, "service", serviceUUID, "requuid", requuid)
+			glog.Errorln("createConfigFile error", err, "service", serviceUUID, "prefix", prefix, "requuid", requuid)
 			return nil, err
 		}
-		configs[i] = config
+		configs = append(configs, config)
 	}
 	return configs, nil
 }
 
-// CreateMemberConfig creates the member config file
-func (s *ManageService) CreateMemberConfig(ctx context.Context, serviceUUID string, memberName string,
+// CreateConfig creates the config file
+func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, prefix string,
 	cfg *manage.ConfigFileContent, version int64, requuid string) (*common.ConfigID, error) {
-	fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
+	fileID := utils.GenConfigFileID(prefix, cfg.FileName, version)
 	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 	if err != nil {

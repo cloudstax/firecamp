@@ -30,8 +30,11 @@ func TestKafkaManagerCatalog(t *testing.T) {
 			VolumeSizeGB: volSizeGB,
 		},
 	}
+	serviceCfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
 	zkattr := db.CreateServiceAttr("zkuuid", common.ServiceStatusActive, time.Now().UnixNano(),
-		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false, nil, common.Resources{}, "")
+		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false, nil, serviceCfgs, common.Resources{}, "")
 	zkservers := genZkServerList(zkattr)
 	expectZkServers := "zk1-0.c1-firecamp.com:2181,zk1-1.c1-firecamp.com:2181,zk1-2.c1-firecamp.com:2181"
 	if zkservers != expectZkServers {

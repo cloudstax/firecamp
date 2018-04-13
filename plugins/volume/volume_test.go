@@ -344,7 +344,10 @@ func TestFindIdleVolume(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
-	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil, res, "")
+	cfgids := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
+	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil, cfgids, res, "")
 
 	// add 2 service tasks
 	for i := 0; i < 2; i++ {

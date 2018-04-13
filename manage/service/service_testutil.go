@@ -41,6 +41,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 
 	firstIP := 4
 
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
+
 	ctx := context.Background()
 
 	// service map, key: service name, value: ""
@@ -87,6 +91,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			JournalVolume:   journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
 			ReplicaConfigs:  replicaCfgs,
 		}
 
@@ -223,6 +228,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			JournalVolume:   journalVol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
 			ReplicaConfigs:  replicaCfgs,
 		}
 
@@ -366,6 +372,7 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			Volume:          servicevol,
 			RegisterDNS:     registerDNS,
 			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
 			ReplicaConfigs:  replicaCfgs,
 		}
 
@@ -443,6 +450,10 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 	vpcID := "vpc-1"
 	region := "us-west-1"
 
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
+
 	ctx := context.Background()
 
 	service := servicePrefix + strconv.Itoa(idx)
@@ -488,6 +499,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		Volume:          servicevol,
 		RegisterDNS:     registerDNS,
 		RequireStaticIP: requireStaticIP,
+		ServiceConfigs:  serviceCfgs,
 		ReplicaConfigs:  replicaCfgs,
 		UserAttr:        userAttr,
 	}
@@ -690,8 +702,12 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
+	cfgids, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, req.Service.ServiceName, req.ServiceConfigs)
+	if err != nil {
+		t.Fatalf("checkAndCreateConfigFile error %s, service %s", err, req.Service.ServiceName)
+	}
 	serviceAttr := db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, "")
+		cluster, service, *svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgids, res, "")
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
@@ -770,14 +786,18 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			Encrypted:    false,
 		}
 	}
+	cfgids, err = s.checkAndCreateConfigFile(ctx, "uuid"+service, req.Service.ServiceName, req.ServiceConfigs)
+	if err != nil {
+		t.Fatalf("checkAndCreateConfigFile error %s, service %s", err, req.Service.ServiceName)
+	}
 	serviceAttr = db.CreateInitialServiceAttr("uuid"+service, int64(taskCount),
-		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, "")
+		cluster, service, vols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgids, res, "")
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err != nil {
 		t.Fatalf("CreateServiceAttr error %s, serviceAttr %s", err, serviceAttr)
 	}
 
-	cfgs, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, replicaCfgs[0])
+	cfgs, err := s.checkAndCreateConfigFile(ctx, "uuid"+service, replicaCfgs[0].MemberName, replicaCfgs[0].Configs)
 	if err != nil {
 		t.Fatalf("checkAndCreateConfigFile error %s, serviceItem %s", err, serviceItem)
 	}

@@ -231,6 +231,9 @@ func testServiceAttrs(dbIns *k8sconfigdb.K8sConfigDB) {
 		ServiceType: common.CatalogService_Cassandra,
 		AttrBytes:   b,
 	}
+	cfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
 
 	ctx := context.Background()
 
@@ -258,7 +261,7 @@ func testServiceAttrs(dbIns *k8sconfigdb.K8sConfigDB) {
 			serviceType = common.ServiceTypeStateless
 		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, serviceType)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, serviceType)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			glog.Fatalf("failed to create service attr %s, err %s", s[i], err)

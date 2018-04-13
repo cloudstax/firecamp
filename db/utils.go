@@ -57,7 +57,7 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string,
 	service string, vols common.ServiceVolumes, registerDNS bool, domain string,
 	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
-	res common.Resources, serviceType string) *common.ServiceAttr {
+	serviceCfgs []*common.ConfigID, res common.Resources, serviceType string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   common.ServiceStatusCreating,
@@ -71,6 +71,7 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
+		ServiceConfigs:  serviceCfgs,
 		Resource:        res,
 		ServiceType:     serviceType,
 	}
@@ -79,7 +80,7 @@ func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string
 func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
 	cluster string, service string, vols common.ServiceVolumes, registerDNS bool, domain string,
 	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
-	res common.Resources, serviceType string) *common.ServiceAttr {
+	serviceCfgs []*common.ConfigID, res common.Resources, serviceType string) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID:     serviceUUID,
 		ServiceStatus:   status,
@@ -93,6 +94,7 @@ func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas 
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
 		UserAttr:        userAttr,
+		ServiceConfigs:  serviceCfgs,
 		Resource:        res,
 		ServiceType:     serviceType,
 	}
@@ -111,6 +113,7 @@ func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime 
 		t1.HostedZoneID == t2.HostedZoneID &&
 		t1.RequireStaticIP == t2.RequireStaticIP &&
 		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) &&
+		EqualConfigs(t1.ServiceConfigs, t2.ServiceConfigs) &&
 		EqualResources(&(t1.Resource), &(t2.Resource)) &&
 		t1.ServiceType == t2.ServiceType {
 		return true
@@ -545,6 +548,7 @@ func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceA
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
+		ServiceConfigs:  t1.ServiceConfigs,
 		Resource:        t1.Resource,
 		ServiceType:     t1.ServiceType,
 	}
@@ -564,6 +568,7 @@ func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.Servi
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        t1.UserAttr,
+		ServiceConfigs:  t1.ServiceConfigs,
 		Resource:        t1.Resource,
 		ServiceType:     t1.ServiceType,
 	}
@@ -583,6 +588,7 @@ func UpdateServiceUserAttr(t1 *common.ServiceAttr, ua *common.ServiceUserAttr) *
 		HostedZoneID:    t1.HostedZoneID,
 		RequireStaticIP: t1.RequireStaticIP,
 		UserAttr:        ua,
+		ServiceConfigs:  t1.ServiceConfigs,
 		Resource:        t1.Resource,
 		ServiceType:     t1.ServiceType,
 	}
@@ -637,7 +643,7 @@ func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skip
 		(skipMtime || t1.LastModified == t2.LastModified) &&
 		EqualMemberVolumes(&(t1.Volumes), &(t2.Volumes)) &&
 		t1.StaticIP == t2.StaticIP &&
-		equalConfigs(t1.Configs, t2.Configs) {
+		EqualConfigs(t1.Configs, t2.Configs) {
 		return true
 	}
 	return false
@@ -653,7 +659,7 @@ func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool
 	return false
 }
 
-func equalConfigs(c1 []*common.ConfigID, c2 []*common.ConfigID) bool {
+func EqualConfigs(c1 []*common.ConfigID, c2 []*common.ConfigID) bool {
 	if len(c1) != len(c2) {
 		return false
 	}

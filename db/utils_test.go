@@ -39,10 +39,10 @@ func TestDBUtils(t *testing.T) {
 
 	mtime := time.Now().UnixNano()
 	attr1 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res, "")
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, nil, res, "")
 	attr1.LastModified = mtime
 	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, res, "")
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, nil, res, "")
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
@@ -76,11 +76,13 @@ func TestDBUtils(t *testing.T) {
 		ServiceType: common.CatalogService_MongoDB,
 		AttrBytes:   b,
 	}
+	cfg := &common.ConfigID{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
+	cfgs := []*common.ConfigID{cfg}
 	attr3 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, common.ServiceTypeStateless)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, common.ServiceTypeStateless)
 	attr3.LastModified = mtime
 	attr4 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, common.ServiceTypeStateless)
+		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, common.ServiceTypeStateless)
 	if !EqualServiceAttr(attr3, attr4, false) {
 		t.Fatalf("attr is not the same, %s %s", attr3, attr4)
 	}
@@ -107,8 +109,6 @@ func TestDBUtils(t *testing.T) {
 	memberIndex := int64(1)
 	memberName := "member-1"
 	staticIP := "10.0.0.1"
-	cfg := &common.ConfigID{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
-	cfgs := []*common.ConfigID{cfg}
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
 		PrimaryDeviceName: svols.PrimaryDeviceName,

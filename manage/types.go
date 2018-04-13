@@ -107,6 +107,8 @@ type CreateServiceRequest struct {
 	// The service's custom attributes
 	UserAttr *common.ServiceUserAttr
 
+	ServiceConfigs []*ConfigFileContent
+
 	// Below fields are used by the stateful service only.
 
 	// The primary volume for the service data

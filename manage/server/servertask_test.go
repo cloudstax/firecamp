@@ -11,7 +11,7 @@ func TestServerTask(t *testing.T) {
 	containersvcIns := containersvc.NewMemContainerSvc()
 	cluster := "c1"
 	tasksvc := newManageTaskService(cluster, containersvcIns)
-	tasksvc.taskDoneWaitSeconds = 1
+	tasksvc.taskDoneWaitSeconds = 2
 
 	serviceUUID := "s1-uuid"
 	has, msg, complete := tasksvc.hasTask(serviceUUID)

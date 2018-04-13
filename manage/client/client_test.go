@@ -132,6 +132,9 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	// create services
 	registerDNS := true
 	servicePrefix := "service-"
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
 	for repNum := 1; repNum < serviceNum+1; repNum++ {
 		service := servicePrefix + strconv.Itoa(repNum)
 
@@ -165,6 +168,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			},
 			ContainerPath:  "",
 			RegisterDNS:    registerDNS,
+			ServiceConfigs: serviceCfgs,
 			ReplicaConfigs: replicaCfgs,
 		}
 

@@ -261,6 +261,9 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 }
 
 func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
 		memberName := utils.GenServiceMemberName(service, int64(i))
@@ -292,6 +295,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 		ContainerPath:   "",
 		RegisterDNS:     true,
 		RequireStaticIP: false,
+		ServiceConfigs:  serviceCfgs,
 		ReplicaConfigs:  replicaCfgs,
 	}
 

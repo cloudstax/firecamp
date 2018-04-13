@@ -754,7 +754,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		return nil, err
 	}
 
-	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
+	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.FileName, version+1)
 	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
@@ -970,7 +970,7 @@ func (s *ManageHTTPServer) createJmxFiles(ctx context.Context, members []*common
 func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ConfigFileContent, requuid string) (newMember *common.ServiceMember, err error) {
 	if cfgIndex < 0 {
 		// jmx file not exists, create it
-		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
+		jmxCfg, err := s.svc.CreateConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
 		if err != nil {
 			glog.Errorln("create jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
 			return nil, err

@@ -1,6 +1,7 @@
 package catalog
 
 const (
+	SERVICE_FILE_NAME = "service.conf"
 	// The system variables in the sys.conf file
 	SYS_FILE_NAME = "sys.conf"
 

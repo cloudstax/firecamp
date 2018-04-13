@@ -137,6 +137,14 @@ func (s *K8sConfigDB) GetServiceAttr(ctx context.Context, serviceUUID string) (a
 			return nil, db.ErrDBInternal
 		}
 	}
+	var cfgs []*common.ConfigID
+	if _, ok := cfgmap.Data[db.ServiceConfigs]; ok {
+		err = json.Unmarshal([]byte(cfgmap.Data[db.ServiceConfigs]), &cfgs)
+		if err != nil {
+			glog.Errorln("Unmarshal ServiceUserAttr error", err, "requuid", requuid, cfgmap)
+			return nil, db.ErrDBInternal
+		}
+	}
 
 	attr = db.CreateServiceAttr(
 		serviceUUID,
@@ -151,6 +159,7 @@ func (s *K8sConfigDB) GetServiceAttr(ctx context.Context, serviceUUID string) (a
 		cfgmap.Data[db.HostedZoneID],
 		requireStaticIP,
 		userAttr,
+		cfgs,
 		res,
 		cfgmap.Data[db.ServiceType])
 
@@ -214,6 +223,14 @@ func (s *K8sConfigDB) attrToConfigMap(attr *common.ServiceAttr, requuid string) 
 			return nil, err
 		}
 		cfgmap.Data[db.UserAttr] = string(userAttrBytes)
+	}
+	if len(attr.ServiceConfigs) != 0 {
+		cfgBytes, err := json.Marshal(attr.ServiceConfigs)
+		if err != nil {
+			glog.Errorln("Marshal ServiceConfigs error", err, "requuid", requuid, attr)
+			return nil, err
+		}
+		cfgmap.Data[db.ServiceConfigs] = string(cfgBytes)
 	}
 
 	return cfgmap, nil

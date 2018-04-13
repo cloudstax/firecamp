@@ -229,6 +229,10 @@ func TestServiceAttrs(t *testing.T) {
 		AttrBytes:   b,
 	}
 
+	cfgs := []*common.ConfigID{
+		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
+
 	ctx := context.Background()
 
 	// create 5 services
@@ -255,7 +259,7 @@ func TestServiceAttrs(t *testing.T) {
 			serviceType = common.ServiceTypeStateless
 		}
 		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, res, serviceType)
+			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, serviceType)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create service attr %s, err %s", s[i], err)
