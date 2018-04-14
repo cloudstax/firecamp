@@ -72,7 +72,7 @@ func (d *MemDB) GetDevice(ctx context.Context, clusterName string, deviceName st
 		glog.Errorln("device not found", key)
 		return nil, ErrDBRecordNotFound
 	}
-	return copyDevice(&cdev), nil
+	return CopyDevice(&cdev), nil
 }
 
 func (d *MemDB) DeleteDevice(ctx context.Context, clusterName string, deviceName string) error {
@@ -102,7 +102,7 @@ func (d *MemDB) listDevicesWithLimit(ctx context.Context, clusterName string, li
 	devs = make([]*common.Device, len(d.devMap))
 	idx := 0
 	for _, dev := range d.devMap {
-		devs[idx] = copyDevice(&dev)
+		devs[idx] = CopyDevice(&dev)
 		idx++
 	}
 	return devs, nil
@@ -135,7 +135,7 @@ func (d *MemDB) GetService(ctx context.Context, clusterName string, serviceName 
 		glog.Errorln("service not exist", key)
 		return nil, ErrDBRecordNotFound
 	}
-	return copyService(&csvc), nil
+	return CopyService(&csvc), nil
 }
 
 func (d *MemDB) DeleteService(ctx context.Context, clusterName string, serviceName string) error {
@@ -165,7 +165,7 @@ func (d *MemDB) listServicesWithLimit(ctx context.Context, clusterName string, l
 	svcs = make([]*common.Service, len(d.svcMap))
 	idx := 0
 	for _, svc := range d.svcMap {
-		svcs[idx] = copyService(&svc)
+		svcs[idx] = CopyService(&svc)
 		idx++
 	}
 	return svcs, nil
@@ -209,7 +209,7 @@ func (d *MemDB) GetServiceAttr(ctx context.Context, serviceUUID string) (attr *c
 		return nil, ErrDBRecordNotFound
 	}
 
-	return copyServiceAttr(&cattr), nil
+	return CopyServiceAttr(&cattr), nil
 }
 
 func (d *MemDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) error {
@@ -274,7 +274,7 @@ func (d *MemDB) GetServiceMember(ctx context.Context, serviceUUID string, member
 		return nil, ErrDBRecordNotFound
 	}
 
-	return copyServiceMember(&cmember), nil
+	return CopyServiceMember(&cmember), nil
 }
 
 func (d *MemDB) ListServiceMembers(ctx context.Context, serviceUUID string) (members []*common.ServiceMember, err error) {
@@ -287,7 +287,7 @@ func (d *MemDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID str
 
 	for _, member := range d.memberMap {
 		if member.ServiceUUID == serviceUUID {
-			members = append(members, copyServiceMember(&member))
+			members = append(members, CopyServiceMember(&member))
 		}
 	}
 	return members, nil
@@ -337,7 +337,7 @@ func (d *MemDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID st
 		return nil, ErrDBRecordNotFound
 	}
 
-	return copyConfigFile(&c), nil
+	return CopyConfigFile(&c), nil
 }
 
 func (d *MemDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fileID string) error {
@@ -404,7 +404,7 @@ func (d *MemDB) GetServiceStaticIP(ctx context.Context, ip string) (serviceip *c
 		return nil, ErrDBRecordNotFound
 	}
 
-	return copyServiceStaticIP(&currip), nil
+	return CopyServiceStaticIP(&currip), nil
 }
 
 func (d *MemDB) DeleteServiceStaticIP(ctx context.Context, ip string) error {
@@ -421,79 +421,4 @@ func (d *MemDB) DeleteServiceStaticIP(ctx context.Context, ip string) error {
 
 	delete(d.ipMap, key)
 	return nil
-}
-
-func copyDevice(t *common.Device) *common.Device {
-	return &common.Device{
-		ClusterName: t.ClusterName,
-		DeviceName:  t.DeviceName,
-		ServiceName: t.ServiceName,
-	}
-}
-
-func copyService(t *common.Service) *common.Service {
-	return &common.Service{
-		ClusterName: t.ClusterName,
-		ServiceName: t.ServiceName,
-		ServiceUUID: t.ServiceUUID,
-	}
-}
-
-func copyServiceAttr(t *common.ServiceAttr) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     t.ServiceUUID,
-		ServiceStatus:   t.ServiceStatus,
-		LastModified:    t.LastModified,
-		Replicas:        t.Replicas,
-		ClusterName:     t.ClusterName,
-		ServiceName:     t.ServiceName,
-		Volumes:         t.Volumes,
-		RegisterDNS:     t.RegisterDNS,
-		DomainName:      t.DomainName,
-		HostedZoneID:    t.HostedZoneID,
-		RequireStaticIP: t.RequireStaticIP,
-		UserAttr:        t.UserAttr,
-		ServiceConfigs:  t.ServiceConfigs,
-		Resource:        t.Resource,
-		ServiceType:     t.ServiceType,
-	}
-}
-
-func copyServiceMember(t *common.ServiceMember) *common.ServiceMember {
-	return &common.ServiceMember{
-		ServiceUUID:         t.ServiceUUID,
-		MemberIndex:         t.MemberIndex,
-		Status:              t.Status,
-		MemberName:          t.MemberName,
-		AvailableZone:       t.AvailableZone,
-		LastModified:        t.LastModified,
-		TaskID:              t.TaskID,
-		ContainerInstanceID: t.ContainerInstanceID,
-		ServerInstanceID:    t.ServerInstanceID,
-		Volumes:             t.Volumes,
-		StaticIP:            t.StaticIP,
-		Configs:             t.Configs,
-	}
-}
-
-func copyConfigFile(t *common.ConfigFile) *common.ConfigFile {
-	return &common.ConfigFile{
-		FileID:       t.FileID,
-		FileMD5:      t.FileMD5,
-		FileName:     t.FileName,
-		FileMode:     t.FileMode,
-		ServiceUUID:  t.ServiceUUID,
-		LastModified: t.LastModified,
-		Content:      t.Content,
-	}
-}
-
-func copyServiceStaticIP(t *common.ServiceStaticIP) *common.ServiceStaticIP {
-	return &common.ServiceStaticIP{
-		StaticIP:           t.StaticIP,
-		ServiceUUID:        t.ServiceUUID,
-		AvailableZone:      t.AvailableZone,
-		ServerInstanceID:   t.ServerInstanceID,
-		NetworkInterfaceID: t.NetworkInterfaceID,
-	}
 }

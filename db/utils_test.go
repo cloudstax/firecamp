@@ -1,7 +1,6 @@
 package db
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -37,73 +36,33 @@ func TestDBUtils(t *testing.T) {
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
 
-	mtime := time.Now().UnixNano()
-	attr1 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, nil, res, "")
-	attr1.LastModified = mtime
-	attr2 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, nil, nil, res, "")
-	if !EqualServiceAttr(attr1, attr2, false) {
-		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
+	cfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
 
-	attr2 = UpdateServiceStatus(attr1, common.ServiceStatusActive)
-	attr1.ServiceStatus = common.ServiceStatusActive
-	attr1.LastModified = attr2.LastModified
+	// test service attr
+	mtime := time.Now().UnixNano()
+	attrMeta := CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
+	attrSpec := CreateServiceSpec(replicas, res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, svols)
+	attr1 := CreateServiceAttr(serviceUUID, 0, attrMeta, attrSpec)
+
+	attr2 := UpdateServiceStatus(attr1, common.ServiceStatusActive)
+	attr1.Revision++
+	attr1.Meta.ServiceStatus = common.ServiceStatusActive
+	attr1.Meta.LastModified = attr2.Meta.LastModified
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
 
 	attr2 = UpdateServiceReplicas(attr1, 5)
-	attr1.Replicas = 5
-	attr1.LastModified = attr2.LastModified
+	attr1.Revision++
+	attr1.Spec.Replicas = 5
+	attr1.Meta.LastModified = attr2.Meta.LastModified
 	if !EqualServiceAttr(attr1, attr2, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
 
-	mattr := common.MongoDBUserAttr{
-		Shards:           1,
-		ReplicasPerShard: 3,
-		ReplicaSetOnly:   false,
-		ConfigServers:    3,
-		KeyFileContent:   "keyfile",
-	}
-	b, err := json.Marshal(mattr)
-	if err != nil {
-		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
-	}
-	userAttr := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_MongoDB,
-		AttrBytes:   b,
-	}
-	cfg := &common.ConfigID{FileName: "cfgfile-name", FileID: "cfgfile-id", FileMD5: "cfgfile-md5"}
-	cfgs := []*common.ConfigID{cfg}
-	attr3 := CreateInitialServiceAttr(serviceUUID, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, common.ServiceTypeStateless)
-	attr3.LastModified = mtime
-	attr4 := CreateServiceAttr(serviceUUID, common.ServiceStatusCreating, mtime, replicas,
-		cluster, service, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, common.ServiceTypeStateless)
-	if !EqualServiceAttr(attr3, attr4, false) {
-		t.Fatalf("attr is not the same, %s %s", attr3, attr4)
-	}
-
-	// update service userAttr
-	mattr.Shards = 2
-	b, err = json.Marshal(mattr)
-	if err != nil {
-		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
-	}
-	userAttr = &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_MongoDB,
-		AttrBytes:   b,
-	}
-	tmpattr := UpdateServiceUserAttr(attr4, userAttr)
-	attr3.UserAttr = userAttr
-	attr3.LastModified = tmpattr.LastModified
-	if !EqualServiceAttr(attr3, tmpattr, false) {
-		t.Fatalf("attr is not the same, %s %s", attr3, tmpattr)
-	}
-
+	// test service member
 	volID := "vol-1"
 	az := "az-1"
 	memberIndex := int64(1)
@@ -113,24 +72,22 @@ func TestDBUtils(t *testing.T) {
 		PrimaryVolumeID:   volID,
 		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
-	member1 := CreateInitialServiceMember(serviceUUID, memberIndex, memberName, az, mvols, staticIP, cfgs)
-	member2 := CreateServiceMember(serviceUUID, memberIndex, common.ServiceMemberStatusActive, memberName,
-		az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mtime,
-		mvols, staticIP, cfgs)
-	if !EqualServiceMember(member1, member2, true) {
-		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
-	}
+	memberMeta := CreateMemberMeta(memberName, time.Now().UnixNano(), common.ServiceMemberStatusActive)
+	memberSpec := CreateMemberSpec(az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mvols, staticIP, cfgs)
+	m1 := CreateServiceMember(serviceUUID, memberIndex, 0, memberMeta, memberSpec)
 
 	taskID := "task-1"
 	containerInstanceID := "containerInstance-1"
 	ec2InstanceID := "ec2Instance-1"
-	member2 = UpdateServiceMemberOwner(member1, taskID, containerInstanceID, ec2InstanceID)
-	member1.TaskID = taskID
-	member1.ContainerInstanceID = containerInstanceID
-	member1.ServerInstanceID = ec2InstanceID
-	member1.LastModified = member2.LastModified
-	if !EqualServiceMember(member1, member2, false) {
-		t.Fatalf("serviceMember is not the same, %s %s", member1, member2)
+	m2 := UpdateServiceMemberOwner(m1, taskID, containerInstanceID, ec2InstanceID)
+
+	m1.Revision++
+	m1.Meta.LastModified = m2.Meta.LastModified
+	m1.Spec.TaskID = taskID
+	m1.Spec.ContainerInstanceID = containerInstanceID
+	m1.Spec.ServerInstanceID = ec2InstanceID
+	if !EqualServiceMember(m1, m2, false) {
+		t.Fatalf("serviceMember is not the same, %s %s", m1, m2)
 	}
 
 	// test ConfigFile
@@ -162,13 +119,15 @@ func TestDBUtils(t *testing.T) {
 
 	// test service static ip
 	netInterfaceID := "test-netinterface"
-	serviceip := CreateServiceStaticIP(staticIP, serviceUUID, az, ec2InstanceID, netInterfaceID)
+	ipSpec := CreateStaticIPSpec(serviceUUID, az, ec2InstanceID, netInterfaceID)
+	serviceip := CreateServiceStaticIP(staticIP, 0, ipSpec)
 
 	ec2InstanceID1 := "new-ec2"
 	netInterfaceID1 := "new-netinterface"
 	serviceip1 := UpdateServiceStaticIP(serviceip, ec2InstanceID1, netInterfaceID1)
-	serviceip.ServerInstanceID = ec2InstanceID1
-	serviceip.NetworkInterfaceID = netInterfaceID1
+	serviceip.Revision++
+	serviceip.Spec.ServerInstanceID = ec2InstanceID1
+	serviceip.Spec.NetworkInterfaceID = netInterfaceID1
 	if !EqualServiceStaticIP(serviceip, serviceip1) {
 		t.Fatalf("service static ip is not the same, %s %s", serviceip, serviceip1)
 	}

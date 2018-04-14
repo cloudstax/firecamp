@@ -1,7 +1,6 @@
 package db
 
 import (
-	"encoding/json"
 	"flag"
 	"strings"
 	"testing"
@@ -170,23 +169,8 @@ func TestServiceAttr(t *testing.T) {
 	requireStaticIP := false
 
 	ctx := context.Background()
-
-	mattr := common.MongoDBUserAttr{
-		Shards:           1,
-		ReplicasPerShard: 3,
-		ReplicaSetOnly:   false,
-		ConfigServers:    3,
-	}
-	b, err := json.Marshal(mattr)
-	if err != nil {
-		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
-	}
-	userAttr := &common.ServiceUserAttr{
-		ServiceType: "mongodb",
-		AttrBytes:   b,
-	}
-	serviceCfgs := []*common.ConfigID{
-		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	serviceCfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
 	res := common.Resources{
 		MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -212,8 +196,10 @@ func TestServiceAttr(t *testing.T) {
 			},
 		}
 
-		s[i] = CreateInitialServiceAttr(uuidPrefix+c, int64(i), clusterName, servicePrefix+c,
-			svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, serviceCfgs, res, "")
+		mtime := time.Now().UnixNano()
+		attrMeta := CreateServiceMeta(clusterName, servicePrefix+c, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
+		attrSpec := CreateServiceSpec(int64(i), res, registerDNS, domain, hostedZoneID, requireStaticIP, serviceCfgs, svols)
+		s[i] = CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
@@ -228,14 +214,14 @@ func TestServiceAttr(t *testing.T) {
 	}
 
 	// update service
-	attr.ServiceStatus = "ACTIVE"
+	attr.Meta.ServiceStatus = "ACTIVE"
 	err = dbIns.UpdateServiceAttr(ctx, s[1], attr)
 	if err != nil {
 		t.Fatalf("update service attr failed, service %s error %s", attr, err)
 	}
 
 	// service updated
-	s[1].ServiceStatus = "ACTIVE"
+	s[1].Meta.ServiceStatus = "ACTIVE"
 
 	// get service again to verify the update
 	attr, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
@@ -280,15 +266,18 @@ func TestServiceMembers(t *testing.T) {
 	for i, c := range x {
 		content := cfgContentPrefix + c
 		chksum := utils.GenMD5(content)
-		cfg := &common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
-		cfgs := []*common.ConfigID{cfg}
+		cfgs := []common.ConfigID{
+			common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum},
+		}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		s1[i] = CreateServiceMember(service1, int64(i), common.ServiceMemberStatusActive,
-			utils.GenServiceMemberName(service1, int64(i)), az, taskPrefix+c, contPrefix+c,
-			hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
+
+		memberName := utils.GenServiceMemberName(service1, int64(i))
+		memberMeta := CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		s1[i] = CreateServiceMember(service1, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -302,15 +291,17 @@ func TestServiceMembers(t *testing.T) {
 		c := x[i]
 		content := cfgContentPrefix + c
 		chksum := utils.GenMD5(content)
-		cfg := &common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum}
-		cfgs := []*common.ConfigID{cfg}
+		cfgs := []common.ConfigID{
+			common.ConfigID{FileName: cfgNamePrefix + c, FileID: cfgIDPrefix + c, FileMD5: chksum},
+		}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		s2[i] = CreateServiceMember(service2, int64(i), common.ServiceMemberStatusActive,
-			utils.GenServiceMemberName(service2, int64(i)), az, taskPrefix+c, contPrefix+c,
-			hostPrefix+c, mtime, mvols, staticIPPrefix+c, cfgs)
+		memberName := utils.GenServiceMemberName(service2, int64(i))
+		memberMeta := CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		s2[i] = CreateServiceMember(service2, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {
@@ -325,18 +316,18 @@ func TestServiceMembers(t *testing.T) {
 	}
 
 	// update serviceMember
-	item.TaskID = taskPrefix + "z"
-	item.ContainerInstanceID = contPrefix + "z"
-	item.ServerInstanceID = hostPrefix + "z"
+	item.Spec.TaskID = taskPrefix + "z"
+	item.Spec.ContainerInstanceID = contPrefix + "z"
+	item.Spec.ServerInstanceID = hostPrefix + "z"
 	err = dbIns.UpdateServiceMember(ctx, s1[1], item)
 	if err != nil {
 		t.Fatalf("update serviceMember failed, serviceMember %s error %s", item, err)
 	}
 
 	// serviceMember updated
-	s1[1].TaskID = item.TaskID
-	s1[1].ContainerInstanceID = item.ContainerInstanceID
-	s1[1].ServerInstanceID = item.ServerInstanceID
+	s1[1].Spec.TaskID = item.Spec.TaskID
+	s1[1].Spec.ContainerInstanceID = item.Spec.ContainerInstanceID
+	s1[1].Spec.ServerInstanceID = item.Spec.ServerInstanceID
 
 	// get serviceMember again to verify the update
 	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
@@ -446,7 +437,8 @@ func TestServiceStaticIP(t *testing.T) {
 	var s [5]*common.ServiceStaticIP
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
-		s[i] = CreateServiceStaticIP(ipPrefix+c, serviceUUIDPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+		ipSpec := CreateStaticIPSpec(serviceUUIDPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+		s[i] = CreateServiceStaticIP(ipPrefix+c, 0, ipSpec)
 
 		err := dbIns.CreateServiceStaticIP(ctx, s[i])
 		if err != nil {

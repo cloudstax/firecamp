@@ -119,13 +119,26 @@ type Service struct {
 // The ServiceUUID is passed as volume name to the volume driver. The volume driver
 // could get the detail service attributes for other operations.
 type ServiceAttr struct {
-	ServiceUUID   string // partition key
+	ServiceUUID string // partition key
+	// Everytime ServiceAttr is updated, revision is increased.
+	Revision int64
+	Meta     ServiceMeta
+	Spec     ServiceSpec
+}
+
+// ServiceMeta
+type ServiceMeta struct {
+	ClusterName  string
+	ServiceName  string
+	LastModified int64
+	// common.ServiceTypeStateful or ServiceTypeStateless
+	ServiceType   string
 	ServiceStatus string
-	LastModified  int64
-	Replicas      int64
-	ClusterName   string
-	ServiceName   string
-	Volumes       ServiceVolumes
+}
+
+type ServiceSpec struct {
+	Replicas int64
+	Resource Resources
 
 	// whether the service members need to know each other, such as database replicas.
 	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
@@ -138,19 +151,11 @@ type ServiceAttr struct {
 	// Whether the service member needs the static ip. This is required by Redis & Consul.
 	RequireStaticIP bool
 
-	// The custom service attributes.
-	// This field should not be nil. Every service will have its own user attr.
-	UserAttr *ServiceUserAttr
-
 	// ServiceConfigs includes the configs for the service.
-	ServiceConfigs []*ConfigID
+	ServiceConfigs []ConfigID
 
-	// The specified resources for the service.
-	Resource Resources
-
-	// ServiceType is added after release 0.9.3, to support stateless service such as kafka manager.
-	// common.ServiceTypeStateful or ServiceTypeStateless
-	ServiceType string
+	// stateful service specific fields
+	Volumes ServiceVolumes
 }
 
 // ServiceVolumes represent the volumes of one service.
@@ -176,18 +181,28 @@ type ServiceVolume struct {
 type ServiceMember struct {
 	ServiceUUID string // partition key
 	MemberIndex int64  // sort key
+	// Everytime ServiceMember is updated, revision is increased.
+	Revision int64
+	Meta     MemberMeta
+	Spec     MemberSpec
+}
+
+type MemberMeta struct {
+	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
+	MemberName   string
+	LastModified int64
 	// The member status: Active, Pause, Bad.
 	// This will be useful for some cases. For example, prevent the member container
 	// from running when doing some maintenance for one member.
 	Status string
-	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
-	MemberName string
+}
+
+type MemberSpec struct {
 	// For the stateless service, AvailableZone is ingored, simply set to "any".
 	AvailableZone       string
 	TaskID              string
 	ContainerInstanceID string
 	ServerInstanceID    string
-	LastModified        int64
 
 	// The volumes of one member. One member could have multiple volumes.
 	// For example, one for DB data, the other for journal.
@@ -198,7 +213,7 @@ type ServiceMember struct {
 	StaticIP string
 
 	// The specific configs for one member. The common service configs are kept in ServiceAttr.ServiceConfigs.
-	Configs []*ConfigID
+	Configs []ConfigID
 }
 
 // MemberVolumes represent the volumes of one member.
@@ -247,7 +262,11 @@ type ConfigFile struct {
 // ServiceStaticIP represents the owner service of one static IP.
 type ServiceStaticIP struct {
 	StaticIP string // partition key
+	Revision int64
+	Spec     StaticIPSpec
+}
 
+type StaticIPSpec struct {
 	// The owner service of this static IP.
 	ServiceUUID string
 	// TODO adding MemberName would be a good optimization.

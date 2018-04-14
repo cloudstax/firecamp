@@ -1,14 +1,12 @@
 package db
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -37,6 +35,14 @@ func EqualDevice(t1 *common.Device, t2 *common.Device) bool {
 	return false
 }
 
+func CopyDevice(d *common.Device) *common.Device {
+	return &common.Device{
+		ClusterName: d.ClusterName,
+		DeviceName:  d.DeviceName,
+		ServiceName: d.ServiceName,
+	}
+}
+
 func CreateService(cluster string, service string, serviceUUID string) *common.Service {
 	return &common.Service{
 		ClusterName: cluster,
@@ -54,71 +60,132 @@ func EqualService(t1 *common.Service, t2 *common.Service) bool {
 	return false
 }
 
-func CreateInitialServiceAttr(serviceUUID string, replicas int64, cluster string,
-	service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
-	serviceCfgs []*common.ConfigID, res common.Resources, serviceType string) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     serviceUUID,
-		ServiceStatus:   common.ServiceStatusCreating,
-		LastModified:    time.Now().UnixNano(),
+func CopyService(s *common.Service) *common.Service {
+	return &common.Service{
+		ClusterName: s.ClusterName,
+		ServiceName: s.ServiceName,
+		ServiceUUID: s.ServiceUUID,
+	}
+}
+
+func CreateServiceMeta(cluster string, service string, mtime int64, serviceType string, status string) *common.ServiceMeta {
+	return &common.ServiceMeta{
+		ClusterName:   cluster,
+		ServiceName:   service,
+		LastModified:  mtime,
+		ServiceType:   serviceType,
+		ServiceStatus: status,
+	}
+}
+
+func EqualServiceMeta(s1 *common.ServiceMeta, s2 *common.ServiceMeta, skipMtime bool) bool {
+	return s1.ClusterName == s2.ClusterName &&
+		s1.ServiceName == s2.ServiceName &&
+		(skipMtime || s1.LastModified == s2.LastModified) &&
+		s1.ServiceType == s2.ServiceType &&
+		s1.ServiceStatus == s2.ServiceStatus
+}
+
+func CopyServiceMeta(s *common.ServiceMeta) *common.ServiceMeta {
+	return &common.ServiceMeta{
+		ClusterName:   s.ClusterName,
+		ServiceName:   s.ServiceName,
+		LastModified:  s.LastModified,
+		ServiceType:   s.ServiceType,
+		ServiceStatus: s.ServiceStatus,
+	}
+}
+
+func CreateServiceSpec(replicas int64, res common.Resources, registerDNS bool,
+	domain string, hostedZoneID string, requireStaticIP bool,
+	serviceCfgs []common.ConfigID, vols common.ServiceVolumes) *common.ServiceSpec {
+	return &common.ServiceSpec{
 		Replicas:        replicas,
-		ClusterName:     cluster,
-		ServiceName:     service,
-		Volumes:         vols,
+		Resource:        res,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
-		UserAttr:        userAttr,
 		ServiceConfigs:  serviceCfgs,
-		Resource:        res,
-		ServiceType:     serviceType,
-	}
-}
-
-func CreateServiceAttr(serviceUUID string, status string, mtime int64, replicas int64,
-	cluster string, service string, vols common.ServiceVolumes, registerDNS bool, domain string,
-	hostedZoneID string, requireStaticIP bool, userAttr *common.ServiceUserAttr,
-	serviceCfgs []*common.ConfigID, res common.Resources, serviceType string) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     serviceUUID,
-		ServiceStatus:   status,
-		LastModified:    mtime,
-		Replicas:        replicas,
-		ClusterName:     cluster,
-		ServiceName:     service,
 		Volumes:         vols,
-		RegisterDNS:     registerDNS,
-		DomainName:      domain,
-		HostedZoneID:    hostedZoneID,
-		RequireStaticIP: requireStaticIP,
-		UserAttr:        userAttr,
-		ServiceConfigs:  serviceCfgs,
-		Resource:        res,
-		ServiceType:     serviceType,
 	}
 }
 
-func EqualServiceAttr(t1 *common.ServiceAttr, t2 *common.ServiceAttr, skipMtime bool) bool {
-	if t1.ServiceUUID == t2.ServiceUUID &&
-		t1.ServiceStatus == t2.ServiceStatus &&
-		(skipMtime || t1.LastModified == t2.LastModified) &&
-		t1.Replicas == t2.Replicas &&
-		t1.ClusterName == t2.ClusterName &&
-		t1.ServiceName == t2.ServiceName &&
-		EqualServiceVolumes(&(t1.Volumes), &(t2.Volumes)) &&
-		t1.RegisterDNS == t2.RegisterDNS &&
-		t1.DomainName == t2.DomainName &&
-		t1.HostedZoneID == t2.HostedZoneID &&
-		t1.RequireStaticIP == t2.RequireStaticIP &&
-		EqualServiceUserAttr(t1.UserAttr, t2.UserAttr) &&
-		EqualConfigs(t1.ServiceConfigs, t2.ServiceConfigs) &&
-		EqualResources(&(t1.Resource), &(t2.Resource)) &&
-		t1.ServiceType == t2.ServiceType {
-		return true
+func EqualServiceSpec(s1 *common.ServiceSpec, s2 *common.ServiceSpec) bool {
+	return s1.Replicas == s2.Replicas &&
+		EqualResources(&s1.Resource, &s2.Resource) &&
+		s1.RegisterDNS == s2.RegisterDNS &&
+		s1.DomainName == s2.DomainName &&
+		s1.HostedZoneID == s2.HostedZoneID &&
+		s1.RequireStaticIP == s2.RequireStaticIP &&
+		EqualConfigs(s1.ServiceConfigs, s2.ServiceConfigs) &&
+		EqualServiceVolumes(&s1.Volumes, &s2.Volumes)
+}
+
+func CopyServiceSpec(s *common.ServiceSpec) *common.ServiceSpec {
+	return &common.ServiceSpec{
+		Replicas:        s.Replicas,
+		Resource:        *CopyResources(&s.Resource),
+		RegisterDNS:     s.RegisterDNS,
+		DomainName:      s.DomainName,
+		HostedZoneID:    s.HostedZoneID,
+		RequireStaticIP: s.RequireStaticIP,
+		ServiceConfigs:  CopyConfigs(s.ServiceConfigs),
+		Volumes:         *CopyServiceVolumes(&s.Volumes),
 	}
-	return false
+}
+
+func CreateServiceAttr(serviceUUID string, revision int64, meta *common.ServiceMeta, spec *common.ServiceSpec) *common.ServiceAttr {
+	return &common.ServiceAttr{
+		ServiceUUID: serviceUUID,
+		Revision:    revision,
+		Meta:        *meta,
+		Spec:        *spec,
+	}
+}
+
+func EqualServiceAttr(s1 *common.ServiceAttr, s2 *common.ServiceAttr, skipMtime bool) bool {
+	return s1.ServiceUUID == s2.ServiceUUID &&
+		s1.Revision == s2.Revision &&
+		EqualServiceMeta(&s1.Meta, &s2.Meta, skipMtime) &&
+		EqualServiceSpec(&s1.Spec, &s2.Spec)
+}
+
+func CopyServiceAttr(s *common.ServiceAttr) *common.ServiceAttr {
+	return &common.ServiceAttr{
+		ServiceUUID: s.ServiceUUID,
+		Revision:    s.Revision,
+		Meta:        *CopyServiceMeta(&s.Meta),
+		Spec:        *CopyServiceSpec(&s.Spec),
+	}
+}
+
+func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&t1.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+	newMeta.ServiceStatus = status
+
+	return &common.ServiceAttr{
+		ServiceUUID: t1.ServiceUUID,
+		Revision:    t1.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        t1.Spec,
+	}
+}
+
+func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&t1.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+
+	newSpec := CopyServiceSpec(&t1.Spec)
+	newSpec.Replicas = replicas
+
+	return &common.ServiceAttr{
+		ServiceUUID: t1.ServiceUUID,
+		Revision:    t1.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
+	}
 }
 
 func EqualResources(r1 *common.Resources, r2 *common.Resources) bool {
@@ -131,522 +198,176 @@ func EqualResources(r1 *common.Resources, r2 *common.Resources) bool {
 	return false
 }
 
-func EqualServiceUserAttr(u1 *common.ServiceUserAttr, u2 *common.ServiceUserAttr) bool {
-	if u1 == nil || u2 == nil {
-		if u1 == nil && u2 == nil {
-			return true
-		}
-		return false
-	}
-
-	if u1.ServiceType != u2.ServiceType {
-		return false
-	}
-
-	switch u1.ServiceType {
-	case common.CatalogService_MongoDB:
-		userAttr1 := &common.MongoDBUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, userAttr1)
-		if err != nil {
-			glog.Errorln("Unmarshal mongodb user attr error", err, u1)
-			return false
-		}
-		userAttr2 := &common.MongoDBUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, userAttr2)
-		if err != nil {
-			glog.Errorln("Unmarshal mongodb user attr error", err, u2)
-			return false
-		}
-		if userAttr1.Shards == userAttr2.Shards &&
-			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
-			userAttr1.ReplicaSetOnly == userAttr2.ReplicaSetOnly &&
-			userAttr1.ConfigServers == userAttr2.ConfigServers &&
-			userAttr1.KeyFileContent == userAttr2.KeyFileContent {
-			return true
-		}
-		glog.Errorln("MongoDBUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
-		return false
-
-	case common.CatalogService_Cassandra:
-		userAttr1 := &common.CasUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, userAttr1)
-		if err != nil {
-			glog.Errorln("Unmarshal cassandra user attr error", err, u1)
-			return false
-		}
-		userAttr2 := &common.CasUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, userAttr2)
-		if err != nil {
-			glog.Errorln("Unmarshal cassandra user attr error", err, u2)
-			return false
-		}
-		if userAttr1.HeapSizeMB == userAttr2.HeapSizeMB &&
-			userAttr1.JmxRemoteUser == userAttr2.JmxRemoteUser &&
-			userAttr1.JmxRemotePasswd == userAttr2.JmxRemotePasswd {
-			return true
-		}
-		glog.Errorln("CasUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
-		return false
-
-	case common.CatalogService_PostgreSQL:
-		ua1 := &common.PostgresUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.PostgresUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.ContainerImage == ua2.ContainerImage {
-			return true
-		}
-		glog.Errorln("PostgresUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Redis:
-		userAttr1 := &common.RedisUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, userAttr1)
-		if err != nil {
-			glog.Errorln("Unmarshal redis user attr error", err, u1)
-			return false
-		}
-		userAttr2 := &common.RedisUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, userAttr2)
-		if err != nil {
-			glog.Errorln("Unmarshal redis user attr error", err, u2)
-			return false
-		}
-		if userAttr1.Shards == userAttr2.Shards &&
-			userAttr1.ReplicasPerShard == userAttr2.ReplicasPerShard &&
-			userAttr1.MemoryCacheSizeMB == userAttr2.MemoryCacheSizeMB &&
-			userAttr1.DisableAOF == userAttr2.DisableAOF &&
-			userAttr1.AuthPass == userAttr2.AuthPass &&
-			userAttr1.ReplTimeoutSecs == userAttr2.ReplTimeoutSecs &&
-			userAttr1.MaxMemPolicy == userAttr2.MaxMemPolicy &&
-			userAttr1.ConfigCmdName == userAttr2.ConfigCmdName {
-			return true
-		}
-		glog.Errorln("RedisUserAttr mismatch, u1:", userAttr1, ", u2:", userAttr2)
-		return false
-
-	case common.CatalogService_ZooKeeper:
-		ua1 := &common.ZKUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.ZKUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.JmxRemoteUser == ua2.JmxRemoteUser &&
-			ua1.JmxRemotePasswd == ua2.JmxRemotePasswd {
-			return true
-		}
-		glog.Errorln("ZKUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Kafka:
-		ua1 := &common.KafkaUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.KafkaUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.AllowTopicDel == ua2.AllowTopicDel &&
-			ua1.RetentionHours == ua2.RetentionHours &&
-			ua1.ZkServiceName == ua2.ZkServiceName &&
-			ua1.JmxRemoteUser == ua2.JmxRemoteUser &&
-			ua1.JmxRemotePasswd == ua2.JmxRemotePasswd {
-			return true
-		}
-		glog.Errorln("KafkaUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_KafkaManager:
-		ua1 := &common.KMUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.KMUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.User == ua2.User &&
-			ua1.Password == ua2.Password &&
-			ua1.ZkServiceName == ua2.ZkServiceName {
-			return true
-		}
-		glog.Errorln("KMUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_KafkaSinkES:
-		ua1 := &common.KCSinkESUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.KCSinkESUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.KafkaServiceName == ua2.KafkaServiceName &&
-			ua1.Topic == ua2.Topic &&
-			ua1.ESServiceName == ua2.ESServiceName &&
-			ua1.TypeName == ua2.TypeName &&
-			ua1.MaxBufferedRecords == ua2.MaxBufferedRecords &&
-			ua1.BatchSize == ua2.BatchSize &&
-			ua1.ConfigReplFactor == ua2.ConfigReplFactor &&
-			ua1.OffsetReplFactor == ua2.OffsetReplFactor &&
-			ua1.StatusReplFactor == ua2.StatusReplFactor {
-			return true
-		}
-		glog.Errorln("KCSinkESUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_CouchDB:
-		ua1 := &common.CouchDBUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.CouchDBUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.Admin == ua2.Admin &&
-			ua1.EncryptedPasswd == ua2.EncryptedPasswd &&
-			ua1.EnableCors == ua2.EnableCors &&
-			ua1.Credentials == ua2.Credentials &&
-			ua1.Origins == ua2.Origins &&
-			ua1.Headers == ua2.Headers &&
-			ua1.Methods == ua2.Methods &&
-			ua1.EnableSSL == ua2.EnableSSL {
-			return true
-		}
-		glog.Errorln("CouchDBUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Consul:
-		ua1 := &common.ConsulUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.ConsulUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.Datacenter == ua2.Datacenter &&
-			ua1.Domain == ua2.Domain &&
-			ua1.Encrypt == ua2.Encrypt &&
-			ua1.EnableTLS == ua2.EnableTLS &&
-			ua1.HTTPSPort == ua2.HTTPSPort {
-			return true
-		}
-		glog.Errorln("ConsulUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_ElasticSearch:
-		ua1 := &common.ESUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.ESUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.DataNodes == ua2.DataNodes &&
-			ua1.DedicatedMasters == ua2.DedicatedMasters &&
-			ua1.DisableDedicatedMaster == ua2.DisableDedicatedMaster &&
-			ua1.DisableForceAwareness == ua2.DisableForceAwareness {
-			return true
-		}
-		glog.Errorln("ESUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Kibana:
-		ua1 := &common.KibanaUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.KibanaUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.ESServiceName == ua2.ESServiceName &&
-			ua1.ProxyBasePath == ua2.ProxyBasePath &&
-			ua1.EnableSSL == ua2.EnableSSL {
-			return true
-		}
-		glog.Errorln("KibanaUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Logstash:
-		ua1 := &common.LSUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.LSUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.HeapSizeMB == ua2.HeapSizeMB &&
-			ua1.ContainerImage == ua2.ContainerImage &&
-			ua1.QueueType == ua2.QueueType &&
-			ua1.EnableDeadLetterQueue == ua2.EnableDeadLetterQueue &&
-			ua1.PipelineConfigs == ua2.PipelineConfigs &&
-			ua1.PipelineWorkers == ua2.PipelineWorkers &&
-			ua1.PipelineBatchSize == ua2.PipelineBatchSize &&
-			ua1.PipelineBatchDelay == ua2.PipelineBatchDelay &&
-			ua1.PipelineOutputWorkers == ua2.PipelineOutputWorkers {
-			return true
-		}
-		glog.Errorln("LSUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	case common.CatalogService_Telegraf:
-		ua1 := &common.TGUserAttr{}
-		err := json.Unmarshal(u1.AttrBytes, ua1)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u1)
-			return false
-		}
-		ua2 := &common.TGUserAttr{}
-		err = json.Unmarshal(u2.AttrBytes, ua2)
-		if err != nil {
-			glog.Errorln("Unmarshal user attr error", err, u2)
-			return false
-		}
-		if ua1.CollectIntervalSecs == ua2.CollectIntervalSecs &&
-			ua1.MonitorServiceName == ua2.MonitorServiceName &&
-			ua1.MonitorMetrics == ua2.MonitorMetrics {
-			return true
-		}
-		glog.Errorln("TGUserAttr mismatch, u1:", ua1, ", u2:", ua2)
-		return false
-
-	default:
-		return true
+func CopyResources(r *common.Resources) *common.Resources {
+	return &common.Resources{
+		MaxCPUUnits:     r.MaxCPUUnits,
+		ReserveCPUUnits: r.ReserveCPUUnits,
+		MaxMemMB:        r.MaxMemMB,
+		ReserveMemMB:    r.ReserveMemMB,
 	}
 }
 
 func EqualServiceVolumes(v1 *common.ServiceVolumes, v2 *common.ServiceVolumes) bool {
-	if v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
+	return v1.PrimaryDeviceName == v2.PrimaryDeviceName &&
 		EqualServiceVolume(&(v1.PrimaryVolume), &(v2.PrimaryVolume)) &&
 		v1.JournalDeviceName == v2.JournalDeviceName &&
-		EqualServiceVolume(&(v1.JournalVolume), &(v2.JournalVolume)) {
-		return true
+		EqualServiceVolume(&(v1.JournalVolume), &(v2.JournalVolume))
+}
+
+func CopyServiceVolumes(v *common.ServiceVolumes) *common.ServiceVolumes {
+	return &common.ServiceVolumes{
+		PrimaryDeviceName: v.PrimaryDeviceName,
+		PrimaryVolume:     *CopyServiceVolume(&v.PrimaryVolume),
+		JournalDeviceName: v.JournalDeviceName,
+		JournalVolume:     *CopyServiceVolume(&v.JournalVolume),
 	}
-	return false
 }
 
 func EqualServiceVolume(v1 *common.ServiceVolume, v2 *common.ServiceVolume) bool {
-	if v1.VolumeType == v2.VolumeType &&
+	return v1.VolumeType == v2.VolumeType &&
 		v1.Iops == v2.Iops &&
 		v1.VolumeSizeGB == v2.VolumeSizeGB &&
-		v1.Encrypted == v2.Encrypted {
-		return true
-	}
-	return false
+		v1.Encrypted == v2.Encrypted
 }
 
-func CopyCasUserAttr(u1 *common.CasUserAttr) *common.CasUserAttr {
-	return &common.CasUserAttr{
-		HeapSizeMB:      u1.HeapSizeMB,
-		JmxRemoteUser:   u1.JmxRemoteUser,
-		JmxRemotePasswd: u1.JmxRemotePasswd,
+func CopyServiceVolume(v *common.ServiceVolume) *common.ServiceVolume {
+	return &common.ServiceVolume{
+		VolumeType:   v.VolumeType,
+		Iops:         v.Iops,
+		VolumeSizeGB: v.VolumeSizeGB,
+		Encrypted:    v.Encrypted,
 	}
 }
 
-func CopyRedisUserAttr(u1 *common.RedisUserAttr) *common.RedisUserAttr {
-	return &common.RedisUserAttr{
-		Shards:            u1.Shards,
-		ReplicasPerShard:  u1.ReplicasPerShard,
-		MemoryCacheSizeMB: u1.MemoryCacheSizeMB,
-		DisableAOF:        u1.DisableAOF,
-		AuthPass:          u1.AuthPass,
-		ReplTimeoutSecs:   u1.ReplTimeoutSecs,
-		MaxMemPolicy:      u1.MaxMemPolicy,
-		ConfigCmdName:     u1.ConfigCmdName,
+func CreateMemberMeta(memberName string, mtime int64, status string) *common.MemberMeta {
+	return &common.MemberMeta{
+		MemberName:   memberName,
+		LastModified: mtime,
+		Status:       status,
 	}
 }
 
-func CopyKafkaUserAttr(u1 *common.KafkaUserAttr) *common.KafkaUserAttr {
-	return &common.KafkaUserAttr{
-		HeapSizeMB:      u1.HeapSizeMB,
-		AllowTopicDel:   u1.AllowTopicDel,
-		RetentionHours:  u1.RetentionHours,
-		ZkServiceName:   u1.ZkServiceName,
-		JmxRemoteUser:   u1.JmxRemoteUser,
-		JmxRemotePasswd: u1.JmxRemotePasswd,
+func EqualMemberMeta(m1 *common.MemberMeta, m2 *common.MemberMeta, skipMtime bool) bool {
+	return m1.MemberName == m2.MemberName &&
+		(skipMtime || m1.LastModified == m2.LastModified) &&
+		m1.Status == m2.Status
+}
+
+func CopyMemberMeta(m *common.MemberMeta) *common.MemberMeta {
+	return &common.MemberMeta{
+		MemberName:   m.MemberName,
+		LastModified: m.LastModified,
+		Status:       m.Status,
 	}
 }
 
-func CopyZKUserAttr(u1 *common.ZKUserAttr) *common.ZKUserAttr {
-	return &common.ZKUserAttr{
-		HeapSizeMB:      u1.HeapSizeMB,
-		JmxRemoteUser:   u1.JmxRemoteUser,
-		JmxRemotePasswd: u1.JmxRemotePasswd,
-	}
-}
-
-func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     t1.ServiceUUID,
-		ServiceStatus:   status,
-		LastModified:    time.Now().UnixNano(),
-		Replicas:        t1.Replicas,
-		ClusterName:     t1.ClusterName,
-		ServiceName:     t1.ServiceName,
-		Volumes:         t1.Volumes,
-		RegisterDNS:     t1.RegisterDNS,
-		DomainName:      t1.DomainName,
-		HostedZoneID:    t1.HostedZoneID,
-		RequireStaticIP: t1.RequireStaticIP,
-		UserAttr:        t1.UserAttr,
-		ServiceConfigs:  t1.ServiceConfigs,
-		Resource:        t1.Resource,
-		ServiceType:     t1.ServiceType,
-	}
-}
-
-func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     t1.ServiceUUID,
-		ServiceStatus:   t1.ServiceStatus,
-		LastModified:    time.Now().UnixNano(),
-		Replicas:        replicas,
-		ClusterName:     t1.ClusterName,
-		ServiceName:     t1.ServiceName,
-		Volumes:         t1.Volumes,
-		RegisterDNS:     t1.RegisterDNS,
-		DomainName:      t1.DomainName,
-		HostedZoneID:    t1.HostedZoneID,
-		RequireStaticIP: t1.RequireStaticIP,
-		UserAttr:        t1.UserAttr,
-		ServiceConfigs:  t1.ServiceConfigs,
-		Resource:        t1.Resource,
-		ServiceType:     t1.ServiceType,
-	}
-}
-
-func UpdateServiceUserAttr(t1 *common.ServiceAttr, ua *common.ServiceUserAttr) *common.ServiceAttr {
-	return &common.ServiceAttr{
-		ServiceUUID:     t1.ServiceUUID,
-		ServiceStatus:   t1.ServiceStatus,
-		LastModified:    time.Now().UnixNano(),
-		Replicas:        t1.Replicas,
-		ClusterName:     t1.ClusterName,
-		ServiceName:     t1.ServiceName,
-		Volumes:         t1.Volumes,
-		RegisterDNS:     t1.RegisterDNS,
-		DomainName:      t1.DomainName,
-		HostedZoneID:    t1.HostedZoneID,
-		RequireStaticIP: t1.RequireStaticIP,
-		UserAttr:        ua,
-		ServiceConfigs:  t1.ServiceConfigs,
-		Resource:        t1.Resource,
-		ServiceType:     t1.ServiceType,
-	}
-}
-
-func CreateInitialServiceMember(serviceUUID string, memberIndex int64, memberName string, az string,
-	vols common.MemberVolumes, staticIP string, configs []*common.ConfigID) *common.ServiceMember {
-	return &common.ServiceMember{
-		ServiceUUID:         serviceUUID,
-		MemberIndex:         memberIndex,
-		Status:              common.ServiceMemberStatusActive,
-		MemberName:          memberName,
+func CreateInitialMemberSpec(az string, vols common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
+	return &common.MemberSpec{
 		AvailableZone:       az,
 		TaskID:              DefaultTaskID,
 		ContainerInstanceID: DefaultContainerInstanceID,
 		ServerInstanceID:    DefaultServerInstanceID,
-		LastModified:        time.Now().UnixNano(),
 		Volumes:             vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
 	}
 }
 
-func CreateServiceMember(serviceUUID string, memberIndex int64, status string, memberName string,
-	az string, taskID string, containerInstanceID string, ec2InstanceID string, mtime int64,
-	vols common.MemberVolumes, staticIP string, configs []*common.ConfigID) *common.ServiceMember {
-	return &common.ServiceMember{
-		ServiceUUID:         serviceUUID,
-		MemberIndex:         memberIndex,
-		Status:              status,
-		MemberName:          memberName,
+func CreateMemberSpec(az string, taskID string, containerInstanceID string, serverInstanceID string,
+	vols common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
+	return &common.MemberSpec{
 		AvailableZone:       az,
 		TaskID:              taskID,
 		ContainerInstanceID: containerInstanceID,
-		ServerInstanceID:    ec2InstanceID,
-		LastModified:        mtime,
+		ServerInstanceID:    serverInstanceID,
 		Volumes:             vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
+	}
+}
+
+func EqualMemberSpec(m1 *common.MemberSpec, m2 *common.MemberSpec) bool {
+	return m1.AvailableZone == m2.AvailableZone &&
+		m1.TaskID == m2.TaskID &&
+		m1.ContainerInstanceID == m2.ContainerInstanceID &&
+		m1.ServerInstanceID == m2.ServerInstanceID &&
+		EqualMemberVolumes(&m1.Volumes, &m2.Volumes) &&
+		m1.StaticIP == m2.StaticIP &&
+		EqualConfigs(m1.Configs, m2.Configs)
+}
+
+func CopyMemberSpec(m *common.MemberSpec) *common.MemberSpec {
+	return &common.MemberSpec{
+		AvailableZone:       m.AvailableZone,
+		TaskID:              m.TaskID,
+		ContainerInstanceID: m.ContainerInstanceID,
+		ServerInstanceID:    m.ServerInstanceID,
+		Volumes:             *CopyMemberVolumes(&m.Volumes),
+		StaticIP:            m.StaticIP,
+		Configs:             CopyConfigs(m.Configs),
+	}
+}
+
+func CreateServiceMember(serviceUUID string, memberIndex int64, revision int64, meta *common.MemberMeta, spec *common.MemberSpec) *common.ServiceMember {
+	return &common.ServiceMember{
+		ServiceUUID: serviceUUID,
+		MemberIndex: memberIndex,
+		Revision:    revision,
+		Meta:        *meta,
+		Spec:        *spec,
 	}
 }
 
 func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
-	if t1.ServiceUUID == t2.ServiceUUID &&
+	return t1.ServiceUUID == t2.ServiceUUID &&
 		t1.MemberIndex == t2.MemberIndex &&
-		t1.Status == t2.Status &&
-		t1.MemberName == t2.MemberName &&
-		t1.AvailableZone == t2.AvailableZone &&
-		t1.TaskID == t2.TaskID &&
-		t1.ContainerInstanceID == t2.ContainerInstanceID &&
-		t1.ServerInstanceID == t2.ServerInstanceID &&
-		(skipMtime || t1.LastModified == t2.LastModified) &&
-		EqualMemberVolumes(&(t1.Volumes), &(t2.Volumes)) &&
-		t1.StaticIP == t2.StaticIP &&
-		EqualConfigs(t1.Configs, t2.Configs) {
-		return true
+		t1.Revision == t2.Revision &&
+		EqualMemberMeta(&t1.Meta, &t2.Meta, skipMtime) &&
+		EqualMemberSpec(&t1.Spec, &t2.Spec)
+}
+
+func CopyServiceMember(m *common.ServiceMember) *common.ServiceMember {
+	return &common.ServiceMember{
+		ServiceUUID: m.ServiceUUID,
+		MemberIndex: m.MemberIndex,
+		Revision:    m.Revision,
+		Meta:        *CopyMemberMeta(&m.Meta),
+		Spec:        *CopyMemberSpec(&m.Spec),
 	}
-	return false
+}
+
+func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []common.ConfigID) *common.ServiceMember {
+	newMeta := CopyMemberMeta(&t1.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+
+	newSpec := CopyMemberSpec(&t1.Spec)
+	newSpec.Configs = c
+
+	return &common.ServiceMember{
+		ServiceUUID: t1.ServiceUUID,
+		MemberIndex: t1.MemberIndex,
+		Revision:    t1.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
+	}
+}
+
+func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, containerInstanceID string, serverInstanceID string) *common.ServiceMember {
+	newMeta := CopyMemberMeta(&t1.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+
+	newSpec := CopyMemberSpec(&t1.Spec)
+	newSpec.TaskID = taskID
+	newSpec.ContainerInstanceID = containerInstanceID
+	newSpec.ServerInstanceID = serverInstanceID
+
+	return &common.ServiceMember{
+		ServiceUUID: t1.ServiceUUID,
+		MemberIndex: t1.MemberIndex,
+		Revision:    t1.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
+	}
 }
 
 func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool {
@@ -659,7 +380,16 @@ func EqualMemberVolumes(v1 *common.MemberVolumes, v2 *common.MemberVolumes) bool
 	return false
 }
 
-func EqualConfigs(c1 []*common.ConfigID, c2 []*common.ConfigID) bool {
+func CopyMemberVolumes(v *common.MemberVolumes) *common.MemberVolumes {
+	return &common.MemberVolumes{
+		PrimaryVolumeID:   v.PrimaryVolumeID,
+		PrimaryDeviceName: v.PrimaryDeviceName,
+		JournalVolumeID:   v.JournalVolumeID,
+		JournalDeviceName: v.JournalDeviceName,
+	}
+}
+
+func EqualConfigs(c1 []common.ConfigID, c2 []common.ConfigID) bool {
 	if len(c1) != len(c2) {
 		return false
 	}
@@ -673,50 +403,16 @@ func EqualConfigs(c1 []*common.ConfigID, c2 []*common.ConfigID) bool {
 	return true
 }
 
-func CopyMemberConfigs(c1 []*common.ConfigID) []*common.ConfigID {
-	c2 := make([]*common.ConfigID, len(c1))
+func CopyConfigs(c1 []common.ConfigID) []common.ConfigID {
+	c2 := make([]common.ConfigID, len(c1))
 	for i, c := range c1 {
-		c2[i] = &common.ConfigID{
+		c2[i] = common.ConfigID{
 			FileName: c.FileName,
 			FileID:   c.FileID,
 			FileMD5:  c.FileMD5,
 		}
 	}
 	return c2
-}
-
-func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []*common.ConfigID) *common.ServiceMember {
-	return &common.ServiceMember{
-		ServiceUUID:         t1.ServiceUUID,
-		MemberIndex:         t1.MemberIndex,
-		Status:              t1.Status,
-		MemberName:          t1.MemberName,
-		AvailableZone:       t1.AvailableZone,
-		TaskID:              t1.TaskID,
-		ContainerInstanceID: t1.ContainerInstanceID,
-		ServerInstanceID:    t1.ServerInstanceID,
-		LastModified:        time.Now().UnixNano(),
-		Volumes:             t1.Volumes,
-		StaticIP:            t1.StaticIP,
-		Configs:             c,
-	}
-}
-
-func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, containerInstanceID string, ec2InstanceID string) *common.ServiceMember {
-	return &common.ServiceMember{
-		ServiceUUID:         t1.ServiceUUID,
-		MemberIndex:         t1.MemberIndex,
-		Status:              t1.Status,
-		MemberName:          t1.MemberName,
-		AvailableZone:       t1.AvailableZone,
-		TaskID:              taskID,
-		ContainerInstanceID: containerInstanceID,
-		ServerInstanceID:    ec2InstanceID,
-		LastModified:        time.Now().UnixNano(),
-		Volumes:             t1.Volumes,
-		StaticIP:            t1.StaticIP,
-		Configs:             t1.Configs,
-	}
 }
 
 func CreateInitialConfigFile(serviceUUID string, fileID string, fileName string, fileMode uint32, content string) *common.ConfigFile {
@@ -780,15 +476,25 @@ func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime boo
 	return false
 }
 
+func CopyConfigFile(t *common.ConfigFile) *common.ConfigFile {
+	return &common.ConfigFile{
+		FileID:       t.FileID,
+		FileMD5:      t.FileMD5,
+		FileName:     t.FileName,
+		FileMode:     t.FileMode,
+		ServiceUUID:  t.ServiceUUID,
+		LastModified: t.LastModified,
+		Content:      t.Content,
+	}
+}
+
 func PrintConfigFile(cfg *common.ConfigFile) string {
 	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
 		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
 }
 
-func CreateServiceStaticIP(staticIP string, serviceUUID string,
-	az string, serverInstanceID string, netInterfaceID string) *common.ServiceStaticIP {
-	return &common.ServiceStaticIP{
-		StaticIP:           staticIP,
+func CreateStaticIPSpec(serviceUUID string, az string, serverInstanceID string, netInterfaceID string) *common.StaticIPSpec {
+	return &common.StaticIPSpec{
 		ServiceUUID:        serviceUUID,
 		AvailableZone:      az,
 		ServerInstanceID:   serverInstanceID,
@@ -796,23 +502,49 @@ func CreateServiceStaticIP(staticIP string, serviceUUID string,
 	}
 }
 
-func EqualServiceStaticIP(t1 *common.ServiceStaticIP, t2 *common.ServiceStaticIP) bool {
-	if t1.StaticIP == t2.StaticIP &&
-		t1.ServiceUUID == t2.ServiceUUID &&
+func EqualStaticIPSpec(t1 *common.StaticIPSpec, t2 *common.StaticIPSpec) bool {
+	return t1.ServiceUUID == t2.ServiceUUID &&
 		t1.AvailableZone == t2.AvailableZone &&
 		t1.ServerInstanceID == t2.ServerInstanceID &&
-		t1.NetworkInterfaceID == t2.NetworkInterfaceID {
-		return true
+		t1.NetworkInterfaceID == t2.NetworkInterfaceID
+}
+
+func CopyStaticIPSpec(s *common.StaticIPSpec) *common.StaticIPSpec {
+	return &common.StaticIPSpec{
+		ServiceUUID:        s.ServiceUUID,
+		AvailableZone:      s.AvailableZone,
+		ServerInstanceID:   s.ServerInstanceID,
+		NetworkInterfaceID: s.NetworkInterfaceID,
 	}
-	return false
+}
+
+func CreateServiceStaticIP(staticIP string, revision int64, spec *common.StaticIPSpec) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP: staticIP,
+		Revision: revision,
+		Spec:     *spec,
+	}
+}
+
+func EqualServiceStaticIP(t1 *common.ServiceStaticIP, t2 *common.ServiceStaticIP) bool {
+	return t1.StaticIP == t2.StaticIP &&
+		t1.Revision == t2.Revision &&
+		EqualStaticIPSpec(&t1.Spec, &t2.Spec)
 }
 
 func UpdateServiceStaticIP(t1 *common.ServiceStaticIP, serverInstanceID string, netInterfaceID string) *common.ServiceStaticIP {
+	newSpec := CreateStaticIPSpec(t1.Spec.ServiceUUID, t1.Spec.AvailableZone, serverInstanceID, netInterfaceID)
 	return &common.ServiceStaticIP{
-		StaticIP:           t1.StaticIP,
-		ServiceUUID:        t1.ServiceUUID,
-		AvailableZone:      t1.AvailableZone,
-		ServerInstanceID:   serverInstanceID,
-		NetworkInterfaceID: netInterfaceID,
+		StaticIP: t1.StaticIP,
+		Revision: t1.Revision + 1,
+		Spec:     *newSpec,
+	}
+}
+
+func CopyServiceStaticIP(s *common.ServiceStaticIP) *common.ServiceStaticIP {
+	return &common.ServiceStaticIP{
+		StaticIP: s.StaticIP,
+		Revision: s.Revision,
+		Spec:     *CopyStaticIPSpec(&s.Spec),
 	}
 }
