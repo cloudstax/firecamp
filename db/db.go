@@ -13,6 +13,7 @@ const (
 	TableStatusActive   = "ACTIVE"
 
 	ClusterName  = "ClusterName"
+	DeviceName   = "DeviceName"
 	ServiceName  = "ServiceName"
 	ServiceUUID  = "ServiceUUID"
 	Revision     = "Revision"

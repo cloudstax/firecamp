@@ -4,11 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
@@ -63,11 +66,22 @@ func main() {
 	}
 
 	for _, m := range members {
-		if m.Volumes.JournalVolumeID == *badVolID || m.Volumes.PrimaryVolumeID == *badVolID {
-			// update the service member
-			err := dbIns.UpdateServiceMemberVolume(ctx, m, *newVolID, *badVolID)
+		if m.Spec.Volumes.JournalVolumeID == *badVolID || m.Spec.Volumes.PrimaryVolumeID == *badVolID {
+			newMember := db.CopyServiceMember(m)
+			newMember.Revision++
+			newMember.Meta.LastModified = time.Now().UnixNano()
+
+			if newMember.Spec.Volumes.JournalVolumeID == *badVolID {
+				newMember.Spec.Volumes.JournalVolumeID = *newVolID
+				glog.Infoln("replace the journal volume", *badVolID, "with new volume", *newVolID, m)
+			} else {
+				newMember.Spec.Volumes.PrimaryVolumeID = *newVolID
+				glog.Infoln("replace the data volume", *badVolID, "with new volume", *newVolID, m)
+			}
+
+			err = dbIns.UpdateServiceMember(ctx, m, newMember)
 			if err != nil {
-				fmt.Println("UpdateServiceMemberVolume error", err, m)
+				fmt.Println("UpdateServiceMember error", err, m)
 				os.Exit(-1)
 			}
 			fmt.Println("successfully replaced the service member volume")

@@ -1,7 +1,6 @@
 package awsdynamodb
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"testing"
@@ -215,22 +214,8 @@ func TestServiceAttrs(t *testing.T) {
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
 
-	casUA := &common.CasUserAttr{
-		HeapSizeMB:      256,
-		JmxRemoteUser:   "user1",
-		JmxRemotePasswd: "pd1",
-	}
-	b, err := json.Marshal(casUA)
-	if err != nil {
-		t.Fatalf("Marshal RedisUserAttr error %s", err)
-	}
-	ua := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_Cassandra,
-		AttrBytes:   b,
-	}
-
-	cfgs := []*common.ConfigID{
-		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	cfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
 
 	ctx := context.Background()
@@ -252,14 +237,14 @@ func TestServiceAttrs(t *testing.T) {
 			},
 		}
 
-		var userAttr *common.ServiceUserAttr
 		serviceType := ""
 		if i%2 == 0 {
-			userAttr = ua
 			serviceType = common.ServiceTypeStateless
 		}
-		s[i] = db.CreateInitialServiceAttr(uuidPrefix+c, int64(i),
-			clusterName, servicePrefix+c, svols, registerDNS, domain, hostedZoneID, requireStaticIP, userAttr, cfgs, res, serviceType)
+		mtime := time.Now().UnixNano()
+		attrMeta := db.CreateServiceMeta(clusterName, servicePrefix+c, mtime, serviceType, common.ServiceStatusCreating)
+		attrSpec := db.CreateServiceSpec(int64(i), res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, svols)
+		s[i] = db.CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create service attr %s, err %s", s[i], err)
@@ -278,13 +263,15 @@ func TestServiceAttrs(t *testing.T) {
 	}
 
 	// update service status
-	item.ServiceStatus = "ACTIVE"
+	item.Revision++
+	item.Meta.ServiceStatus = "ACTIVE"
 	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
 	if err != nil {
 		t.Fatalf("update service attr failed, service %s error %s", item, err)
 	}
 	// service updated
-	s[1].ServiceStatus = "ACTIVE"
+	s[1].Revision++
+	s[1].Meta.ServiceStatus = "ACTIVE"
 	// get service again to verify the update
 	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
 	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
@@ -292,45 +279,25 @@ func TestServiceAttrs(t *testing.T) {
 	}
 
 	// update service replicas
-	item.Replicas = 10
+	item.Revision++
+	item.Spec.Replicas = 10
 	err = dbIns.UpdateServiceAttr(ctx, s[1], item)
 	if err != nil {
 		t.Fatalf("update service attr failed, service %s error %s", item, err)
 	}
 	// service updated
-	s[1].Replicas = 10
+	s[1].Revision++
+	s[1].Spec.Replicas = 10
 	// get service again to verify the update
 	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
 	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
-	// update service user attr
-	newCasUA := db.CopyCasUserAttr(casUA)
-	newCasUA.HeapSizeMB = 512
-	newCasUA.JmxRemoteUser = "newuser"
-	newCasUA.JmxRemotePasswd = "newpd"
-	b, err = json.Marshal(newCasUA)
-	if err != nil {
-		t.Fatalf("Marshal UserAttr error %s", err)
-	}
-	newua := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_Cassandra,
-		AttrBytes:   b,
-	}
-	newAttr := db.UpdateServiceUserAttr(item, newua)
-	err = dbIns.UpdateServiceAttr(ctx, s[1], newAttr)
-	if err != nil {
-		t.Fatalf("update user attr error %s", err)
-	}
-	// get service again to verify the update
-	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !db.EqualServiceAttr(item, newAttr, false) {
-		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, newAttr, item)
-	}
-
 	// negative case: update immutable fields
-	newAttr.ServiceName = "new-name"
+	newAttr := db.CopyServiceAttr(item)
+	newAttr.Revision++
+	newAttr.Meta.ServiceName = "new-name"
 	err = dbIns.UpdateServiceAttr(ctx, item, newAttr)
 	if err != db.ErrDBInvalidRequest {
 		t.Fatalf("update service attr, expect db.ErrDBInvalidRequest, get error %s, attr %s", err, item)
@@ -383,15 +350,16 @@ func TestServiceMembers(t *testing.T) {
 	x := [6]string{"a", "b", "c", "d", "e", "f"}
 	var s1 [6]*common.ServiceMember
 	for i, c := range x {
-		cfg := &common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
-		cfgs := []*common.ConfigID{cfg}
+		cfgs := []common.ConfigID{
+			common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c},
+		}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		s1[i] = db.CreateServiceMember(service1, int64(i), common.ServiceMemberStatusActive,
-			service1+c, azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			mvols, staticIPPrefix+c, cfgs)
+		memberMeta := db.CreateMemberMeta(service1+c, mtime, common.ServiceMemberStatusActive)
+		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		s1[i] = db.CreateServiceMember(service1, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
 		if err != nil {
@@ -408,15 +376,16 @@ func TestServiceMembers(t *testing.T) {
 	var s2 [4]*common.ServiceMember
 	for i := 0; i < 4; i++ {
 		c := x[i]
-		cfg := &common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c}
-		cfgs := []*common.ConfigID{cfg}
+		cfgs := []common.ConfigID{
+			common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c},
+		}
 		mvols := common.MemberVolumes{
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		s2[i] = db.CreateServiceMember(service2, int64(i), common.ServiceMemberStatusActive,
-			service2+c, azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mtime,
-			mvols, staticIPPrefix+c, cfgs)
+		memberMeta := db.CreateMemberMeta(service2+c, mtime, common.ServiceMemberStatusActive)
+		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		s2[i] = db.CreateServiceMember(service2, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
 		if err != nil {
@@ -436,35 +405,21 @@ func TestServiceMembers(t *testing.T) {
 	}
 
 	// update serviceMember
-	item.TaskID = taskPrefix + "z"
-	item.ContainerInstanceID = contPrefix + "z"
-	item.ServerInstanceID = hostPrefix + "z"
+	item.Revision++
+	item.Spec.TaskID = taskPrefix + "z"
+	item.Spec.ContainerInstanceID = contPrefix + "z"
+	item.Spec.ServerInstanceID = hostPrefix + "z"
 	err = dbIns.UpdateServiceMember(ctx, s1[1], item)
 	if err != nil {
 		t.Fatalf("update serviceMember failed, serviceMember %s error %s", item, err)
 	}
 
 	// serviceMember updated
-	s1[1].TaskID = item.TaskID
-	s1[1].ContainerInstanceID = item.ContainerInstanceID
-	s1[1].ServerInstanceID = item.ServerInstanceID
-
-	// get serviceMember again to verify the update
-	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
-	if err != nil || !db.EqualServiceMember(item, s1[1], false) {
-		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[1], item)
-	}
-
-	// update serviceMember volume
-	badVolID := s1[1].Volumes.PrimaryVolumeID
-	newVolID := "new-" + badVolID
-	err = dbIns.UpdateServiceMemberVolume(ctx, s1[1], newVolID, badVolID)
-	if err != nil {
-		t.Fatalf("update serviceMember volume failed, serviceMember %s error %s", s1[1], err)
-	}
-
-	// serviceMember updated
-	s1[1].Volumes.PrimaryVolumeID = newVolID
+	s1[1].Revision++
+	s1[1].Meta.LastModified = item.Meta.LastModified
+	s1[1].Spec.TaskID = item.Spec.TaskID
+	s1[1].Spec.ContainerInstanceID = item.Spec.ContainerInstanceID
+	s1[1].Spec.ServerInstanceID = item.Spec.ServerInstanceID
 
 	// get serviceMember again to verify the update
 	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
@@ -597,7 +552,8 @@ func TestServiceStaticIPs(t *testing.T) {
 	var s [5]*common.ServiceStaticIP
 	x := [5]string{"a", "b", "c", "d", "e"}
 	for i, c := range x {
-		s[i] = db.CreateServiceStaticIP(ipPrefix+c, uuidPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+		ipSpec := db.CreateStaticIPSpec(uuidPrefix+c, az, instanceIDPrefix+c, netInterfacePrefix+c)
+		s[i] = db.CreateServiceStaticIP(ipPrefix+c, 0, ipSpec)
 		err := dbIns.CreateServiceStaticIP(ctx, s[i])
 		if err != nil {
 			t.Fatalf("failed to create %s, err %s", s[i], err)
@@ -611,8 +567,9 @@ func TestServiceStaticIPs(t *testing.T) {
 	}
 
 	// update
-	item.ServerInstanceID = "new-server"
-	item.NetworkInterfaceID = "new-netinterface"
+	item.Revision++
+	item.Spec.ServerInstanceID = "new-server"
+	item.Spec.NetworkInterfaceID = "new-netinterface"
 	err = dbIns.UpdateServiceStaticIP(ctx, s[1], item)
 	if err != nil {
 		t.Fatalf("update service %s error %s", item, err)
@@ -631,7 +588,7 @@ func TestServiceStaticIPs(t *testing.T) {
 	}
 
 	// delete one unexist item
-	err = dbIns.DeleteServiceStaticIP(ctx, s[2].ServiceUUID)
+	err = dbIns.DeleteServiceStaticIP(ctx, s[2].Spec.ServiceUUID)
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("delete unexist item %s, expect db.ErrDBRecordNotFound, got error %s", s[2], err)
 	}

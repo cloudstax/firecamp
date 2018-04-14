@@ -2,7 +2,7 @@ package awsdynamodb
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,15 +20,14 @@ import (
 func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	volBytes, err := json.Marshal(member.Volumes)
+	metaBytes, err := json.Marshal(member.Meta)
 	if err != nil {
-		glog.Errorln("Marshal MemberVolumes error", err, member, "requuid", requuid)
+		glog.Errorln("Marshal MemberMeta error", err, member, "requuid", requuid)
 		return err
 	}
-
-	configBytes, err := json.Marshal(member.Configs)
+	specBytes, err := json.Marshal(member.Spec)
 	if err != nil {
-		glog.Errorln("Marshal MemberConfigs error", err, member, "requuid", requuid)
+		glog.Errorln("Marshal MemberSpec error", err, member, "requuid", requuid)
 		return err
 	}
 
@@ -43,42 +42,20 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 			tableSortKey: {
 				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
 			},
-			db.MemberStatus: {
-				S: aws.String(member.Status),
+			db.Revision: {
+				N: aws.String(strconv.FormatInt(member.Revision, 10)),
 			},
-			db.MemberName: {
-				S: aws.String(member.MemberName),
+			db.MemberMeta: {
+				B: metaBytes,
 			},
-			db.LastModified: {
-				N: aws.String(strconv.FormatInt(member.LastModified, 10)),
-			},
-			db.AvailableZone: {
-				S: aws.String(member.AvailableZone),
-			},
-			db.TaskID: {
-				S: aws.String(member.TaskID),
-			},
-			db.ContainerInstanceID: {
-				S: aws.String(member.ContainerInstanceID),
-			},
-			db.ServerInstanceID: {
-				S: aws.String(member.ServerInstanceID),
-			},
-			db.MemberVolumes: {
-				B: volBytes,
-			},
-			db.StaticIP: {
-				S: aws.String(member.StaticIP),
-			},
-			db.MemberConfigs: {
-				B: configBytes,
+			db.MemberSpec: {
+				B: specBytes,
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
-	_, err = dbsvc.PutItem(params)
 
+	_, err = dbsvc.PutItem(params)
 	if err != nil {
 		glog.Errorln("failed to create serviceMember", member, "error", err, "requuid", requuid)
 		return d.convertError(err)
@@ -92,91 +69,60 @@ func (d *DynamoDB) CreateServiceMember(ctx context.Context, member *common.Servi
 func (d *DynamoDB) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// sanity check. ServiceUUID, VolumeID, etc, are not allowed to update.
-	if oldMember.ServiceUUID != newMember.ServiceUUID ||
-		!db.EqualMemberVolumes(&(oldMember.Volumes), &(newMember.Volumes)) ||
-		oldMember.AvailableZone != newMember.AvailableZone ||
-		oldMember.MemberIndex != newMember.MemberIndex ||
-		oldMember.MemberName != newMember.MemberName ||
-		oldMember.StaticIP != newMember.StaticIP {
-		glog.Errorln("immutable attributes are updated, oldMember", oldMember, "newMember", newMember, "requuid", requuid)
+	if oldMember.Revision+1 != newMember.Revision ||
+		!db.EqualServiceMemberImmutableFields(oldMember, newMember) {
+		glog.Errorln("revision is not increased by 1 or immutable attributes are updated, oldMember",
+			oldMember, "newMember", newMember, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
 
-	var err error
-	var oldCfgBytes []byte
-	if oldMember.Configs != nil {
-		oldCfgBytes, err = json.Marshal(oldMember.Configs)
-		if err != nil {
-			glog.Errorln("Marshal new MemberConfigs error", err, "requuid", requuid, oldMember.Configs)
-			return err
-		}
+	metaBytes, err := json.Marshal(newMember.Meta)
+	if err != nil {
+		glog.Errorln("Marshal MemberMeta error", err, "requuid", requuid, newMember)
+		return err
 	}
-
-	var newCfgBytes []byte
-	if newMember.Configs != nil {
-		newCfgBytes, err = json.Marshal(newMember.Configs)
-		if err != nil {
-			glog.Errorln("Marshal new MemberConfigs error", err, "requuid", requuid, newMember.Configs)
-			return err
-		}
+	specBytes, err := json.Marshal(newMember.Spec)
+	if err != nil {
+		glog.Errorln("Marshal MemberSpec error", err, "requuid", requuid, newMember)
+		return err
 	}
 
 	dbsvc := dynamodb.New(d.sess)
 
-	updateExpr := "SET " + db.TaskID + " = :v1, " + db.ContainerInstanceID + " = :v2, " +
-		db.ServerInstanceID + " = :v3, " + db.LastModified + " = :v4, " + db.MemberConfigs + " = :v5"
-	conditionExpr := db.TaskID + " = :cv1 AND " + db.ContainerInstanceID + " = :cv2 AND " +
-		db.ServerInstanceID + " = :cv3 AND " + db.MemberConfigs + " = :cv4"
+	updateExpr := fmt.Sprintf("SET %s = :v1, %s = :v2, %s = :v3", db.Revision, db.MemberMeta, db.MemberSpec)
+	conditionExpr := fmt.Sprintf("%s = :cv1", db.Revision)
 
 	params := &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			tablePartitionKey: {
-				S: aws.String(serviceMemberPartitionKeyPrefix + oldMember.ServiceUUID),
+				S: aws.String(serviceMemberPartitionKeyPrefix + newMember.ServiceUUID),
 			},
 			tableSortKey: {
-				S: aws.String(strconv.FormatInt(oldMember.MemberIndex, 10)),
+				S: aws.String(strconv.FormatInt(newMember.MemberIndex, 10)),
 			},
 		},
 		UpdateExpression:    aws.String(updateExpr),
 		ConditionExpression: aws.String(conditionExpr),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":v1": {
-				S: aws.String(newMember.TaskID),
+				N: aws.String(strconv.FormatInt(newMember.Revision, 10)),
 			},
 			":v2": {
-				S: aws.String(newMember.ContainerInstanceID),
+				B: metaBytes,
 			},
 			":v3": {
-				S: aws.String(newMember.ServerInstanceID),
-			},
-			":v4": {
-				N: aws.String(strconv.FormatInt(newMember.LastModified, 10)),
-			},
-			":v5": {
-				B: newCfgBytes,
+				B: specBytes,
 			},
 			":cv1": {
-				S: aws.String(oldMember.TaskID),
-			},
-			":cv2": {
-				S: aws.String(oldMember.ContainerInstanceID),
-			},
-			":cv3": {
-				S: aws.String(oldMember.ServerInstanceID),
-			},
-			":cv4": {
-				B: oldCfgBytes,
+				N: aws.String(strconv.FormatInt(oldMember.Revision, 10)),
 			},
 		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
 	}
 
 	_, err = dbsvc.UpdateItem(params)
-
 	if err != nil {
-		glog.Errorln("failed to update serviceMember", oldMember, "to", newMember, "error", err, "requuid", requuid)
+		glog.Errorln("update serviceMember error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
@@ -199,11 +145,10 @@ func (d *DynamoDB) GetServiceMember(ctx context.Context, serviceUUID string, mem
 				S: aws.String(strconv.FormatInt(memberIndex, 10)),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
-	resp, err := dbsvc.GetItem(params)
 
+	resp, err := dbsvc.GetItem(params)
 	if err != nil {
 		glog.Errorln("failed to get serviceMember", memberIndex, "serviceUUID", serviceUUID, "error", err, "requuid", requuid)
 		return nil, d.convertError(err)
@@ -246,8 +191,7 @@ func (d *DynamoDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID 
 					S: aws.String(serviceMemberPartitionKeyPrefix + serviceUUID),
 				},
 			},
-			ConsistentRead:         aws.Bool(true),
-			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+			ConsistentRead: aws.Bool(true),
 		}
 		if limit > 0 {
 			// set the query limit
@@ -321,8 +265,7 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 				S: aws.String(strconv.FormatInt(memberIndex, 10)),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyDelCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyDelCondition),
 	}
 
 	resp, err := dbsvc.DeleteItem(params)
@@ -342,23 +285,23 @@ func (d *DynamoDB) DeleteServiceMember(ctx context.Context, serviceUUID string, 
 }
 
 func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dynamodb.AttributeValue) (*common.ServiceMember, error) {
-	mtime, err := strconv.ParseInt(*(item[db.LastModified].N), 10, 64)
+	revision, err := strconv.ParseInt(*(item[db.Revision].N), 10, 64)
 	if err != nil {
-		glog.Errorln("ParseInt LastModified error", err, item)
+		glog.Errorln("ParseInt Revision error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
-	var configs []*common.ConfigID
-	err = json.Unmarshal(item[db.MemberConfigs].B, &configs)
+	var meta common.MemberMeta
+	err = json.Unmarshal(item[db.MemberMeta].B, &meta)
 	if err != nil {
-		glog.Errorln("Unmarshal json MemberConfigs error", err, item)
+		glog.Errorln("Unmarshal MemberMeta error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
-	var volumes common.MemberVolumes
-	err = json.Unmarshal(item[db.MemberVolumes].B, &volumes)
+	var spec common.MemberSpec
+	err = json.Unmarshal(item[db.MemberSpec].B, &spec)
 	if err != nil {
-		glog.Errorln("Unmarshal json MemberVolumes error", err, item)
+		glog.Errorln("Unmarshal MemberSpec error", err, item)
 		return nil, db.ErrDBInternal
 	}
 
@@ -368,75 +311,6 @@ func (d *DynamoDB) attrsToServiceMember(serviceUUID string, item map[string]*dyn
 		return nil, db.ErrDBInternal
 	}
 
-	member := db.CreateServiceMember(serviceUUID,
-		memberIndex,
-		*(item[db.MemberStatus].S),
-		*(item[db.MemberName].S),
-		*(item[db.AvailableZone].S),
-		*(item[db.TaskID].S),
-		*(item[db.ContainerInstanceID].S),
-		*(item[db.ServerInstanceID].S),
-		mtime,
-		volumes,
-		*(item[db.StaticIP].S),
-		configs)
-
+	member := db.CreateServiceMember(serviceUUID, memberIndex, revision, &meta, &spec)
 	return member, nil
-}
-
-// UpdateServiceMemberVolume updates the ServiceMember's volume in DB
-func (d *DynamoDB) UpdateServiceMemberVolume(ctx context.Context, member *common.ServiceMember, newVolID string, badVolID string) error {
-	requuid := utils.GetReqIDFromContext(ctx)
-
-	if member.Volumes.JournalVolumeID != badVolID && member.Volumes.PrimaryVolumeID != badVolID {
-		glog.Errorln("the bad volume", badVolID, "does not belong to member", member, member.Volumes)
-		return errors.New("the bad volume does not belong to member")
-	}
-
-	if member.Volumes.JournalVolumeID == badVolID {
-		member.Volumes.JournalVolumeID = newVolID
-		glog.Infoln("replace the journal volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
-	} else {
-		member.Volumes.PrimaryVolumeID = newVolID
-		glog.Infoln("replace the data volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
-	}
-
-	volBytes, err := json.Marshal(member.Volumes)
-	if err != nil {
-		glog.Errorln("Marshal MemberVolumes error", err, member, "requuid", requuid)
-		return err
-	}
-
-	dbsvc := dynamodb.New(d.sess)
-
-	updateExpr := "SET " + db.MemberVolumes + " = :v1"
-
-	params := &dynamodb.UpdateItemInput{
-		TableName: aws.String(d.tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			tablePartitionKey: {
-				S: aws.String(serviceMemberPartitionKeyPrefix + member.ServiceUUID),
-			},
-			tableSortKey: {
-				S: aws.String(strconv.FormatInt(member.MemberIndex, 10)),
-			},
-		},
-		UpdateExpression: aws.String(updateExpr),
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":v1": {
-				B: volBytes,
-			},
-		},
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
-	}
-
-	_, err = dbsvc.UpdateItem(params)
-
-	if err != nil {
-		glog.Errorln("failed to update serviceMember", member, "error", err, "requuid", requuid)
-		return d.convertError(err)
-	}
-
-	glog.Infoln("updated serviceMember to use new volume", newVolID, "bad volume", badVolID, "requuid", requuid, member)
-	return nil
 }

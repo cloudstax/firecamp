@@ -126,7 +126,7 @@ type ServiceAttr struct {
 	Spec     ServiceSpec
 }
 
-// ServiceMeta
+// ServiceMeta represents the service metadata
 type ServiceMeta struct {
 	ClusterName  string
 	ServiceName  string
@@ -136,6 +136,7 @@ type ServiceMeta struct {
 	ServiceStatus string
 }
 
+// ServiceSpec represents service detail spec
 type ServiceSpec struct {
 	Replicas int64
 	Resource Resources
@@ -187,6 +188,7 @@ type ServiceMember struct {
 	Spec     MemberSpec
 }
 
+// MemberMeta represents the service member's metadata
 type MemberMeta struct {
 	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
 	MemberName   string
@@ -197,6 +199,7 @@ type MemberMeta struct {
 	Status string
 }
 
+// MemberSpec represents service member detail spec
 type MemberSpec struct {
 	// For the stateless service, AvailableZone is ingored, simply set to "any".
 	AvailableZone       string

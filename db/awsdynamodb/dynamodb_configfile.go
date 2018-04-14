@@ -44,8 +44,7 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 				S: aws.String(cfg.Content),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
 	_, err := dbsvc.PutItem(params)
 
@@ -74,8 +73,7 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 				S: aws.String(fileID),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 
@@ -134,8 +132,7 @@ func (d *DynamoDB) DeleteConfigFile(ctx context.Context, serviceUUID string, fil
 				S: aws.String(fileID),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyDelCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyDelCondition),
 	}
 
 	resp, err := dbsvc.DeleteItem(params)

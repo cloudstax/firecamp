@@ -30,8 +30,7 @@ func (d *DynamoDB) CreateDevice(ctx context.Context, dev *common.Device) error {
 				S: aws.String(dev.ServiceName),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
 	_, err := dbsvc.PutItem(params)
 
@@ -59,14 +58,12 @@ func (d *DynamoDB) GetDevice(ctx context.Context, clusterName string, deviceName
 				S: aws.String(deviceName),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 
 	if err != nil {
-		glog.Errorln("failed to get device", deviceName,
-			"cluster", clusterName, "error", err, "requuid", requuid)
+		glog.Errorln("failed to get device", deviceName, "cluster", clusterName, "error", err, "requuid", requuid)
 		return nil, d.convertError(err)
 	}
 
@@ -97,8 +94,7 @@ func (d *DynamoDB) DeleteDevice(ctx context.Context, clusterName string, deviceN
 				S: aws.String(deviceName),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyDelCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyDelCondition),
 	}
 
 	resp, err := dbsvc.DeleteItem(params)
@@ -138,8 +134,7 @@ func (d *DynamoDB) listDevicesWithLimit(ctx context.Context, clusterName string,
 					S: aws.String(devicePartitionKeyPrefix + clusterName),
 				},
 			},
-			ConsistentRead:         aws.Bool(true),
-			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+			ConsistentRead: aws.Bool(true),
 		}
 		if limit > 0 {
 			params.Limit = aws.Int64(limit)

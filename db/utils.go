@@ -151,6 +151,20 @@ func EqualServiceAttr(s1 *common.ServiceAttr, s2 *common.ServiceAttr, skipMtime 
 		EqualServiceSpec(&s1.Spec, &s2.Spec)
 }
 
+func EqualServiceAttrImmutableFields(s1 *common.ServiceAttr, s2 *common.ServiceAttr) bool {
+	// Only Revision, Meta.LastModified, Meta.ServiceStatus, Spec.Replicas,
+	// Spec.Resources, Spec.ServiceConfigs are allowed to change.
+	return s1.ServiceUUID == s2.ServiceUUID &&
+		s1.Meta.ClusterName == s2.Meta.ClusterName &&
+		s1.Meta.ServiceName == s2.Meta.ServiceName &&
+		s1.Meta.ServiceType == s2.Meta.ServiceType &&
+		s1.Spec.RegisterDNS == s2.Spec.RegisterDNS &&
+		s1.Spec.DomainName == s2.Spec.DomainName &&
+		s1.Spec.HostedZoneID == s2.Spec.HostedZoneID &&
+		s1.Spec.RequireStaticIP == s2.Spec.RequireStaticIP &&
+		EqualServiceVolumes(&s1.Spec.Volumes, &s2.Spec.Volumes)
+}
+
 func CopyServiceAttr(s *common.ServiceAttr) *common.ServiceAttr {
 	return &common.ServiceAttr{
 		ServiceUUID: s.ServiceUUID,
@@ -324,6 +338,16 @@ func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skip
 		t1.Revision == t2.Revision &&
 		EqualMemberMeta(&t1.Meta, &t2.Meta, skipMtime) &&
 		EqualMemberSpec(&t1.Spec, &t2.Spec)
+}
+
+func EqualServiceMemberImmutableFields(m1 *common.ServiceMember, m2 *common.ServiceMember) bool {
+	// Only Revision, Meta.LastModified, Meta.Status, Spec.TaskID, Spec.ContainerInstanceID,
+	// Spec.ServerInstanceID, Spec.Volumes, Spec.Configs are allowed to change
+	return m1.ServiceUUID == m2.ServiceUUID &&
+		m1.MemberIndex == m2.MemberIndex &&
+		m1.Meta.MemberName == m2.Meta.MemberName &&
+		m1.Spec.AvailableZone == m2.Spec.AvailableZone &&
+		m1.Spec.StaticIP == m2.Spec.StaticIP
 }
 
 func CopyServiceMember(m *common.ServiceMember) *common.ServiceMember {
@@ -530,6 +554,12 @@ func EqualServiceStaticIP(t1 *common.ServiceStaticIP, t2 *common.ServiceStaticIP
 	return t1.StaticIP == t2.StaticIP &&
 		t1.Revision == t2.Revision &&
 		EqualStaticIPSpec(&t1.Spec, &t2.Spec)
+}
+
+func EqualServiceStaticIPImmutableFields(t1 *common.ServiceStaticIP, t2 *common.ServiceStaticIP) bool {
+	return t1.StaticIP == t2.StaticIP &&
+		t1.Spec.ServiceUUID == t2.Spec.ServiceUUID &&
+		t1.Spec.AvailableZone == t2.Spec.AvailableZone
 }
 
 func UpdateServiceStaticIP(t1 *common.ServiceStaticIP, serverInstanceID string, netInterfaceID string) *common.ServiceStaticIP {
