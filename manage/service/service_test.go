@@ -1,11 +1,11 @@
 package manageservice
 
 import (
-	"encoding/json"
 	"net"
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -156,29 +156,19 @@ func TestUnassignedIPs(t *testing.T) {
 			VolumeSizeGB: 1,
 		},
 	}
-	rattr := &common.CasUserAttr{
-		HeapSizeMB: 256,
-	}
-	b, err := json.Marshal(rattr)
-	if err != nil {
-		t.Fatalf("Marshal RedisUserAttr error %s", err)
-	}
-	userAttr := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_Redis,
-		AttrBytes:   b,
-	}
 	res := common.Resources{
 		MaxCPUUnits:     common.DefaultMaxCPUUnits,
 		ReserveCPUUnits: common.DefaultReserveCPUUnits,
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
-	serviceCfgs := []*common.ConfigID{
-		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	serviceCfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1",
-		"service1", vols, true, "domain1", "hostedZone1", true, userAttr, serviceCfgs, res, "")
-	sattr.ServiceStatus = common.ServiceStatusActive
+	mtime := time.Now().UnixNano()
+	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	// case: 1 network interface with 0 private ip
 	netInterfaces := []*server.NetworkInterface{
@@ -387,12 +377,13 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
-	serviceCfgs := []*common.ConfigID{
-		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	serviceCfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1",
-		vols, true, "domain1", "hostedZone1", true, nil, serviceCfgs, res, "")
-	sattr.ServiceStatus = common.ServiceStatusActive
+	mtime := time.Now().UnixNano()
+	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	assignedIPs := make(map[string]string)
 
@@ -417,7 +408,7 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	for _, ip1 := range ips1 {
 		exist := false
 		for _, ip := range ips {
-			if equalStaticIP(ip1, ip) {
+			if db.EqualServiceStaticIP(ip1, ip) {
 				exist = true
 				break
 			}
@@ -440,7 +431,7 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	}
 	for _, ip1 := range ips1 {
 		for _, ip := range ips {
-			if equalStaticIP(ip1, ip) {
+			if db.EqualServiceStaticIP(ip1, ip) {
 				t.Fatalf("expect new ip, but ip %s exist", ip1)
 			}
 		}
@@ -476,12 +467,13 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
-	serviceCfgs := []*common.ConfigID{
-		&common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	serviceCfgs := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
-	sattr := db.CreateInitialServiceAttr("uuid1", 1, "cluster1", "service1",
-		vols, true, "domain1", "hostedZone1", true, nil, serviceCfgs, res, "")
-	sattr.ServiceStatus = common.ServiceStatusActive
+	mtime := time.Now().UnixNano()
+	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	assignedIPs := make(map[string]string)
 
@@ -501,7 +493,7 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	}
 	for i, ip := range ips {
 		idx := i % len(netInterfaces)
-		if netInterfaces[idx].InterfaceID != ip.NetworkInterfaceID {
+		if netInterfaces[idx].InterfaceID != ip.Spec.NetworkInterfaceID {
 			t.Fatalf("expect netInterfaceID %s, ip %s", netInterfaces[idx].InterfaceID, ip)
 		}
 	}
@@ -517,7 +509,7 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	for _, ip1 := range ips1 {
 		exist := false
 		for _, ip := range ips {
-			if equalStaticIP(ip1, ip) {
+			if db.EqualServiceStaticIP(ip1, ip) {
 				exist = true
 				break
 			}
@@ -538,31 +530,20 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	if len(ips1) != pendingCounts {
 		t.Fatalf("expect %d ips, created %d", pendingCounts, len(ips1))
 	}
-	if ips1[0].NetworkInterfaceID != netInterfaces[2].InterfaceID {
+	if ips1[0].Spec.NetworkInterfaceID != netInterfaces[2].InterfaceID {
 		t.Fatalf("expect the first ip belong to %s, get %s", netInterfaces[2].InterfaceID, ips1[0])
 	}
 	for i := 1; i < len(ips1); i++ {
 		idx := (i - 1) % len(netInterfaces)
-		if netInterfaces[idx].InterfaceID != ips1[i].NetworkInterfaceID {
+		if netInterfaces[idx].InterfaceID != ips1[i].Spec.NetworkInterfaceID {
 			t.Fatalf("expect netInterfaceID %s, ip %s", netInterfaces[idx].InterfaceID, ips1[i])
 		}
 	}
 	for _, ip1 := range ips1 {
 		for _, ip := range ips {
-			if equalStaticIP(ip1, ip) {
+			if db.EqualServiceStaticIP(ip1, ip) {
 				t.Fatalf("expect new ip, but ip %s exist", ip1)
 			}
 		}
 	}
-}
-
-func equalStaticIP(ip1 *common.ServiceStaticIP, ip2 *common.ServiceStaticIP) bool {
-	if ip1.AvailableZone == ip2.AvailableZone &&
-		ip1.NetworkInterfaceID == ip2.NetworkInterfaceID &&
-		ip1.ServerInstanceID == ip2.ServerInstanceID &&
-		ip1.ServiceUUID == ip2.ServiceUUID &&
-		ip1.StaticIP == ip2.StaticIP {
-		return true
-	}
-	return false
 }
