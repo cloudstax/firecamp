@@ -40,17 +40,9 @@ func (s *K8sConfigDB) CreateServiceAttr(ctx context.Context, attr *common.Servic
 func (s *K8sConfigDB) UpdateServiceAttr(ctx context.Context, oldAttr *common.ServiceAttr, newAttr *common.ServiceAttr) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// Only support updating ServiceStatus, Replicas or UserAttr at v1, all other attributes are immutable.
-	if oldAttr.ClusterName != newAttr.ClusterName ||
-		oldAttr.DomainName != newAttr.DomainName ||
-		oldAttr.HostedZoneID != newAttr.HostedZoneID ||
-		oldAttr.RegisterDNS != newAttr.RegisterDNS ||
-		oldAttr.RequireStaticIP != newAttr.RequireStaticIP ||
-		oldAttr.ServiceName != newAttr.ServiceName ||
-		!db.EqualResources(&oldAttr.Resource, &newAttr.Resource) ||
-		!db.EqualServiceVolumes(&oldAttr.Volumes, &newAttr.Volumes) ||
-		oldAttr.ServiceType != newAttr.ServiceType {
-		glog.Errorln("immutable fields could not be updated, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
+	if (oldAttr.Revision+1) != newAttr.Revision ||
+		!db.EqualServiceAttrImmutableFields(oldAttr, newAttr) {
+		glog.Errorln("revision not increased by 1 or immutable fields are updated, oldAttr", oldAttr, "newAttr", newAttr, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
 
@@ -88,80 +80,25 @@ func (s *K8sConfigDB) GetServiceAttr(ctx context.Context, serviceUUID string) (a
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	replicas, err := strconv.ParseInt(cfgmap.Data[db.Replicas], 10, 64)
+	revision, err := strconv.ParseInt(cfgmap.Data[db.Revision], 10, 64)
 	if err != nil {
-		glog.Errorln("ParseInt Replicas error", err, "requuid", requuid, cfgmap)
+		glog.Errorln("ParseInt Revision error", err, "requuid", requuid, cfgmap)
 		return nil, db.ErrDBInternal
 	}
-	mtime, err := strconv.ParseInt(cfgmap.Data[db.LastModified], 10, 64)
+	var meta common.ServiceMeta
+	err = json.Unmarshal([]byte(cfgmap.Data[db.ServiceMeta]), &meta)
 	if err != nil {
-		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, cfgmap)
+		glog.Errorln("Unmarshal ServiceMeta error", err, "requuid", requuid, cfgmap)
 		return nil, db.ErrDBInternal
 	}
-	registerDNS, err := strconv.ParseBool(cfgmap.Data[db.RegisterDNS])
+	var spec common.ServiceSpec
+	err = json.Unmarshal([]byte(cfgmap.Data[db.ServiceSpec]), &spec)
 	if err != nil {
-		glog.Errorln("ParseBool RegisterDNS error", err, "requuid", requuid, cfgmap)
+		glog.Errorln("Unmarshal ServiceSpec error", err, "requuid", requuid, cfgmap)
 		return nil, db.ErrDBInternal
-	}
-	requireStaticIP, err := strconv.ParseBool(cfgmap.Data[db.RequireStaticIP])
-	if err != nil {
-		glog.Errorln("ParseBool RequireStaticIP error", err, "requuid", requuid, cfgmap)
-		return nil, db.ErrDBInternal
-	}
-	var vols common.ServiceVolumes
-	err = json.Unmarshal([]byte(cfgmap.Data[db.ServiceVolumes]), &vols)
-	if err != nil {
-		glog.Errorln("Unmarshal ServiceVolumes error", err, "requuid", requuid, cfgmap)
-		return nil, db.ErrDBInternal
-	}
-	var userAttr *common.ServiceUserAttr
-	if _, ok := cfgmap.Data[db.UserAttr]; ok {
-		tmpAttr := &common.ServiceUserAttr{}
-		err = json.Unmarshal([]byte(cfgmap.Data[db.UserAttr]), tmpAttr)
-		if err != nil {
-			glog.Errorln("Unmarshal ServiceUserAttr error", err, "requuid", requuid, cfgmap)
-			return nil, db.ErrDBInternal
-		}
-		userAttr = tmpAttr
-	}
-	res := common.Resources{
-		MaxCPUUnits:     common.DefaultMaxCPUUnits,
-		ReserveCPUUnits: common.DefaultReserveCPUUnits,
-		MaxMemMB:        common.DefaultMaxMemoryMB,
-		ReserveMemMB:    common.DefaultReserveMemoryMB,
-	}
-	if _, ok := cfgmap.Data[db.Resource]; ok {
-		err = json.Unmarshal([]byte(cfgmap.Data[db.Resource]), &res)
-		if err != nil {
-			glog.Errorln("Unmarshal Resource error", err, "requuid", requuid, cfgmap)
-			return nil, db.ErrDBInternal
-		}
-	}
-	var cfgs []*common.ConfigID
-	if _, ok := cfgmap.Data[db.ServiceConfigs]; ok {
-		err = json.Unmarshal([]byte(cfgmap.Data[db.ServiceConfigs]), &cfgs)
-		if err != nil {
-			glog.Errorln("Unmarshal ServiceUserAttr error", err, "requuid", requuid, cfgmap)
-			return nil, db.ErrDBInternal
-		}
 	}
 
-	attr = db.CreateServiceAttr(
-		serviceUUID,
-		cfgmap.Data[db.ServiceStatus],
-		mtime,
-		replicas,
-		cfgmap.Data[db.ClusterName],
-		cfgmap.Data[db.ServiceName],
-		vols,
-		registerDNS,
-		cfgmap.Data[db.DomainName],
-		cfgmap.Data[db.HostedZoneID],
-		requireStaticIP,
-		userAttr,
-		cfgs,
-		res,
-		cfgmap.Data[db.ServiceType])
+	attr = db.CreateServiceAttr(serviceUUID, revision, &meta, &spec)
 
 	glog.Infoln("get service attr", attr, "requuid", requuid)
 	return attr, nil
@@ -183,14 +120,14 @@ func (s *K8sConfigDB) DeleteServiceAttr(ctx context.Context, serviceUUID string)
 }
 
 func (s *K8sConfigDB) attrToConfigMap(attr *common.ServiceAttr, requuid string) (*corev1.ConfigMap, error) {
-	volBytes, err := json.Marshal(attr.Volumes)
+	metaBytes, err := json.Marshal(attr.Meta)
 	if err != nil {
-		glog.Errorln("Marshal ServiceVolumes error", err, "requuid", requuid, attr)
+		glog.Errorln("Marshal ServiceMeta error", err, "requuid", requuid, attr)
 		return nil, err
 	}
-	resBytes, err := json.Marshal(attr.Resource)
+	specBytes, err := json.Marshal(attr.Spec)
 	if err != nil {
-		glog.Errorln("Marshal Resources error", err, "requuid", requuid, attr.Resource, attr)
+		glog.Errorln("Marshal ServiceSpec error", err, "requuid", requuid, attr)
 		return nil, err
 	}
 
@@ -201,36 +138,11 @@ func (s *K8sConfigDB) attrToConfigMap(attr *common.ServiceAttr, requuid string) 
 			Labels:    s.attrLabels,
 		},
 		Data: map[string]string{
-			db.ServiceUUID:     attr.ServiceUUID,
-			db.ServiceStatus:   attr.ServiceStatus,
-			db.LastModified:    strconv.FormatInt(attr.LastModified, 10),
-			db.Replicas:        strconv.FormatInt(attr.Replicas, 10),
-			db.ClusterName:     attr.ClusterName,
-			db.ServiceName:     attr.ServiceName,
-			db.ServiceVolumes:  string(volBytes),
-			db.RegisterDNS:     strconv.FormatBool(attr.RegisterDNS),
-			db.DomainName:      attr.DomainName,
-			db.HostedZoneID:    attr.HostedZoneID,
-			db.RequireStaticIP: strconv.FormatBool(attr.RequireStaticIP),
-			db.Resource:        string(resBytes),
-			db.ServiceType:     attr.ServiceType,
+			db.ServiceUUID: attr.ServiceUUID,
+			db.Revision:    strconv.FormatInt(attr.Revision, 10),
+			db.ServiceMeta: string(metaBytes),
+			db.ServiceSpec: string(specBytes),
 		},
-	}
-	if attr.UserAttr != nil {
-		userAttrBytes, err := json.Marshal(attr.UserAttr)
-		if err != nil {
-			glog.Errorln("Marshal ServiceUserAttr error", err, "requuid", requuid, attr)
-			return nil, err
-		}
-		cfgmap.Data[db.UserAttr] = string(userAttrBytes)
-	}
-	if len(attr.ServiceConfigs) != 0 {
-		cfgBytes, err := json.Marshal(attr.ServiceConfigs)
-		if err != nil {
-			glog.Errorln("Marshal ServiceConfigs error", err, "requuid", requuid, attr)
-			return nil, err
-		}
-		cfgmap.Data[db.ServiceConfigs] = string(cfgBytes)
 	}
 
 	return cfgmap, nil
