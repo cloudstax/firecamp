@@ -203,7 +203,7 @@ func (c *ManageClient) IsServiceInitialized(ctx context.Context, r *manage.Servi
 		return false, err
 	}
 
-	if attr.ServiceStatus == common.ServiceStatusActive {
+	if attr.Meta.ServiceStatus == common.ServiceStatusActive {
 		return true, nil
 	}
 

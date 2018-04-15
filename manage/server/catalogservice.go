@@ -755,7 +755,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	}
 
 	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.FileName, version+1)
-	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
+	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {

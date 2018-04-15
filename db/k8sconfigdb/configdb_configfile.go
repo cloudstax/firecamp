@@ -1,6 +1,7 @@
 package k8sconfigdb
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -18,6 +19,17 @@ import (
 func (s *K8sConfigDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	metaBytes, err := json.Marshal(cfg.Meta)
+	if err != nil {
+		glog.Errorln("Marshal ConfigFileMeta error", err, "requuid", requuid, cfg)
+		return err
+	}
+	specBytes, err := json.Marshal(cfg.Spec)
+	if err != nil {
+		glog.Errorln("Marshal ConfigFileSpec error", err, "requuid", requuid, cfg)
+		return err
+	}
+
 	cfgmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      s.genFileConfigMapName(cfg.ServiceUUID, cfg.FileID),
@@ -25,24 +37,22 @@ func (s *K8sConfigDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFi
 			Labels:    s.genConfigFileListLabels(cfg.ServiceUUID),
 		},
 		Data: map[string]string{
-			db.ServiceUUID:       cfg.ServiceUUID,
-			db.ConfigFileID:      cfg.FileID,
-			db.ConfigFileMD5:     cfg.FileMD5,
-			db.ConfigFileName:    cfg.FileName,
-			db.ConfigFileMode:    strconv.FormatUint(uint64(cfg.FileMode), 10),
-			db.LastModified:      strconv.FormatInt(cfg.LastModified, 10),
-			db.ConfigFileContent: cfg.Content,
+			db.ServiceUUID:    cfg.ServiceUUID,
+			db.ConfigFileID:   cfg.FileID,
+			db.Revision:       strconv.FormatInt(cfg.Revision, 10),
+			db.ConfigFileMeta: string(metaBytes),
+			db.ConfigFileSpec: string(specBytes),
 		},
 	}
 
-	_, err := s.cliset.CoreV1().ConfigMaps(s.namespace).Create(cfgmap)
+	_, err = s.cliset.CoreV1().ConfigMaps(s.namespace).Create(cfgmap)
 	if err != nil {
-		glog.Errorln("failed to create config file", cfg.FileName, cfg.FileID,
+		glog.Errorln("failed to create config file", cfg.Meta.FileName, cfg.FileID,
 			"serviceUUID", cfg.ServiceUUID, "error", err, "requuid", requuid)
 		return s.convertError(err)
 	}
 
-	glog.Infoln("created config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
+	glog.Infoln("created config file", cfg.Meta.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return nil
 }
 
@@ -57,31 +67,27 @@ func (s *K8sConfigDB) GetConfigFile(ctx context.Context, serviceUUID string, fil
 		return nil, s.convertError(err)
 	}
 
-	mtime, err := strconv.ParseInt(cfgmap.Data[db.LastModified], 10, 64)
+	revision, err := strconv.ParseInt(cfgmap.Data[db.Revision], 10, 64)
 	if err != nil {
-		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, cfgmap.Name, cfgmap.Namespace)
+		glog.Errorln("ParseInt Revision error", err, "requuid", requuid, cfgmap.Name, cfgmap.Namespace)
+		return nil, db.ErrDBInternal
+	}
+	var meta common.ConfigFileMeta
+	err = json.Unmarshal([]byte(cfgmap.Data[db.ConfigFileMeta]), &meta)
+	if err != nil {
+		glog.Errorln("Unmarshal ConfigFileMeta error", err, "requuid", requuid, cfgmap)
+		return nil, db.ErrDBInternal
+	}
+	var spec common.ConfigFileSpec
+	err = json.Unmarshal([]byte(cfgmap.Data[db.ConfigFileSpec]), &spec)
+	if err != nil {
+		glog.Errorln("Unmarshal ConfigFileSpec error", err, "requuid", requuid, cfgmap)
 		return nil, db.ErrDBInternal
 	}
 
-	mode, err := strconv.ParseUint(cfgmap.Data[db.ConfigFileMode], 10, 64)
-	if err != nil {
-		glog.Errorln("ParseUint FileMode error", err, "requuid", requuid, cfgmap.Name, cfgmap.Namespace)
-		return nil, db.ErrDBInternal
-	}
+	cfg = db.CreateConfigFile(serviceUUID, fileID, revision, &meta, &spec)
 
-	cfg, err = db.CreateConfigFile(serviceUUID,
-		fileID,
-		cfgmap.Data[db.ConfigFileMD5],
-		cfgmap.Data[db.ConfigFileName],
-		uint32(mode),
-		mtime,
-		cfgmap.Data[db.ConfigFileContent])
-	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "fileID", fileID, "serviceUUID", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
-
-	glog.Infoln("get config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
+	glog.Infoln("get config file", cfg.Meta.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return cfg, nil
 }
 

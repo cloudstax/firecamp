@@ -87,8 +87,8 @@ func checkAndCreateConfigFile(ctx context.Context, serviceUUID string, configDir
 		return err
 	}
 
-	data := []byte(cfgFile.Content)
-	err = utils.CreateOrOverwriteFile(fpath, data, os.FileMode(cfgFile.FileMode))
+	data := []byte(cfgFile.Spec.Content)
+	err = utils.CreateOrOverwriteFile(fpath, data, os.FileMode(cfgFile.Spec.FileMode))
 	if err != nil {
 		glog.Errorln("write the config file error", err, fpath, "requuid", requuid)
 		return err

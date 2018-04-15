@@ -26,11 +26,9 @@ const (
 	MemberMeta  = "MemberMeta"
 	MemberSpec  = "MemberSpec"
 
-	ConfigFileID      = "ConfigFileID"
-	ConfigFileMD5     = "ConfigFileMD5"
-	ConfigFileName    = "ConfigFileName"
-	ConfigFileMode    = "ConfigFileMode"
-	ConfigFileContent = "ConfigFileContent"
+	ConfigFileID   = "ConfigFileID"
+	ConfigFileMeta = "ConfigFileMeta"
+	ConfigFileSpec = "ConfigFileSpec"
 
 	StaticIP     = "StaticIP"
 	StaticIPSpec = "StaticIPSpec"

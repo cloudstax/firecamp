@@ -253,13 +253,24 @@ type ConfigID struct {
 // We could not directly update the old ConfigFile. If node crashes before step2,
 // ServiceAttr thinks the ConfigFile is not changed.
 type ConfigFile struct {
-	ServiceUUID  string // partition key
-	FileID       string // sort key
-	FileMD5      string
+	ServiceUUID string // partition key
+	FileID      string // sort key
+	Revision    int64
+	Meta        ConfigFileMeta
+	Spec        ConfigFileSpec
+}
+
+// ConfigFileMeta represents the config file metadata
+type ConfigFileMeta struct {
 	FileName     string
-	FileMode     uint32
 	LastModified int64
-	Content      string // The content of the config file.
+}
+
+// ConfigFileSpec includes the detail config file spec
+type ConfigFileSpec struct {
+	FileMode uint32
+	FileMD5  string
+	Content  string // The content of the config file.
 }
 
 // ServiceStaticIP represents the owner service of one static IP.
@@ -269,6 +280,7 @@ type ServiceStaticIP struct {
 	Spec     StaticIPSpec
 }
 
+// StaticIPSpec includes the detail static ip spec
 type StaticIPSpec struct {
 	// The owner service of this static IP.
 	ServiceUUID string

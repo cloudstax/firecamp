@@ -97,22 +97,23 @@ func TestDBUtils(t *testing.T) {
 	content := "cfgfile-content"
 	chksum := utils.GenMD5(content)
 	cfg1 := CreateInitialConfigFile(serviceUUID, fileID, fileName, fileMode, content)
-	cfg1.LastModified = mtime
-	cfg2, err := CreateConfigFile(serviceUUID, fileID, chksum, fileName, fileMode, mtime, content)
-	if err != nil {
-		t.Fatalf("CreateConfigFile error %s", err)
-	}
+	cfg1.Meta.LastModified = mtime
+
+	meta := CreateConfigFileMeta(fileName, mtime)
+	spec := CreateConfigFileSpec(fileMode, chksum, content)
+	cfg2 := CreateConfigFile(serviceUUID, fileID, 0, meta, spec)
 	if !EqualConfigFile(cfg1, cfg2, false, false) {
 		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg2)
 	}
 
 	newFileID := "newID"
 	newContent := "newContent"
-	cfg3 := UpdateConfigFile(cfg1, newFileID, newContent)
+	cfg3 := CreateNewConfigFile(cfg1, newFileID, newContent)
 	cfg1.FileID = newFileID
-	cfg1.FileMD5 = cfg3.FileMD5
-	cfg1.LastModified = cfg3.LastModified
-	cfg1.Content = newContent
+	cfg1.Revision++
+	cfg1.Meta.LastModified = cfg3.Meta.LastModified
+	cfg1.Spec.FileMD5 = cfg3.Spec.FileMD5
+	cfg1.Spec.Content = newContent
 	if !EqualConfigFile(cfg1, cfg3, false, false) {
 		t.Fatalf("configfile is not the same, %s %s", cfg1, cfg3)
 	}

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -439,82 +438,100 @@ func CopyConfigs(c1 []common.ConfigID) []common.ConfigID {
 	return c2
 }
 
-func CreateInitialConfigFile(serviceUUID string, fileID string, fileName string, fileMode uint32, content string) *common.ConfigFile {
-	chksum := utils.GenMD5(content)
-	return &common.ConfigFile{
-		ServiceUUID:  serviceUUID,
-		FileID:       fileID,
-		FileMD5:      chksum,
+func CreateConfigFileMeta(fileName string, mtime int64) *common.ConfigFileMeta {
+	return &common.ConfigFileMeta{
 		FileName:     fileName,
-		FileMode:     fileMode,
-		LastModified: time.Now().UnixNano(),
-		Content:      content,
-	}
-}
-
-func CreateConfigFile(serviceUUID string, fileID string, fileMD5 string,
-	fileName string, fileMode uint32, mtime int64, content string) (*common.ConfigFile, error) {
-	// double check config file
-	chksum := utils.GenMD5(content)
-	if chksum != fileMD5 {
-		errmsg := fmt.Sprintf("internal error, file %s content corrupted, expect md5 %s content md5 %s",
-			fileID, fileMD5, chksum)
-		return nil, errors.New(errmsg)
-	}
-
-	cfg := &common.ConfigFile{
-		ServiceUUID:  serviceUUID,
-		FileID:       fileID,
-		FileMD5:      fileMD5,
-		FileName:     fileName,
-		FileMode:     fileMode,
 		LastModified: mtime,
-		Content:      content,
 	}
-	return cfg, nil
 }
 
-func UpdateConfigFile(c *common.ConfigFile, newFileID string, newContent string) *common.ConfigFile {
-	newMD5 := utils.GenMD5(newContent)
-	return &common.ConfigFile{
-		ServiceUUID:  c.ServiceUUID,
-		FileID:       newFileID,
-		FileMD5:      newMD5,
+func CopyConfigFileMeta(c *common.ConfigFileMeta) *common.ConfigFileMeta {
+	return &common.ConfigFileMeta{
 		FileName:     c.FileName,
-		FileMode:     c.FileMode,
-		LastModified: time.Now().UnixNano(),
-		Content:      newContent,
+		LastModified: c.LastModified,
+	}
+}
+
+func CreateConfigFileSpec(fileMode uint32, fileMD5 string, content string) *common.ConfigFileSpec {
+	return &common.ConfigFileSpec{
+		FileMode: fileMode,
+		FileMD5:  fileMD5,
+		Content:  content,
+	}
+}
+
+func CopyConfigFileSpec(c *common.ConfigFileSpec) *common.ConfigFileSpec {
+	return &common.ConfigFileSpec{
+		FileMode: c.FileMode,
+		FileMD5:  c.FileMD5,
+		Content:  c.Content,
+	}
+}
+
+func CreateInitialConfigFile(serviceUUID string, fileID string, fileName string, fileMode uint32, content string) *common.ConfigFile {
+	meta := CreateConfigFileMeta(fileName, time.Now().UnixNano())
+	chksum := utils.GenMD5(content)
+	spec := CreateConfigFileSpec(fileMode, chksum, content)
+	return &common.ConfigFile{
+		ServiceUUID: serviceUUID,
+		FileID:      fileID,
+		Revision:    0,
+		Meta:        *meta,
+		Spec:        *spec,
+	}
+}
+
+func CreateConfigFile(serviceUUID string, fileID string, revision int64, meta *common.ConfigFileMeta, spec *common.ConfigFileSpec) *common.ConfigFile {
+	return &common.ConfigFile{
+		ServiceUUID: serviceUUID,
+		FileID:      fileID,
+		Revision:    revision,
+		Meta:        *meta,
+		Spec:        *spec,
+	}
+}
+
+func CreateNewConfigFile(c *common.ConfigFile, newFileID string, newContent string) *common.ConfigFile {
+	newMD5 := utils.GenMD5(newContent)
+	meta := CopyConfigFileMeta(&c.Meta)
+	meta.LastModified = time.Now().UnixNano()
+	spec := CopyConfigFileSpec(&c.Spec)
+	spec.FileMD5 = newMD5
+	spec.Content = newContent
+	return &common.ConfigFile{
+		ServiceUUID: c.ServiceUUID,
+		FileID:      newFileID,
+		Revision:    c.Revision + 1,
+		Meta:        *meta,
+		Spec:        *spec,
 	}
 }
 
 func EqualConfigFile(c1 *common.ConfigFile, c2 *common.ConfigFile, skipMtime bool, skipContent bool) bool {
-	if c1.ServiceUUID == c2.ServiceUUID &&
+	return c1.ServiceUUID == c2.ServiceUUID &&
 		c1.FileID == c2.FileID &&
-		c1.FileMD5 == c2.FileMD5 &&
-		c1.FileName == c2.FileName &&
-		c1.FileMode == c2.FileMode &&
-		(skipMtime || c1.LastModified == c2.LastModified) &&
-		(skipContent || c1.Content == c2.Content) {
-		return true
-	}
-	return false
+		c1.Revision == c2.Revision &&
+		c1.Meta.FileName == c2.Meta.FileName &&
+		(skipMtime || c1.Meta.LastModified == c2.Meta.LastModified) &&
+		c1.Spec.FileMD5 == c2.Spec.FileMD5 &&
+		c1.Spec.FileMode == c2.Spec.FileMode &&
+		(skipContent || c1.Spec.Content == c2.Spec.Content)
 }
 
-func CopyConfigFile(t *common.ConfigFile) *common.ConfigFile {
+func CopyConfigFile(c *common.ConfigFile) *common.ConfigFile {
+	newMeta := CopyConfigFileMeta(&c.Meta)
+	newSpec := CopyConfigFileSpec(&c.Spec)
 	return &common.ConfigFile{
-		FileID:       t.FileID,
-		FileMD5:      t.FileMD5,
-		FileName:     t.FileName,
-		FileMode:     t.FileMode,
-		ServiceUUID:  t.ServiceUUID,
-		LastModified: t.LastModified,
-		Content:      t.Content,
+		ServiceUUID: c.ServiceUUID,
+		FileID:      c.FileID,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
 	}
 }
 
 func PrintConfigFile(cfg *common.ConfigFile) string {
-	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s fileMD5 %s fileMode %d LastModified %d",
-		cfg.ServiceUUID, cfg.FileID, cfg.FileName, cfg.FileMD5, cfg.FileMode, cfg.LastModified)
+	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s LastModified %d fileMD5 %s fileMode %d",
+		cfg.ServiceUUID, cfg.FileID, cfg.Meta.FileName, cfg.Meta.LastModified, cfg.Spec.FileMD5, cfg.Spec.FileMode)
 }
 
 func CreateStaticIPSpec(serviceUUID string, az string, serverInstanceID string, netInterfaceID string) *common.StaticIPSpec {

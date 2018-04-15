@@ -1,6 +1,7 @@
 package awsdynamodb
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -17,6 +18,18 @@ import (
 // CreateConfigFile creates one config file in DB
 func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile) error {
 	requuid := utils.GetReqIDFromContext(ctx)
+
+	metaBytes, err := json.Marshal(cfg.Meta)
+	if err != nil {
+		glog.Errorln("Marshal ConfigFileMeta error", err, "requuid", requuid, cfg)
+		return err
+	}
+	specBytes, err := json.Marshal(cfg.Spec)
+	if err != nil {
+		glog.Errorln("Marshal ConfigFileSpec error", err, "requuid", requuid, cfg)
+		return err
+	}
+
 	dbsvc := dynamodb.New(d.sess)
 
 	params := &dynamodb.PutItemInput{
@@ -28,33 +41,27 @@ func (d *DynamoDB) CreateConfigFile(ctx context.Context, cfg *common.ConfigFile)
 			tableSortKey: {
 				S: aws.String(cfg.FileID),
 			},
-			db.ConfigFileMD5: {
-				S: aws.String(cfg.FileMD5),
+			db.Revision: {
+				N: aws.String(strconv.FormatInt(cfg.Revision, 10)),
 			},
-			db.ConfigFileName: {
-				S: aws.String(cfg.FileName),
+			db.ConfigFileMeta: {
+				B: metaBytes,
 			},
-			db.ConfigFileMode: {
-				N: aws.String(strconv.FormatUint(uint64(cfg.FileMode), 10)),
-			},
-			db.LastModified: {
-				N: aws.String(strconv.FormatInt(cfg.LastModified, 10)),
-			},
-			db.ConfigFileContent: {
-				S: aws.String(cfg.Content),
+			db.ConfigFileSpec: {
+				B: specBytes,
 			},
 		},
 		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
-	_, err := dbsvc.PutItem(params)
 
+	_, err = dbsvc.PutItem(params)
 	if err != nil {
-		glog.Errorln("failed to create config file", cfg.FileName, cfg.FileID,
+		glog.Errorln("failed to create config file", cfg.Meta.FileName, cfg.FileID,
 			"serviceUUID", cfg.ServiceUUID, "error", err, "requuid", requuid)
 		return d.convertError(err)
 	}
 
-	glog.Infoln("created config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
+	glog.Infoln("created config file", cfg.Meta.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return nil
 }
 
@@ -87,31 +94,27 @@ func (d *DynamoDB) GetConfigFile(ctx context.Context, serviceUUID string, fileID
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	mtime, err := strconv.ParseInt(*(resp.Item[db.LastModified].N), 10, 64)
+	revision, err := strconv.ParseInt(*(resp.Item[db.Revision].N), 10, 64)
 	if err != nil {
-		glog.Errorln("ParseInt LastModified error", err, "requuid", requuid, "resp", resp)
+		glog.Errorln("ParseInt Revision error", err, "requuid", requuid, "resp", resp)
+		return nil, db.ErrDBInternal
+	}
+	var meta common.ConfigFileMeta
+	err = json.Unmarshal(resp.Item[db.ConfigFileMeta].B, &meta)
+	if err != nil {
+		glog.Errorln("Unmarshal ConfigFileMeta error", err, "requuid", requuid, resp)
+		return nil, db.ErrDBInternal
+	}
+	var spec common.ConfigFileSpec
+	err = json.Unmarshal(resp.Item[db.ConfigFileSpec].B, &spec)
+	if err != nil {
+		glog.Errorln("Unmarshal ConfigFileSpec error", err, "requuid", requuid, resp)
 		return nil, db.ErrDBInternal
 	}
 
-	mode, err := strconv.ParseUint(*(resp.Item[db.ConfigFileMode].N), 10, 64)
-	if err != nil {
-		glog.Errorln("ParseUint FileMode error", err, "requuid", requuid, "resp", resp)
-		return nil, db.ErrDBInternal
-	}
+	cfg = db.CreateConfigFile(serviceUUID, fileID, revision, &meta, &spec)
 
-	cfg, err = db.CreateConfigFile(serviceUUID,
-		fileID,
-		*(resp.Item[db.ConfigFileMD5].S),
-		*(resp.Item[db.ConfigFileName].S),
-		uint32(mode),
-		mtime,
-		*(resp.Item[db.ConfigFileContent].S))
-	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "fileID", fileID, "serviceUUID", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
-
-	glog.Infoln("get config file", cfg.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
+	glog.Infoln("get config file", cfg.Meta.FileName, cfg.FileID, "serviceUUID", cfg.ServiceUUID, "requuid", requuid)
 	return cfg, nil
 }
 

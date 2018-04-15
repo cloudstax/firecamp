@@ -988,7 +988,7 @@ func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, pr
 		glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
 		return nil, err
 	}
-	config := &common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
+	config := &common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.Spec.FileMD5}
 	return config, nil
 }
 
