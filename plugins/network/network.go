@@ -57,7 +57,7 @@ func (s *ServiceNetwork) UpdateDNS(ctx context.Context, domainName string, hoste
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// update dns record
-	dnsName := dns.GenDNSName(member.MemberName, domainName)
+	dnsName := dns.GenDNSName(member.Meta.MemberName, domainName)
 	privateIP := s.serverInfo.GetPrivateIP()
 
 	err := s.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, hostedZoneID)
@@ -139,12 +139,12 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 		glog.Infoln("get service ip", serviceip, "requuid", requuid, "member", member)
 
 		// if ip does not belong to the service, skip it
-		if serviceip.ServiceUUID != member.ServiceUUID {
+		if serviceip.Spec.ServiceUUID != member.ServiceUUID {
 			continue
 		}
 
 		// ip belongs to the service, check if ip is for the current member.
-		if ip == member.StaticIP {
+		if ip == member.Spec.StaticIP {
 			// ip is for the current member
 			glog.Infoln("current node has the member's static ip, requuid", requuid, serviceip, member)
 			localOwned = true
@@ -177,7 +177,7 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 
 	if memberStaticIP == nil {
 		// member's static ip is not owned by the local node, load from db.
-		memberStaticIP, err = s.dbIns.GetServiceStaticIP(ctx, member.StaticIP)
+		memberStaticIP, err = s.dbIns.GetServiceStaticIP(ctx, member.Spec.StaticIP)
 		if err != nil {
 			glog.Errorln("GetServiceStaticIP error", err, "requuid", requuid, "member", member)
 			return err
@@ -190,8 +190,8 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 		// the member's ip is owned by the local node, check whether need to update db.
 		// The ServiceStaticIP in db may not be updated. For example, after ip is assigned to
 		// the local node, node/plugin restarts before db is updated.
-		if memberStaticIP.ServerInstanceID != s.serverInfo.GetLocalInstanceID() ||
-			memberStaticIP.NetworkInterfaceID != netInterface.InterfaceID {
+		if memberStaticIP.Spec.ServerInstanceID != s.serverInfo.GetLocalInstanceID() ||
+			memberStaticIP.Spec.NetworkInterfaceID != netInterface.InterfaceID {
 			newip := db.UpdateServiceStaticIP(memberStaticIP, s.serverInfo.GetLocalInstanceID(), netInterface.InterfaceID)
 			err = s.dbIns.UpdateServiceStaticIP(ctx, memberStaticIP, newip)
 			if err != nil {
@@ -204,7 +204,7 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 	} else {
 		// the member's ip is not owned by the local node, unassign it from the old owner,
 		// assign to the local node and update db.
-		err = s.serverIns.UnassignStaticIP(ctx, memberStaticIP.NetworkInterfaceID, memberStaticIP.StaticIP)
+		err = s.serverIns.UnassignStaticIP(ctx, memberStaticIP.Spec.NetworkInterfaceID, memberStaticIP.StaticIP)
 		if err != nil {
 			glog.Errorln("UnassignStaticIP error", err, "ip", memberStaticIP, "requuid", requuid, member)
 			return err
@@ -233,7 +233,7 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 	}
 
 	// wait the DNS is updated to the static ip, this will only happen after service is created and DNS is not updated yet.
-	dnsName := dns.GenDNSName(member.MemberName, domainName)
+	dnsName := dns.GenDNSName(member.Meta.MemberName, domainName)
 	err = s.waitDNSLookup(ctx, dnsName, memberStaticIP.StaticIP, requuid)
 	if err != nil {
 		glog.Errorln("waitDNSLookup error", err, "requuid", requuid, member)
@@ -277,14 +277,14 @@ func (s *ServiceNetwork) UpdateServiceMemberDNS(ctx context.Context, cluster str
 		return "", "", err
 	}
 
-	err = s.UpdateDNS(ctx, attr.DomainName, attr.HostedZoneID, member)
+	err = s.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member)
 	if err != nil {
 		glog.Errorln("UpdateDNS error", err, "requuid", requuid, svc)
 		return "", "", err
 	}
 
 	glog.Infoln("get and update dns for member", member, "requuid", requuid)
-	return member.MemberName, attr.DomainName, nil
+	return member.Meta.MemberName, attr.Spec.DomainName, nil
 }
 
 // TODO merge getMemberForTask and findIdleMember with volume.getMemberForTask and volume.findIdleMember.
@@ -316,7 +316,7 @@ func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *comm
 		// get taskID of the local task.
 		// assume only one task on one node for one service. It does not make sense to run
 		// like mongodb primary and standby on the same node.
-		localTaskID, err = containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName, serviceAttr.ServiceName, localContainerInstanceID)
+		localTaskID, err = containersvcIns.GetServiceTask(ctx, serviceAttr.Meta.ClusterName, serviceAttr.Meta.ServiceName, localContainerInstanceID)
 		if err != nil {
 			glog.Errorln("get local task id error", err, "requuid", requuid, "containerInsID", localContainerInstanceID, "service attr", serviceAttr)
 			return nil, err
@@ -340,7 +340,7 @@ func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *comm
 
 func (s *ServiceNetwork) findIdleMember(ctx context.Context, serviceAttr *common.ServiceAttr,
 	containersvcIns containersvc.ContainerSvc, requuid string) (member *common.ServiceMember, err error) {
-	taskIDs, err := containersvcIns.ListActiveServiceTasks(ctx, serviceAttr.ClusterName, serviceAttr.ServiceName)
+	taskIDs, err := containersvcIns.ListActiveServiceTasks(ctx, serviceAttr.Meta.ClusterName, serviceAttr.Meta.ServiceName)
 	if err != nil {
 		glog.Errorln("ListActiveServiceTasks error", err, "service attr", serviceAttr, "requuid", requuid)
 		return nil, err
@@ -356,14 +356,14 @@ func (s *ServiceNetwork) findIdleMember(ctx context.Context, serviceAttr *common
 	// find one idle volume, the volume's taskID not in the task list
 	for _, member := range members {
 		// check if the member is idle
-		_, ok := taskIDs[member.TaskID]
+		_, ok := taskIDs[member.Spec.TaskID]
 		if !ok {
 			glog.Infoln("find idle member", member, "service", serviceAttr, "requuid", requuid)
 			return member, nil
 		}
 	}
 
-	errmsg := fmt.Sprintf("service %s %s has no idle member, requuid %s", serviceAttr.ServiceName, serviceAttr.ServiceUUID, requuid)
+	errmsg := fmt.Sprintf("service %s %s has no idle member, requuid %s", serviceAttr.Meta.ServiceName, serviceAttr.ServiceUUID, requuid)
 	glog.Errorln(errmsg)
 	return nil, errors.New(errmsg)
 }

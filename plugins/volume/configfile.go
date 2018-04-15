@@ -19,7 +19,7 @@ func CreateConfigFile(ctx context.Context, configDirPath string, attr *common.Se
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// if the service does not need the config file, return
-	if len(member.Configs) == 0 {
+	if len(member.Spec.Configs) == 0 {
 		glog.Infoln("no config file", member, "requuid", requuid)
 		return nil
 	}
@@ -32,16 +32,16 @@ func CreateConfigFile(ctx context.Context, configDirPath string, attr *common.Se
 	}
 
 	// create the service common configs
-	for _, cfg := range attr.ServiceConfigs {
-		err = checkAndCreateConfigFile(ctx, attr.ServiceUUID, configDirPath, cfg, dbIns, requuid)
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		err = checkAndCreateConfigFile(ctx, attr.ServiceUUID, configDirPath, &cfg, dbIns, requuid)
 		if err != nil {
 			return err
 		}
 	}
 
 	// create the member configs
-	for _, cfg := range member.Configs {
-		err = checkAndCreateConfigFile(ctx, member.ServiceUUID, configDirPath, cfg, dbIns, requuid)
+	for _, cfg := range member.Spec.Configs {
+		err = checkAndCreateConfigFile(ctx, member.ServiceUUID, configDirPath, &cfg, dbIns, requuid)
 		if err != nil {
 			return err
 		}
