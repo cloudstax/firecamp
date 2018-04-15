@@ -198,7 +198,7 @@ func TestServiceAttr(t *testing.T) {
 
 		mtime := time.Now().UnixNano()
 		attrMeta := CreateServiceMeta(clusterName, servicePrefix+c, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-		attrSpec := CreateServiceSpec(int64(i), res, registerDNS, domain, hostedZoneID, requireStaticIP, serviceCfgs, svols)
+		attrSpec := CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, serviceCfgs, &svols)
 		s[i] = CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])
@@ -276,7 +276,7 @@ func TestServiceMembers(t *testing.T) {
 
 		memberName := utils.GenServiceMemberName(service1, int64(i))
 		memberMeta := CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
-		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
 		s1[i] = CreateServiceMember(service1, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
@@ -300,7 +300,7 @@ func TestServiceMembers(t *testing.T) {
 		}
 		memberName := utils.GenServiceMemberName(service2, int64(i))
 		memberMeta := CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
-		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		memberSpec := CreateMemberSpec(az, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
 		s2[i] = CreateServiceMember(service2, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])

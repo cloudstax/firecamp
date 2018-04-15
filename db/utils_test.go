@@ -43,7 +43,7 @@ func TestDBUtils(t *testing.T) {
 	// test service attr
 	mtime := time.Now().UnixNano()
 	attrMeta := CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-	attrSpec := CreateServiceSpec(replicas, res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, svols)
+	attrSpec := CreateServiceSpec(replicas, &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, &svols)
 	attr1 := CreateServiceAttr(serviceUUID, 0, attrMeta, attrSpec)
 
 	attr2 := UpdateServiceStatus(attr1, common.ServiceStatusActive)
@@ -73,7 +73,7 @@ func TestDBUtils(t *testing.T) {
 		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
 	memberMeta := CreateMemberMeta(memberName, time.Now().UnixNano(), common.ServiceMemberStatusActive)
-	memberSpec := CreateMemberSpec(az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, mvols, staticIP, cfgs)
+	memberSpec := CreateMemberSpec(az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, &mvols, staticIP, cfgs)
 	m1 := CreateServiceMember(serviceUUID, memberIndex, 0, memberMeta, memberSpec)
 
 	taskID := "task-1"

@@ -96,18 +96,18 @@ func CopyServiceMeta(s *common.ServiceMeta) *common.ServiceMeta {
 	}
 }
 
-func CreateServiceSpec(replicas int64, res common.Resources, registerDNS bool,
+func CreateServiceSpec(replicas int64, res *common.Resources, registerDNS bool,
 	domain string, hostedZoneID string, requireStaticIP bool,
-	serviceCfgs []common.ConfigID, vols common.ServiceVolumes) *common.ServiceSpec {
+	serviceCfgs []common.ConfigID, vols *common.ServiceVolumes) *common.ServiceSpec {
 	return &common.ServiceSpec{
 		Replicas:        replicas,
-		Resource:        res,
+		Resource:        *res,
 		RegisterDNS:     registerDNS,
 		DomainName:      domain,
 		HostedZoneID:    hostedZoneID,
 		RequireStaticIP: requireStaticIP,
 		ServiceConfigs:  serviceCfgs,
-		Volumes:         vols,
+		Volumes:         *vols,
 	}
 }
 
@@ -275,26 +275,26 @@ func CopyMemberMeta(m *common.MemberMeta) *common.MemberMeta {
 	}
 }
 
-func CreateInitialMemberSpec(az string, vols common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
+func CreateInitialMemberSpec(az string, vols *common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
 	return &common.MemberSpec{
 		AvailableZone:       az,
 		TaskID:              DefaultTaskID,
 		ContainerInstanceID: DefaultContainerInstanceID,
 		ServerInstanceID:    DefaultServerInstanceID,
-		Volumes:             vols,
+		Volumes:             *vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
 	}
 }
 
 func CreateMemberSpec(az string, taskID string, containerInstanceID string, serverInstanceID string,
-	vols common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
+	vols *common.MemberVolumes, staticIP string, configs []common.ConfigID) *common.MemberSpec {
 	return &common.MemberSpec{
 		AvailableZone:       az,
 		TaskID:              taskID,
 		ContainerInstanceID: containerInstanceID,
 		ServerInstanceID:    serverInstanceID,
-		Volumes:             vols,
+		Volumes:             *vols,
 		StaticIP:            staticIP,
 		Configs:             configs,
 	}

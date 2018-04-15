@@ -245,7 +245,7 @@ func testServiceAttrs(dbIns *k8sconfigdb.K8sConfigDB) {
 		}
 		mtime := time.Now().UnixNano()
 		attrMeta := db.CreateServiceMeta(clusterName, servicePrefix+c, mtime, serviceType, common.ServiceStatusCreating)
-		attrSpec := db.CreateServiceSpec(int64(i), res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, svols)
+		attrSpec := db.CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, &svols)
 		s[i] = db.CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
@@ -371,7 +371,7 @@ func testServiceMembers(dbIns *k8sconfigdb.K8sConfigDB) {
 			PrimaryDeviceName: dev1,
 		}
 		memberMeta := db.CreateMemberMeta(service1+c, mtime, common.ServiceMemberStatusActive)
-		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
 		s1[i] = db.CreateServiceMember(service1, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s1[i])
@@ -397,7 +397,7 @@ func testServiceMembers(dbIns *k8sconfigdb.K8sConfigDB) {
 			PrimaryDeviceName: dev2,
 		}
 		memberMeta := db.CreateMemberMeta(service2+c, mtime, common.ServiceMemberStatusActive)
-		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, mvols, staticIPPrefix+c, cfgs)
+		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
 		s2[i] = db.CreateServiceMember(service2, int64(i), 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, s2[i])
