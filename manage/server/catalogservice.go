@@ -665,7 +665,7 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 
 	switch req.ServiceType {
 	case common.CatalogService_MongoDB:
-		return s.setMongoDBInit(ctx, req, requuid)
+		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 
 	case common.CatalogService_Cassandra:
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)

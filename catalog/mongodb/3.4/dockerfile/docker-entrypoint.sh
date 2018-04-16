@@ -6,16 +6,21 @@ dbdir=$datadir/db
 dbjournallinkdir=$datadir/db/journal
 journaldir=/journal
 confdir=$datadir/conf
-cfgfile=$confdir/mongod.conf
+
+# after release 0.9.5, sys.conf file is not created any more.
+# instead service.conf and emember.conf are created for the common service configs
+# and the service member configs. The default mongod.conf will be updated with the configs
+# in service.conf and member.conf
 syscfgfile=$confdir/sys.conf
 
-# sanity check to make sure the volume is mounted to /data.
+servicecfgfile=$confdir/service.conf
+membercfgfile=$confdir/member.conf
+mongodfile=$confdir/mongod.conf
+keyfile=$configdir/keyfile
+
+# sanity check to make sure the data volume and journal volume are mounted to /data and /journal
 if [ ! -d "$datadir" ]; then
   echo "error: $datadir not exist. Please make sure the volume is mounted to $datadir." >&2
-  exit 1
-fi
-if [ ! -d "$confdir" ]; then
-  echo "error: $confdir not exist." >&2
   exit 1
 fi
 if [ ! -d "$journaldir" ]; then
@@ -23,15 +28,14 @@ if [ ! -d "$journaldir" ]; then
   exit 1
 fi
 
-# sanity check to make sure the mongodb config file is created.
-if [ ! -f "$cfgfile" ]; then
-  echo "error: $cfgfile not exist." >&2
+# sanity check to make sure the config directory exists.
+if [ ! -d "$confdir" ]; then
+  echo "error: $confdir not exist." >&2
   exit 1
 fi
-
-# sanity check to make sure the sys config file is created.
-if [ ! -f "$syscfgfile" ]; then
-  echo "error: $syscfgfile not exist." >&2
+# sanity check to make sure the mongodb config file is created.
+if [ ! -f "$mongodfile" ]; then
+  echo "error: $mongodfile not exist." >&2
   exit 1
 fi
 
@@ -57,14 +61,42 @@ if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
 
+# load the sys config file. the syscfgfile exists before 0.9.6
+if [ -f "$syscfgfile" ]; then
+ . $syscfgfile
+fi
+
+# after release 0.9.5
+if [ -f "$servicecfgfile" ]; then
+  # load service and member config files
+  . $servicecfgfile
+  . $membercfgfile
+
+  # replace the member specific fields in the default mongod.conf
+  # set bind ip
+  sed -i 's/bindIp: 0.0.0.0/bindIp: '$BIND_IP'/g' $mongodfile
+  # set cluster role for the sharded cluster. do nothing for a single repliaset
+  if [ "$CLUSTER_ROLE" = "configsvr" ]; then
+    sed -i 's/port: 27017/port: 27019/g' $mongodfile
+    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongodfile
+  elif [ "$CLUSTER_ROLE" = "shardsvr" ]; then
+    sed -i 's/port: 27017/port: 27018/g' $mongodfile
+    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongodfile
+  fi
+  # set replSetName
+  sed -i 's/replSetName: default/replSetName: '$REPLICASET_NAME'/g' $mongodfile
+  # enabled security
+  if [ "$ENABLE_SECURITY" = "true" ]; then
+    echo "security:\n  keyFile: ${keyfile}\n  authorization: enabled" >> $mongodfile
+  fi
+fi
+
 # symlink mongodb journal directory
 # https://docs.mongodb.com/manual/core/journaling/#journal-directory
 if [ ! -L $dbjournallinkdir ]; then
   ln -s $journaldir $dbjournallinkdir
 fi
 
-# load the sys config file
-. $syscfgfile
 # When creating the sharded cluster with 3 config servers, occasionally host $SERVICE_MEMBER
 # returns 127.0.0.1 for some config server container. Not know the root cause.
 # MongoDB config server will then listen on localhost via unix socket, and the config server

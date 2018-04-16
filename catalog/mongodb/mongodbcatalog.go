@@ -3,10 +3,8 @@ package mongodbcatalog
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -36,6 +33,8 @@ const (
 	keyfileName      = "keyfile"
 	keyfileRandBytes = 200
 	keyfileMode      = 0400
+
+	memberConfFile = "member.conf"
 
 	configServerName = "config"
 	shardName        = "shard"
@@ -74,19 +73,11 @@ func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, opts *manage.CatalogMongoDBOptions, res *common.Resources,
-	existingKeyfileContent string) (req *manage.CreateServiceRequest, keyfileContent string, err error) {
-	// generate the keyfile for MongoDB internal auth between members of the replica set.
-	// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
-	keyfileContent = existingKeyfileContent
-	if len(existingKeyfileContent) == 0 {
-		keyfileContent, err = genKeyfileContent()
-		if err != nil {
-			return nil, "", err
-		}
-	}
+	service string, keyfileContent string, opts *manage.CatalogMongoDBOptions, res *common.Resources) *manage.CreateServiceRequest {
 
-	replicaCfgs := GenReplicaConfigs(platform, azs, cluster, service, res.MaxMemMB, keyfileContent, opts)
+	serviceCfgs := genServiceConfigs(platform, res.MaxMemMB, opts, keyfileContent)
+
+	replicaCfgs := genReplicaConfigs(platform, azs, cluster, service, res.MaxMemMB, opts)
 
 	portmapping := common.PortMapping{
 		ContainerPort: mongoPort,
@@ -100,47 +91,31 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		portmaps = append(portmaps, shardportmap, configportmap)
 	}
 
-	userAttr := &common.MongoDBUserAttr{
-		Shards:           opts.Shards,
-		ReplicasPerShard: opts.ReplicasPerShard,
-		ReplicaSetOnly:   opts.ReplicaSetOnly,
-		ConfigServers:    opts.ConfigServers,
-		KeyFileContent:   keyfileContent,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal MongoDBUserAttr error", err, opts)
-		return nil, "", err
-	}
-
-	req = &manage.CreateServiceRequest{
+	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: res,
 
 		ContainerImage: ContainerImage,
 		Replicas:       int64(len(replicaCfgs)),
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portmaps,
-
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_MongoDB,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:               opts.Volume,
+		ContainerPath:        common.DefaultContainerMountPath,
+		JournalVolume:        opts.JournalVolume,
+		JournalContainerPath: common.DefaultJournalVolumeContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	if opts.JournalVolume != nil {
-		req.JournalVolume = opts.JournalVolume
-		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
-	}
-	return req, keyfileContent, nil
+	return req
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
@@ -170,71 +145,32 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 	}
 }
 
-// GenReplicaConfigs generates the replica configs.
-// Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(platform string, azs []string, cluster string, service string,
-	maxMemMB int64, keyfileContent string, opts *manage.CatalogMongoDBOptions) []*manage.ReplicaConfig {
-
-	keyfileCfg := &manage.ConfigFileContent{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
-
-	domain := dns.GenDefaultDomainName(cluster)
-	replicaCfgs := []*manage.ReplicaConfig{}
-
-	if opts.Shards == 1 && opts.ReplicaSetOnly {
-		// single shard and ReplicaSetOnly, create a replica set only
-		for i := int64(0); i < opts.ReplicasPerShard; i++ {
-			replSetName := service
-			member := utils.GenServiceMemberName(service, i)
-			index := int(i) % len(azs)
-			az := azs[index]
-			replicaCfg := genReplicaConfig(platform, domain, member, replSetName, emptyRole, az, maxMemMB, keyfileCfg)
-			replicaCfgs = append(replicaCfgs, replicaCfg)
-		}
-
-		return replicaCfgs
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMongoDBOptions, keyfileContent string) []*manage.ConfigFileContent {
+	// create the service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard, opts.ReplicaSetOnly, opts.ConfigServers)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
 	}
 
-	// create a sharded cluster.
-
-	// generate the Config Server replica configs
-	for i := int64(0); i < opts.ConfigServers; i++ {
-		configServerName := getConfigServerName(service)
-		member := utils.GenServiceMemberName(configServerName, i)
-		index := int(i) % len(azs)
-		az := azs[index]
-		replicaCfg := genReplicaConfig(platform, domain, member, configServerName, configRole, az, maxMemMB, keyfileCfg)
-		replicaCfgs = append(replicaCfgs, replicaCfg)
+	// create the key file
+	keyfileCfg := &manage.ConfigFileContent{
+		FileName: keyfileName,
+		FileMode: keyfileMode,
+		Content:  keyfileContent,
 	}
 
-	// generate the shard replica configs
-	for shard := int64(0); shard < opts.Shards; shard++ {
-		shardName := getShardName(service, shard)
-		for i := int64(0); i < opts.ReplicasPerShard; i++ {
-			member := utils.GenServiceMemberName(shardName, i)
-			index := int(shard+i) % len(azs)
-			az := azs[index]
-			replicaCfg := genReplicaConfig(platform, domain, member, shardName, shardRole, az, maxMemMB, keyfileCfg)
-			replicaCfgs = append(replicaCfgs, replicaCfg)
-		}
-	}
+	// create the default mongod.conf file
+	// docker entrypoint script will update the corresponding fields for the service member
+	mongodCfg := createMongodConf(maxMemMB)
 
-	return replicaCfgs
+	configs := []*manage.ConfigFileContent{serviceCfg, keyfileCfg, mongodCfg}
+	return configs
 }
 
-func getConfigServerName(service string) string {
-	return service + common.NameSeparator + configServerName
-}
-
-func getShardName(service string, shardNumber int64) string {
-	return service + common.NameSeparator + shardName + strconv.FormatInt(shardNumber, 10)
-}
-
-func genReplicaConfig(platform string, domain string, member string, replSetName string,
-	role string, az string, maxMemMB int64, keyfileCfg *manage.ConfigFileContent) *manage.ReplicaConfig {
-	// create the sys.conf file
-	memberHost := dns.GenDNSName(member, domain)
-	sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
-
+func createMongodConf(maxMemMB int64) *manage.ConfigFileContent {
 	// create the mongod.conf file
 	content := mongoDBConfHead
 
@@ -256,33 +192,92 @@ func genReplicaConfig(platform string, domain string, member string, replSetName
 		content += mongoDBConfStorage + cacheContent
 	}
 
-	bind := memberHost
-	if platform == common.ContainerPlatformSwarm {
-		bind = catalog.BindAllIP
-	}
+	content += mongoDBConfNetwork + mongoDBConfRepl + mongoDBConfEnd
 
-	switch role {
-	case configRole:
-		content += fmt.Sprintf(mongoDBConfNetwork, bind, configServerPort) + fmt.Sprintf(mongoDBConfSharding, role)
-	case shardRole:
-		content += fmt.Sprintf(mongoDBConfNetwork, bind, shardPort) + fmt.Sprintf(mongoDBConfSharding, role)
-	default:
-		// no role, is a single replica set
-		content += fmt.Sprintf(mongoDBConfNetwork, bind, mongoPort)
-	}
-
-	content += fmt.Sprintf(mongoDBConfRepl, replSetName) + mongoDBConfEnd
-
-	mongoCfg := &manage.ConfigFileContent{
+	return &manage.ConfigFileContent{
 		FileName: mongoDBConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
-	configs := []*manage.ConfigFileContent{sysCfg, mongoCfg, keyfileCfg}
+}
+
+// genReplicaConfigs generates the replica configs.
+// Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
+func genReplicaConfigs(platform string, azs []string, cluster string, service string, maxMemMB int64, opts *manage.CatalogMongoDBOptions) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+	replicaCfgs := []*manage.ReplicaConfig{}
+
+	if opts.Shards == 1 && opts.ReplicaSetOnly {
+		// single shard and ReplicaSetOnly, create a replica set only
+		for i := int64(0); i < opts.ReplicasPerShard; i++ {
+			replSetName := service
+			member := utils.GenServiceMemberName(service, i)
+			index := int(i) % len(azs)
+			az := azs[index]
+			replicaCfg := genReplicaConfig(platform, domain, member, replSetName, emptyRole, az)
+			replicaCfgs = append(replicaCfgs, replicaCfg)
+		}
+
+		return replicaCfgs
+	}
+
+	// create a sharded cluster.
+
+	// generate the Config Server replica configs
+	for i := int64(0); i < opts.ConfigServers; i++ {
+		configServerName := getConfigServerName(service)
+		member := utils.GenServiceMemberName(configServerName, i)
+		index := int(i) % len(azs)
+		az := azs[index]
+		replicaCfg := genReplicaConfig(platform, domain, member, configServerName, configRole, az)
+		replicaCfgs = append(replicaCfgs, replicaCfg)
+	}
+
+	// generate the shard replica configs
+	for shard := int64(0); shard < opts.Shards; shard++ {
+		shardName := getShardName(service, shard)
+		for i := int64(0); i < opts.ReplicasPerShard; i++ {
+			member := utils.GenServiceMemberName(shardName, i)
+			index := int(shard+i) % len(azs)
+			az := azs[index]
+			replicaCfg := genReplicaConfig(platform, domain, member, shardName, shardRole, az)
+			replicaCfgs = append(replicaCfgs, replicaCfg)
+		}
+	}
+
+	return replicaCfgs
+}
+
+func getConfigServerName(service string) string {
+	return service + common.NameSeparator + configServerName
+}
+
+func getShardName(service string, shardNumber int64) string {
+	return service + common.NameSeparator + shardName + strconv.FormatInt(shardNumber, 10)
+}
+
+func genReplicaConfig(platform string, domain string, member string, replSetName string, role string, az string) *manage.ReplicaConfig {
+	// create the service member.conf file
+	memberHost := dns.GenDNSName(member, domain)
+	bindip := memberHost
+	if platform == common.ContainerPlatformSwarm {
+		bindip = catalog.BindAllIP
+	}
+	content := fmt.Sprintf(memberfileContent, az, memberHost, bindip, role, replSetName)
+
+	memberCfg := &manage.ConfigFileContent{
+		FileName: memberConfFile,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	configs := []*manage.ConfigFileContent{memberCfg}
 	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 }
 
-func genKeyfileContent() (string, error) {
+// GenKeyfileContent generates the keyfile for MongoDB internal auth between members of the replica set.
+// https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/
+func GenKeyfileContent() (string, error) {
 	b := make([]byte, keyfileRandBytes)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -292,22 +287,9 @@ func genKeyfileContent() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-// IsMongoDBConfFile checks if the file is the MongoDB config file
-func IsMongoDBConfFile(filename string) bool {
-	return filename == mongoDBConfFileName
-}
-
-// IsAuthEnabled checks if auth is already enabled.
-func IsAuthEnabled(content string) bool {
-	n := strings.Index(content, mongoDBAuthStr)
-	return n != -1
-}
-
 // EnableMongoDBAuth enables the MongoDB user authentication, after replset initialized and user created.
 func EnableMongoDBAuth(content string) string {
-	keyfilePath := filepath.Join(common.DefaultConfigPath, keyfileName)
-	seccontent := fmt.Sprintf(mongoDBConfSecurity, keyfilePath)
-	return strings.Replace(content, "#security:", seccontent, 1)
+	return strings.Replace(content, "ENABLE_SECURITY=false", "ENABLE_SECURITY=true", 1)
 }
 
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.
@@ -374,6 +356,26 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 }
 
 const (
+	// ENABLE_SECURITY is set to false at creation. After the cluster is initialized,
+	// the init task will set it to true.
+	servicefileContent = `
+PLATFORM=%s
+SHARDS=%d
+REPLICAS_PERSHARD=%d
+REPLICASET_ONLY=%s
+CONFIG_SERVERS=%d
+ENABLE_SECURITY=false
+`
+
+	// per member config file
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+BIND_IP=%s
+CLUSTER_ROLE=%s
+REPLICASET_NAME=%s
+`
+
 	mongoDBConfFileName = "mongod.conf"
 
 	mongoDBConfHead = `
@@ -409,13 +411,13 @@ storage:
 
 	mongoDBConfNetwork = `
 net:
-  bindIp: %s
-  port: %d
+  bindIp: 0.0.0.0
+  port: 27017
 `
 
 	mongoDBConfRepl = `
 replication:
-  replSetName: %s
+  replSetName: default
 `
 
 	mongoDBAuthStr      = "authorization: enabled"
