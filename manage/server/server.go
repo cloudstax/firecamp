@@ -161,6 +161,10 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 	// check if the request is other special request.
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
+		case manage.CreateServiceOp:
+			return s.createService(ctx, w, r, requuid)
+		case manage.UpdateServiceConfigOp:
+			return s.updateServiceConfig(ctx, w, r, requuid)
 		case manage.ServiceInitializedOp:
 			return s.putServiceInitialized(ctx, w, r, requuid)
 		case manage.RunTaskOp:
@@ -180,8 +184,7 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	// the common service creation request.
-	return s.createService(ctx, w, r, requuid)
+	return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 }
 
 func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -536,6 +539,70 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 
 	glog.Infoln("create service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
 	return nil
+}
+
+func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.UpdateServiceConfigRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("updateServiceConfig decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("updateServiceConfig invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	for i, cfg := range attr.Spec.ServiceConfigs {
+		if req.ConfigFileName == cfg.FileName {
+			// create a new config file
+			version, err := utils.GetConfigFileVersion(cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfg)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, cfg.FileName, version+1)
+			newcfgfile := db.CreateNewConfigFile(cfg, newFileID, req.ConfigFileContent)
+
+			newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+			if err != nil {
+				glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			// update ServiceAttr
+			newAttr := db.UpdateServiceConfig(attr, i, newFileID, newcfgfile.Spec.FileMD5)
+			err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+			if err != nil {
+				glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, newAttr)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			glog.Infoln("updated service config ", req.ConfigFileName, "requuid", requuid, req.Service)
+			return "", http.StatusOK
+		}
+	}
+
+	errmsg := fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
+	glog.Errorln(errmsg)
+	return errmsg, http.StatusNotFound
 }
 
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest,

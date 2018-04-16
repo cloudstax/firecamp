@@ -5,14 +5,15 @@ DATA_DIR=/data
 COMMITLOG_DIR=/journal
 CONFIG_DIR=$DATA_DIR/conf
 
-# after release 0.9.5, cassandra.yaml, rackdc.properties and jvm.options are not created any more.
-# instead, we will read the configs from service.conf and sys.conf, and update the default files.
+# after release 0.9.5, cassandra.yaml, rackdc.properties, jvm.options and jmxremote.password
+# files are not created any more. instead, we will read the configs from service.conf and sys.conf,
+# and update the default files under /etc/cassandra.
 CASSANDRA_YAML_FILE=$CONFIG_DIR/cassandra.yaml
 CASSANDRA_RACKDC_FILE=$CONFIG_DIR/cassandra-rackdc.properties
 CASSANDRA_JVM_FILE=$CONFIG_DIR/jvm.options
+CASSANDRA_JMXREMOTEPASSWD_FILE=$CONFIG_DIR/jmxremote.password
 
 CASSANDRA_LOG_FILE=$CONFIG_DIR/logback.xml
-CASSANDRA_JMXREMOTEPASSWD_FILE=$CONFIG_DIR/jmxremote.password
 syscfgfile=$CONFIG_DIR/sys.conf
 servicecfgfile=$CONFIG_DIR/service.conf
 
@@ -45,21 +46,7 @@ if [ ! -f "$syscfgfile" ]; then
 fi
 
 if [ "$(id -u)" = '0' ]; then
-  if [ -f "$CASSANDRA_YAML_FILE" ]; then
-    cp $CASSANDRA_YAML_FILE /etc/cassandra/
-    cp $CASSANDRA_RACKDC_FILE /etc/cassandra/
-  fi
-  # jvm.options file does not exist before release 0.9.1
-  if [ -f "$CASSANDRA_JVM_FILE" ]; then
-    cp $CASSANDRA_JVM_FILE /etc/cassandra/
-  fi
-
   cp $CASSANDRA_LOG_FILE /etc/cassandra/
-  # jmxremote.password file does not exist before release 0.9.2
-  if [ -f "$CASSANDRA_JMXREMOTEPASSWD_FILE" ]; then
-    export LOCAL_JMX="no"
-    cp $CASSANDRA_JMXREMOTEPASSWD_FILE /etc/cassandra/
-  fi
 
   # after 0.9.5, replace the fields in the default cassandra config files.
   if [ -f "$servicecfgfile" ]; then
@@ -100,6 +87,37 @@ if [ "$(id -u)" = '0' ]; then
     RackdcFile="/etc/cassandra/cassandra-rackdc.properties"
     sed -i 's/dc=.*/dc='$REGION'/g' $RackdcFile
     sed -i 's/rack=.*/rack='$AVAILABILITY_ZONE'/g' $RackdcFile
+
+    # create the jmx access and password files
+    # not necessary to create jmxremote.access file. by default, the user has the readwrite access.
+    # if LOCAL_JMX is set to "no", cassandra-env.sh enables the jmxremote.password file,
+    # but not jmxremote.access file.
+    # https://github.com/apache/cassandra/blob/trunk/conf/cassandra-env.sh
+    #   JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.password.file=/etc/cassandra/jmxremote.password"
+    #   JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.access.file=/etc/cassandra/jmxremote.access"
+    # http://cassandra.apache.org/doc/latest/operating/security.html#jmx-access, says it is optionally
+    # to enable access control to limit the scope of what defined users can do via JMX.
+    export LOCAL_JMX="no"
+    echo "$JMX_REMOTE_USER $JMX_REMOTE_PASSWD" > /etc/cassandra/jmxremote.password
+
+    # set cassandra heap size
+    export JVM_OPTS="$JVM_OPTS -Xms${HEAP_SIZE_MB}M -Xmx${HEAP_SIZE_MB}M"
+
+  else
+    # the old files before release 0.9.6
+    cp $CASSANDRA_YAML_FILE /etc/cassandra/
+    cp $CASSANDRA_RACKDC_FILE /etc/cassandra/
+
+    # jvm.options file does not exist before release 0.9.1
+    if [ -f "$CASSANDRA_JVM_FILE" ]; then
+      cp $CASSANDRA_JVM_FILE /etc/cassandra/
+    fi
+
+    # jmxremote.password file does not exist before release 0.9.2
+    if [ -f "$CASSANDRA_JMXREMOTEPASSWD_FILE" ]; then
+      export LOCAL_JMX="no"
+      cp $CASSANDRA_JMXREMOTEPASSWD_FILE /etc/cassandra/
+    fi
   fi
 fi
 

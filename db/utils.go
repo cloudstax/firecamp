@@ -173,29 +173,45 @@ func CopyServiceAttr(s *common.ServiceAttr) *common.ServiceAttr {
 	}
 }
 
-func UpdateServiceStatus(t1 *common.ServiceAttr, status string) *common.ServiceAttr {
-	newMeta := CopyServiceMeta(&t1.Meta)
+func UpdateServiceStatus(s *common.ServiceAttr, status string) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&s.Meta)
 	newMeta.LastModified = time.Now().UnixNano()
 	newMeta.ServiceStatus = status
 
 	return &common.ServiceAttr{
-		ServiceUUID: t1.ServiceUUID,
-		Revision:    t1.Revision + 1,
+		ServiceUUID: s.ServiceUUID,
+		Revision:    s.Revision + 1,
 		Meta:        *newMeta,
-		Spec:        t1.Spec,
+		Spec:        s.Spec,
 	}
 }
 
-func UpdateServiceReplicas(t1 *common.ServiceAttr, replicas int64) *common.ServiceAttr {
-	newMeta := CopyServiceMeta(&t1.Meta)
+func UpdateServiceReplicas(s *common.ServiceAttr, replicas int64) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&s.Meta)
 	newMeta.LastModified = time.Now().UnixNano()
 
-	newSpec := CopyServiceSpec(&t1.Spec)
+	newSpec := CopyServiceSpec(&s.Spec)
 	newSpec.Replicas = replicas
 
 	return &common.ServiceAttr{
-		ServiceUUID: t1.ServiceUUID,
-		Revision:    t1.Revision + 1,
+		ServiceUUID: s.ServiceUUID,
+		Revision:    s.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
+	}
+}
+
+func UpdateServiceConfig(s *common.ServiceAttr, cfgIndex int, newFileID string, fileMD5 string) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&s.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+
+	newSpec := CopyServiceSpec(&s.Spec)
+	newSpec.ServiceConfigs[cfgIndex].FileID = newFileID
+	newSpec.ServiceConfigs[cfgIndex].FileMD5 = fileMD5
+
+	return &common.ServiceAttr{
+		ServiceUUID: s.ServiceUUID,
+		Revision:    s.Revision + 1,
 		Meta:        *newMeta,
 		Spec:        *newSpec,
 	}

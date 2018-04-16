@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -880,8 +881,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 
 func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	if *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
+		glog.Fatalln("please specify the valid service name")
 	}
 
 	// get all set command-line flags
@@ -905,30 +905,76 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	req := &manage.CatalogUpdateCassandraRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
+	opts := &cascatalog.CasOptions{
 		HeapSizeMB:      heapSizeMB,
 		JmxRemoteUser:   user,
 		JmxRemotePasswd: passwd,
 	}
 
-	err := cascatalog.ValidateUpdateRequest(req)
+	err := cascatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("invalid parameters", err)
 	}
 
-	err = cli.CatalogUpdateCassandraService(ctx, req)
+	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+
+	newContent := cascatalog.UpdateServiceConfig(cfgFile.Spec.Content, opts)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service:           commonReq,
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update cassandra service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update cassandra service error", err)
 	}
 
-	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
+	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
+}
+
+func getConfigFile(ctx context.Context, cfgFileName string) *common.ConfigFile {
+	// get service attributes
+	commonReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+		ServiceType: common.ServiceTypeStateful,
+	}
+
+	attr, err := cli.GetServiceAttr(ctx, commonReq)
+	if err != nil {
+		glog.Fatalln("get service error", err)
+	}
+
+	// get the current service configs
+	var serviceCfg *common.ConfigID
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if cfg.FileName == cfgFileName {
+			serviceCfg = &cfg
+			break
+		}
+	}
+
+	if serviceCfg == nil {
+		glog.Fatalln("service config not found")
+	}
+
+	// get the config file content
+	getReq := &manage.GetConfigFileRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceUUID: attr.ServiceUUID,
+		FileID:      serviceCfg.FileID,
+	}
+
+	cfgFile, err := cli.GetConfigFile(ctx, getReq)
+	if err != nil {
+		glog.Fatalln("GetConfigFile error", err, serviceCfg)
+	}
+
+	return cfgFile
 }
 
 func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {

@@ -6,12 +6,15 @@ import (
 
 const (
 	// special service operations
-	SpecialOpPrefix         = "?"
-	ListServiceOp           = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp     = SpecialOpPrefix + "List-ServiceMember"
-	GetConfigFileOp         = SpecialOpPrefix + "Get-Config-File"
-	GetServiceStatusOp      = SpecialOpPrefix + "Get-Service-Status"
-	ServiceInitializedOp    = SpecialOpPrefix + "Set-Service-Initialized"
+	SpecialOpPrefix      = "?"
+	ListServiceOp        = SpecialOpPrefix + "List-Service"
+	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
+	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
+	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
+	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+
+	CreateServiceOp         = SpecialOpPrefix + "Create-Service"
+	UpdateServiceConfigOp   = SpecialOpPrefix + "Update-Service-Config"
 	UpdateServiceResourceOp = SpecialOpPrefix + "Update-Service-Resource"
 	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
 	StartServiceOp          = SpecialOpPrefix + "Start-Service"
@@ -42,7 +45,6 @@ const (
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
-	CatalogUpdateCassandraOp     = CatalogOpPrefix + "Update-Cassandra"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
 	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
@@ -124,6 +126,12 @@ type CreateServiceRequest struct {
 
 	// The detail configs for each replica
 	ReplicaConfigs []*ReplicaConfig
+}
+
+type UpdateServiceConfigRequest struct {
+	Service           *ServiceCommonRequest
+	ConfigFileName    string
+	ConfigFileContent string
 }
 
 // UpdateServiceResourceRequest updates the service resource.

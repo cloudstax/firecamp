@@ -1,6 +1,7 @@
 package cascatalog
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -46,5 +47,30 @@ func TestCasCatalog(t *testing.T) {
 	seeds = genSeedHosts(azCount, replicas, service, domain)
 	if seeds != expectSeeds {
 		t.Fatalf("expect seeds %s, get %s", expectSeeds, seeds)
+	}
+
+	// test update service.conf
+	region := "region"
+	cluster := "cluster1"
+	opts := &CasOptions{
+		HeapSizeMB:      256,
+		JmxRemoteUser:   "jmxuser",
+		JmxRemotePasswd: "jmxpasswd",
+	}
+	content := fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
+
+	opts.HeapSizeMB = 300
+	content1 := fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
+	content2 := UpdateServiceConfig(content, opts)
+	if content1 != content2 {
+		t.Fatalf("expect service configs\n %s, get\n %s", content1, content2)
+	}
+
+	opts.JmxRemoteUser = "newjmxuser"
+	opts.JmxRemotePasswd = "newjmxpd"
+	content1 = fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
+	content2 = UpdateServiceConfig(content, opts)
+	if content1 != content2 {
+		t.Fatalf("expect service configs\n %s, get\n %s", content1, content2)
 	}
 }

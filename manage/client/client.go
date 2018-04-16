@@ -60,6 +60,26 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 	return manage.ConvertHTTPError(resp)
 }
 
+// UpdateServiceConfig updates the service config
+func (c *ManageClient) UpdateServiceConfig(ctx context.Context, r *manage.UpdateServiceConfigRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.UpdateServiceConfigOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
 // UpdateServiceResource updates the service resource
 func (c *ManageClient) UpdateServiceResource(ctx context.Context, r *manage.UpdateServiceResourceRequest) error {
 	b, err := json.Marshal(r)
@@ -553,26 +573,6 @@ func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *man
 	res := &manage.CatalogCreateCassandraResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.JmxRemoteUser, res.JmxRemotePasswd, err
-}
-
-// CatalogUpdateCassandraService updates the configs of Cassandra service.
-func (c *ManageClient) CatalogUpdateCassandraService(ctx context.Context, r *manage.CatalogUpdateCassandraRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateCassandraOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogScaleCassandraService scales the Cassandra service.

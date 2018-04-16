@@ -1,9 +1,9 @@
 package cascatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -12,7 +12,6 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -43,6 +42,13 @@ const (
 	// jmx file, common in catalog/types.go
 )
 
+// CasOptions defines the Cassandra configurable options
+type CasOptions struct {
+	HeapSizeMB      int64
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
 // The default Cassandra catalog service. By default,
 // 1) Have equal number of nodes on 3 availability zones.
 // 2) Listen on the standard ports, 7000 7001 7199 9042 9160.
@@ -65,15 +71,15 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 	return nil
 }
 
-// ValidateUpdateRequest checks if the update request is valid
-func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
-	if req.HeapSizeMB < 0 {
+// ValidateUpdateOtions checks if the update options are valid
+func ValidateUpdateOtions(opts *CasOptions) error {
+	if opts.HeapSizeMB < 0 {
 		return errors.New("heap size should not be less than 0")
 	}
-	if req.HeapSizeMB > MaxHeapMB {
+	if opts.HeapSizeMB > MaxHeapMB {
 		return errors.New("max heap size is 14GB")
 	}
-	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+	if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) == 0 {
 		return errors.New("please set the new jmx remote password")
 	}
 	return nil
@@ -81,7 +87,7 @@ func ValidateUpdateRequest(req *manage.CatalogUpdateCassandraRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
+	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// generate service ReplicaConfigs
 	if len(opts.JmxRemoteUser) == 0 {
 		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
@@ -108,22 +114,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	userAttr := &common.CasUserAttr{
-		HeapSizeMB:      opts.HeapSizeMB,
-		JmxRemoteUser:   opts.JmxRemoteUser,
-		JmxRemotePasswd: opts.JmxRemotePasswd,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
-
-	req := &manage.CreateServiceRequest{
+	req = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: &common.Resources{
@@ -138,11 +134,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		PortMappings:   portMappings,
 		RegisterDNS:    true,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Cassandra,
-			AttrBytes:   b,
-		},
-
 		ServiceConfigs: serviceCfgs,
 
 		Volume:        opts.Volume,
@@ -154,7 +145,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		req.JournalVolume = opts.JournalVolume
 		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
 	}
-	return req, nil
+	return req, opts.JmxRemoteUser, opts.JmxRemotePasswd
 }
 
 // GenServiceConfigs generates the service configs.
@@ -162,7 +153,7 @@ func GenServiceConfigs(region string, cluster string, service string, azs []stri
 	// create the service.conf file
 	domain := dns.GenDefaultDomainName(cluster)
 	seeds := genSeedHosts(int64(len(azs)), opts.Replicas, service, domain)
-	content := fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.HeapSizeMB)
+	content := fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -176,19 +167,7 @@ func GenServiceConfigs(region string, cluster string, service string, azs []stri
 		Content:  logConfContent,
 	}
 
-	// create the jmxremote.password file
-	jmxCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
-
-	// not necessary to create jmxremote.access file. by default, the user has the readwrite access.
-	// if LOCAL_JMX is set to "no", cassandra-env.sh enables the jmxremote.password file,
-	// but not jmxremote.access file.
-	// https://github.com/apache/cassandra/blob/trunk/conf/cassandra-env.sh
-	// JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.password.file=/etc/cassandra/jmxremote.password"
-	// #JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.access.file=/etc/cassandra/jmxremote.access"
-	// http://cassandra.apache.org/doc/latest/operating/security.html#jmx-access, says it is optionally
-	// to enable access control to limit the scope of what defined users can do via JMX.
-
-	configs := []*manage.ConfigFileContent{serviceCfg, logCfg, jmxCfg}
+	configs := []*manage.ConfigFileContent{serviceCfg, logCfg}
 	return configs
 }
 
@@ -210,6 +189,28 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs
+}
+
+// UpdateServiceConfig updates the service.conf file content
+func UpdateServiceConfig(oldContent string, opts *CasOptions) string {
+	content := oldContent
+	lines := strings.Split(oldContent, "\n")
+	for _, line := range lines {
+		if opts.HeapSizeMB > 0 && strings.HasPrefix(line, "HEAP_SIZE_MB") {
+			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", opts.HeapSizeMB)
+			content = strings.Replace(content, line, newHeap, 1)
+		}
+		if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) != 0 {
+			if strings.HasPrefix(line, "JMX_REMOTE_USER") {
+				newUser := fmt.Sprintf("JMX_REMOTE_USER=%s", opts.JmxRemoteUser)
+				content = strings.Replace(content, line, newUser, 1)
+			} else if strings.HasPrefix(line, "JMX_REMOTE_PASSWD") {
+				newPasswd := fmt.Sprintf("JMX_REMOTE_PASSWD=%s", opts.JmxRemotePasswd)
+				content = strings.Replace(content, line, newPasswd, 1)
+			}
+		}
+	}
+	return content
 }
 
 func genSeedHosts(azCount int64, replicas int64, service string, domain string) string {
@@ -274,16 +275,6 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	return []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvnode}
 }
 
-// IsJvmConfFile checks if the file is jvm conf file
-func IsJvmConfFile(filename string) bool {
-	return filename == jvmConfFileName
-}
-
-// NewJVMConfContent returns the new jvm.options file content
-func NewJVMConfContent(heapSizeMB int64) string {
-	return fmt.Sprintf(jvmHeapConfigs, heapSizeMB, heapSizeMB) + jvmConfigs
-}
-
 // GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service to version 095.
 // This is specific to each release. Only upgrade from the last version to current version is supported.
 func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
@@ -312,7 +303,9 @@ const (
 REGION=%s
 CLUSTER=%s
 CASSANDRA_SEEDS=%s
-JVM_OPTS=-Xms%dM -Xmx%dM
+HEAP_SIZE_MB=%d
+JMX_REMOTE_USER=%s
+JMX_REMOTE_PASSWD=%s
 `
 
 	logConfContent = `
@@ -336,122 +329,5 @@ JVM_OPTS=-Xms%dM -Xmx%dM
   <logger name="org.apache.cassandra" level="INFO"/>
   <logger name="com.thinkaurelius.thrift" level="ERROR"/>
 </configuration>
-`
-
-	jvmHeapConfigs = `
-# HEAP SETTINGS #
-
-# Heap size is automatically calculated by cassandra-env based on this
-# formula: max(min(1/2 ram, 1024MB), min(1/4 ram, 8GB))
-# That is:
-# - calculate 1/2 ram and cap to 1024MB
-# - calculate 1/4 ram and cap to 8192MB
-# - pick the max
-#
-# For production use you may wish to adjust this for your environment.
-# If that's the case, uncomment the -Xmx and Xms options below to override the
-# automatic calculation of JVM heap memory.
-#
-# It is recommended to set min (-Xms) and max (-Xmx) heap sizes to
-# the same value to avoid stop-the-world GC pauses during resize, and
-# so that we can lock the heap in memory on startup to prevent any
-# of it from being swapped out.
--Xms%dM
--Xmx%dM
-
-# Young generation size is automatically calculated by cassandra-env
-# based on this formula: min(100 * num_cores, 1/4 * heap size)
-#
-# The main trade-off for the young generation is that the larger it
-# is, the longer GC pause times will be. The shorter it is, the more
-# expensive GC will be (usually).
-#
-# It is not recommended to set the young generation size if using the
-# G1 GC, since that will override the target pause-time goal.
-# More info: http://www.oracle.com/technetwork/articles/java/g1gc-1984535.html
-#
-# The example below assumes a modern 8-core+ machine for decent
-# times. If in doubt, and if you do not particularly want to tweak, go
-# 100 MB per physical CPU core.
-#-Xmn800M
-`
-
-	// jvmConfigs includes other default jvm configs
-	jvmConfigs = `
-# refer to the default jvm setting for the detail comments
-
-# GENERAL JVM SETTINGS #
-
-# enable assertions. highly suggested for correct application functionality.
--ea
-
-# enable thread priorities, primarily so we can give periodic tasks
-# a lower priority to avoid interfering with client workload
--XX:+UseThreadPriorities
-
-# allows lowering thread priority without being root on linux - probably
-# not necessary on Windows but doesn't harm anything.
-# see http://tech.stolsvik.com/2010/01/linux-java-thread-priorities-workar
--XX:ThreadPriorityPolicy=42
-
-# Enable heap-dump if there's an OOM
--XX:+HeapDumpOnOutOfMemoryError
-
-# Per-thread stack size.
--Xss256k
-
-# Larger interned string table, for gossip's benefit (CASSANDRA-6410)
--XX:StringTableSize=1000003
-
-# Make sure all memory is faulted and zeroed on startup.
-# This helps prevent soft faults in containers and makes
-# transparent hugepage allocation more effective.
--XX:+AlwaysPreTouch
-
-# Disable biased locking as it does not benefit Cassandra.
--XX:-UseBiasedLocking
-
-# Enable thread-local allocation blocks and allow the JVM to automatically
-# resize them at runtime.
--XX:+UseTLAB
--XX:+ResizeTLAB
--XX:+UseNUMA
-
-# http://www.evanjones.ca/jvm-mmap-pause.html
--XX:+PerfDisableSharedMem
--Djava.net.preferIPv4Stack=true
-
-#################
-#  GC SETTINGS  #
-#################
-
-### CMS Settings
-
--XX:+UseParNewGC
--XX:+UseConcMarkSweepGC
--XX:+CMSParallelRemarkEnabled
--XX:SurvivorRatio=8
--XX:MaxTenuringThreshold=1
--XX:CMSInitiatingOccupancyFraction=75
--XX:+UseCMSInitiatingOccupancyOnly
--XX:CMSWaitDuration=10000
--XX:+CMSParallelInitialMarkEnabled
--XX:+CMSEdenChunksRecordAlways
-# some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
--XX:+CMSClassUnloadingEnabled
-
-### GC logging options -- uncomment to enable
-
--XX:+PrintGCDetails
--XX:+PrintGCDateStamps
--XX:+PrintHeapAtGC
--XX:+PrintTenuringDistribution
--XX:+PrintGCApplicationStoppedTime
--XX:+PrintPromotionFailure
-#-XX:PrintFLSStatistics=1
--Xloggc:/data/gc-%t.log
--XX:+UseGCLogFileRotation
--XX:NumberOfGCLogFiles=10
--XX:GCLogFileSize=10M
 `
 )

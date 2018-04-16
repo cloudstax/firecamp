@@ -157,7 +157,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.CheckAndCreateServiceMembers(ctx, serviceAttr, req)
+	err = s.CheckAndCreateServiceMembers(ctx, req.Replicas, serviceAttr, req.ReplicaConfigs)
 	if err != nil {
 		glog.Errorln("CheckAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
@@ -842,7 +842,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 }
 
 // CheckAndCreateServiceMembers check and create the service members
-func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
+func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, replicas int64, sattr *common.ServiceAttr, replicaConfigs []*manage.ReplicaConfig) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list to find out how many serviceMembers were already created
@@ -853,8 +853,8 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 	}
 
 	var staticIPs map[string][]*common.ServiceStaticIP
-	if req.RequireStaticIP {
-		staticIPs, err = s.createStaticIPs(ctx, sattr, req, members)
+	if sattr.Spec.RequireStaticIP {
+		staticIPs, err = s.createStaticIPs(ctx, sattr, replicaConfigs, members)
 		if err != nil {
 			glog.Errorln("createStaticIPs error", err, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 			return err
@@ -869,11 +869,11 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 	// old config. The retry will not recreate those serviceMembers.
 	// If the customer wants to retry with the different config, should delete the current service first.
 
-	allMembers := make([]*common.ServiceMember, req.Replicas)
+	allMembers := make([]*common.ServiceMember, replicas)
 	copy(allMembers, members)
 
-	for i := len(members); i < int(req.Replicas); i++ {
-		replicaCfg := req.ReplicaConfigs[i]
+	for i := len(members); i < int(replicas); i++ {
+		replicaCfg := replicaConfigs[i]
 
 		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
@@ -930,10 +930,10 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 		allMembers[i] = member
 	}
 
-	glog.Infoln("created", req.Replicas-int64(len(members)), "serviceMembers for serviceUUID",
-		sattr.ServiceUUID, req.Service, "requuid", requuid)
+	glog.Infoln("created", replicas-int64(len(members)), "serviceMembers for service",
+		sattr, "requuid", requuid)
 
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if sattr.Meta.ServiceType != common.ServiceTypeStateless {
 		// EBS volume creation is async in the background. Volume state will be creating,
 		// then available. block waiting here, as EBS Volume creation is pretty fast,
 		// usually 3 seconds. see ec2_test.go output.
@@ -1093,7 +1093,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 }
 
 func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.ServiceAttr,
-	req *manage.CreateServiceRequest, members []*common.ServiceMember) (map[string][]*common.ServiceStaticIP, error) {
+	replicaConfigs []*manage.ReplicaConfig, members []*common.ServiceMember) (map[string][]*common.ServiceStaticIP, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the lock to protect the concurrent creations
@@ -1102,7 +1102,7 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 
 	// get the number of replicas per zone
 	pendingReplicas := make(map[string]int)
-	for _, cfg := range req.ReplicaConfigs {
+	for _, cfg := range replicaConfigs {
 		replicas, ok := pendingReplicas[cfg.Zone]
 		if ok {
 			replicas++
