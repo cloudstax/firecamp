@@ -1,20 +1,17 @@
 package kafkacatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -41,7 +38,6 @@ const (
 	serverPropConfFileName = "server.properties"
 	javaEnvConfFileName    = "java.env"
 	logConfFileName        = "log4j.properties"
-	// jmx file, common in catalog/types.go
 )
 
 // The default Kafka catalog service. By default,
@@ -60,9 +56,8 @@ func ValidateUpdateRequest(req *manage.CatalogUpdateKafkaRequest) error {
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
-	zkattr *common.ServiceAttr) (*manage.CreateServiceRequest, error) {
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
+	service string, opts *manage.CatalogKafkaOptions, res *common.Resources, zkServers string) *manage.CreateServiceRequest {
 	// check and set the jmx remote user and password
 	if len(opts.JmxRemoteUser) == 0 {
 		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
@@ -71,11 +66,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		opts.JmxRemotePasswd = utils.GenUUID()
 	}
 
-	// get the zk server list
-	zkServers := catalog.GenServiceMemberHostsWithPort(zkattr.ClusterName, zkattr.ServiceName, zkattr.Replicas, zkcatalog.ClientPort)
+	// generate service configs
+	serviceCfgs := genServiceConfigs(platform, opts, zkServers)
 
-	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, zkServers)
+	// generate member ReplicaConfigs
+	replicaCfgs := genMemberConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
@@ -85,20 +80,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	reserveMemMB := res.ReserveMemMB
 	if res.ReserveMemMB < opts.HeapSizeMB {
 		reserveMemMB = opts.HeapSizeMB
-	}
-
-	userAttr := &common.KafkaUserAttr{
-		HeapSizeMB:      opts.HeapSizeMB,
-		AllowTopicDel:   opts.AllowTopicDel,
-		RetentionHours:  opts.RetentionHours,
-		ZkServiceName:   opts.ZkServiceName,
-		JmxRemoteUser:   opts.JmxRemoteUser,
-		JmxRemotePasswd: opts.JmxRemotePasswd,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -117,25 +98,21 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
-
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Kafka,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:        opts.Volume,
+		ContainerPath: common.DefaultContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	return req, nil
+	return req
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKafkaOptions, zkServers string) []*manage.ReplicaConfig {
-	domain := dns.GenDefaultDomainName(cluster)
-
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, opts *manage.CatalogKafkaOptions, zkServers string) []*manage.ConfigFileContent {
 	// adjust the default configs by the number of members(replicas)
 	replFactor := defaultReplFactor
 	if int(opts.Replicas) < defaultReplFactor {
@@ -150,51 +127,60 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		numPartitions = int(opts.Replicas)
 	}
 
+	// create the service.conf file
+	topicDelStr := strconv.FormatBool(opts.AllowTopicDel)
+	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, topicDelStr,
+		numPartitions, opts.RetentionHours, opts.ZkServiceName, replFactor, minInsyncReplica,
+		opts.JmxRemoteUser, opts.JmxRemotePasswd, catalog.JmxReadOnlyAccess, jmxPort)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the default server.properties file
+	content = fmt.Sprintf(serverPropConfig, zkServers)
+	serverCfg := &manage.ConfigFileContent{
+		FileName: serverPropConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the log config file
+	logCfg := &manage.ConfigFileContent{
+		FileName: logConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  logConfConfig,
+	}
+
+	return []*manage.ConfigFileContent{serviceCfg, serverCfg, logCfg}
+}
+
+// genMemberConfigs generates the configs for each member.
+func genMemberConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKafkaOptions) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := 0; i < int(opts.Replicas); i++ {
-		index := i % len(azs)
-
-		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
 
-		// create the server.properties file
-		bind := memberHost
+		bindip := memberHost
 		if platform == common.ContainerPlatformSwarm {
-			bind = catalog.BindAllIP
+			bindip = catalog.BindAllIP
 		}
-		content := fmt.Sprintf(serverPropConfig, i, azs[index], strconv.FormatBool(opts.AllowTopicDel), numPartitions, bind, memberHost,
-			replFactor, replFactor, replFactor, replFactor, minInsyncReplica, opts.RetentionHours, zkServers)
-		serverCfg := &manage.ConfigFileContent{
-			FileName: serverPropConfFileName,
+
+		index := i % len(azs)
+		content := fmt.Sprintf(memberfileContent, azs[index], memberHost, i, bindip)
+
+		// create the member config file
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
-		// create the java.env file
-		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, opts.HeapSizeMB, memberHost, jmxPort)
-		javaEnvCfg := &manage.ConfigFileContent{
-			FileName: javaEnvConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  content,
-		}
-
-		// create the jmxremote.password file
-		jmxPasswdCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
-
-		// create the jmxremote.access file
-		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
-
-		// create the log config file
-		logCfg := &manage.ConfigFileContent{
-			FileName: logConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  logConfConfig,
-		}
-
-		configs := []*manage.ConfigFileContent{sysCfg, serverCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
-
+		configs := []*manage.ConfigFileContent{memberCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -222,18 +208,6 @@ func UpdateServerPropFile(newua *common.KafkaUserAttr, ua *common.KafkaUserAttr,
 	return newContent
 }
 
-// IsJvmConfFile checks if the file is jvm conf file
-func IsJvmConfFile(filename string) bool {
-	return filename == javaEnvConfFileName
-}
-
-// UpdateHeapSize updates the heap size in the java.env file content
-func UpdateHeapSize(newHeapSizeMB int64, oldHeapSizeMB int64, oldContent string) string {
-	oldHeap := fmt.Sprintf("-Xmx%dm -Xms%dm", oldHeapSizeMB, oldHeapSizeMB)
-	newHeap := fmt.Sprintf("-Xmx%dm -Xms%dm", newHeapSizeMB, newHeapSizeMB)
-	return strings.Replace(oldContent, oldHeap, newHeap, 1)
-}
-
 // GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
 // This is specific to each release. Only upgrade from the last version to current version is supported.
 func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
@@ -253,50 +227,60 @@ func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateS
 	return opts
 }
 
-// UpgradeJavaEnvFileContentToV095 adds the jmx configs to java env file
-func UpgradeJavaEnvFileContentToV095(heapSizeMB int64, memberHost string) string {
-	return fmt.Sprintf(javaEnvConfig, heapSizeMB, heapSizeMB, memberHost, jmxPort)
-}
-
 const (
+	servicefileContent = `
+PLATFORM=%s
+HEAP_SIZE_MB=%d
+ALLOW_TOPIC_DEL=%s
+NUMBER_PARTITIONS=%d
+RETENTION_HOURS=%d
+ZK_SERVICE_NAME=%s
+REPLICATION_FACTOR=%d
+MIN_INSYNC_REPLICAS=%d
+JMX_REMOTE_USER=%s
+JMX_REMOTE_PASSWD=%s
+JMX_REMOTE_ACCESS=%s
+JMX_PORT=%d
+`
+
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+SERVICE_MEMBER_INDEX=%d
+BIND_IP=%s
+`
+
 	zkServerSep = ","
 
 	serverPropConfig = `
 # The id of the broker. This must be set to a unique integer for each broker.
-broker.id=%d
-broker.rack=%s
+broker.id=0
+broker.rack=rack
 
-delete.topic.enable=%s
+delete.topic.enable=true
 auto.create.topics.enable=true
-num.partitions=%d
+num.partitions=8
 
-listeners=PLAINTEXT://%s:9092
-advertised.listeners=PLAINTEXT://%s:9092
+listeners=PLAINTEXT://bindip:9092
+advertised.listeners=PLAINTEXT://advertisedip:9092
 
 log.dirs=/data/kafka
 
-offsets.topic.replication.factor=%d
-transaction.state.log.replication.factor=%d
-transaction.state.log.min.isr=%d
-default.replication.factor=%d
-min.insync.replicas=%d
+offsets.topic.replication.factor=3
+transaction.state.log.replication.factor=3
+transaction.state.log.min.isr=2
+default.replication.factor=3
+min.insync.replicas=2
 
 unclean.leader.election.enable=false
 
-log.retention.hours=%d
+log.retention.hours=168
 
 # e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
 zookeeper.connect=%s
 
 group.initial.rebalance.delay.ms=3000
 
-`
-
-	javaEnvConfig = `
-export KAFKA_HEAP_OPTS="-Xmx%dm -Xms%dm"
-export KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+DisableExplicitGC -Djava.awt.headless=true -XX:G1HeapRegionSize=16M -XX:MetaspaceSize=96m -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
-export KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/data/conf/jmxremote.access -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.ssl=false"
-export JMX_PORT="%d"
 `
 
 	logConfConfig = `

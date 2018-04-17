@@ -14,6 +14,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
+	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
@@ -52,26 +53,12 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// JmxRemotePasswd may be generated (uuid) locally.
-	if len(req.Options.JmxRemotePasswd) == 0 {
-		jmxUser, jmxPasswd, err := s.getExistingJmxPasswd(ctx, req.Service, requuid)
-		if err != nil {
-			glog.Errorln("getExistingJmxPasswd error", err, "requuid", requuid, req.Service)
-			return manage.ConvertToHTTPError(err)
-		}
-		if len(jmxPasswd) != 0 {
-			req.Options.JmxRemoteUser = jmxUser
-			req.Options.JmxRemotePasswd = jmxPasswd
-		}
-	}
+	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
 
 	// create the service in the control plane and the container platform
-	crReq, err := kafkacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Options, req.Resource, zkattr)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq, jmxUser, jmxPasswd := kafkacatalog.GenDefaultCreateServiceRequest(s.platform,
+		s.region, s.azs, s.cluster, req.Service.ServiceName, req.Options, req.Resource, zkservers)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -86,17 +73,9 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 		return errmsg, errcode
 	}
 
-	// send back the jmx remote user & passwd
-	userAttr := &common.KafkaUserAttr{}
-	err = json.Unmarshal(crReq.UserAttr.AttrBytes, userAttr)
-	if err != nil {
-		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
-	}
-
 	resp := &manage.CatalogCreateKafkaResponse{
-		JmxRemoteUser:   userAttr.JmxRemoteUser,
-		JmxRemotePasswd: userAttr.JmxRemotePasswd,
+		JmxRemoteUser:   jmxUser,
+		JmxRemotePasswd: jmxPasswd,
 	}
 	b, err := json.Marshal(resp)
 	if err != nil {
