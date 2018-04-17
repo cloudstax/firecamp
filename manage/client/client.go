@@ -623,26 +623,6 @@ func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *man
 	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
-// CatalogUpdateZooKeeperService updates the ZooKeeper service configs.
-func (c *ManageClient) CatalogUpdateZooKeeperService(ctx context.Context, r *manage.CatalogUpdateZooKeeperRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateZooKeeperOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // CatalogCreateKafkaService creates a new catalog Kafka service.
 func (c *ManageClient) CatalogCreateKafkaService(ctx context.Context, r *manage.CatalogCreateKafkaRequest) (jmxUser string, jmxPasswd string, err error) {
 	b, err := json.Marshal(r)

@@ -4,44 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
-
-// CreateSysConfigFile creates the content for the sys.conf file.
-// example:
-//   PLATFORM=ecs
-//   AVAILABILITY_ZONE=us-east-1a
-//   SERVICE_MEMBER=mycas-0.cluster-firecamp.com
-func CreateSysConfigFile(platform string, az string, memberDNSName string) *manage.ConfigFileContent {
-	content := fmt.Sprintf(sysContent, platform, az, memberDNSName)
-	return &manage.ConfigFileContent{
-		FileName: SYS_FILE_NAME,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
-}
-
-// GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
-func GenStatelessServiceReplicaConfigs(platform string, cluster string, service string, replicas int) []*manage.ReplicaConfig {
-	domain := dns.GenDefaultDomainName(cluster)
-
-	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
-	for i := 0; i < replicas; i++ {
-		// create the sys.conf file
-		member := utils.GenServiceMemberName(service, int64(i))
-		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := CreateSysConfigFile(platform, common.AnyAvailabilityZone, memberHost)
-
-		configs := []*manage.ConfigFileContent{sysCfg}
-
-		replicaCfg := &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
-		replicaCfgs[i] = replicaCfg
-	}
-	return replicaCfgs
-}
 
 // GenServiceMemberURIs creates the list of URIs for all service members,
 // example: http://myes-0.t1-firecamp.com:9200,http://myes-1.t1-firecamp.com:9200
@@ -100,6 +66,28 @@ func GenServiceMemberHostsWithPort(cluster string, service string, replicas int6
 
 // TODO currently only support one jmx user.
 
+// UpdateServiceConfigHeapAndJMX updates the service.conf file content
+func UpdateServiceConfigHeapAndJMX(oldContent string, heapSizeMB int64, jmxUser string, jmxPasswd string) string {
+	content := oldContent
+	lines := strings.Split(oldContent, "\n")
+	for _, line := range lines {
+		if heapSizeMB > 0 && strings.HasPrefix(line, "HEAP_SIZE_MB") {
+			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", heapSizeMB)
+			content = strings.Replace(content, line, newHeap, 1)
+		}
+		if len(jmxUser) != 0 && len(jmxPasswd) != 0 {
+			if strings.HasPrefix(line, "JMX_REMOTE_USER") {
+				newUser := fmt.Sprintf("JMX_REMOTE_USER=%s", jmxUser)
+				content = strings.Replace(content, line, newUser, 1)
+			} else if strings.HasPrefix(line, "JMX_REMOTE_PASSWD") {
+				newPasswd := fmt.Sprintf("JMX_REMOTE_PASSWD=%s", jmxPasswd)
+				content = strings.Replace(content, line, newPasswd, 1)
+			}
+		}
+	}
+	return content
+}
+
 // CreateJmxRemotePasswdConfFile creates the jmx remote password file.
 func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ConfigFileContent {
 	return &manage.ConfigFileContent{
@@ -149,13 +137,6 @@ func MBToBytes(mb int64) int64 {
 }
 
 const (
-	separator  = "="
-	sysContent = `
-PLATFORM=%s
-AVAILABILITY_ZONE=%s
-SERVICE_MEMBER=%s
-`
-
 	// jmx passwd file content format: "user passwd"
 	jmxPasswdFileContent = "%s %s\n"
 

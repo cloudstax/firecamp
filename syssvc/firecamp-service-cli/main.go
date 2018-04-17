@@ -922,7 +922,11 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 
 	// update service config
 	r := &manage.UpdateServiceConfigRequest{
-		Service:           commonReq,
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
 		ConfigFileName:    cfgFile.Meta.FileName,
 		ConfigFileContent: newContent,
 	}
@@ -1092,27 +1096,28 @@ func updateZkService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	req := &manage.CatalogUpdateZooKeeperRequest{
+	err := zkcatalog.ValidateUpdateOptions(heapSizeMB, user, passwd)
+	if err != nil {
+		glog.Fatalln("invalid parameters", err)
+	}
+
+	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+
+	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, user, passwd)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		HeapSizeMB:      heapSizeMB,
-		JmxRemoteUser:   user,
-		JmxRemotePasswd: passwd,
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
 	}
-
-	err := zkcatalog.ValidateUpdateRequest(req)
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
-	}
-
-	err = cli.CatalogUpdateZooKeeperService(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "update service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update zookeeper service error", err)
 	}
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")

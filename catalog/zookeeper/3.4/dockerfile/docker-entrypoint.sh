@@ -3,11 +3,20 @@ set -e
 
 datadir=/data
 confdir=/data/conf
-cfgfile=$confdir/zoo.cfg
-myidfile=$confdir/myid
-syscfgfile=$confdir/sys.conf
 
-export ZOOCFGDIR=$confdir
+# after release 0.9.5, sys.conf and java.env files are not created any more.
+# instead service.conf and emember.conf are created for the common service configs
+# and the service member configs.
+syscfgfile=$confdir/sys.conf
+javaenvfile=$confdir/java.env
+
+zoocfgfile=$confdir/zoo.cfg
+logcfgfile=$confdir/log4j.properties
+myidfile=$confdir/myid
+servicecfgfile=$confdir/service.conf
+membercfgfile=$confdir/member.conf
+
+export ZOOCFGDIR=/conf
 
 # sanity check to make sure the volume is mounted to /data.
 if [ ! -d "$datadir" ]; then
@@ -19,23 +28,20 @@ if [ ! -d "$confdir" ]; then
   exit 1
 fi
 # sanity check to make sure the service config file is created.
-if [ ! -f "$cfgfile" ]; then
-  echo "error: $cfgfile not exist." >&2
-  exit 1
-fi
-if [ ! -f "$myidfile" ]; then
-  echo "error: $myidfile not exist." >&2
-  exit 1
-fi
-# sanity check to make sure the sys config file is created.
-if [ ! -f "$syscfgfile" ]; then
-  echo "error: $syscfgfile not exist." >&2
+if [ ! -f "$zoocfgfile" ]; then
+  echo "error: $zoocfgfile not exist." >&2
   exit 1
 fi
 
 if [ "$(id -u)" = '0' ]; then
-  # load the sys config file
-  . $syscfgfile
+  if [ -f "$servicecfgfile" ]; then
+    # after release 0.9.5
+    . $servicecfgfile
+    . $membercfgfile
+  else
+    # before release 0.9.6, load the sys config file
+    . $syscfgfile
+  fi
 
   if [ "$PLATFORM" = "swarm" ]; then
     # some platform, such as docker swarm, does not allow not using host network for service.
@@ -61,8 +67,32 @@ if [ ! -f "$datadir/myid" ]; then
   cp $myidfile $datadir/myid
 fi
 
-# load the sys config file
-. $syscfgfile
+cp $zoocfgfile $ZOOCFGDIR
+cp $logcfgfile $ZOOCFGDIR
+
+if [ -f "$servicecfgfile" ]; then
+  # after release 0.9.5
+  . $servicecfgfile
+  . $membercfgfile
+
+  # create jmx password and access files
+  echo "$JMX_REMOTE_USER $JMX_REMOTE_PASSWD" > $ZOOCFGDIR/jmxremote.password
+  echo "$JMX_REMOTE_USER $JMX_REMOTE_ACCESS" > $ZOOCFGDIR/jmxremote.access
+  chmod 0400 $ZOOCFGDIR/jmxremote.password
+  chmod 0400 $ZOOCFGDIR/jmxremote.access
+
+  # set java env
+  export JVMFLAGS="-Xmx${HEAP_SIZE_MB}m -Djava.rmi.server.hostname=$SERVICE_MEMBER -Dcom.sun.management.jmxremote.password.file=${ZOOCFGDIR}/jmxremote.password -Dcom.sun.management.jmxremote.access.file=${ZOOCFGDIR}/jmxremote.access"
+  export JMXPORT=$JMX_PORT
+  export JMXAUTH=true
+  export JMXSSL=false
+  export JMXLOG4J=true
+else
+  # before release 0.9.6, load the sys config file
+  . $syscfgfile
+  cp $javaenvfile $ZOOCFGDIR
+fi
+
 echo $SERVICE_MEMBER
 echo ""
 

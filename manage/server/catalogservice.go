@@ -63,8 +63,6 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.updateRedisService(ctx, r, requuid)
 	case manage.CatalogScaleCassandraOp:
 		return s.scaleCasService(ctx, r, requuid)
-	case manage.CatalogUpdateZooKeeperOp:
-		return s.updateZkService(ctx, r, requuid)
 	case manage.CatalogUpdateKafkaOp:
 		return s.updateKafkaService(ctx, r, requuid)
 	default:

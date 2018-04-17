@@ -1,10 +1,8 @@
 package zkcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -12,7 +10,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -29,22 +26,21 @@ const (
 	// DefaultHeapMB is the default zookeeper java heap size
 	DefaultHeapMB = 4096
 
-	zooConfFileName     = "zoo.cfg"
-	myidConfFileName    = "myid"
-	javaEnvConfFileName = "java.env"
-	logConfFileName     = "log4j.properties"
+	zooConfFileName  = "zoo.cfg"
+	myidConfFileName = "myid"
+	logConfFileName  = "log4j.properties"
 )
 
 // The default ZooKeeper catalog service. By default,
 // 1) Distribute the node on the availability zones.
 // 2) Listen on the standard ports, 2181 2888 3888.
 
-// ValidateUpdateRequest checks if the update request is valid
-func ValidateUpdateRequest(req *manage.CatalogUpdateZooKeeperRequest) error {
-	if req.HeapSizeMB < 0 {
+// ValidateUpdateOtions checks if the update options are valid
+func ValidateUpdateOtions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
+	if heapSizeMB < 0 {
 		return errors.New("heap size should not be less than 0")
 	}
-	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+	if len(jmxUser) != 0 && len(jmxPasswd) == 0 {
 		return errors.New("please set the new jmx remote password")
 	}
 	return nil
@@ -52,7 +48,8 @@ func ValidateUpdateRequest(req *manage.CatalogUpdateZooKeeperRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogZooKeeperOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
+	cluster string, service string, opts *manage.CatalogZooKeeperOptions,
+	res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// check and set the jmx remote user and password
 	if len(opts.JmxRemoteUser) == 0 {
 		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
@@ -61,8 +58,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		opts.JmxRemotePasswd = utils.GenUUID()
 	}
 
+	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, opts)
+
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
+	replicaCfgs := genReplicaConfigs(platform, region, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ClientPort, HostPort: ClientPort, IsServicePort: true},
@@ -76,22 +75,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	userAttr := &common.ZKUserAttr{
-		HeapSizeMB:      opts.HeapSizeMB,
-		JmxRemoteUser:   opts.JmxRemoteUser,
-		JmxRemotePasswd: opts.JmxRemotePasswd,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
-
-	req := &manage.CreateServiceRequest{
+	req = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: &common.Resources{
@@ -108,34 +97,56 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		PortMappings:   portMappings,
 
 		RegisterDNS:    true,
+		ServiceConfigs: serviceCfgs,
 		ReplicaConfigs: replicaCfgs,
-
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_ZooKeeper,
-			AttrBytes:   b,
-		},
 	}
-	return req, nil
+	return req, opts.JmxRemoteUser, opts.JmxRemotePasswd
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ReplicaConfig {
+func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ConfigFileContent {
 	domain := dns.GenDefaultDomainName(cluster)
 	serverList := genServerList(service, domain, opts.Replicas)
 
+	// create the service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd, catalog.JmxReadOnlyAccess, jmxPort)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the zoo.cfg file
+	zooCfg := &manage.ConfigFileContent{
+		FileName: zooConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  fmt.Sprintf(zooConfigs, serverList),
+	}
+
+	// create the log config file
+	logCfg := &manage.ConfigFileContent{
+		FileName: logConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  logConfContent,
+	}
+
+	return []*manage.ConfigFileContent{serviceCfg, zooCfg, logCfg}
+}
+
+// genReplicaConfigs generates the replica configs.
+func genReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := 0; i < int(opts.Replicas); i++ {
-		index := i % len(azs)
-
-		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
 
-		// create the zoo.cfg file
-		content := fmt.Sprintf(zooConfigs, serverList)
-		zooCfg := &manage.ConfigFileContent{
-			FileName: zooConfFileName,
+		index := i % len(azs)
+
+		// create the member.conf file
+		content := fmt.Sprintf(memberfileContent, azs[index], memberHost)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
@@ -148,29 +159,7 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 			Content:  content,
 		}
 
-		// create the java.env file
-		content = fmt.Sprintf(javaEnvConfig, opts.HeapSizeMB, memberHost, jmxPort)
-		javaEnvCfg := &manage.ConfigFileContent{
-			FileName: javaEnvConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  content,
-		}
-
-		// create the jmxremote.password file
-		jmxPasswdCfg := catalog.CreateJmxRemotePasswdConfFile(opts.JmxRemoteUser, opts.JmxRemotePasswd)
-
-		// create the jmxremote.access file
-		jmxAccessCfg := catalog.CreateJmxRemoteAccessConfFile(opts.JmxRemoteUser, catalog.JmxReadOnlyAccess)
-
-		// create the log config file
-		logCfg := &manage.ConfigFileContent{
-			FileName: logConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  logConfContent,
-		}
-
-		configs := []*manage.ConfigFileContent{sysCfg, zooCfg, myidCfg, javaEnvCfg, jmxPasswdCfg, jmxAccessCfg, logCfg}
-
+		configs := []*manage.ConfigFileContent{memberCfg, myidCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -186,18 +175,6 @@ func genServerList(service string, domain string, replicas int64) string {
 		serverList += server
 	}
 	return serverList
-}
-
-// IsJavaEnvFile checks whether the filename is javaEnvConfFileName
-func IsJavaEnvFile(filename string) bool {
-	return filename == javaEnvConfFileName
-}
-
-// UpdateHeapSize updates the heap size in javaEnvConfFileName
-func UpdateHeapSize(newHeap int64, oldHeap int64, content string) string {
-	old := fmt.Sprintf("-Xmx%dm", oldHeap)
-	new := fmt.Sprintf("-Xmx%dm", newHeap)
-	return strings.Replace(content, old, new, 1)
 }
 
 // GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
@@ -221,12 +198,21 @@ func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateS
 	return opts
 }
 
-// UpgradeJavaEnvFileContentToV095 adds the jmx configs to java env file
-func UpgradeJavaEnvFileContentToV095(heapSizeMB int64, memberHost string) string {
-	return fmt.Sprintf(javaEnvConfig, heapSizeMB, memberHost, jmxPort)
-}
-
 const (
+	servicefileContent = `
+PLATFORM=%s
+HEAP_SIZE_MB=%d
+JMX_REMOTE_USER=%s
+JMX_REMOTE_PASSWD=%s
+JMX_REMOTE_ACCESS=%s
+JMX_PORT=%d
+`
+
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+`
+
 	serverLine = `
 server.%d=%s:%d:%d`
 
@@ -265,14 +251,6 @@ clientPort=2181
 `
 
 	myidConfig = `%d`
-
-	javaEnvConfig = `
-export JVMFLAGS="-Xmx%dm -Djava.rmi.server.hostname=%s -Dcom.sun.management.jmxremote.password.file=/data/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/data/conf/jmxremote.access"
-export JMXPORT=%d
-export JMXAUTH=true
-export JMXSSL=false
-export JMXLOG4J=true
-`
 
 	logConfContent = `
 zookeeper.root.logger=INFO, CONSOLE
