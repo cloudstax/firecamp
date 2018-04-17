@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -98,58 +97,7 @@ func UpdateServiceConfigHeapAndJMX(oldContent string, heapSizeMB int64, jmxUser 
 	return content
 }
 
-// CreateJmxRemotePasswdConfFile creates the jmx remote password file.
-func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ConfigFileContent {
-	return &manage.ConfigFileContent{
-		FileName: JmxRemotePasswdConfFileName,
-		FileMode: JmxConfFileMode,
-		Content:  CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd),
-	}
-}
-
-// IsJmxPasswdConfFile checks if the file is jmx password conf file
-func IsJmxPasswdConfFile(filename string) bool {
-	return filename == JmxRemotePasswdConfFileName
-}
-
-// CreateJmxPasswdConfFileContent returns the jmxremote.password file content
-func CreateJmxPasswdConfFileContent(jmxUser string, jmxPasswd string) string {
-	return fmt.Sprintf(jmxPasswdFileContent, jmxUser, jmxPasswd)
-}
-
-// CreateJmxRemoteAccessConfFile creates the jmx remote access file.
-func CreateJmxRemoteAccessConfFile(jmxUser string, accessPerm string) *manage.ConfigFileContent {
-	return &manage.ConfigFileContent{
-		FileName: JmxRemoteAccessConfFileName,
-		FileMode: JmxConfFileMode,
-		Content:  CreateJmxAccessConfFileContent(jmxUser, accessPerm),
-	}
-}
-
-// IsJmxAccessConfFile checks if the file is jmx access conf file
-func IsJmxAccessConfFile(filename string) bool {
-	return filename == JmxRemoteAccessConfFileName
-}
-
-// CreateJmxAccessConfFileContent returns the jmxremote.access file content
-func CreateJmxAccessConfFileContent(jmxUser string, accessPerm string) string {
-	return fmt.Sprintf(jmxAccessFileContent, jmxUser, accessPerm)
-}
-
-// ReplaceJmxUserInAccessConfFile replaces the old jmx user in the access conf file
-func ReplaceJmxUserInAccessConfFile(content string, newUser string, oldUser string) string {
-	return strings.Replace(content, oldUser, newUser, 1)
-}
-
 // MBToBytes converts MB to bytes
 func MBToBytes(mb int64) int64 {
 	return mb * 1024 * 1024
 }
-
-const (
-	// jmx passwd file content format: "user passwd"
-	jmxPasswdFileContent = "%s %s\n"
-
-	// jmx access file content format: "user accessPermission"
-	jmxAccessFileContent = "%s %s\n"
-)
