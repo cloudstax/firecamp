@@ -8,7 +8,6 @@ import (
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
@@ -226,25 +225,6 @@ func UpdateServiceConfigs(oldContent string, opts *KafkaOptions) string {
 		}
 	}
 	return content
-}
-
-// GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.
-// This is specific to each release. Only upgrade from the last version to current version is supported.
-func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
-	// expose jmx port in release 0.9.5
-	portMappings := []common.PortMapping{
-		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
-		{ContainerPort: jmxPort, HostPort: jmxPort},
-	}
-
-	opts := &containersvc.UpdateServiceOptions{
-		Cluster:        cluster,
-		ServiceName:    service,
-		PortMappings:   portMappings,
-		ExternalDNS:    true,
-		ReleaseVersion: common.Version,
-	}
-	return opts
 }
 
 const (

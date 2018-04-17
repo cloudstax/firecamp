@@ -2,8 +2,6 @@ package manageserver
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -16,10 +14,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -273,107 +268,4 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 
 	// kafka manager does not require additional init work. set service initialized
 	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
-}
-
-// Upgrade to 0.9.5
-
-func (s *ManageHTTPServer) upgradeKafkaToVersion095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) error {
-	// upgrade kafka service created before version 0.9.5.
-	// - update java env file
-	// - create jmx password and access files
-	// - add jmx user and password to KafkaUserAttr
-	ua := &common.KafkaUserAttr{}
-	err := json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-	if err != nil {
-		glog.Errorln("Unmarshal UserAttr error", err, "requuid", requuid, req)
-		return err
-	}
-
-	members, err := s.dbIns.ListServiceMembers(ctx, attr.ServiceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
-		return err
-	}
-
-	jmxUser := catalog.JmxDefaultRemoteUser
-	jmxPasswd := utils.GenUUID()
-
-	newua := db.CopyKafkaUserAttr(ua)
-	newua.JmxRemoteUser = jmxUser
-	newua.JmxRemotePasswd = jmxPasswd
-
-	// create jmx password and access files
-	members, err = s.createJmxFiles(ctx, members, jmxUser, jmxPasswd, requuid)
-	if err != nil {
-		glog.Errorln("createJmxFiles error", err, "requuid", requuid, req)
-		return err
-	}
-
-	// upgrade kafka java env file
-	err = s.upgradeKafkaJavaEnvFileVersion095(ctx, attr, members, ua.HeapSizeMB, requuid)
-	if err != nil {
-		glog.Errorln("upgradeKafkaJavaEnvFileVersion095 error", err, "requuid", requuid, req)
-		return err
-	}
-
-	// update the user attr
-	b, err := json.Marshal(newua)
-	if err != nil {
-		glog.Errorln("Marshal user attr error", err, "requuid", requuid, req)
-		return err
-	}
-	userAttr := &common.ServiceUserAttr{
-		ServiceType: common.CatalogService_Kafka,
-		AttrBytes:   b,
-	}
-
-	newAttr := db.UpdateServiceUserAttr(attr, userAttr)
-	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
-	if err != nil {
-		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req)
-		return err
-	}
-
-	glog.Infoln("upgraded kafka to version 0.9.5, requuid", requuid, req)
-	return nil
-}
-
-func (s *ManageHTTPServer) upgradeKafkaJavaEnvFileVersion095(ctx context.Context, attr *common.ServiceAttr, members []*common.ServiceMember, heapSizeMB int64, requuid string) error {
-	for _, member := range members {
-		var cfg *common.ConfigID
-		cfgIndex := -1
-		for i, c := range member.Configs {
-			if kafkacatalog.IsJvmConfFile(c.FileName) {
-				cfg = c
-				cfgIndex = i
-				break
-			}
-		}
-		if cfgIndex == -1 {
-			errmsg := fmt.Sprintf("not find jvm conf file, service %s, requuid %s", attr.ServiceName, requuid)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		// update the original member java env conf file content
-		memberHost := dns.GenDNSName(member.MemberName, attr.DomainName)
-		newContent := kafkacatalog.UpgradeJavaEnvFileContentToV095(heapSizeMB, memberHost)
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		glog.Infoln("add jmx configs to java env file for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("upgraded java env file for kafka service, requuid", requuid)
-	return nil
 }

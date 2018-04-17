@@ -237,29 +237,6 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	return []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvnode}
 }
 
-// GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service to version 095.
-// This is specific to each release. Only upgrade from the last version to current version is supported.
-func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateServiceOptions {
-	// upgrade to 0.9.5, expose the Jolokia port
-	portMappings := []common.PortMapping{
-		{ContainerPort: intraNodePort, HostPort: intraNodePort},
-		{ContainerPort: tlsIntraNodePort, HostPort: tlsIntraNodePort},
-		{ContainerPort: jmxPort, HostPort: jmxPort},
-		{ContainerPort: cqlPort, HostPort: cqlPort, IsServicePort: true},
-		{ContainerPort: thriftPort, HostPort: thriftPort},
-		{ContainerPort: jolokiaPort, HostPort: jolokiaPort},
-	}
-
-	opts := &containersvc.UpdateServiceOptions{
-		Cluster:        cluster,
-		ServiceName:    service,
-		PortMappings:   portMappings,
-		ExternalDNS:    true,
-		ReleaseVersion: common.Version,
-	}
-	return opts
-}
-
 const (
 	servicefileContent = `
 PLATFORM=%s
