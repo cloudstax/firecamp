@@ -323,16 +323,6 @@ type CatalogCreateCassandraResponse struct {
 	JmxRemotePasswd string
 }
 
-// CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
-type CatalogUpdateCassandraRequest struct {
-	Service    *ServiceCommonRequest
-	HeapSizeMB int64 // 0 means no change
-	// empty JmxRemoteUser means no change, jmx user could not be disabled.
-	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
 // CatalogScaleCassandraRequest scales the Cassandra service.
 type CatalogScaleCassandraRequest struct {
 	Service  *ServiceCommonRequest

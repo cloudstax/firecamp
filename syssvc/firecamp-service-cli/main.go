@@ -891,11 +891,14 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	heapSizeMB := int64(0)
 	if flagset[flagCasHeapSize] {
 		heapSizeMB = *casHeapSizeMB
-		if *casHeapSizeMB < cascatalog.DefaultHeapMB {
+		if heapSizeMB < cascatalog.DefaultHeapMB {
 			fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
 		}
-		if *casHeapSizeMB < cascatalog.MinHeapMB {
+		if heapSizeMB < cascatalog.MinHeapMB {
 			fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+		}
+		if heapSizeMB > cascatalog.MaxHeapMB {
+			glog.Fatalln("invalid parameters - max cassandra heap size is", cascatalog.MaxHeapMB)
 		}
 	}
 	user := ""
@@ -905,20 +908,20 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	opts := &cascatalog.CasOptions{
-		HeapSizeMB:      heapSizeMB,
-		JmxRemoteUser:   user,
-		JmxRemotePasswd: passwd,
-	}
+	updateServiceHeapAndJMX(heapSizeMB, user, passwd)
 
-	err := cascatalog.ValidateUpdateOptions(opts)
+	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
+}
+
+func updateServiceHeapAndJMX(heapSizeMB int64, jmxUser string, jmxPasswd string) {
+	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
 	if err != nil {
 		glog.Fatalln("invalid parameters", err)
 	}
 
 	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
 
-	newContent := cascatalog.UpdateServiceConfig(cfgFile.Spec.Content, opts)
+	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
 
 	// update service config
 	r := &manage.UpdateServiceConfigRequest{
@@ -932,10 +935,8 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	}
 	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		glog.Fatalln("update cassandra service error", err)
+		glog.Fatalln("update service error", err)
 	}
-
-	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
 func getConfigFile(ctx context.Context, cfgFileName string) *common.ConfigFile {
@@ -1096,29 +1097,7 @@ func updateZkService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	err := zkcatalog.ValidateUpdateOptions(heapSizeMB, user, passwd)
-	if err != nil {
-		glog.Fatalln("invalid parameters", err)
-	}
-
-	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
-
-	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, user, passwd)
-
-	// update service config
-	r := &manage.UpdateServiceConfigRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
-		ConfigFileName:    cfgFile.Meta.FileName,
-		ConfigFileContent: newContent,
-	}
-	err = cli.UpdateServiceConfig(ctx, r)
-	if err != nil {
-		glog.Fatalln("update zookeeper service error", err)
-	}
+	updateServiceHeapAndJMX(heapSizeMB, user, passwd)
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }

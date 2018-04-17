@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -64,7 +65,16 @@ func GenServiceMemberHostsWithPort(cluster string, service string, replicas int6
 	return hosts
 }
 
-// TODO currently only support one jmx user.
+// ValidateUpdateOtions checks if the update options are valid
+func ValidateUpdateOtions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
+	if heapSizeMB < 0 {
+		return errors.New("heap size should not be less than 0")
+	}
+	if len(jmxUser) != 0 && len(jmxPasswd) == 0 {
+		return errors.New("please set the new jmx remote password")
+	}
+	return nil
+}
 
 // UpdateServiceConfigHeapAndJMX updates the service.conf file content
 func UpdateServiceConfigHeapAndJMX(oldContent string, heapSizeMB int64, jmxUser string, jmxPasswd string) string {
