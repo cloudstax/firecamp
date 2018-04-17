@@ -596,6 +596,19 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 			}
 
 			glog.Infoln("updated service config ", req.ConfigFileName, "requuid", requuid, req.Service)
+
+			// delete the old config file.
+			// TODO add the background gc mechanism to delete the garbage.
+			//      the old config file may not be deleted at some conditions.
+			//      for example, node crashes right before deleting the config file.
+			err = s.dbIns.DeleteConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				// simply log an error as this only leaves a garbage
+				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, cfg)
+			} else {
+				glog.Infoln("deleted the old config file, requuid", requuid, cfg)
+			}
+
 			return "", http.StatusOK
 		}
 	}
