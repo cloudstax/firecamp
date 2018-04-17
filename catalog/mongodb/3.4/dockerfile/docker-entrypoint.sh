@@ -61,11 +61,6 @@ if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
 
-# load the sys config file. the syscfgfile exists before 0.9.6
-if [ -f "$syscfgfile" ]; then
- . $syscfgfile
-fi
-
 # after release 0.9.5
 if [ -f "$servicecfgfile" ]; then
   # load service and member config files
@@ -89,6 +84,9 @@ if [ -f "$servicecfgfile" ]; then
   if [ "$ENABLE_SECURITY" = "true" ]; then
     echo "security:\n  keyFile: ${keyfile}\n  authorization: enabled" >> $mongodfile
   fi
+else
+  # load the sys config file. the syscfgfile exists before 0.9.6
+  . $syscfgfile
 fi
 
 # symlink mongodb journal directory

@@ -34,8 +34,6 @@ const (
 	keyfileRandBytes = 200
 	keyfileMode      = 0400
 
-	memberConfFile = "member.conf"
-
 	configServerName = "config"
 	shardName        = "shard"
 
@@ -266,7 +264,7 @@ func genReplicaConfig(platform string, domain string, member string, replSetName
 	content := fmt.Sprintf(memberfileContent, az, memberHost, bindip, role, replSetName)
 
 	memberCfg := &manage.ConfigFileContent{
-		FileName: memberConfFile,
+		FileName: catalog.MEMBER_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}

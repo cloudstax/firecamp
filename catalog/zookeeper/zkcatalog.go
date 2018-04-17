@@ -1,7 +1,6 @@
 package zkcatalog
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -34,17 +33,6 @@ const (
 // The default ZooKeeper catalog service. By default,
 // 1) Distribute the node on the availability zones.
 // 2) Listen on the standard ports, 2181 2888 3888.
-
-// ValidateUpdateOtions checks if the update options are valid
-func ValidateUpdateOtions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
-	if heapSizeMB < 0 {
-		return errors.New("heap size should not be less than 0")
-	}
-	if len(jmxUser) != 0 && len(jmxPasswd) == 0 {
-		return errors.New("please set the new jmx remote password")
-	}
-	return nil
-}
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
