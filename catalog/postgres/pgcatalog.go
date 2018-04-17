@@ -1,7 +1,6 @@
 package pgcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -22,12 +20,13 @@ const (
 
 	defaultPort = 5432
 
-	containerRolePrimary = "primary"
-	containerRoleStandby = "standby"
-	serviceConfFileName  = "service.conf"
-	postgresConfFileName = "postgresql.conf"
-	pgHbaConfFileName    = "pg_hba.conf"
-	recoveryConfFileName = "recovery.conf"
+	containerRolePrimary     = "primary"
+	containerRoleStandby     = "standby"
+	primaryPGConfFileName    = "primary_postgresql.conf"
+	standbyPGConfFileName    = "standby_postgresql.conf"
+	primaryPGHbaConfFileName = "primary_pg_hba.conf"
+	standbyPGHbaConfFileName = "standby_pg_hba.conf"
+	recoveryConfFileName     = "recovery.conf"
 )
 
 // The default PostgreSQL catalog service. By default,
@@ -63,9 +62,12 @@ func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) (*manage.CreateServiceRequest, error) {
-	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
+	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) *manage.CreateServiceRequest {
+	// generate service configs
+	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, defaultPort, opts)
+
+	// generate member ReplicaConfigs
+	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
 
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
@@ -76,15 +78,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	image := ContainerImage
 	if len(opts.ContainerImage) != 0 {
 		image = opts.ContainerImage
-	}
-
-	userAttr := &common.PostgresUserAttr{
-		ContainerImage: opts.ContainerImage,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -98,28 +91,78 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ContainerImage: image,
 		Replicas:       opts.Replicas,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   []common.PortMapping{portmapping},
-
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_PostgreSQL,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:               opts.Volume,
+		ContainerPath:        common.DefaultContainerMountPath,
+		JournalVolume:        opts.JournalVolume,
+		JournalContainerPath: common.DefaultJournalVolumeContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	if opts.JournalVolume != nil {
-		req.JournalVolume = opts.JournalVolume
-		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
-	}
-	return req, nil
+	return req
 }
 
-// GenReplicaConfigs generates the replica configs.
+func genServiceConfigs(platform string, cluster string, service string, azs []string,
+	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ConfigFileContent {
+	domain := dns.GenDefaultDomainName(cluster)
+	primaryMember := utils.GenServiceMemberName(service, 0)
+	primaryHost := dns.GenDNSName(primaryMember, domain)
+
+	// create service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create primary_postgresql.conf
+	primaryCfg := &manage.ConfigFileContent{
+		FileName: primaryPGConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  primaryPostgresConf,
+	}
+
+	// create standby_postgresql.conf
+	standbyCfg := &manage.ConfigFileContent{
+		FileName: standbyPGConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  standbyPostgresConf,
+	}
+
+	// create primary_pg_hba.conf
+	primaryHbaCfg := &manage.ConfigFileContent{
+		FileName: primaryPGHbaConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  primaryPgHbaConf,
+	}
+
+	// create standby_pg_hba.conf
+	standbyHbaCfg := &manage.ConfigFileContent{
+		FileName: standbyPGConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  standbyPgHbaConf,
+	}
+
+	// create recovery.conf
+	primaryConnInfo := fmt.Sprintf(standbyPrimaryConnInfo, primaryHost, port, opts.ReplUser, opts.ReplUserPasswd)
+	content = fmt.Sprintf(standbyRecoveryConf, primaryConnInfo, standbyRestoreCmd)
+	recoveryCfg := &manage.ConfigFileContent{
+		FileName: recoveryConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	return []*manage.ConfigFileContent{serviceCfg, primaryCfg, standbyCfg, primaryHbaCfg, standbyHbaCfg, recoveryCfg}
+}
+
+// genReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string,
+func genReplicaConfigs(platform string, cluster string, service string, azs []string,
 	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 
@@ -127,103 +170,51 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
-	replicaCfgs[0] = genPrimaryConfig(platform, azs[0], primaryMember, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+
+	bindIP := primaryHost
+	if platform == common.ContainerPlatformSwarm {
+		bindIP = catalog.BindAllIP
+	}
+
+	content := fmt.Sprintf(memberfileContent, containerRolePrimary, azs[0], primaryHost, bindIP)
+	primaryMemberCfg := &manage.ConfigFileContent{
+		FileName: catalog.MEMBER_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	configs := []*manage.ConfigFileContent{primaryMemberCfg}
+	replicaCfgs[0] = &manage.ReplicaConfig{Zone: azs[0], MemberName: primaryMember, Configs: configs}
 
 	// generate the standby configs.
-	// TODO support cascading replication, specially for cross-region replication.
+	// TODO support cascading replication, especially for cross-region replication.
 	for i := int64(1); i < opts.Replicas; i++ {
 		index := int(i) % len(azs)
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		replicaCfgs[i] = genStandbyConfig(platform, azs[index], member, memberHost, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+
+		bindIP := memberHost
+		if platform == common.ContainerPlatformSwarm {
+			bindIP = catalog.BindAllIP
+		}
+
+		content := fmt.Sprintf(memberfileContent, containerRoleStandby, azs[index], memberHost, bindIP)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
+
+		configs := []*manage.ConfigFileContent{memberCfg}
+		replicaCfgs[i] = &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 	}
 
 	return replicaCfgs
 }
 
-func genPrimaryConfig(platform string, az string, member string, primaryHost string,
-	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
-	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(platform, az, primaryHost)
-
-	// create service.conf file
-	content := fmt.Sprintf(serviceConf, containerRolePrimary, primaryHost, port, adminPasswd, replUser, replPasswd)
-	cfg1 := &manage.ConfigFileContent{
-		FileName: serviceConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
-
-	// create postgres.conf
-	bind := primaryHost
-	if platform == common.ContainerPlatformSwarm {
-		bind = catalog.BindAllIP
-	}
-	cfg2 := &manage.ConfigFileContent{
-		FileName: postgresConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  fmt.Sprintf(listenAddrConf, bind) + primaryPostgresConf,
-	}
-
-	// create pg_hba.conf
-	content = fmt.Sprintf(primaryPgHbaConf, replUser)
-	cfg3 := &manage.ConfigFileContent{
-		FileName: pgHbaConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
-
-	configs := []*manage.ConfigFileContent{cfg0, cfg1, cfg2, cfg3}
-	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
-}
-
-func genStandbyConfig(platform, az string, member string, memberHost string, primaryHost string,
-	port int64, adminPasswd string, replUser string, replPasswd string) *manage.ReplicaConfig {
-	// create the sys.conf file
-	cfg0 := catalog.CreateSysConfigFile(platform, az, memberHost)
-
-	// create service.conf file
-	content := fmt.Sprintf(serviceConf, containerRoleStandby, primaryHost, port, adminPasswd, replUser, replPasswd)
-	cfg1 := &manage.ConfigFileContent{
-		FileName: serviceConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
-
-	// create postgres.conf
-	bind := memberHost
-	if platform == common.ContainerPlatformSwarm {
-		bind = catalog.BindAllIP
-	}
-	cfg2 := &manage.ConfigFileContent{
-		FileName: postgresConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  fmt.Sprintf(listenAddrConf, bind) + standbyPostgresConf,
-	}
-
-	// create pg_hba.conf
-	cfg3 := &manage.ConfigFileContent{
-		FileName: pgHbaConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  standbyPgHbaConf,
-	}
-
-	// create recovery.conf
-	primaryConnInfo := fmt.Sprintf(standbyPrimaryConnInfo, primaryHost, port, replUser, replPasswd)
-	content = fmt.Sprintf(standbyRecoveryConf, primaryConnInfo, standbyRestoreCmd)
-	cfg4 := &manage.ConfigFileContent{
-		FileName: recoveryConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
-
-	configs := []*manage.ConfigFileContent{cfg0, cfg1, cfg2, cfg3, cfg4}
-	return &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
-}
-
 const (
-	serviceConf = `
-CONTAINER_ROLE=%s
+	servicefileContent = `
+PLATFORM=%s
 PRIMARY_HOST=%s
 LISTEN_PORT=%d
 POSTGRES_PASSWORD=%s
@@ -231,11 +222,15 @@ REPLICATION_USER=%s
 REPLICATION_PASSWORD=%s
 `
 
-	listenAddrConf = `
-listen_addresses = '%s'
+	memberfileContent = `
+CONTAINER_ROLE=%s
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+BIND_IP=%s
 `
 
 	primaryPostgresConf = `
+listen_addresses = 'localhost'
 
 # To enable read-only queries on a standby server, wal_level must be set to
 # "hot_standby".
@@ -278,15 +273,17 @@ host    all             all               all                    md5
 # The primary has no way to know the DNS name in Route53.
 # There is no security concern for this. The EC2's inbound rule will
 # limit the source from the specific security group.
-host   replication      %s                all                    md5
+host   replication      defaultReplUser                all                    md5
 `
 
 	standbyPostgresConf = `
+listen_addresses = 'localhost'
 
 hot_standby = on
 
 log_line_prefix = '%t %c %u %r '
 `
+
 	standbyPgHbaConf = `
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 

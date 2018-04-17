@@ -8,16 +8,24 @@ export PGDATA=$PGDIR/db
 PGJournalDir=/journal
 # the target configs, these files will be copied to $PGDATA after initdb at primary or basebackup at standby
 PGConfDIR=$PGDIR/conf
+
+# after release 0.9.5, these files are not created any more.
+syscfgfile=$PGConfDIR/sys.conf
 PGConf=$PGConfDIR/postgresql.conf
 PGHbaConf=$PGConfDIR/pg_hba.conf
-PGRecoveryConf=$PGConfDIR/recovery.conf
 
-PGConfigFile=$PGConfDIR/service.conf
+ServiceConfigFile=$PGConfDIR/service.conf
+MemberConfigFile=$PGConfDIR/member.conf
+PGRecoveryConf=$PGConfDIR/recovery.conf
+PrimaryPGConf=$PGConfDIR/primary_postgresql.conf
+StandbyPGConf=$PGConfDIR/standby_postgresql.conf
+PrimaryPGHbaConf=$PGConfDIR/primary_pg_hba.conf
+StandbyPGHbaConf=$PGConfDIR/standby_pg_hba.conf
+
 PGUSER="postgres"
 ROLE_PRIMARY="primary"
 ROLE_STANDBY="standby"
 
-syscfgfile=$PGConfDIR/sys.conf
 
 SanityCheck() {
   # sanity check to make sure the volume is mounted to $PGDIR.
@@ -26,20 +34,13 @@ SanityCheck() {
     exit 1
   fi
   if [ ! -d "$PGJournalDir" ]; then
-    echo "error: $PGJournalDir not exist. Please make sure the volume is mounted to $PGJournalDir." >&2
+    echo "error: $PGJournalDir not exist. Please make sure the journal volume is mounted to $PGJournalDir." >&2
     exit 1
   fi
 
   # sanity check to make sure the config file is created.
-  if [ ! -f "$PGConf" ] || [ ! -f "$PGHbaConf" ] || [ ! -f "$PGConfigFile" ]
-  then
-    echo "error: $PGConf or $PGHbaConf or $PGConfigFile not exist." >&2
-    exit 1
-  fi
-
-  # sanity check to make sure the sys config file is created.
-  if [ ! -f "$syscfgfile" ]; then
-    echo "error: $syscfgfile not exist." >&2
+  if [ ! -f "$ServiceConfigFile" ]; then
+    echo "error: $ServiceConfigFile not exist." >&2
     exit 1
   fi
 }
@@ -52,8 +53,13 @@ InitPrimaryDB() {
   echo "PostgreSQL primary initdb completes, initdb -U $PGUSER -D $PGDATA"
 
   # copy over the config files
-  cp $PGConf $PGDATA/
-  cp $PGHbaConf $PGDATA/
+  cp $PrimaryPGConf $PGDATA/postgresql.conf
+  cp $PrimaryPGHbaConf $PGDATA/pg_hba.conf
+
+  # update listen_addresses in postgresql.conf
+  sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
+  # update replication user in pg_hba.conf
+  sed -i 's/defaultReplUser/'$REPLICATION_USER'/g' $PGDATA/pg_hba.conf
 
   # internal start of server to create replication user
   pg_ctl -D "$PGDATA" -o "-c listen_addresses='localhost'" -w start
@@ -93,9 +99,12 @@ InitStandbyDB() {
   pg_basebackup -h "$PRIMARY_HOST" -D "$PGDATA" -P -U "$REPLICATION_USER" --xlog-method=stream -w
 
   # copy over the config files
-  cp $PGConf $PGDATA/
-  cp $PGHbaConf $PGDATA/
+  cp $StandbyPGConf $PGDATA/postgresql.conf
+  cp $StandbyPGHbaConf $PGDATA/pg_hba.conf
   cp $PGRecoveryConf $PGDATA/
+
+  # update listen_addresses in postgresql.conf
+  sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
 
   echo "PostgreSQL standby pg_basebackup from primary complete; ready for start up."
 }
@@ -126,18 +135,22 @@ fi
 
 # load the configs from the config file, including the container role (primary or slave),
 # primary hostname, postgres password, replication user & password.
-. "$PGConfigFile"
+. $ServiceConfigFile
+if [ -f "$MemberConfigFile" ]; then
+  . $MemberConfigFile
+else
+  . $syscfgfile
+fi
 
 # check all required configs are loaded
 if [ -z "$CONTAINER_ROLE" ] || [ -z "$PRIMARY_HOST" ]
 then
-  echo "error: please write all required configs in the config file $PGConfigFile." >&2
+  echo "error: please write all required configs in the service and member config files." >&2
   exit 1
 fi
 
 
 # load the sys config file
-. $syscfgfile
 echo $SERVICE_MEMBER
 echo "primary host $PRIMARY_HOST"
 # wait for dns update
@@ -150,7 +163,7 @@ echo ""
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
   if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$REPLICATION_USER" ] || [ -z "$REPLICATION_PASSWORD" ]
   then
-    echo "error: please include password and repliation user/password in the config file $PGConfigFile." >&2
+    echo "error: please include password and repliation user/password in the config file $ServiceConfigFile." >&2
     exit 1
   fi
 
