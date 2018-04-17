@@ -44,12 +44,23 @@ const (
 // 1) Distribute the nodes on the availability zones.
 // 2) Listen on the standard ports, 9092.
 
-// ValidateUpdateRequest checks if the update request is valid
-func ValidateUpdateRequest(req *manage.CatalogUpdateKafkaRequest) error {
-	if req.HeapSizeMB < 0 || req.RetentionHours < 0 {
+// KafkaOptions defines the configurable kafka options
+type KafkaOptions struct {
+	HeapSizeMB     int64 // 0 == no change
+	AllowTopicDel  *bool // nil == no change
+	RetentionHours int64 // 0 == no change
+	// empty JmxRemoteUser means no change, jmx user could not be disabled.
+	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
+	JmxRemoteUser   string
+	JmxRemotePasswd string
+}
+
+// ValidateUpdateRequest checks if the update options are valid
+func ValidateUpdateRequest(opts *KafkaOptions) error {
+	if opts.HeapSizeMB < 0 || opts.RetentionHours < 0 {
 		return errors.New("heap size and retention hours should not be less than 0")
 	}
-	if len(req.JmxRemoteUser) != 0 && len(req.JmxRemotePasswd) == 0 {
+	if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) == 0 {
 		return errors.New("please set the new jmx remote password")
 	}
 	return nil
@@ -187,25 +198,34 @@ func genMemberConfigs(platform string, cluster string, service string, azs []str
 	return replicaCfgs
 }
 
-// IsServerPropConfFile checks if the file is server.properties conf file
-func IsServerPropConfFile(filename string) bool {
-	return filename == serverPropConfFileName
-}
-
-// UpdateServerPropFile updates the server properties file
-func UpdateServerPropFile(newua *common.KafkaUserAttr, ua *common.KafkaUserAttr, oldContent string) string {
-	newContent := oldContent
-	if newua.AllowTopicDel != ua.AllowTopicDel {
-		oldstr := fmt.Sprintf("delete.topic.enable=%s", strconv.FormatBool(ua.AllowTopicDel))
-		newstr := fmt.Sprintf("delete.topic.enable=%s", strconv.FormatBool(newua.AllowTopicDel))
-		newContent = strings.Replace(newContent, oldstr, newstr, 1)
+// UpdateServiceConfigs update the service configs
+func UpdateServiceConfigs(oldContent string, opts *KafkaOptions) string {
+	content := oldContent
+	lines := strings.Split(oldContent, "\n")
+	for _, line := range lines {
+		if opts.HeapSizeMB > 0 && strings.HasPrefix(line, "HEAP_SIZE_MB") {
+			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", opts.HeapSizeMB)
+			content = strings.Replace(content, line, newHeap, 1)
+		}
+		if opts.AllowTopicDel != nil {
+			newTopicDel := fmt.Sprintf("ALLOW_TOPIC_DEL=%s", strconv.FormatBool(*opts.AllowTopicDel))
+			content = strings.Replace(content, line, newTopicDel, 1)
+		}
+		if opts.RetentionHours != 0 {
+			newHours := fmt.Sprintf("RETENTION_HOURS=%d", opts.RetentionHours)
+			content = strings.Replace(content, line, newHours, 1)
+		}
+		if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) != 0 {
+			if strings.HasPrefix(line, "JMX_REMOTE_USER") {
+				newUser := fmt.Sprintf("JMX_REMOTE_USER=%s", opts.JmxRemoteUser)
+				content = strings.Replace(content, line, newUser, 1)
+			} else if strings.HasPrefix(line, "JMX_REMOTE_PASSWD") {
+				newPasswd := fmt.Sprintf("JMX_REMOTE_PASSWD=%s", opts.JmxRemotePasswd)
+				content = strings.Replace(content, line, newPasswd, 1)
+			}
+		}
 	}
-	if newua.RetentionHours != ua.RetentionHours {
-		oldstr := fmt.Sprintf("log.retention.hours=%d", ua.RetentionHours)
-		newstr := fmt.Sprintf("log.retention.hours=%d", newua.RetentionHours)
-		newContent = strings.Replace(newContent, oldstr, newstr, 1)
-	}
-	return newContent
+	return content
 }
 
 // GenUpgradeRequestV095 generates the UpdateServiceOptions to upgrade the service.

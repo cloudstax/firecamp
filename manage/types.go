@@ -47,7 +47,6 @@ const (
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
 	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
-	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -382,18 +381,6 @@ type CatalogCreateKafkaRequest struct {
 
 // CatalogCreateKafkaResponse returns the Kafka JMX user and password.
 type CatalogCreateKafkaResponse struct {
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// CatalogUpdateKafkaRequest updates the configs of the Kafka service.
-type CatalogUpdateKafkaRequest struct {
-	Service        *ServiceCommonRequest
-	HeapSizeMB     int64 // 0 == no change
-	AllowTopicDel  *bool // nil == no change
-	RetentionHours int64 // 0 == no change
-	// empty JmxRemoteUser means no change, jmx user could not be disabled.
-	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }

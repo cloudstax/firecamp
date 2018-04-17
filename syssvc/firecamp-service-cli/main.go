@@ -1242,12 +1242,7 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		allowTopicDel = utils.BoolPtr(*kafkaAllowTopicDel)
 	}
 
-	req := &manage.CatalogUpdateKafkaRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
+	opts := &kafkacatalog.KafkaOptions{
 		HeapSizeMB:      heapSizeMB,
 		AllowTopicDel:   allowTopicDel,
 		RetentionHours:  retentionHours,
@@ -1255,16 +1250,28 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		JmxRemotePasswd: passwd,
 	}
 
-	err := kafkacatalog.ValidateUpdateRequest(req)
+	err := kafkacatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("invalid parameters", err)
 	}
 
-	err = cli.CatalogUpdateKafkaService(ctx, req)
+	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+
+	newContent := kafkacatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update service error", err)
 	}
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")

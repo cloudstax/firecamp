@@ -216,6 +216,7 @@ type MemberSpec struct {
 	StaticIP string
 
 	// The specific configs for one member. The common service configs are kept in ServiceAttr.ServiceConfigs.
+	// The configs may be nil for the stateless service.
 	Configs []ConfigID
 }
 

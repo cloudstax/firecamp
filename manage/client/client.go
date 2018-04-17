@@ -691,26 +691,6 @@ func (c *ManageClient) CatalogCreateKafkaManagerService(ctx context.Context, r *
 	return manage.ConvertHTTPError(resp)
 }
 
-// CatalogUpdateKafkaService updates the Kafka service configs.
-func (c *ManageClient) CatalogUpdateKafkaService(ctx context.Context, r *manage.CatalogUpdateKafkaRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateKafkaOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // CatalogCreateRedisService creates a new catalog Redis service.
 func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.CatalogCreateRedisRequest) error {
 	b, err := json.Marshal(r)
