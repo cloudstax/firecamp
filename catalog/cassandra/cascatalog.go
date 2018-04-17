@@ -3,7 +3,6 @@ package cascatalog
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -37,17 +36,8 @@ const (
 	// jolokiaPort is added after release 0.9.4
 	jolokiaPort = 8778
 
-	jvmConfFileName = "jvm.options"
 	logConfFileName = "logback.xml"
-	// jmx file, common in catalog/types.go
 )
-
-// CasOptions defines the Cassandra configurable options
-type CasOptions struct {
-	HeapSizeMB      int64
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
 
 // The default Cassandra catalog service. By default,
 // 1) Have equal number of nodes on 3 availability zones.
@@ -71,20 +61,6 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 	return nil
 }
 
-// ValidateUpdateOtions checks if the update options are valid
-func ValidateUpdateOtions(opts *CasOptions) error {
-	if opts.HeapSizeMB < 0 {
-		return errors.New("heap size should not be less than 0")
-	}
-	if opts.HeapSizeMB > MaxHeapMB {
-		return errors.New("max heap size is 14GB")
-	}
-	if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) == 0 {
-		return errors.New("please set the new jmx remote password")
-	}
-	return nil
-}
-
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
 	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
@@ -96,7 +72,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		opts.JmxRemotePasswd = utils.GenUUID()
 	}
 
-	serviceCfgs := GenServiceConfigs(region, cluster, service, azs, opts)
+	serviceCfgs := genServiceConfigs(platform, region, cluster, service, azs, opts)
 
 	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts.Replicas)
 
@@ -136,24 +112,22 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ServiceConfigs: serviceCfgs,
 
-		Volume:        opts.Volume,
-		ContainerPath: common.DefaultContainerMountPath,
+		Volume:               opts.Volume,
+		ContainerPath:        common.DefaultContainerMountPath,
+		JournalVolume:        opts.JournalVolume,
+		JournalContainerPath: common.DefaultJournalVolumeContainerMountPath,
 
 		ReplicaConfigs: replicaCfgs,
-	}
-	if opts.JournalVolume != nil {
-		req.JournalVolume = opts.JournalVolume
-		req.JournalContainerPath = common.DefaultJournalVolumeContainerMountPath
 	}
 	return req, opts.JmxRemoteUser, opts.JmxRemotePasswd
 }
 
-// GenServiceConfigs generates the service configs.
-func GenServiceConfigs(region string, cluster string, service string, azs []string, opts *manage.CatalogCassandraOptions) []*manage.ConfigFileContent {
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogCassandraOptions) []*manage.ConfigFileContent {
 	// create the service.conf file
 	domain := dns.GenDefaultDomainName(cluster)
 	seeds := genSeedHosts(int64(len(azs)), opts.Replicas, service, domain)
-	content := fmt.Sprintf(servicefileContent, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
+	content := fmt.Sprintf(servicefileContent, platform, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -180,37 +154,25 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 
-		// create the sys.conf file
-		index := int(i) % len(azs)
-		syscfg := catalog.CreateSysConfigFile(platform, azs[index], memberHost)
+		rpcAddr := memberHost
+		if platform == common.ContainerPlatformSwarm {
+			rpcAddr = catalog.BindAllIP
+		}
 
-		configs := []*manage.ConfigFileContent{syscfg}
+		// create the member.conf file
+		index := int(i) % len(azs)
+		content := fmt.Sprintf(memberfileContent, azs[index], memberHost, rpcAddr)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
+
+		configs := []*manage.ConfigFileContent{memberCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: azs[index], MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
 	return replicaCfgs
-}
-
-// UpdateServiceConfig updates the service.conf file content
-func UpdateServiceConfig(oldContent string, opts *CasOptions) string {
-	content := oldContent
-	lines := strings.Split(oldContent, "\n")
-	for _, line := range lines {
-		if opts.HeapSizeMB > 0 && strings.HasPrefix(line, "HEAP_SIZE_MB") {
-			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", opts.HeapSizeMB)
-			content = strings.Replace(content, line, newHeap, 1)
-		}
-		if len(opts.JmxRemoteUser) != 0 && len(opts.JmxRemotePasswd) != 0 {
-			if strings.HasPrefix(line, "JMX_REMOTE_USER") {
-				newUser := fmt.Sprintf("JMX_REMOTE_USER=%s", opts.JmxRemoteUser)
-				content = strings.Replace(content, line, newUser, 1)
-			} else if strings.HasPrefix(line, "JMX_REMOTE_PASSWD") {
-				newPasswd := fmt.Sprintf("JMX_REMOTE_PASSWD=%s", opts.JmxRemotePasswd)
-				content = strings.Replace(content, line, newPasswd, 1)
-			}
-		}
-	}
-	return content
 }
 
 func genSeedHosts(azCount int64, replicas int64, service string, domain string) string {
@@ -300,12 +262,19 @@ func GenUpgradeRequestV095(cluster string, service string) *containersvc.UpdateS
 
 const (
 	servicefileContent = `
+PLATFORM=%s
 REGION=%s
 CLUSTER=%s
 CASSANDRA_SEEDS=%s
 HEAP_SIZE_MB=%d
 JMX_REMOTE_USER=%s
 JMX_REMOTE_PASSWD=%s
+`
+
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+RPC_ADDRESS=%s
 `
 
 	logConfContent = `
