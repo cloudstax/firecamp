@@ -3,6 +3,8 @@ package dockervolume
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,6 +17,9 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
+const staticIPFileName = "staticip.conf"
+
+// CreateConfigFile creates the config files under configDirPath
 func CreateConfigFile(ctx context.Context, configDirPath string, attr *common.ServiceAttr, member *common.ServiceMember, dbIns db.DB) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
@@ -45,6 +50,27 @@ func CreateConfigFile(ctx context.Context, configDirPath string, attr *common.Se
 		if err != nil {
 			return err
 		}
+	}
+
+	// create the static ip config file
+	if attr.Spec.RequireStaticIP {
+		if len(member.Spec.StaticIP) == 0 {
+			// sanity check, member's static ip must be set
+			errmsg := fmt.Sprintf("service requires static ip, but member %s not have static ip, requuid %s",
+				member.Meta.MemberName, requuid)
+			glog.Errorln(errmsg)
+			return errors.New(errmsg)
+		}
+
+		content := fmt.Sprintf("STATIC_IP=%s", member.Spec.StaticIP)
+		fpath := filepath.Join(configDirPath, staticIPFileName)
+		err := ioutil.WriteFile(fpath, []byte(content), os.FileMode(0400))
+		if err != nil {
+			glog.Errorln("create the static ip config file error", err, fpath, "requuid", requuid, member)
+			return err
+		}
+
+		glog.Infoln("created the static ip config file", fpath, "requuid", requuid, member)
 	}
 
 	return nil
