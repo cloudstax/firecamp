@@ -58,8 +58,6 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
 		return s.setRedisInit(ctx, r, requuid)
-	case manage.CatalogUpdateRedisOp:
-		return s.updateRedisService(ctx, r, requuid)
 	case manage.CatalogScaleCassandraOp:
 		return s.scaleCasService(ctx, r, requuid)
 	default:

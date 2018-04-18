@@ -1427,12 +1427,7 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		cfgcmdName = &(*redisConfigCmdName)
 	}
 
-	req := &manage.CatalogUpdateRedisRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
+	opts := &rediscatalog.RedisOptions{
 		MemoryCacheSizeMB: memSizeMB,
 		AuthPass:          authPass,
 		ReplTimeoutSecs:   replTimeout,
@@ -1440,16 +1435,28 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		ConfigCmdName:     cfgcmdName,
 	}
 
-	err := rediscatalog.ValidateUpdateRequest(req)
+	err := rediscatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("invalid parameters", err)
 	}
 
-	err = cli.CatalogUpdateRedisService(ctx, req)
+	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+
+	newContent := rediscatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update redis service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update service error", err)
 	}
 
 	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")

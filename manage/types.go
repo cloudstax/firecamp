@@ -46,7 +46,6 @@ const (
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
-	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -481,19 +480,6 @@ type CatalogCreateRedisRequest struct {
 	Resource *common.Resources
 
 	Options *CatalogRedisOptions
-}
-
-// CatalogUpdateRedisRequest updates the configs of the Redis service.
-// If the field is not changed, please leave it 0 or empty.
-type CatalogUpdateRedisRequest struct {
-	Service           *ServiceCommonRequest
-	MemoryCacheSizeMB int64 // 0 == no change
-	// empty == no change. if auth is enabled, it could not be disabled.
-	AuthPass        string
-	ReplTimeoutSecs int64  // 0 == no change
-	MaxMemPolicy    string // empty == no change
-	// nil == no change. to disable config cmd, set empty string
-	ConfigCmdName *string
 }
 
 // CatalogCouchDBOptions includes the config options for CouchDB.

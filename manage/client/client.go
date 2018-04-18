@@ -711,26 +711,6 @@ func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.
 	return manage.ConvertHTTPError(resp)
 }
 
-// CatalogUpdateRedisService updates the Redis service configs.
-func (c *ManageClient) CatalogUpdateRedisService(ctx context.Context, r *manage.CatalogUpdateRedisRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateRedisOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // CatalogCreateCouchDBService creates a new catalog CouchDB service.
 func (c *ManageClient) CatalogCreateCouchDBService(ctx context.Context, r *manage.CatalogCreateCouchDBRequest) error {
 	b, err := json.Marshal(r)

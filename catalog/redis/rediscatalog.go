@@ -9,7 +9,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
@@ -50,6 +49,16 @@ const (
 	envSlaves           = "REDIS_SLAVES"
 	envAuth             = "REDIS_AUTH"
 )
+
+type RedisOptions struct {
+	MemoryCacheSizeMB int64 // 0 == no change
+	// empty == no change. if auth is enabled, it could not be disabled.
+	AuthPass        string
+	ReplTimeoutSecs int64  // 0 == no change
+	MaxMemPolicy    string // empty == no change
+	// nil == no change. to disable config cmd, set empty string
+	ConfigCmdName *string
+}
 
 // The default Redis catalog service. By default,
 // 1) Distribute the nodes on the availability zones.
@@ -98,8 +107,8 @@ func validateMemPolicy(maxMemPolicy string) error {
 	}
 }
 
-// ValidateUpdateRequest validates the update request
-func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest) error {
+// ValidateUpdateOptions validates the update options
+func ValidateUpdateOptions(r *RedisOptions) error {
 	if r.ReplTimeoutSecs != 0 && r.ReplTimeoutSecs < MinReplTimeoutSecs {
 		return fmt.Errorf("The minimal ReplTimeout is %d", MinReplTimeoutSecs)
 	}
@@ -183,8 +192,6 @@ func genServiceConfigs(opts *manage.CatalogRedisOptions) []*manage.ConfigFileCon
 
 // genReplicaConfigs generates the replica configs.
 func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
-	memBytes := catalog.MBToBytes(opts.MemoryCacheSizeMB)
-
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := []*manage.ReplicaConfig{}
@@ -341,81 +348,33 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	return envkvs
 }
 
-// IsConfigChanged checks if the config changes.
-func IsConfigChanged(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) bool {
-	return ((req.AuthPass != "" && req.AuthPass != ua.AuthPass) ||
-		(req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB) ||
-		(req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs) ||
-		(req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy) ||
-		(req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName))
-}
-
-// UpdateRedisUserAttr updates RedisUserAttr
-func UpdateRedisUserAttr(ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) *common.RedisUserAttr {
-	newua := db.CopyRedisUserAttr(ua)
-	if req.AuthPass != "" && req.AuthPass != ua.AuthPass {
-		newua.AuthPass = req.AuthPass
-	}
-	if req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB {
-		newua.MemoryCacheSizeMB = req.MemoryCacheSizeMB
-	}
-	if req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs {
-		newua.ReplTimeoutSecs = req.ReplTimeoutSecs
-	}
-	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
-		newua.MaxMemPolicy = req.MaxMemPolicy
-	}
-	if req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName {
-		newua.ConfigCmdName = *req.ConfigCmdName
-	}
-	return newua
-}
-
-// UpdateRedisConfig updates the redis content
-func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.CatalogUpdateRedisRequest) string {
-	newContent := content
-	if req.AuthPass != "" && req.AuthPass != ua.AuthPass {
-		authContent := fmt.Sprintf(authConfig, req.AuthPass, req.AuthPass)
-		authContent = EnableRedisAuth(authContent)
-		if ua.AuthPass == "" {
-			// check if the content is already updated. this is possible if the update request
-			// is retried as the manage server is restarted.
-			idx := strings.Index(newContent, authContent)
-			if idx == -1 {
-				// auth is not enabled, add authConfig
-				newContent += authContent
-			}
-		} else {
-			// auth is enabled, replace the pass
-			oldAuthContent := fmt.Sprintf(authConfig, ua.AuthPass, ua.AuthPass)
-			oldAuthContent = EnableRedisAuth(oldAuthContent)
-			newContent = strings.Replace(newContent, oldAuthContent, authContent, 1)
+// UpdateServiceConfigs update the redis configs
+func UpdateServiceConfigs(oldContent string, opts *RedisOptions) string {
+	content := oldContent
+	lines := strings.Split(oldContent, "\n")
+	for _, line := range lines {
+		if opts.AuthPass != "" && strings.HasPrefix(line, "AUTH_PASS") {
+			newstr := fmt.Sprintf("AUTH_PASS=%s", opts.AuthPass)
+			content = strings.Replace(content, line, newstr, 1)
+		}
+		if opts.MemoryCacheSizeMB != 0 && strings.HasPrefix(line, "MEMORY_CACHE_MB") {
+			newstr := fmt.Sprintf("MEMORY_CACHE_MB=%d", opts.MemoryCacheSizeMB)
+			content = strings.Replace(content, line, newstr, 1)
+		}
+		if opts.ReplTimeoutSecs != 0 && strings.HasPrefix(line, "REPL_TIMEOUT_SECS") {
+			newstr := fmt.Sprintf("REPL_TIMEOUT_SECS=%d", opts.ReplTimeoutSecs)
+			content = strings.Replace(content, line, newstr, 1)
+		}
+		if opts.MaxMemPolicy != "" && strings.HasPrefix(line, "MAX_MEMORY_POLICY") {
+			newstr := fmt.Sprintf("MAX_MEMORY_POLICY=%s", opts.MaxMemPolicy)
+			content = strings.Replace(content, line, newstr, 1)
+		}
+		if opts.ConfigCmdName != nil && strings.HasPrefix(line, "CONFIG_CMD_NAME") {
+			newstr := fmt.Sprintf("CONFIG_CMD_NAME=%s", *opts.ConfigCmdName)
+			content = strings.Replace(content, line, newstr, 1)
 		}
 	}
-	if req.MemoryCacheSizeMB != 0 && req.MemoryCacheSizeMB != ua.MemoryCacheSizeMB {
-		newMem := fmt.Sprintf("maxmemory %d", catalog.MBToBytes(req.MemoryCacheSizeMB))
-		oldMem := fmt.Sprintf("maxmemory %d", catalog.MBToBytes(ua.MemoryCacheSizeMB))
-		newContent = strings.Replace(newContent, oldMem, newMem, 1)
-	}
-	if req.ReplTimeoutSecs != 0 && req.ReplTimeoutSecs != ua.ReplTimeoutSecs {
-		newCont := fmt.Sprintf("repl-timeout %d", req.ReplTimeoutSecs)
-		oldCont := fmt.Sprintf("repl-timeout %d", ua.ReplTimeoutSecs)
-		newContent = strings.Replace(newContent, oldCont, newCont, 1)
-	}
-	if req.MaxMemPolicy != "" && req.MaxMemPolicy != ua.MaxMemPolicy {
-		newPolicy := fmt.Sprintf("maxmemory-policy %s", req.MaxMemPolicy)
-		oldPolicy := fmt.Sprintf("maxmemory-policy %s", ua.MaxMemPolicy)
-		newContent = strings.Replace(newContent, oldPolicy, newPolicy, 1)
-	}
-	if req.ConfigCmdName != nil && *req.ConfigCmdName != ua.ConfigCmdName {
-		newCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", *req.ConfigCmdName)
-		oldCfgCmd := fmt.Sprintf("rename-command CONFIG \"%s\"", ua.ConfigCmdName)
-		if ua.ConfigCmdName == "" {
-			oldCfgCmd = "rename-command CONFIG \"\""
-		}
-		newContent = strings.Replace(newContent, oldCfgCmd, newCfgCmd, 1)
-	}
-	return newContent
+	return content
 }
 
 const (
