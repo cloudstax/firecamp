@@ -85,9 +85,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
-		Resource: res,
+		Resource:           res,
+		CatalogServiceType: common.CatalogService_PostgreSQL,
 
 		ContainerImage: image,
 		Replicas:       opts.Replicas,

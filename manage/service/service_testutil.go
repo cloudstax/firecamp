@@ -1,7 +1,6 @@
 package manageservice
 
 import (
-	"encoding/json"
 	"sort"
 	"strconv"
 	"strings"
@@ -88,13 +87,14 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			Replicas:        int64(taskCount1),
-			Volume:          servicevol,
-			JournalVolume:   journalVol,
-			RegisterDNS:     registerDNS,
-			RequireStaticIP: requireStaticIP,
-			ServiceConfigs:  serviceCfgs,
-			ReplicaConfigs:  replicaCfgs,
+			CatalogServiceType: common.CatalogService_Kafka,
+			Replicas:           int64(taskCount1),
+			Volume:             servicevol,
+			JournalVolume:      journalVol,
+			RegisterDNS:        registerDNS,
+			RequireStaticIP:    requireStaticIP,
+			ServiceConfigs:     serviceCfgs,
+			ReplicaConfigs:     replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -226,13 +226,14 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			Replicas:        int64(taskCount2),
-			Volume:          servicevol,
-			JournalVolume:   journalVol,
-			RegisterDNS:     registerDNS,
-			RequireStaticIP: requireStaticIP,
-			ServiceConfigs:  serviceCfgs,
-			ReplicaConfigs:  replicaCfgs,
+			CatalogServiceType: common.CatalogService_Kafka,
+			Replicas:           int64(taskCount2),
+			Volume:             servicevol,
+			JournalVolume:      journalVol,
+			RegisterDNS:        registerDNS,
+			RequireStaticIP:    requireStaticIP,
+			ServiceConfigs:     serviceCfgs,
+			ReplicaConfigs:     replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -372,12 +373,13 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			Replicas:        int64(taskCount3),
-			Volume:          servicevol,
-			RegisterDNS:     registerDNS,
-			RequireStaticIP: requireStaticIP,
-			ServiceConfigs:  serviceCfgs,
-			ReplicaConfigs:  replicaCfgs,
+			CatalogServiceType: common.CatalogService_Kafka,
+			Replicas:           int64(taskCount3),
+			Volume:             servicevol,
+			RegisterDNS:        registerDNS,
+			RequireStaticIP:    requireStaticIP,
+			ServiceConfigs:     serviceCfgs,
+			ReplicaConfigs:     replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -472,21 +474,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		replicaCfgs[i] = replicaCfg
 	}
 
-	mattr := common.MongoDBUserAttr{
-		Shards:           1,
-		ReplicasPerShard: 3,
-		ReplicaSetOnly:   false,
-		ConfigServers:    3,
-	}
-	b, err := json.Marshal(mattr)
-	if err != nil {
-		t.Fatalf("Marshal MongoDBUserAttr error %s", err)
-	}
-	userAttr := &common.ServiceUserAttr{
-		ServiceType: "mongodb",
-		AttrBytes:   b,
-	}
-
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -506,7 +493,6 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		RequireStaticIP: requireStaticIP,
 		ServiceConfigs:  serviceCfgs,
 		ReplicaConfigs:  replicaCfgs,
-		UserAttr:        userAttr,
 	}
 	if requireJournalVolume {
 		req.JournalVolume = &common.ServiceVolume{
@@ -714,7 +700,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	mtime := time.Now().UnixNano()
 	attrMeta := db.CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-	attrSpec := db.CreateServiceSpec(int64(taskCount), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgids, svols)
+	attrSpec := db.CreateServiceSpec(int64(taskCount), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgids, common.CatalogService_Kafka, svols)
 	serviceAttr := db.CreateServiceAttr("uuid"+service, 0, attrMeta, attrSpec)
 
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)
@@ -802,7 +788,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	mtime = time.Now().UnixNano()
 	attrMeta = db.CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-	attrSpec = db.CreateServiceSpec(int64(taskCount), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgids, &vols)
+	attrSpec = db.CreateServiceSpec(int64(taskCount), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgids, common.CatalogService_Kafka, &vols)
 	serviceAttr = db.CreateServiceAttr("uuid"+service, 0, attrMeta, attrSpec)
 
 	err = dbIns.CreateServiceAttr(ctx, serviceAttr)

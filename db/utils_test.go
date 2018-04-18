@@ -43,7 +43,7 @@ func TestDBUtils(t *testing.T) {
 	// test service attr
 	mtime := time.Now().UnixNano()
 	attrMeta := CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-	attrSpec := CreateServiceSpec(replicas, &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, &svols)
+	attrSpec := CreateServiceSpec(replicas, &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, common.CatalogService_Kafka, &svols)
 	attr1 := CreateServiceAttr(serviceUUID, 0, attrMeta, attrSpec)
 
 	attr2 := UpdateServiceStatus(attr1, common.ServiceStatusActive)

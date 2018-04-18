@@ -348,7 +348,7 @@ func TestFindIdleVolume(t *testing.T) {
 		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
 	}
 	attrMeta := db.CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
-	attrSpec := db.CreateServiceSpec(replicas, &res, true, domain, "hostedzone", false, cfgids, &svols)
+	attrSpec := db.CreateServiceSpec(replicas, &res, true, domain, "hostedzone", false, cfgids, common.CatalogService_Kafka, &svols)
 	sattr := db.CreateServiceAttr(serviceUUID, 0, attrMeta, attrSpec)
 
 	// add 2 service tasks

@@ -781,7 +781,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	meta := db.CreateServiceMeta(req.Service.Cluster, req.Service.ServiceName, time.Now().UnixNano(), req.Service.ServiceType, common.ServiceStatusCreating)
-	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, svols)
+	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, req.CatalogServiceType, svols)
 	serviceAttr := db.CreateServiceAttr(serviceUUID, 0, meta, spec)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {

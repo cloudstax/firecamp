@@ -97,6 +97,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: &common.Resources{
@@ -105,6 +106,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			MaxMemMB:        res.MaxMemMB,
 			ReserveMemMB:    reserveMemMB,
 		},
+
+		CatalogServiceType: common.CatalogService_Kafka,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,

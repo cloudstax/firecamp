@@ -99,6 +99,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		Resource: res,
 
+		CatalogServiceType: common.CatalogService_MongoDB,
+
 		ContainerImage: ContainerImage,
 		Replicas:       int64(len(replicaCfgs)),
 		PortMappings:   portmaps,

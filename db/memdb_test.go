@@ -198,7 +198,7 @@ func TestServiceAttr(t *testing.T) {
 
 		mtime := time.Now().UnixNano()
 		attrMeta := CreateServiceMeta(clusterName, servicePrefix+c, mtime, common.ServiceTypeStateful, common.ServiceStatusCreating)
-		attrSpec := CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, serviceCfgs, &svols)
+		attrSpec := CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, serviceCfgs, common.CatalogService_Kafka, &svols)
 		s[i] = CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 
 		err := dbIns.CreateServiceAttr(ctx, s[i])

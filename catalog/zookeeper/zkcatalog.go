@@ -77,6 +77,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		CatalogServiceType: common.CatalogService_ZooKeeper,
+
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
 		Volume:         opts.Volume,

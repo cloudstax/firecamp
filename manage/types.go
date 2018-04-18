@@ -95,6 +95,8 @@ type CreateServiceRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 
+	CatalogServiceType string
+
 	ContainerImage string
 	Replicas       int64
 	PortMappings   []common.PortMapping
@@ -102,9 +104,6 @@ type CreateServiceRequest struct {
 
 	// whether need to register DNS
 	RegisterDNS bool
-
-	// The service's custom attributes
-	UserAttr *common.ServiceUserAttr
 
 	ServiceConfigs []*ConfigFileContent
 

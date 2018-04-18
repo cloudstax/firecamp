@@ -123,7 +123,7 @@ func ValidateUpdateOptions(r *RedisOptions) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogRedisOptions) (*manage.CreateServiceRequest, error) {
+	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(opts)
 
@@ -153,6 +153,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    opts.MemoryCacheSizeMB,
 		},
 
+		CatalogServiceType: common.CatalogService_Redis,
+
 		ContainerImage: ContainerImage,
 		Replicas:       opts.ReplicasPerShard * opts.Shards,
 		PortMappings:   portMappings,
@@ -167,7 +169,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ReplicaConfigs: replicaCfgs,
 	}
-	return req, nil
+	return req
 }
 
 func genServiceConfigs(opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {

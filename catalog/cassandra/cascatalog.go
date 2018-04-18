@@ -105,6 +105,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		CatalogServiceType: common.CatalogService_Cassandra,
+
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
 		PortMappings:   portMappings,

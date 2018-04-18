@@ -167,7 +167,7 @@ func TestUnassignedIPs(t *testing.T) {
 	}
 	mtime := time.Now().UnixNano()
 	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
-	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, common.CatalogService_Kafka, &vols)
 	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	// case: 1 network interface with 0 private ip
@@ -382,7 +382,7 @@ func TestCreateStaticIPsForZone(t *testing.T) {
 	}
 	mtime := time.Now().UnixNano()
 	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
-	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, common.CatalogService_Kafka, &vols)
 	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	assignedIPs := make(map[string]string)
@@ -472,7 +472,7 @@ func TestCreateStaticIPsForZoneMultiNetInterfaces(t *testing.T) {
 	}
 	mtime := time.Now().UnixNano()
 	attrMeta := db.CreateServiceMeta("cluster1", "service1", mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
-	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, &vols)
+	attrSpec := db.CreateServiceSpec(1, &res, true, "domain1", "hostedZone1", true, serviceCfgs, common.CatalogService_Kafka, &vols)
 	sattr := db.CreateServiceAttr("uuid1", 0, attrMeta, attrSpec)
 
 	assignedIPs := make(map[string]string)

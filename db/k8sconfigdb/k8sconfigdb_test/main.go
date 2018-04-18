@@ -245,7 +245,7 @@ func testServiceAttrs(dbIns *k8sconfigdb.K8sConfigDB) {
 		}
 		mtime := time.Now().UnixNano()
 		attrMeta := db.CreateServiceMeta(clusterName, servicePrefix+c, mtime, serviceType, common.ServiceStatusCreating)
-		attrSpec := db.CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, &svols)
+		attrSpec := db.CreateServiceSpec(int64(i), &res, registerDNS, domain, hostedZoneID, requireStaticIP, cfgs, common.CatalogService_Kafka, &svols)
 		s[i] = db.CreateServiceAttr(uuidPrefix+c, 0, attrMeta, attrSpec)
 		err := dbIns.CreateServiceAttr(ctx, s[i])
 		if err != nil {
