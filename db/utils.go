@@ -95,18 +95,19 @@ func CopyServiceMeta(s *common.ServiceMeta) *common.ServiceMeta {
 	}
 }
 
-func CreateServiceSpec(replicas int64, res *common.Resources, registerDNS bool,
-	domain string, hostedZoneID string, requireStaticIP bool,
-	serviceCfgs []common.ConfigID, vols *common.ServiceVolumes) *common.ServiceSpec {
+func CreateServiceSpec(replicas int64, res *common.Resources, registerDNS bool, domain string,
+	hostedZoneID string, requireStaticIP bool, serviceCfgs []common.ConfigID,
+	catalogServiceType string, vols *common.ServiceVolumes) *common.ServiceSpec {
 	return &common.ServiceSpec{
-		Replicas:        replicas,
-		Resource:        *res,
-		RegisterDNS:     registerDNS,
-		DomainName:      domain,
-		HostedZoneID:    hostedZoneID,
-		RequireStaticIP: requireStaticIP,
-		ServiceConfigs:  serviceCfgs,
-		Volumes:         *vols,
+		Replicas:           replicas,
+		Resource:           *res,
+		RegisterDNS:        registerDNS,
+		DomainName:         domain,
+		HostedZoneID:       hostedZoneID,
+		RequireStaticIP:    requireStaticIP,
+		ServiceConfigs:     serviceCfgs,
+		CatalogServiceType: catalogServiceType,
+		Volumes:            *vols,
 	}
 }
 
@@ -118,19 +119,21 @@ func EqualServiceSpec(s1 *common.ServiceSpec, s2 *common.ServiceSpec) bool {
 		s1.HostedZoneID == s2.HostedZoneID &&
 		s1.RequireStaticIP == s2.RequireStaticIP &&
 		EqualConfigs(s1.ServiceConfigs, s2.ServiceConfigs) &&
+		s1.CatalogServiceType == s2.CatalogServiceType &&
 		EqualServiceVolumes(&s1.Volumes, &s2.Volumes)
 }
 
 func CopyServiceSpec(s *common.ServiceSpec) *common.ServiceSpec {
 	return &common.ServiceSpec{
-		Replicas:        s.Replicas,
-		Resource:        *CopyResources(&s.Resource),
-		RegisterDNS:     s.RegisterDNS,
-		DomainName:      s.DomainName,
-		HostedZoneID:    s.HostedZoneID,
-		RequireStaticIP: s.RequireStaticIP,
-		ServiceConfigs:  CopyConfigs(s.ServiceConfigs),
-		Volumes:         *CopyServiceVolumes(&s.Volumes),
+		Replicas:           s.Replicas,
+		Resource:           *CopyResources(&s.Resource),
+		RegisterDNS:        s.RegisterDNS,
+		DomainName:         s.DomainName,
+		HostedZoneID:       s.HostedZoneID,
+		RequireStaticIP:    s.RequireStaticIP,
+		ServiceConfigs:     CopyConfigs(s.ServiceConfigs),
+		CatalogServiceType: s.CatalogServiceType,
+		Volumes:            *CopyServiceVolumes(&s.Volumes),
 	}
 }
 

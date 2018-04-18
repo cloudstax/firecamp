@@ -92,7 +92,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		return nil, err
 	}
 
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, 1)
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, 1)
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{

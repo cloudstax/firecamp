@@ -155,6 +155,9 @@ type ServiceSpec struct {
 	// ServiceConfigs includes the configs for the service.
 	ServiceConfigs []ConfigID
 
+	// The catalog service type, such as mongodb, etc.
+	CatalogServiceType string
+
 	// stateful service specific fields
 	Volumes ServiceVolumes
 }

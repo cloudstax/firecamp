@@ -5,9 +5,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
+
+// GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
+func GenStatelessServiceReplicaConfigs(service string, replicas int) []*manage.ReplicaConfig {
+	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
+	for i := 0; i < replicas; i++ {
+		member := utils.GenServiceMemberName(service, int64(i))
+		replicaCfgs[i] = &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member}
+	}
+	return replicaCfgs
+}
 
 // GenServiceMemberURIs creates the list of URIs for all service members,
 // example: http://myes-0.t1-firecamp.com:9200,http://myes-1.t1-firecamp.com:9200

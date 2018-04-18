@@ -179,7 +179,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, int(opts.Replicas))
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, int(opts.Replicas))
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
