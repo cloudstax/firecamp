@@ -206,11 +206,11 @@ func UpdateServiceConfigs(oldContent string, opts *KafkaOptions) string {
 			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", opts.HeapSizeMB)
 			content = strings.Replace(content, line, newHeap, 1)
 		}
-		if opts.AllowTopicDel != nil {
+		if opts.AllowTopicDel != nil && strings.HasPrefix(line, "ALLOW_TOPIC_DEL") {
 			newTopicDel := fmt.Sprintf("ALLOW_TOPIC_DEL=%s", strconv.FormatBool(*opts.AllowTopicDel))
 			content = strings.Replace(content, line, newTopicDel, 1)
 		}
-		if opts.RetentionHours != 0 {
+		if opts.RetentionHours != 0 && strings.HasPrefix(line, "RETENTION_HOURS") {
 			newHours := fmt.Sprintf("RETENTION_HOURS=%d", opts.RetentionHours)
 			content = strings.Replace(content, line, newHours, 1)
 		}
