@@ -56,12 +56,6 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 
 	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
-	err = s.updateRedisStaticIPs(ctx, serviceUUID, requuid)
-	if err != nil {
-		glog.Errorln("updateRedisStaticIPs error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-
 	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
@@ -321,49 +315,6 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
 
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
-}
-
-func (s *ManageHTTPServer) updateRedisStaticIPs(ctx context.Context, serviceUUID string, requuid string) error {
-	// update the redis member's cluster-announce-ip to the assigned static ip in redis.conf
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
-		return err
-	}
-
-	for _, member := range members {
-		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
-		if err != nil {
-			glog.Errorln(err)
-			return err
-		}
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
-
-		// if static ip is already set, return
-		setIP := rediscatalog.NeedToSetClusterAnnounceIP(cfgfile.Content)
-		if !setIP {
-			glog.Infoln("cluster-announce-ip is already set in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
-			return nil
-		}
-
-		// cluster-announce-ip not set, set it
-		newContent := rediscatalog.SetClusterAnnounceIP(cfgfile.Content, member.StaticIP)
-
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, member)
-			return err
-		}
-	}
-
-	glog.Infoln("updated redis cluster-announce-ip to the static ip", serviceUUID, "requuid", requuid)
-	return nil
 }
 
 func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID string, requuid string) error {

@@ -1,13 +1,10 @@
 package rediscatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/golang/glog"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/common"
@@ -118,8 +115,11 @@ func ValidateUpdateRequest(r *manage.CatalogUpdateRedisRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogRedisOptions) (*manage.CreateServiceRequest, error) {
+	// generate service configs
+	serviceCfgs := genServiceConfigs(opts)
+
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts)
+	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: listenPort, HostPort: listenPort, IsServicePort: true},
@@ -129,27 +129,12 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		portMappings = append(portMappings, m)
 	}
 
-	userAttr := &common.RedisUserAttr{
-		Shards:            opts.Shards,
-		ReplicasPerShard:  opts.ReplicasPerShard,
-		MemoryCacheSizeMB: opts.MemoryCacheSizeMB,
-		DisableAOF:        opts.DisableAOF,
-		AuthPass:          opts.AuthPass,
-		ReplTimeoutSecs:   opts.ReplTimeoutSecs,
-		MaxMemPolicy:      opts.MaxMemPolicy,
-		ConfigCmdName:     opts.ConfigCmdName,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal RedisUserAttr error", err, opts)
-		return nil, err
-	}
-
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: &common.Resources{
@@ -161,30 +146,48 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.ReplicasPerShard * opts.Shards,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
-
-		RegisterDNS: true,
+		RegisterDNS:    true,
 		// require to assign a static ip for each member
 		RequireStaticIP: true,
-		ReplicaConfigs:  replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Redis,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:        opts.Volume,
+		ContainerPath: common.DefaultContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
 	return req, nil
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
+func genServiceConfigs(opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {
+	// create service.conf file
+	content := fmt.Sprintf(servicefileContent, opts.Shards, opts.ReplicasPerShard, opts.MemoryCacheSizeMB,
+		strconv.FormatBool(opts.DisableAOF), opts.AuthPass, opts.ReplTimeoutSecs, opts.MaxMemPolicy, opts.ConfigCmdName)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the default redis.conf file
+	redisCfg := &manage.ConfigFileContent{
+		FileName: redisConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  redisConfigs,
+	}
+
+	return []*manage.ConfigFileContent{serviceCfg, redisCfg}
+}
+
+// genReplicaConfigs generates the replica configs.
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
 	memBytes := catalog.MBToBytes(opts.MemoryCacheSizeMB)
 
 	domain := dns.GenDefaultDomainName(cluster)
 
-	replicaCfgs := make([]*manage.ReplicaConfig, opts.ReplicasPerShard*opts.Shards)
+	replicaCfgs := []*manage.ReplicaConfig{}
 	for shard := int64(0); shard < opts.Shards; shard++ {
 		masterMember := genServiceShardMemberName(service, opts.ReplicasPerShard, shard, 0)
 		masterMemberHost := dns.GenDNSName(masterMember, domain)
@@ -194,54 +197,25 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 			// distribute the slaves of one master to different availability zones
 			azIndex := int(shard+i) % len(azs)
 
-			// create the sys.conf file
+			// create the member.conf file
 			member := genServiceShardMemberName(service, opts.ReplicasPerShard, shard, i)
 			memberHost := dns.GenDNSName(member, domain)
-			sysCfg := catalog.CreateSysConfigFile(platform, azs[azIndex], memberHost)
 
-			// create the redis.conf file
-			bind := memberHost
+			bindIP := memberHost
 			if platform == common.ContainerPlatformSwarm {
-				bind = catalog.BindAllIP
-			}
-			redisContent := fmt.Sprintf(redisConfigs, bind, listenPort, memBytes, opts.MaxMemPolicy, opts.ReplTimeoutSecs, opts.ConfigCmdName)
-			if len(opts.AuthPass) != 0 {
-				// auth is disabled by default, as Redis Cluster init script, redis-trib.rb, does not support auth yet.
-				// After Redis Cluster is initialized, the init done will enable auth.
-				redisContent += fmt.Sprintf(authConfig, opts.AuthPass, opts.AuthPass)
-				if !IsClusterMode(opts.Shards) {
-					// not cluster mode, no need to run redis-trib.rb to init.
-					// enable auth directly.
-					redisContent = EnableRedisAuth(redisContent)
-				}
-			}
-			if !opts.DisableAOF {
-				redisContent += aofConfigs
-			}
-			if opts.Shards == 1 {
-				// master-slave mode or single instance mode
-				if opts.ReplicasPerShard != 1 && i != int64(0) {
-					// master-slave mode, set the master dnsname for the slave
-					redisContent += fmt.Sprintf(replConfigs, masterMemberHost, listenPort)
-				}
-			} else {
-				// cluster mode
-				redisContent += clusterConfigs
+				bindIP = catalog.BindAllIP
 			}
 
-			redisContent += defaultConfigs
-
-			redisCfg := &manage.ConfigFileContent{
-				FileName: redisConfFileName,
+			content := fmt.Sprintf(memberfileContent, azs[azIndex], memberHost, i, bindIP, masterMemberHost)
+			memberCfg := &manage.ConfigFileContent{
+				FileName: catalog.MEMBER_FILE_NAME,
 				FileMode: common.DefaultConfigFileMode,
-				Content:  redisContent,
+				Content:  content,
 			}
 
-			configs := []*manage.ConfigFileContent{sysCfg, redisCfg}
-
+			configs := []*manage.ConfigFileContent{memberCfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: azs[azIndex], MemberName: member, Configs: configs}
-
-			replicaCfgs[opts.ReplicasPerShard*shard+i] = replicaCfg
+			replicaCfgs = append(replicaCfgs, replicaCfg)
 		}
 	}
 	return replicaCfgs
@@ -281,22 +255,6 @@ func NeedToEnableAuth(content string) bool {
 func EnableRedisAuth(content string) string {
 	content = strings.Replace(content, "#requirepass", "requirepass", 1)
 	return strings.Replace(content, "#masterauth", "masterauth", 1)
-}
-
-// NeedToSetClusterAnnounceIP checks whether needs to set the cluster-announce-ip in redis.conf
-func NeedToSetClusterAnnounceIP(content string) bool {
-	// Currently if not cluster mode, redis.conf will not have #cluster-announce-ip
-	disabledIdx := strings.Index(content, "#cluster-announce-ip")
-	if disabledIdx != -1 {
-		return true
-	}
-	// cluster-announce-ip is either not required or already set
-	return false
-}
-
-// SetClusterAnnounceIP sets the Redis cluster-announce-ip, after cluster is initialized and member gets its static ip.
-func SetClusterAnnounceIP(content string, ip string) string {
-	return strings.Replace(content, "#cluster-announce-ip", "cluster-announce-ip "+ip, 1)
 }
 
 // GenDefaultInitTaskRequest returns the default service init task request.
@@ -461,13 +419,32 @@ func UpdateRedisConfig(content string, ua *common.RedisUserAttr, req *manage.Cat
 }
 
 const (
+	servicefileContent = `
+SHARDS=%d
+REPLICAS_PERSHARD=%d
+MEMORY_CACHE_MB=%d
+DISABLE_AOF=%s
+AUTH_PASS=%s
+REPL_TIMEOUT_SECS=%d
+MAX_MEMORY_POLICY=%s
+CONFIG_CMD_NAME=%s
+`
+
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+SERVICE_MEMBER=%s
+MEMBER_INDEX_INSHARD=%d
+BIND_IP=%s
+MASTER_MEMBER=%s
+`
+
 	redisConfigs = `
-bind %s
-port %d
+bind 0.0.0.0
+port 6379
 
 # Redis memory cache size in bytes. The total memory will be like maxmemory + slave output buffer.
-maxmemory %d
-maxmemory-policy %s
+maxmemory 268435456
+maxmemory-policy allkeys-lru
 
 # The filename where to dump the DB
 dbfilename dump.rdb
@@ -480,7 +457,7 @@ loglevel notice
 
 # for how to calculate the desired replication timeout value, check
 # https://redislabs.com/blog/top-redis-headaches-for-devops-replication-timeouts/
-repl-timeout %d
+repl-timeout 60
 
 # https://redislabs.com/blog/top-redis-headaches-for-devops-replication-buffer/
 # set both the hard and soft limits to 512MB for slave clients.
@@ -492,118 +469,6 @@ client-output-buffer-limit pubsub 32mb 8mb 60
 rename-command FLUSHALL ""
 rename-command FLUSHDB ""
 rename-command SHUTDOWN ""
-rename-command CONFIG "%s"
-`
-
-	authConfig = `
-#requirepass %s
-#masterauth %s
-`
-
-	aofConfigs = `
-# append only file
-appendonly yes
-appendfilename "appendonly.aof"
-appendfsync everysec
-`
-
-	replConfigs = `
-slaveof %s %d
-`
-
-	clusterConfigs = `
-cluster-enabled yes
-cluster-config-file /data/redis-node.conf
-
-#cluster-announce-ip
-
-cluster-node-timeout 15000
-cluster-slave-validity-factor 10
-cluster-migration-barrier 1
-cluster-require-full-coverage yes
-`
-
-	defaultConfigs = `
-# Default configs
-
-protected-mode yes
-# TCP listen() backlog.
-#
-# In high requests-per-second environments you need an high backlog in order
-# to avoid slow clients connections issues. Note that the Linux kernel
-# will silently truncate it to the value of /proc/sys/net/core/somaxconn so
-# make sure to raise both the value of somaxconn and tcp_max_syn_backlog
-# in order to get the desired effect.
-tcp-backlog 511
-
-# Close the connection after a client is idle for N seconds (0 to disable)
-timeout 0
-
-tcp-keepalive 300
-
-daemonize no
-supervised no
-pidfile /var/run/redis_6379.pid
-
-databases 16
-
-always-show-logo yes
-
-# Save the DB on disk:
-#   save <seconds> <changes>
-save 900 1
-save 300 10
-save 60 10000
-
-stop-writes-on-bgsave-error yes
-rdbcompression yes
-rdbchecksum yes
-
-slave-serve-stale-data yes
-slave-read-only yes
-
-# Replication SYNC strategy: disk or socket.
-# WARNING: DISKLESS REPLICATION IS EXPERIMENTAL CURRENTLY
-repl-diskless-sync no
-repl-diskless-sync-delay 5
-repl-disable-tcp-nodelay no
-# repl-backlog-size 1mb
-# repl-backlog-ttl 3600
-slave-priority 100
-
-
-lazyfree-lazy-eviction no
-lazyfree-lazy-expire no
-lazyfree-lazy-server-del no
-slave-lazy-flush no
-
-no-appendfsync-on-rewrite no
-auto-aof-rewrite-percentage 100
-auto-aof-rewrite-min-size 64mb
-aof-load-truncated yes
-aof-use-rdb-preamble no
-
-lua-time-limit 5000
-
-slowlog-log-slower-than 10000
-slowlog-max-len 128
-
-# Latency monitoring can easily be enabled at runtime using the command
-# "CONFIG SET latency-monitor-threshold <milliseconds>" if needed.
-latency-monitor-threshold 0
-
-notify-keyspace-events ""
-
-hash-max-ziplist-entries 512
-hash-max-ziplist-value 64
-list-max-ziplist-size -2
-list-compress-depth 0
-set-max-intset-entries 512
-zset-max-ziplist-entries 128
-zset-max-ziplist-value 64
-hll-sparse-max-bytes 3000
-activerehashing yes
-hz 10
-aof-rewrite-incremental-fsync yes
+rename-command CONFIG ""
 `
 )
