@@ -510,15 +510,12 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return manage.ConvertToHTTPError(err)
 	}
 
-	esNode := escatalog.GetFirstMemberHost(attr.DomainName, attr.ServiceName)
+	esNodeURI := escatalog.GetFirstMemberURI(attr.DomainName, attr.ServiceName)
 
 	// create the service in the control plane and the container platform
-	crReq, err := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Options, esNode)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq = kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options, esNodeURI)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)

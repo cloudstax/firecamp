@@ -62,14 +62,14 @@ if [ -f $servicecfgfile ]; then
 
   # overwrite the logstash.yml file
   # https://www.elastic.co/guide/en/logstash/5.6/production.html
-  echo "xpack.monitoring.enabled: false" > $cfgdir/logstash.yml
-  echo "path.data: /data/logstash" >> $cfgdir/logstash.yml
+  echo "path.data: /data/logstash" > $cfgdir/logstash.yml
   echo "path.config: /usr/share/logstash/pipeline" >> $cfgdir/logstash.yml
   echo "node.name: $MEMBER_NAME" >> $cfgdir/logstash.yml
   echo "http.host: $BIND_IP" >> $cfgdir/logstash.yml
   echo "http.port: 9600" >> $cfgdir/logstash.yml
   echo "queue.type: $QUEUE_TYPE" >> $cfgdir/logstash.yml
   echo "dead_letter_queue.enable: $ENABLE_DEAD_LETTER_QUEUE" >> $cfgdir/logstash.yml
+  # configure pipeline
   if [ $PIPELINE_WORKERS -gt 0 ]; then
     echo "pipeline.workers: $PIPELINE_WORKERS" >> $cfgdir/logstash.yml
   fi
@@ -82,6 +82,8 @@ if [ -f $servicecfgfile ]; then
   if [ $PIPELINE_BATCH_DELAY -gt 0 ]; then
     echo "pipeline.batch.delay: $PIPELINE_BATCH_DELAY" >> $cfgdir/logstash.yml
   fi
+  # disable xpack
+  echo "xpack.monitoring.enabled: false" >> $cfgdir/logstash.yml
 
   # update jvm.options file
   # Unlike ElasticSearch, if LS_JAVA_OPTS is set, it will overwrite the default opts in jvm.options.

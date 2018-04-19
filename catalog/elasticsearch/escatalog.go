@@ -285,11 +285,12 @@ func GetDataNodes(servicecfgContent string) (dataNodes int, err error) {
 	return -1, fmt.Errorf("DATA_NODES not find in service configs", servicecfgContent)
 }
 
-// GetFirstMemberHost returns the first member's dns name
-func GetFirstMemberHost(domain string, service string) string {
+// GetFirstMemberURI returns the first data node uri
+// example: http://myes-0.t1-firecamp.com:9200
+func GetFirstMemberURI(domain string, service string) string {
 	member := utils.GenServiceMemberName(service, 0)
 	memberHost := dns.GenDNSName(member, domain)
-	return memberHost
+	return fmt.Sprintf("http://%s:%d", memberHost, HTTPPort)
 }
 
 func getDedicatedMasterName(service string, idx int64) string {

@@ -1,9 +1,9 @@
 package kibanacatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -11,7 +11,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -25,7 +24,6 @@ const (
 	// https://www.elastic.co/guide/en/kibana/5.6/settings.html
 	kbHTTPPort = 5601
 
-	kbConfFileName     = "kibana.yml"
 	kbsslConfFileName  = "server.key"
 	kbcertConfFileName = "server.cert"
 )
@@ -47,23 +45,15 @@ func ValidateRequest(r *manage.CatalogCreateKibanaRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 // kibana simply connects to the first elasticsearch node. TODO create a local coordinating elasticsearch instance.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNode string) (*manage.CreateServiceRequest, error) {
-	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, res, opts, esNode)
+	service string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNodeURL string) *manage.CreateServiceRequest {
+	// generate service configs
+	serviceCfgs := genServiceConfigs(platform, opts, esNodeURL)
+
+	// generate member ReplicaConfigs
+	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: kbHTTPPort, HostPort: kbHTTPPort, IsServicePort: true},
-	}
-
-	userAttr := &common.KibanaUserAttr{
-		ESServiceName: opts.ESServiceName,
-		ProxyBasePath: opts.ProxyBasePath,
-		EnableSSL:     opts.EnableSSL,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
 	}
 
 	req := &manage.CreateServiceRequest{
@@ -71,29 +61,58 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
-		Resource: res,
+		Resource:           res,
+		CatalogServiceType: common.CatalogService_Kibana,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
-
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Kibana,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:        opts.Volume,
+		ContainerPath: common.DefaultContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	return req, nil
+	return req
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNode string) []*manage.ReplicaConfig {
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, opts *manage.CatalogKibanaOptions, esNodeURL string) []*manage.ConfigFileContent {
+	// create the service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, opts.ESServiceName, esNodeURL, opts.ProxyBasePath, strconv.FormatBool(opts.EnableSSL))
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	configs := []*manage.ConfigFileContent{serviceCfg}
+
+	// create ssl key and cert files if ssl is enabled
+	if opts.EnableSSL {
+		sslKeyCfg := &manage.ConfigFileContent{
+			FileName: kbsslConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  opts.SSLKey,
+		}
+		sslCertCfg := &manage.ConfigFileContent{
+			FileName: kbcertConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  opts.SSLCert,
+		}
+		configs = append(configs, sslKeyCfg, sslCertCfg)
+	}
+	return configs
+}
+
+// genReplicaConfigs generates the replica configs.
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKibanaOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
@@ -101,42 +120,23 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 		azIndex := int(i) % len(azs)
 		az := azs[azIndex]
 
-		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := catalog.CreateSysConfigFile(platform, az, memberHost)
 
-		// create the kibana.yml file
-		content := fmt.Sprintf(kbConfigs, member, catalog.BindAllIP, esNode)
-		if opts.EnableSSL {
-			content += kbSSLConfigs
+		bind := memberHost
+		if platform == common.ContainerPlatformSwarm {
+			bind = catalog.BindAllIP
 		}
-		if len(opts.ProxyBasePath) != 0 {
-			content += fmt.Sprintf(kbServerBasePath, opts.ProxyBasePath)
-		}
-		kbCfg := &manage.ConfigFileContent{
-			FileName: kbConfFileName,
+
+		// create the member.conf file
+		content := fmt.Sprintf(memberfileContent, az, member, memberHost, bind)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
-		configs := []*manage.ConfigFileContent{sysCfg, kbCfg}
-
-		// create ssl key & cert files if enabled
-		if opts.EnableSSL {
-			sslKeyCfg := &manage.ConfigFileContent{
-				FileName: kbsslConfFileName,
-				FileMode: common.DefaultConfigFileMode,
-				Content:  opts.SSLKey,
-			}
-			sslCertCfg := &manage.ConfigFileContent{
-				FileName: kbcertConfFileName,
-				FileMode: common.DefaultConfigFileMode,
-				Content:  opts.SSLCert,
-			}
-			configs = append(configs, sslKeyCfg, sslCertCfg)
-		}
-
+		configs := []*manage.ConfigFileContent{memberCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -144,42 +144,18 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 }
 
 const (
-	// https://www.elastic.co/guide/en/kibana/5.6/production.html
-	// https://github.com/elastic/kibana-docker/tree/5.6/build/kibana/config
-	//
-	// set "cpu.cgroup.path.override=/" and "cpuacct.cgroup.path.override=/".
-	// Below are explanations copied from Kibana 5.6.3 docker start cmd, /usr/local/bin/kibana-docker.
-	// The virtual file /proc/self/cgroup should list the current cgroup
-	// membership. For each hierarchy, you can follow the cgroup path from
-	// this file to the cgroup filesystem (usually /sys/fs/cgroup/) and
-	// introspect the statistics for the cgroup for the given
-	// hierarchy. Alas, Docker breaks this by mounting the container
-	// statistics at the root while leaving the cgroup paths as the actual
-	// paths. Therefore, Kibana provides a mechanism to override
-	// reading the cgroup path from /proc/self/cgroup and instead uses the
-	// cgroup path defined the configuration properties
-	// cpu.cgroup.path.override and cpuacct.cgroup.path.override.
-	// Therefore, we set this value here so that cgroup statistics are
-	// available for the container this process will run in.
-	kbConfigs = `
-server.name: %s
-server.host: %s
-elasticsearch.url: http://%s:9200
-
-path.data: /data/kibana
-
-cpu.cgroup.path.override: /
-cpuacct.cgroup.path.override: /
-
-xpack.security.enabled: false
-xpack.monitoring.ui.container.elasticsearch.enabled: false
+	servicefileContent = `
+PLATFORM=%s
+ES_SERVICE_NAME=%s
+ES_URL=%s
+PROXY_BASE_PATH=%s
+ENABLE_SSL=%s
 `
 
-	kbSSLConfigs = `
-server.ssl.enabled: true
-server.ssl.key: /data/conf/server.key
-server.ssl.certificate: /data/conf/server.cert
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+MEMBER_NAME=%s
+SERVICE_MEMBER=%s
+BIND_IP=%s
 `
-
-	kbServerBasePath = `server.basePath: %s`
 )
