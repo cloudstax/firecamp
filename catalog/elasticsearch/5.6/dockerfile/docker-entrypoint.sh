@@ -9,7 +9,6 @@ confdir=/data/conf
 jvmcfgfile=$confdir/jvm.options
 syscfgfile=$confdir/sys.conf
 
-
 escfgfile=$confdir/elasticsearch.yml
 servicecfgfile=$confdir/service.conf
 membercfgfile=$confdir/member.conf
@@ -82,11 +81,31 @@ if [ -f $servicecfgfile ]; then
     echo "node.ingest: true" >> $escfgdir/elasticsearch.yml
   fi
 
+  # update jvm.options file
+  # docker entrypoint will set ES_JAVA_OPTS for Xms and Xmx.
+  # simply set ES_JAVA_OPTS for Xms and Xmx is not enough. has to comment out
+  # the default setting in the jvm.options file.
+  # https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
+  sed -i '/-Xms/d' $escfgdir/jvm.options
+  sed -i '/-Xmx/d' $escfgdir/jvm.options
+  # heap dump path set to the external ElasticSearch data volume.
+  sed -i 's/#-XX:HeapDumpPath=.*/-XX:HeapDumpPath=\/data\/heapdump.hprof/g' $escfgdir/jvm.options
+  # gc detail log enabled with log file rotation.
+  sed -i 's/#-XX:+PrintGCDetails/-XX:+PrintGCDetails/g' $escfgdir/jvm.options
+  sed -i 's/#-XX:+PrintGCTimeStamps/-XX:+PrintGCTimeStamps/g' $escfgdir/jvm.options
+  sed -i 's/#-XX:+PrintGCApplicationStoppedTime/-XX:+PrintGCApplicationStoppedTime/g' $escfgdir/jvm.options
+  sed -i 's/#-Xloggc:.*/-Xloggc:\/data\/ecgc-%t.log/g' $escfgdir/jvm.options
+  echo "" >> $escfgdir/jvm.options
+  echo "-XX:+UseGCLogFileRotation" >> $escfgdir/jvm.options
+  echo "-XX:NumberOfGCLogFiles=8" >> $escfgdir/jvm.options
+  echo "-XX:GCLogFileSize=64M" >> $escfgdir/jvm.options
+
   # set java opts
   export ES_JAVA_OPTS="-Xms${HEAP_SIZE_MB}m -Xmx${HEAP_SIZE_MB}m"
 
 else
   # before release 0.9.6, load the sys config file
+  cp $jvmcfgfile $escfgdir
   . $syscfgfile
 fi
 
