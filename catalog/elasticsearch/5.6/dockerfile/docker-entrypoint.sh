@@ -88,13 +88,13 @@ if [ -f $servicecfgfile ]; then
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
   sed -i '/-Xms/d' $escfgdir/jvm.options
   sed -i '/-Xmx/d' $escfgdir/jvm.options
-  # heap dump path set to the external ElasticSearch data volume.
+  # set heap dump path to the external data volume.
   sed -i 's/#-XX:HeapDumpPath=.*/-XX:HeapDumpPath=\/data\/heapdump.hprof/g' $escfgdir/jvm.options
-  # gc detail log enabled with log file rotation.
+  # enable gc detail log with log file rotation.
   sed -i 's/#-XX:+PrintGCDetails/-XX:+PrintGCDetails/g' $escfgdir/jvm.options
   sed -i 's/#-XX:+PrintGCTimeStamps/-XX:+PrintGCTimeStamps/g' $escfgdir/jvm.options
   sed -i 's/#-XX:+PrintGCApplicationStoppedTime/-XX:+PrintGCApplicationStoppedTime/g' $escfgdir/jvm.options
-  sed -i 's/#-Xloggc:.*/-Xloggc:\/data\/ecgc-%t.log/g' $escfgdir/jvm.options
+  sed -i 's/#-Xloggc:.*/-Xloggc:\/data\/esgc-%t.log/g' $escfgdir/jvm.options
   echo "" >> $escfgdir/jvm.options
   echo "-XX:+UseGCLogFileRotation" >> $escfgdir/jvm.options
   echo "-XX:NumberOfGCLogFiles=8" >> $escfgdir/jvm.options

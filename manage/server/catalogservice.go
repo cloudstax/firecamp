@@ -554,12 +554,9 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
+	crReq = logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
