@@ -2,6 +2,7 @@ package manageserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -136,11 +137,30 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 		return manage.ConvertToHTTPError(err)
 	}
 
-	esURIs, err := escatalog.GenDataNodesURIs(esAttr)
-	if err != nil {
-		glog.Errorln("create elasticsearch data nodes uris error", err, svc, "requuid", requuid, req.Service)
+	dataNodes := 0
+	for _, cfg := range esAttr.Spec.ServiceConfigs {
+		if cfg.FileName == catalog.SERVICE_FILE_NAME {
+			// get the number of data nodes from service.conf file
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, esAttr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("get elasticsearch service config file error", err, svc, "requuid", requuid, req.Service)
+				return manage.ConvertToHTTPError(err)
+			}
+			dataNodes, err := escatalog.GetDataNodes(cfgfile.Spec.Content)
+			if err != nil {
+				glog.Errorln("get elasticsearch data nodes error", err, svc, "requuid", requuid, req.Service)
+				return manage.ConvertToHTTPError(err)
+			}
+			break
+		}
+	}
+	if dataNodes == 0 {
+		err = fmt.Errorf("elasticsearch service %s has no data node, requuid %s, %s", svc.ServiceName, requuid, req.Service)
+		glog.Errorln(err)
 		return manage.ConvertToHTTPError(err)
 	}
+
+	esURIs := escatalog.GenDataNodesURIs(s.cluster, esAttr.Meta.ServiceName, dataNodes)
 
 	// create the service in the control plane and the container platform
 	crReq, ua, err := kccatalog.GenCreateESSinkServiceRequest(s.platform, s.region, s.cluster,
