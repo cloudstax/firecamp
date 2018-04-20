@@ -453,10 +453,10 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return manage.ConvertToHTTPError(err)
 	}
 
-	esNodeURI := escatalog.GetFirstMemberURI(attr.DomainName, attr.ServiceName)
+	esNodeURI := escatalog.GetFirstMemberURI(attr.Spec.DomainName, attr.Meta.ServiceName)
 
 	// create the service in the control plane and the container platform
-	crReq = kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options, esNodeURI)
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
@@ -494,7 +494,7 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq = logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
+	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
@@ -553,12 +553,8 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, attr, members, req.Options, req.Resource)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {

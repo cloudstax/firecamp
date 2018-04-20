@@ -13,6 +13,7 @@ COPY input_zk.conf /firecamp/
 COPY output_cloudwatch.conf /firecamp/
 COPY telegraf.conf /firecamp/
 
+COPY firecamp-getserviceconf /
 COPY entrypoint.sh /
 
 CMD ["telegraf", "--config", "/firecamp/telegraf.conf"]

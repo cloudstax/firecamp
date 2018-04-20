@@ -1,7 +1,6 @@
 package telcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
-	"github.com/golang/glog"
 )
 
 const (
@@ -29,7 +27,7 @@ const (
 	// Limits the max custom metrics size to 16KB
 	maxMetricsLength = 16 * 1024
 
-	ENV_REDIS_AUTH = "REDIS_AUTH"
+	metricsConfFileName = "metrics.conf"
 )
 
 // The InfluxData Telegraf catalog service, https://github.com/influxdata/telegraf
@@ -49,16 +47,11 @@ func ValidateRequest(req *manage.CatalogCreateTelegrafRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
 	attr *common.ServiceAttr, monitorServiceMembers []*common.ServiceMember,
-	opts *manage.CatalogTelegrafOptions, res *common.Resources) (*manage.CreateServiceRequest, error) {
-
-	serviceEnvs, err := genServiceEnvs(attr)
-	if err != nil {
-		return nil, err
-	}
+	opts *manage.CatalogTelegrafOptions, res *common.Resources) *manage.CreateServiceRequest {
 
 	members := ""
 	for i, m := range monitorServiceMembers {
-		dnsname := dns.GenDNSName(m.MemberName, attr.DomainName)
+		dnsname := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
 		if i == 0 {
 			members = dnsname
 		} else {
@@ -72,27 +65,14 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_COLLECT_INTERVAL, Value: fmt.Sprintf("%ds", opts.CollectIntervalSecs)},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_NAME, Value: opts.MonitorServiceName},
-		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_TYPE, Value: attr.UserAttr.ServiceType},
+		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_TYPE, Value: attr.Spec.CatalogServiceType},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_SERVICE_MEMBERS, Value: members},
 		&common.EnvKeyValuePair{Name: ENV_MONITOR_METRICS, Value: opts.MonitorMetrics},
 	}
 
-	for _, env := range serviceEnvs {
-		envkvs = append(envkvs, env)
-	}
+	serviceCfgs := genServiceConfigs(opts)
 
-	userAttr := &common.TGUserAttr{
-		CollectIntervalSecs: opts.CollectIntervalSecs,
-		MonitorServiceName:  opts.MonitorServiceName,
-		MonitorMetrics:      opts.MonitorMetrics,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
-
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, 1)
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(cluster, service, 1)
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -109,6 +89,8 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 			ReserveMemMB:    res.ReserveMemMB,
 		},
 
+		CatalogServiceType: common.CatalogService_Telegraf,
+
 		ContainerImage: ContainerImage,
 		// Telegraf only needs 1 container.
 		Replicas: 1,
@@ -120,32 +102,43 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		// streaming (tcp, unix) or datagram (udp, unixgram) protocols.
 		// Currently firecamp telegraf is only used to monitor the stateful service. So no need to expose
 		// these ports and no need to register DNS for the telegraf service itself.
-		RegisterDNS:    false,
+		RegisterDNS: false,
+
+		ServiceConfigs: serviceCfgs,
+
 		ReplicaConfigs: replicaCfgs,
-
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Telegraf,
-			AttrBytes:   b,
-		},
 	}
-	return req, nil
+	return req
 }
 
-// genServiceEnvs generates the envs for the service.
-func genServiceEnvs(attr *common.ServiceAttr) (envkvs []*common.EnvKeyValuePair, err error) {
-	switch attr.UserAttr.ServiceType {
-	case common.CatalogService_Redis:
-		ua := &common.RedisUserAttr{}
-		err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-		if err != nil {
-			return envkvs, err
-		}
-		envkvs = []*common.EnvKeyValuePair{
-			&common.EnvKeyValuePair{Name: ENV_REDIS_AUTH, Value: ua.AuthPass},
-		}
-		return envkvs, nil
-
-	default:
-		return envkvs, nil
+func genServiceConfigs(opts *manage.CatalogTelegrafOptions) []*manage.ConfigFileContent {
+	// create service.conf file
+	content := fmt.Sprintf(servicefileContent, opts.CollectIntervalSecs, opts.MonitorServiceName)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
 	}
+
+	configs := []*manage.ConfigFileContent{serviceCfg}
+
+	if len(opts.MonitorMetrics) != 0 {
+		// create metrics.conf file
+		metricsCfg := &manage.ConfigFileContent{
+			FileName: metricsConfFileName,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  opts.MonitorMetrics,
+		}
+		configs = append(configs, metricsCfg)
+	}
+
+	return configs
 }
+
+const (
+	// TODO create 2 service config files: service.conf and metrics.conf
+	servicefileContent = `
+CollectIntervalSecs=%d
+MonitorServiceName=%s
+`
+)

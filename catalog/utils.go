@@ -12,11 +12,24 @@ import (
 )
 
 // GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
-func GenStatelessServiceReplicaConfigs(service string, replicas int) []*manage.ReplicaConfig {
+func GenStatelessServiceReplicaConfigs(cluster string, service string, replicas int) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < replicas; i++ {
 		member := utils.GenServiceMemberName(service, int64(i))
-		replicaCfgs[i] = &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member}
+		memberHost := dns.GenDNSName(member, domain)
+
+		content := fmt.Sprintf("SERVICE_MEMBER=%s", memberHost)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: MEMBER_FILE_NAME,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
+
+		configs := []*manage.ConfigFileContent{memberCfg}
+
+		replicaCfgs[i] = &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
 	}
 	return replicaCfgs
 }
