@@ -2,6 +2,7 @@ package manageserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -160,15 +161,16 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 		return manage.ConvertToHTTPError(err)
 	}
 
+	// create elasticsearch data node uris
 	esURIs := escatalog.GenDataNodesURIs(s.cluster, esAttr.Meta.ServiceName, dataNodes)
 
+	// create kafka hosts
+	kafkaServers := kafkacatalog.GenKafkaMemberHostsWithPort(s.cluster, kafkaAttr.Meta.ServiceName, kafkaAttr.Spec.Replicas)
+
 	// create the service in the control plane and the container platform
-	crReq, ua, err := kccatalog.GenCreateESSinkServiceRequest(s.platform, s.region, s.cluster,
-		req.Service.ServiceName, kafkaAttr, req.Options, req.Resource)
-	if err != nil {
-		glog.Errorln("GenCreateESSinkServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq, sinkESConfigs := kccatalog.GenCreateESSinkServiceRequest(s.platform, s.region, s.cluster,
+		req.Service.ServiceName, kafkaServers, esURIs, req)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -178,15 +180,15 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	glog.Infoln("created kafka connector service", serviceUUID, "requuid", requuid, req.Service)
 
 	// add the init task to actually create the elasticsearch sink task in kafka connectors
-	s.addKafkaSinkESInitTask(ctx, req.Service, serviceUUID, req.Options.Replicas, ua, esURIs, requuid)
+	s.addKafkaSinkESInitTask(ctx, req.Service, serviceUUID, req.Options.Replicas, sinkESConfigs, requuid)
 
 	return "", http.StatusOK
 }
 
 func (s *ManageHTTPServer) addKafkaSinkESInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, replicas int64, ua *common.KCSinkESUserAttr, esURIs string, requuid string) {
+	serviceUUID string, replicas int64, sinkESConfigs string, requuid string) {
 	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := kccatalog.GenSinkESServiceInitRequest(req, logCfg, serviceUUID, replicas, ua, esURIs, s.manageurl)
+	taskOpts := kccatalog.GenSinkESServiceInitRequest(req, logCfg, serviceUUID, replicas, s.manageurl, sinkESConfigs)
 
 	task := &serviceTask{
 		serviceUUID: serviceUUID,
@@ -201,36 +203,26 @@ func (s *ManageHTTPServer) addKafkaSinkESInitTask(ctx context.Context, req *mana
 }
 
 func (s *ManageHTTPServer) restartKafkaSinkESInitTask(ctx context.Context, req *manage.ServiceCommonRequest, attr *common.ServiceAttr, requuid string) error {
-	userAttr := &common.KCSinkESUserAttr{}
-	err := json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
-	if err != nil {
-		glog.Errorln("Unmarshal kafka sink elasticsearch user attr error", err, "requuid", requuid, attr)
-		return err
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if kccatalog.IsSinkESConfFile(cfg.FileName) {
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, cfg, "requuid", requuid, req)
+				return err
+			}
+
+			sinkESConfigs := cfgfile.Spec.Content
+
+			s.addKafkaSinkESInitTask(ctx, req, attr.ServiceUUID, attr.Replicas, sinkESConfigs, requuid)
+
+			glog.Infoln("addKafkaSinkESInitTask, requuid", requuid, req)
+			return nil
+		}
 	}
 
-	// get the elasticsearch service
-	svc, err := s.dbIns.GetService(ctx, s.cluster, userAttr.ESServiceName)
-	if err != nil {
-		glog.Errorln("get elasticsearch service", userAttr.ESServiceName, "error", err, "requuid", requuid, req)
-		return err
-	}
-
-	glog.Infoln("get elasticsearch service", svc, "requuid", requuid)
-
-	esAttr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		glog.Errorln("get elasticsearch service attr", svc, "error", err, "requuid", requuid, req)
-		return err
-	}
-
-	esURIs, err := escatalog.GenDataNodesURIs(esAttr)
-	if err != nil {
-		glog.Errorln("create elasticsearch data nodes uris error", err, svc, "requuid", requuid, req)
-		return err
-	}
-
-	s.addKafkaSinkESInitTask(ctx, req, attr.ServiceUUID, attr.Replicas, userAttr, esURIs, requuid)
-	return nil
+	errmsg := fmt.Sprintf("sinkESConfigs not found, requuid %s, %s", requuid, req)
+	glog.Errorln(errmsg)
+	return errors.New(errmsg)
 }
 
 func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {

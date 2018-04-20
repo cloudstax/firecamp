@@ -1,15 +1,11 @@
 package kccatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 
-	"github.com/golang/glog"
-
 	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/log"
@@ -68,6 +64,8 @@ const (
 	ENV_CONNECTOR_PORT  = "CONNECTOR_PORT"
 
 	ENV_ELASTICSEARCH_CONFIGS = "ELASTICSEARCH_CONFIGS"
+
+	sinkESConfFileName = "sinkes.conf"
 )
 
 // The Kafka Connect catalog service
@@ -89,7 +87,7 @@ func ValidateSinkESRequest(req *manage.CatalogCreateKafkaSinkESRequest) error {
 	}
 	if req.Resource.MaxMemMB != common.DefaultMaxMemoryMB &&
 		(req.Resource.MaxMemMB < req.Resource.ReserveMemMB || req.Resource.MaxMemMB < opts.HeapSizeMB) {
-		return errors.New("The ")
+		return errors.New("The max memory should be larger than heap size and reserved memory")
 	}
 
 	return nil
@@ -97,9 +95,7 @@ func ValidateSinkESRequest(req *manage.CatalogCreateKafkaSinkESRequest) error {
 
 // GenCreateESSinkServiceRequest returns the creation request for the kafka elasticsearch sink service.
 func GenCreateESSinkServiceRequest(platform string, region string, cluster string, service string,
-	kafkaAttr *common.ServiceAttr, opts *manage.CatalogKafkaSinkESOptions, res *common.Resources) (*manage.CreateServiceRequest, *common.KCSinkESUserAttr, error) {
-
-	kafkaServers := catalog.GenServiceMemberHostsWithPort(kafkaAttr.ClusterName, kafkaAttr.ServiceName, kafkaAttr.Replicas, kafkacatalog.ListenPort)
+	kafkaServers string, esURIs string, req *manage.CatalogCreateKafkaSinkESRequest) (crReq *manage.CreateServiceRequest, sinkESConfigs string) {
 
 	groupID := fmt.Sprintf("%s-%s", cluster, service)
 	configTopic := fmt.Sprintf("%s-%s", groupID, CONFIG_NAME_SUFFIX)
@@ -107,11 +103,9 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 	statusTopic := fmt.Sprintf("%s-%s", groupID, STATUS_NAME_SUFFIX)
 
 	replFactor := DEFAULT_REPLICATION_FACTOR
-	if opts.ReplFactor > 0 {
-		replFactor = opts.ReplFactor
+	if req.Options.ReplFactor > 0 {
+		replFactor = req.Options.ReplFactor
 	}
-
-	// TODO set the connector heap size
 
 	envkvs := []*common.EnvKeyValuePair{
 		// general env variables
@@ -121,7 +115,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
 		&common.EnvKeyValuePair{Name: common.ENV_DB_TYPE, Value: common.DBTypeCloudDB},
 		// kafka connect env configs
-		&common.EnvKeyValuePair{Name: ENV_KAFKA_HEAP_OPTS, Value: fmt.Sprintf("-Xmx%dm", opts.HeapSizeMB)},
+		&common.EnvKeyValuePair{Name: ENV_KAFKA_HEAP_OPTS, Value: fmt.Sprintf("-Xmx%dm", req.Options.HeapSizeMB)},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_BOOTSTRAP_SERVERS, Value: kafkaServers},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_PORT, Value: strconv.Itoa(connectRestPort)},
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_GROUP_ID, Value: groupID},
@@ -143,45 +137,38 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		&common.EnvKeyValuePair{Name: ENV_CONNECT_LOG4J_LOGGERS, Value: reflectionLogger},
 	}
 
-	typeName := opts.TypeName
+	reserveMemMB := req.Resource.ReserveMemMB
+	if req.Resource.ReserveMemMB < req.Options.HeapSizeMB {
+		reserveMemMB = req.Options.HeapSizeMB
+	}
+
+	typeName := req.Options.TypeName
 	if len(typeName) == 0 {
 		typeName = DEFAULT_TYPE_NAME
 	}
 	bufferedRecords := DefaultMaxBufferedRecords
-	if opts.MaxBufferedRecords > 0 {
-		bufferedRecords = opts.MaxBufferedRecords
+	if req.Options.MaxBufferedRecords > 0 {
+		bufferedRecords = req.Options.MaxBufferedRecords
 	}
 	batchSize := DefaultBatchSize
-	if opts.BatchSize > 0 {
-		batchSize = opts.BatchSize
+	if req.Options.BatchSize > 0 {
+		batchSize = req.Options.BatchSize
 	}
 
-	userAttr := &common.KCSinkESUserAttr{
-		HeapSizeMB:         opts.HeapSizeMB,
-		KafkaServiceName:   opts.KafkaServiceName,
-		Topic:              opts.Topic,
-		ESServiceName:      opts.ESServiceName,
-		TypeName:           typeName,
-		MaxBufferedRecords: bufferedRecords,
-		BatchSize:          batchSize,
-		ConfigReplFactor:   replFactor,
-		OffsetReplFactor:   replFactor,
-		StatusReplFactor:   replFactor,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, nil, err
+	name := genConnectorName(req.Service.Cluster, req.Service.ServiceName)
+	sinkESConfigs = fmt.Sprintf(sinkESConfigsContent, name, req.Options.Replicas,
+		req.Options.Topic, typeName, bufferedRecords, batchSize, esURIs)
+	esCfg := &manage.ConfigFileContent{
+		FileName: sinkESConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  sinkESConfigs,
 	}
 
-	reserveMemMB := res.ReserveMemMB
-	if res.ReserveMemMB < opts.HeapSizeMB {
-		reserveMemMB = opts.HeapSizeMB
-	}
+	serviceCfgs := []*manage.ConfigFileContent{esCfg}
 
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, int(opts.Replicas))
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, int(req.Options.Replicas))
 
-	req := &manage.CreateServiceRequest{
+	crReq = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
@@ -190,29 +177,29 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		},
 
 		Resource: &common.Resources{
-			MaxCPUUnits:     res.MaxCPUUnits,
-			ReserveCPUUnits: res.ReserveCPUUnits,
-			MaxMemMB:        res.MaxMemMB,
+			MaxCPUUnits:     req.Resource.MaxCPUUnits,
+			ReserveCPUUnits: req.Resource.ReserveCPUUnits,
+			MaxMemMB:        req.Resource.MaxMemMB,
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		CatalogServiceType: common.CatalogService_KafkaSinkES,
+
 		ContainerImage: ContainerImage,
-		Replicas:       opts.Replicas,
+		Replicas:       req.Options.Replicas,
 		Envkvs:         envkvs,
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_KafkaSinkES,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	return req, userAttr, nil
+	return crReq, sinkESConfigs
 }
 
 // GenSinkESServiceInitRequest creates the init request for elasticsearch sink connector.
 func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	serviceUUID string, replicas int64, ua *common.KCSinkESUserAttr, esURIs string, manageurl string) *containersvc.RunTaskOptions {
+	serviceUUID string, replicas int64, manageurl string, sinkESConfigs string) *containersvc.RunTaskOptions {
 
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: req.Region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: req.Cluster}
@@ -226,9 +213,8 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 	kvhosts := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_HOSTS, Value: connectorHosts}
 	kvport := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_PORT, Value: strconv.Itoa(connectRestPort)}
 
-	name := fmt.Sprintf("%s-%s", req.Cluster, req.ServiceName)
-	configs := fmt.Sprintf(sinkESConfigs, name, replicas, ua.Topic, ua.TypeName, ua.MaxBufferedRecords, ua.BatchSize, esURIs)
-	kvconfigs := &common.EnvKeyValuePair{Name: ENV_ELASTICSEARCH_CONFIGS, Value: configs}
+	kvconfigs := &common.EnvKeyValuePair{Name: ENV_ELASTICSEARCH_CONFIGS, Value: sinkESConfigs}
+	name := genConnectorName(req.Cluster, req.ServiceName)
 	kvname := &common.EnvKeyValuePair{Name: ENV_CONNECTOR_NAME, Value: name}
 
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvhosts, kvport, kvconfigs, kvname}
@@ -254,6 +240,14 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 	}
 }
 
+func genConnectorName(cluster string, service string) string {
+	return fmt.Sprintf("%s-%s", cluster, service)
+}
+
+func IsSinkESConfFile(filename string) bool {
+	return filename == sinkESConfFileName
+}
+
 const (
-	sinkESConfigs = `{"name": "%s", "config": {"connector.class":"io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "tasks.max":"%d", "topics":"%s", "schema.ignore":"true", "key.ignore":"true", "type.name":"%s", "max.buffered.records":"%d", "batch.size":"%d", "connection.url":"%s"}}`
+	sinkESConfigsContent = `{"name": "%s", "config": {"connector.class":"io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "tasks.max":"%d", "topics":"%s", "schema.ignore":"true", "key.ignore":"true", "type.name":"%s", "max.buffered.records":"%d", "batch.size":"%d", "connection.url":"%s"}}`
 )

@@ -39,18 +39,35 @@ if [ -z "$REGION" -o -z "$CLUSTER" -o -z "$SERVICE_NAME" -o -z "$CONTAINER_PLATF
   exit 1
 fi
 
-MEMBER_INDEX=-1
-if [ "$CONTAINER_PLATFORM" = "swarm" ]; then
-  MEMBER_INDEX=$TASK_SLOT
+# for now, simply pass all configs in env variables. later, we may put all configs in service.conf
+if [ "$CONTAINER_PLATFORM" = "ecs" -o "$CONTAINER_PLATFORM" = "swarm" ]; then
+  # for AWS ECS and Docker swarm
+  MEMBER_INDEX=-1
+  if [ "$CONTAINER_PLATFORM" = "swarm" ]; then
+    MEMBER_INDEX=$TASK_SLOT
+  fi
+
+  # select one service member, update member dns and write the member dns name to /etc/firecamp-member.
+  /firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -container-platform=$CONTAINER_PLATFORM
+
+  # load member configs
+  . /etc/firecamp-member
+
+else
+  # for K8s
+  # if member is only accessible from within k8s cluster
+  #   SERVICE_MEMBER=podname.internaldomain
+  # else
+  #   the member's dns name the init container will update member dns, or call a tool here.
+  #   SERVICE_MEMBER=podname.externaldomain
+  # SERVICE_MEMBER=${POD_NAME}.${DOMAIN}
+  echo "error: not support k8s yet"
+  exit 2
 fi
 
-# selectmember will select one service member and write the member name to /etc/firecamp-member.
-/firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -container-platform=$CONTAINER_PLATFORM
-
-memberHost=$(cat /etc/firecamp-member)
-echo "$memberHost"
-export CONNECT_REST_HOST_NAME=$memberHost
-export CONNECT_REST_ADVERTISED_HOST_NAME=$memberHost
+echo "$SERVICE_MEMBER"
+export CONNECT_REST_HOST_NAME=$SERVICE_MEMBER
+export CONNECT_REST_ADVERTISED_HOST_NAME=$SERVICE_MEMBER
 
 echo "$@"
 exec "$@"

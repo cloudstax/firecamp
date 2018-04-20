@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -103,8 +104,9 @@ func main() {
 	}
 
 	memberHost := dns.GenDNSName(memberName, domain)
+	content := fmt.Sprintf("SERVICE_MEMBER=%s", memberHost)
 
-	err = utils.CreateOrOverwriteFile(*outputfile, []byte(memberHost), utils.DefaultFileMode)
+	err = utils.CreateOrOverwriteFile(*outputfile, []byte(content), utils.DefaultFileMode)
 	if err != nil {
 		glog.Fatalln("create outputfile", *outputfile, "error", err, "service", *service, "memberName", memberName, "index", *memberIndex)
 	}
