@@ -274,19 +274,10 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 		return err.Error(), http.StatusBadRequest
 	}
 
-	existingEncryptPasswd, err := s.getCouchDBExistingEncryptPasswd(ctx, req, requuid)
-	if err != nil {
-		glog.Errorln("getCouchDBExistingEncryptPasswd error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-
 	// create the service in the control plane and the container platform
-	crReq, err := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Options, existingEncryptPasswd)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -299,50 +290,6 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	glog.Infoln("created CouchDB service", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
 	return "", http.StatusOK
-}
-
-func (s *ManageHTTPServer) getCouchDBExistingEncryptPasswd(ctx context.Context, req *manage.CatalogCreateCouchDBRequest, requuid string) (existingEncryptPasswd string, err error) {
-	// get the possible existing service attr.
-	// the couchdbcatalog.encryptPasswd generates a uuid as salt to encrypt the password.
-	// the uuid will be different for the retry request and causes the retry failed.
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		if err == db.ErrDBRecordNotFound {
-			// service not exist
-			return "", nil
-		}
-
-		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	// service exists, get attr
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		if err == db.ErrDBRecordNotFound {
-			// service attr not exists
-			return "", nil
-		}
-
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	// service attr exists, get the existing encryptedPasswd
-	if attr.UserAttr.ServiceType != common.CatalogService_CouchDB {
-		glog.Errorln("existing service is not couchdb", attr.UserAttr.ServiceType, attr, "requuid", requuid, req.Service)
-		return "", common.ErrServiceExist
-	}
-
-	ua := &common.CouchDBUserAttr{}
-	err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-	if err != nil {
-		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	glog.Infoln("get existing encryptPasswd, requuid", requuid, req.Service)
-	return ua.EncryptedPasswd, nil
 }
 
 func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
