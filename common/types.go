@@ -74,6 +74,7 @@ const (
 	DefaultConfigDir                       = "/conf"
 	DefaultConfigPath                      = DefaultContainerMountPath + DefaultConfigDir
 	DefaultConfigFileMode                  = 0600
+	ReadOnlyFileMode                       = 0400
 
 	DBTypeCloudDB = "clouddb" // such as AWS DynamoDB
 	DBTypeK8sDB   = "k8sdb"   // db on top of k8s ConfigMap

@@ -191,12 +191,12 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 	if opts.EnableSSL {
 		certCfg := &manage.ConfigFileContent{
 			FileName: certConfFileName,
-			FileMode: common.DefaultConfigFileMode,
+			FileMode: common.ReadOnlyFileMode,
 			Content:  opts.CertFileContent,
 		}
 		keyCfg := &manage.ConfigFileContent{
 			FileName: privateKeyConfFileName,
-			FileMode: common.DefaultConfigFileMode,
+			FileMode: common.ReadOnlyFileMode,
 			Content:  opts.KeyFileContent,
 		}
 		configs = append(configs, certCfg, keyCfg)
@@ -204,7 +204,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 		if len(opts.CACertFileContent) != 0 {
 			caCfg := &manage.ConfigFileContent{
 				FileName: caCertConfFileName,
-				FileMode: common.DefaultConfigFileMode,
+				FileMode: common.ReadOnlyFileMode,
 				Content:  opts.CACertFileContent,
 			}
 			configs = append(configs, caCfg)

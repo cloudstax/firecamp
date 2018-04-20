@@ -568,43 +568,20 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 
 	for i, cfg := range attr.Spec.ServiceConfigs {
 		if req.ConfigFileName == cfg.FileName {
-			// create a new config file
-			version, err := utils.GetConfigFileVersion(cfg.FileID)
+			// get the current config file
+			currCfgFile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
 			if err != nil {
-				glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfg)
+				glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg)
 				return manage.ConvertToHTTPError(err)
 			}
 
-			newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, cfg.FileName, version+1)
-			newcfgfile := db.CreateNewConfigFile(cfg, newFileID, req.ConfigFileContent)
-
-			newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+			err = s.updateConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent)
 			if err != nil {
-				glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+				glog.Errorln("updateConfigFile error", err, "requuid", requuid, req.Service)
 				return manage.ConvertToHTTPError(err)
 			}
 
-			// update ServiceAttr
-			newAttr := db.UpdateServiceConfig(attr, i, newFileID, newcfgfile.Spec.FileMD5)
-			err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
-			if err != nil {
-				glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, newAttr)
-				return manage.ConvertToHTTPError(err)
-			}
-
-			glog.Infoln("updated service config ", req.ConfigFileName, "requuid", requuid, req.Service)
-
-			// delete the old config file.
-			// TODO add the background gc mechanism to delete the garbage.
-			//      the old config file may not be deleted at some conditions.
-			//      for example, node crashes right before deleting the config file.
-			err = s.dbIns.DeleteConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
-			if err != nil {
-				// simply log an error as this only leaves a garbage
-				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, cfg)
-			} else {
-				glog.Infoln("deleted the old config file, requuid", requuid, cfg)
-			}
+			glog.Infoln("updated service config, requuid", requuid, req.Service)
 
 			return "", http.StatusOK
 		}
@@ -613,6 +590,47 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 	errmsg := fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
 	glog.Errorln(errmsg)
 	return errmsg, http.StatusNotFound
+}
+
+func (s *ManageHTTPServer) updateConfigFile(ctx context.Context, attr *common.ServiceAttr, serviceCfgIndex int, oldCfg *common.ConfigFile, newContent string) error {
+	// create the new config file
+	version, err := utils.GetConfigFileVersion(oldCfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, db.PrintConfigFile(oldCfg))
+		return manage.ConvertToHTTPError(err)
+	}
+
+	newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, oldCfg.Meta.FileName, version+1)
+	newcfgfile := db.CreateNewConfigFile(cfg, newFileID, newContent)
+	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		return err
+	}
+
+	// update ServiceAttr
+	newAttr := db.UpdateServiceConfig(attr, serviceCfgIndex, newFileID, newcfgfile.Spec.FileMD5)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, newAttr)
+		return err
+	}
+
+	glog.Infoln("updated service config ", oldCfg.Meta.FileName, "requuid", requuid, newAttr)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//      for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, attr.ServiceUUID, oldCfg.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(oldCfg))
+	} else {
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(oldCfg))
+	}
+
+	return nil
 }
 
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest,

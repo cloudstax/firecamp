@@ -332,12 +332,8 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
 
 	// create the service in the control plane
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
@@ -615,6 +611,12 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 }
 
 func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, requuid string) (serverips []string, err error) {
+	attr, err := s.dbIns.GetServiceAttr(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return nil, err
+	}
+
 	// update the consul member address to the assigned static ip in the basic_config.json file
 	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
@@ -630,45 +632,32 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 		serverips[i] = m.StaticIP
 	}
 
-	for _, m := range members {
-		err = s.updateConsulMemberConfig(ctx, m, memberips, requuid)
-		if err != nil {
-			return nil, err
+	for i, cfg := range attr.Spec.ServiceConfigs {
+		if consulcatalog.IsBasicConfigFile(cfg.FileName) {
+			// get the detail content
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, serviceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, serviceUUID, "requuid", requuid, cfg)
+				return nil, err
+			}
+
+			// replace member dns name with static ips
+			newContent := consulcatalog.ReplaceMemberName(cfgfile.Spec.Content, memberips)
+
+			err = s.updateConfigFile(ctx, attr, i, cfgfile, newContent)
+			if err != nil {
+				glog.Errorln("updateConfigFile error", err, "requuid", requuid, cfg)
+				return nil, err
+			}
+
+			glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
+			return serviceips, nil
 		}
 	}
 
-	glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
-	return serverips, nil
-}
-
-func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member *common.ServiceMember, memberips map[string]string, requuid string) error {
-	var cfg *common.ConfigID
-	cfgIndex := -1
-	for i, c := range member.Configs {
-		if consulcatalog.IsBasicConfigFile(c.FileName) {
-			cfg = c
-			cfgIndex = i
-			break
-		}
-	}
-	if cfgIndex == -1 {
-		errmsg := fmt.Sprintf("consul config file not found, service uuid %s, requuid %s", member.ServiceUUID, requuid)
-		glog.Errorln(errmsg)
-		return errors.New(errmsg)
-	}
-
-	// fetch the config file
-	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-		return err
-	}
-
-	// replace the original member dns name by member ip
-	newContent := consulcatalog.ReplaceMemberName(cfgfile.Content, memberips)
-
-	_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-	return err
+	errmsg := fmt.Sprintf("consul basic config file not found, requuid %s", requuid)
+	glog.Errorln(errmsg, attr)
+	return nil, errors.New(errmsg)
 }
 
 func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
