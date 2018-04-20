@@ -316,7 +316,9 @@ BuildCatalogImages() {
   target=$system"-telegraf"
   image="${org}${target}:1.5"
   path="${TOPWD}/catalog/telegraf/1.5/dockerfile/"
+  cp ${GOPATH}/bin/firecamp-getserviceconf ${path}
   docker build -q -t $image $path
+  rm -f ${path}/firecamp-getserviceconf
   docker push $image
 }
 
