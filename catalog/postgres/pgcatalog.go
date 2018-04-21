@@ -115,7 +115,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 	primaryHost := dns.GenDNSName(primaryMember, domain)
 
 	// create service.conf file
-	content := fmt.Sprintf(servicefileContent, platform, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
+	content := fmt.Sprintf(servicefileContent, platform, opts.ContainerImage, primaryHost, port, opts.AdminPasswd, opts.ReplUser, opts.ReplUserPasswd)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -217,6 +217,7 @@ func genReplicaConfigs(platform string, cluster string, service string, azs []st
 const (
 	servicefileContent = `
 PLATFORM=%s
+CONTAINER_IMAGE=%s
 PRIMARY_HOST=%s
 LISTEN_PORT=%d
 POSTGRES_PASSWORD=%s
