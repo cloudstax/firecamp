@@ -96,77 +96,17 @@ func ValidateSinkESRequest(req *manage.CatalogCreateKafkaSinkESRequest) error {
 // GenCreateESSinkServiceRequest returns the creation request for the kafka elasticsearch sink service.
 func GenCreateESSinkServiceRequest(platform string, region string, cluster string, service string,
 	kafkaServers string, esURIs string, req *manage.CatalogCreateKafkaSinkESRequest) (crReq *manage.CreateServiceRequest, sinkESConfigs string) {
+	// generate the container env variables
+	envkvs := genEnvs(platform, region, cluster, service, kafkaServers, req.Options)
 
-	groupID := fmt.Sprintf("%s-%s", cluster, service)
-	configTopic := fmt.Sprintf("%s-%s", groupID, CONFIG_NAME_SUFFIX)
-	offsetTopic := fmt.Sprintf("%s-%s", groupID, OFFSET_NAME_SUFFIX)
-	statusTopic := fmt.Sprintf("%s-%s", groupID, STATUS_NAME_SUFFIX)
+	serviceCfgs, sinkESConfigs := genServiceConfigs(platform, cluster, service, esURIs, req.Options)
 
-	replFactor := DEFAULT_REPLICATION_FACTOR
-	if req.Options.ReplFactor > 0 {
-		replFactor = req.Options.ReplFactor
-	}
-
-	envkvs := []*common.EnvKeyValuePair{
-		// general env variables
-		&common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region},
-		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
-		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
-		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
-		&common.EnvKeyValuePair{Name: common.ENV_DB_TYPE, Value: common.DBTypeCloudDB},
-		// kafka connect env configs
-		&common.EnvKeyValuePair{Name: ENV_KAFKA_HEAP_OPTS, Value: fmt.Sprintf("-Xmx%dm", req.Options.HeapSizeMB)},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_BOOTSTRAP_SERVERS, Value: kafkaServers},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_PORT, Value: strconv.Itoa(connectRestPort)},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_GROUP_ID, Value: groupID},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_CONFIG_STORAGE_TOPIC, Value: configTopic},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_OFFSET_STORAGE_TOPIC, Value: offsetTopic},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_STATUS_STORAGE_TOPIC, Value: statusTopic},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_STATUS_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_KEY_CONVERTER, Value: JSON_CONVERTER},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_VALUE_CONVERTER, Value: JSON_CONVERTER},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_KEY_CONVERTER, Value: JSON_CONVERTER},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_VALUE_CONVERTER, Value: JSON_CONVERTER},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_PLUGIN_PATH, Value: defaultConnectPluginPath},
-		&common.EnvKeyValuePair{Name: ENV_CONNECT_LOG4J_LOGGERS, Value: reflectionLogger},
-	}
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(cluster, service, int(req.Options.Replicas))
 
 	reserveMemMB := req.Resource.ReserveMemMB
 	if req.Resource.ReserveMemMB < req.Options.HeapSizeMB {
 		reserveMemMB = req.Options.HeapSizeMB
 	}
-
-	typeName := req.Options.TypeName
-	if len(typeName) == 0 {
-		typeName = DEFAULT_TYPE_NAME
-	}
-	bufferedRecords := DefaultMaxBufferedRecords
-	if req.Options.MaxBufferedRecords > 0 {
-		bufferedRecords = req.Options.MaxBufferedRecords
-	}
-	batchSize := DefaultBatchSize
-	if req.Options.BatchSize > 0 {
-		batchSize = req.Options.BatchSize
-	}
-
-	name := genConnectorName(req.Service.Cluster, req.Service.ServiceName)
-	sinkESConfigs = fmt.Sprintf(sinkESConfigsContent, name, req.Options.Replicas,
-		req.Options.Topic, typeName, bufferedRecords, batchSize, esURIs)
-	esCfg := &manage.ConfigFileContent{
-		FileName: sinkESConfFileName,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  sinkESConfigs,
-	}
-
-	serviceCfgs := []*manage.ConfigFileContent{esCfg}
-
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(service, int(req.Options.Replicas))
 
 	crReq = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -195,6 +135,99 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 		ReplicaConfigs: replicaCfgs,
 	}
 	return crReq, sinkESConfigs
+}
+
+func genEnvs(platform string, region string, cluster string, service string,
+	kafkaServers string, opts *manage.CatalogKafkaSinkESOptions) []*common.EnvKeyValuePair {
+
+	replFactor := DEFAULT_REPLICATION_FACTOR
+	if opts.ReplFactor > 0 {
+		replFactor = opts.ReplFactor
+	}
+
+	groupID := fmt.Sprintf("%s-%s", cluster, service)
+	configTopic := fmt.Sprintf("%s-%s", groupID, CONFIG_NAME_SUFFIX)
+	offsetTopic := fmt.Sprintf("%s-%s", groupID, OFFSET_NAME_SUFFIX)
+	statusTopic := fmt.Sprintf("%s-%s", groupID, STATUS_NAME_SUFFIX)
+
+	envkvs := []*common.EnvKeyValuePair{
+		// general env variables
+		&common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region},
+		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
+		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
+		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
+		&common.EnvKeyValuePair{Name: common.ENV_DB_TYPE, Value: common.DBTypeCloudDB},
+		// kafka connect env configs
+		&common.EnvKeyValuePair{Name: ENV_KAFKA_HEAP_OPTS, Value: fmt.Sprintf("-Xmx%dm", opts.HeapSizeMB)},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_BOOTSTRAP_SERVERS, Value: kafkaServers},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_REST_PORT, Value: strconv.Itoa(connectRestPort)},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_GROUP_ID, Value: groupID},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_CONFIG_STORAGE_TOPIC, Value: configTopic},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_OFFSET_STORAGE_TOPIC, Value: offsetTopic},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_STATUS_STORAGE_TOPIC, Value: statusTopic},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_STATUS_STORAGE_REPLICATION_FACTOR, Value: strconv.Itoa(int(replFactor))},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_KEY_CONVERTER, Value: JSON_CONVERTER},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_VALUE_CONVERTER, Value: JSON_CONVERTER},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_KEY_CONVERTER, Value: JSON_CONVERTER},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_VALUE_CONVERTER, Value: JSON_CONVERTER},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE, Value: "false"},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_PLUGIN_PATH, Value: defaultConnectPluginPath},
+		&common.EnvKeyValuePair{Name: ENV_CONNECT_LOG4J_LOGGERS, Value: reflectionLogger},
+	}
+
+	return envkvs
+}
+
+func genServiceConfigs(platform string, cluster string, service string, esURIs string,
+	opts *manage.CatalogKafkaSinkESOptions) (configs []*manage.ConfigFileContent, sinkESConfigs string) {
+
+	replFactor := DEFAULT_REPLICATION_FACTOR
+	if opts.ReplFactor > 0 {
+		replFactor = opts.ReplFactor
+	}
+
+	bufferedRecords := DefaultMaxBufferedRecords
+	if opts.MaxBufferedRecords > 0 {
+		bufferedRecords = opts.MaxBufferedRecords
+	}
+
+	batchSize := DefaultBatchSize
+	if opts.BatchSize > 0 {
+		batchSize = opts.BatchSize
+	}
+
+	typeName := opts.TypeName
+	if len(typeName) == 0 {
+		typeName = DEFAULT_TYPE_NAME
+	}
+
+	// create the service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, opts.KafkaServiceName,
+		opts.Topic, replFactor, opts.ESServiceName, bufferedRecords, batchSize, typeName)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the sinkes.conf file
+	name := genConnectorName(cluster, service)
+	sinkESConfigs = fmt.Sprintf(sinkESConfigsContent, name, opts.Replicas,
+		opts.Topic, typeName, bufferedRecords, batchSize, esURIs)
+
+	esCfg := &manage.ConfigFileContent{
+		FileName: sinkESConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  sinkESConfigs,
+	}
+
+	configs = []*manage.ConfigFileContent{serviceCfg, esCfg}
+	return configs, sinkESConfigs
 }
 
 // GenSinkESServiceInitRequest creates the init request for elasticsearch sink connector.
@@ -249,5 +282,17 @@ func IsSinkESConfFile(filename string) bool {
 }
 
 const (
+	servicefileContent = `
+PLATFORM=%s
+HEAP_SIZE_MB=%d
+KAFKA_SERVICE_NAME=%s
+TOPIC=%s
+REPLICATION_FACTOR=%d
+ES_SERVICE_NAME=%s
+MAX_BUFFERED_RECORDS=%d
+BATCH_SIZE=%d
+TYPE_NAME=%s
+`
+
 	sinkESConfigsContent = `{"name": "%s", "config": {"connector.class":"io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "tasks.max":"%d", "topics":"%s", "schema.ignore":"true", "key.ignore":"true", "type.name":"%s", "max.buffered.records":"%d", "batch.size":"%d", "connection.url":"%s"}}`
 )
