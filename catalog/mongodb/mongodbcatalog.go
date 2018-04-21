@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -148,7 +149,8 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 // genServiceConfigs generates the service configs.
 func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMongoDBOptions, keyfileContent string) []*manage.ConfigFileContent {
 	// create the service.conf file
-	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard, opts.ReplicaSetOnly, opts.ConfigServers)
+	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard,
+		strconv.FormatBool(opts.ReplicaSetOnly), opts.ConfigServers, opts.Admin, opts.AdminPasswd)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -168,6 +170,56 @@ func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMong
 
 	configs := []*manage.ConfigFileContent{serviceCfg, keyfileCfg, mongodCfg}
 	return configs
+}
+
+// ParseServiceConfigs parses the service configs and generates MongoDBOptions
+func ParseServiceConfigs(content string) (*manage.CatalogMongoDBOptions, error) {
+	opts := &manage.CatalogMongoDBOptions{}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		fields := strings.Split(line, "=")
+		switch fields[0] {
+		case "SHARDS":
+			shards, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse shards error", err, line)
+				return nil, err
+			}
+			opts.Shards = int64(shards)
+
+		case "REPLICAS_PERSHARD":
+			replPerShard, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse replicas per shard error", err, line)
+				return nil, err
+			}
+			opts.ReplicasPerShard = int64(replPerShard)
+
+		case "REPLICASET_ONLY":
+			replSetOnly, err := strconv.ParseBool(fields[1])
+			if err != nil {
+				glog.Errorln("parse replicaset only error", err, line)
+				return nil, err
+			}
+			opts.ReplicaSetOnly = replSetOnly
+
+		case "CONFIG_SERVERS":
+			cfgservers, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse config servers error", err, line)
+				return nil, err
+			}
+			opts.ConfigServers = int64(cfgservers)
+
+		case "ADMIN":
+			opts.Admin = fields[1]
+
+		case "ADMIN_PASSWD":
+			opts.AdminPasswd = fields[1]
+		}
+	}
+	return opts, nil
 }
 
 func createMongodConf(maxMemMB int64) *manage.ConfigFileContent {
@@ -365,6 +417,8 @@ REPLICAS_PERSHARD=%d
 REPLICASET_ONLY=%s
 CONFIG_SERVERS=%d
 ENABLE_SECURITY=false
+ADMIN=%s
+ADMIN_PASSWD=%s
 `
 
 	// per member config file

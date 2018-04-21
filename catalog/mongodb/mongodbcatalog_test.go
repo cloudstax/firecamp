@@ -1,6 +1,7 @@
 package mongodbcatalog
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -230,4 +231,25 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 		t.Fatalf("expect name %s value %s, get %s", envShardMembers, members, kvs[12])
 	}
 
+}
+
+func TestParseServiceConfigs(t *testing.T) {
+	shards := int64(2)
+	replPerShard := int64(3)
+	replSetOnly := false
+	configServers := int64(3)
+	admin := "admin"
+	pass := "pass"
+	content := fmt.Sprintf(servicefileContent, "ecs", shards, replPerShard,
+		strconv.FormatBool(replSetOnly), configServers, admin, pass)
+
+	opts, err := ParseServiceConfigs(content)
+	if err != nil {
+		t.Fatalf("ParseServiceConfigs expect success, get error %s", err)
+	}
+	if opts.Shards != shards || opts.ReplicasPerShard != replPerShard ||
+		opts.ReplicaSetOnly != replSetOnly || opts.ConfigServers != configServers ||
+		opts.Admin != admin || opts.AdminPasswd != pass {
+		t.Fatalf("config mismatch, get %s", opts)
+	}
 }

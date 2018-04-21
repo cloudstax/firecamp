@@ -797,10 +797,8 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 	}
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_MongoDB,
-		Service:     req.Service,
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_MongoDB,
 	}
 	waitServiceInit(ctx, cli, initReq)
 	waitServiceRunning(ctx, cli, req.Service)
@@ -869,8 +867,8 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	fmt.Println(time.Now().UTC(), "wait till the service gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_Cassandra,
-		Service:     req.Service,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_Cassandra,
 	}
 
 	if req.Options.Replicas > 1 {
@@ -1205,8 +1203,8 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_KafkaSinkES,
-		Service:     req.Service,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_KafkaSinkES,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
@@ -1382,8 +1380,8 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
-			ServiceType: common.CatalogService_Redis,
-			Service:     req.Service,
+			Service:            req.Service,
+			CatalogServiceType: common.CatalogService_Redis,
 		}
 
 		waitServiceInit(ctx, cli, initReq)
@@ -1543,10 +1541,8 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_CouchDB,
-		Service:     req.Service,
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_CouchDB,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
@@ -1999,14 +1995,12 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	req := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: *serviceType,
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		CatalogServiceType: *serviceType,
 	}
 
 	initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, req)

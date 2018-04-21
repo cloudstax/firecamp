@@ -13,6 +13,7 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
+	"github.com/golang/glog"
 )
 
 const (
@@ -125,7 +126,7 @@ func ValidateUpdateOptions(r *RedisOptions) error {
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
 	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service configs
-	serviceCfgs := genServiceConfigs(opts)
+	serviceCfgs := genServiceConfigs(platform, opts)
 
 	// generate service ReplicaConfigs
 	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, opts)
@@ -172,10 +173,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	return req
 }
 
-func genServiceConfigs(opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {
 	// create service.conf file
-	content := fmt.Sprintf(servicefileContent, opts.Shards, opts.ReplicasPerShard, opts.MemoryCacheSizeMB,
-		strconv.FormatBool(opts.DisableAOF), opts.AuthPass, opts.ReplTimeoutSecs, opts.MaxMemPolicy, opts.ConfigCmdName)
+	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard,
+		opts.MemoryCacheSizeMB, strconv.FormatBool(opts.DisableAOF), opts.AuthPass,
+		opts.ReplTimeoutSecs, opts.MaxMemPolicy, opts.ConfigCmdName)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -355,32 +357,104 @@ func UpdateServiceConfigs(oldContent string, opts *RedisOptions) string {
 	content := oldContent
 	lines := strings.Split(oldContent, "\n")
 	for _, line := range lines {
-		if opts.AuthPass != "" && strings.HasPrefix(line, "AUTH_PASS") {
-			newstr := fmt.Sprintf("AUTH_PASS=%s", opts.AuthPass)
-			content = strings.Replace(content, line, newstr, 1)
-		}
-		if opts.MemoryCacheSizeMB != 0 && strings.HasPrefix(line, "MEMORY_CACHE_MB") {
-			newstr := fmt.Sprintf("MEMORY_CACHE_MB=%d", opts.MemoryCacheSizeMB)
-			content = strings.Replace(content, line, newstr, 1)
-		}
-		if opts.ReplTimeoutSecs != 0 && strings.HasPrefix(line, "REPL_TIMEOUT_SECS") {
-			newstr := fmt.Sprintf("REPL_TIMEOUT_SECS=%d", opts.ReplTimeoutSecs)
-			content = strings.Replace(content, line, newstr, 1)
-		}
-		if opts.MaxMemPolicy != "" && strings.HasPrefix(line, "MAX_MEMORY_POLICY") {
-			newstr := fmt.Sprintf("MAX_MEMORY_POLICY=%s", opts.MaxMemPolicy)
-			content = strings.Replace(content, line, newstr, 1)
-		}
-		if opts.ConfigCmdName != nil && strings.HasPrefix(line, "CONFIG_CMD_NAME") {
-			newstr := fmt.Sprintf("CONFIG_CMD_NAME=%s", *opts.ConfigCmdName)
-			content = strings.Replace(content, line, newstr, 1)
+		fields := strings.Split(line, "=")
+		switch fields[0] {
+		case "AUTH_PASS":
+			if opts.AuthPass != "" {
+				newstr := fmt.Sprintf("AUTH_PASS=%s", opts.AuthPass)
+				content = strings.Replace(content, line, newstr, 1)
+			}
+		case "MEMORY_CACHE_MB":
+			if opts.MemoryCacheSizeMB != 0 {
+				newstr := fmt.Sprintf("MEMORY_CACHE_MB=%d", opts.MemoryCacheSizeMB)
+				content = strings.Replace(content, line, newstr, 1)
+			}
+
+		case "REPL_TIMEOUT_SECS":
+			if opts.ReplTimeoutSecs != 0 {
+				newstr := fmt.Sprintf("REPL_TIMEOUT_SECS=%d", opts.ReplTimeoutSecs)
+				content = strings.Replace(content, line, newstr, 1)
+			}
+
+		case "MAX_MEMORY_POLICY":
+			if opts.MaxMemPolicy != "" {
+				newstr := fmt.Sprintf("MAX_MEMORY_POLICY=%s", opts.MaxMemPolicy)
+				content = strings.Replace(content, line, newstr, 1)
+			}
+
+		case "CONFIG_CMD_NAME":
+			if opts.ConfigCmdName != nil {
+				newstr := fmt.Sprintf("CONFIG_CMD_NAME=%s", *opts.ConfigCmdName)
+				content = strings.Replace(content, line, newstr, 1)
+			}
 		}
 	}
 	return content
 }
 
+func ParseServiceConfigs(content string) (*manage.CatalogRedisOptions, error) {
+	opts := &manage.CatalogRedisOptions{}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		fields := strings.Split(line, "=")
+		switch fields[0] {
+		case "SHARDS":
+			shards, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse shards error", err, line)
+				return nil, err
+			}
+			opts.Shards = int64(shards)
+
+		case "REPLICAS_PERSHARD":
+			replPerShard, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse replicas pershard error", err, line)
+				return nil, err
+			}
+			opts.ReplicasPerShard = int64(replPerShard)
+
+		case "MEMORY_CACHE_MB":
+			cacheSize, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse memory cache size error", err, line)
+				return nil, err
+			}
+			opts.MemoryCacheSizeMB = int64(cacheSize)
+
+		case "DISABLE_AOF":
+			disableAOF, err := strconv.ParseBool(fields[1])
+			if err != nil {
+				glog.Errorln("parse disable aof error", err, line)
+				return nil, err
+			}
+			opts.DisableAOF = disableAOF
+
+		case "AUTH_PASS":
+			opts.AuthPass = fields[1]
+
+		case "REPL_TIMEOUT_SECS":
+			replTimeout, err := strconv.Atoi(fields[1])
+			if err != nil {
+				glog.Errorln("parse replication timeout error", err, line)
+				return nil, err
+			}
+			opts.ReplTimeoutSecs = int64(replTimeout)
+
+		case "MAX_MEMORY_POLICY":
+			opts.MaxMemPolicy = fields[1]
+
+		case "CONFIG_CMD_NAME":
+			opts.ConfigCmdName = fields[1]
+		}
+	}
+	return opts, nil
+}
+
 const (
 	servicefileContent = `
+PLATFORM=%s
 SHARDS=%d
 REPLICAS_PERSHARD=%d
 MEMORY_CACHE_MB=%d

@@ -1,6 +1,8 @@
 package rediscatalog
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/cloudstax/firecamp/common"
@@ -118,5 +120,30 @@ func TestRedisConfigs(t *testing.T) {
 
 	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != "service1-0" {
 		t.Fatalf("replica configs zone mismatch, %s", replcfgs)
+	}
+}
+
+func TestParseRedisConfigs(t *testing.T) {
+	platform := "ecs"
+	shards := int64(3)
+	replPerShard := int64(3)
+	memorySize := int64(100)
+	disableAof := false
+	authPass := "auth"
+	replTimeout := int64(10)
+	maxMemPolicy := "lru"
+	configCmd := ""
+
+	content := fmt.Sprintf(servicefileContent, platform, shards, replPerShard, memorySize,
+		strconv.FormatBool(disableAof), authPass, replTimeout, maxMemPolicy, configCmd)
+	opts, err := ParseServiceConfigs(content)
+	if err != nil {
+		t.Fatalf("ParseServiceConfigs error %s", err)
+	}
+	if opts.Shards != shards || opts.ReplicasPerShard != replPerShard ||
+		opts.MemoryCacheSizeMB != memorySize || opts.DisableAOF != disableAof ||
+		opts.AuthPass != authPass || opts.ReplTimeoutSecs != replTimeout ||
+		opts.MaxMemPolicy != maxMemPolicy || opts.ConfigCmdName != configCmd {
+		t.Fatalf("config mismatch, %s", opts)
 	}
 }

@@ -9,11 +9,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
+	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/common"
@@ -85,7 +87,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	// get service uuid
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("GetService", req.Service.ServiceName, req.ServiceType, "error", err, "requuid", requuid)
+		glog.Errorln("GetService", req.Service.ServiceName, req.CatalogServiceType, "error", err, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -93,11 +95,11 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	initialized := false
 	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, service.ServiceUUID)
 	if hasTask {
-		glog.Infoln("The service", req.Service.ServiceName, req.ServiceType,
+		glog.Infoln("The service", req.Service.ServiceName, req.CatalogServiceType,
 			"is under initialization, requuid", requuid)
 	} else {
 		// no init task is running, check if the service is initialized
-		glog.Infoln("No init task for service", req.Service.ServiceName, req.ServiceType, "requuid", requuid)
+		glog.Infoln("No init task for service", req.Service.ServiceName, req.CatalogServiceType, "requuid", requuid)
 
 		attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 		if err != nil {
@@ -107,7 +109,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 		glog.Infoln("service attribute", attr, "requuid", requuid)
 
-		switch attr.ServiceStatus {
+		switch attr.Meta.ServiceStatus {
 		case common.ServiceStatusActive:
 			initialized = true
 
@@ -119,21 +121,18 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			// TODO scan the pending init catalog service at start.
 
 			// trigger the init task.
-			switch req.ServiceType {
+			switch req.CatalogServiceType {
 			case common.CatalogService_MongoDB:
-				userAttr := &common.MongoDBUserAttr{}
-				err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
-					glog.Errorln("Unmarshal mongodb user attr error", err, "requuid", requuid, attr)
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
 				}
-				opts := &manage.CatalogMongoDBOptions{
-					Shards:           userAttr.Shards,
-					ReplicasPerShard: userAttr.ReplicasPerShard,
-					ReplicaSetOnly:   userAttr.ReplicaSetOnly,
-					ConfigServers:    userAttr.ConfigServers,
-					Admin:            req.Admin,
-					AdminPasswd:      req.AdminPasswd,
+
+				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
+				if err != nil {
+					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
+					return manage.ConvertToHTTPError(err)
 				}
 
 				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
@@ -173,20 +172,34 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				}
 
 			case common.CatalogService_Redis:
-				redisUserAttr := &common.RedisUserAttr{}
-				err = json.Unmarshal(attr.UserAttr.AttrBytes, redisUserAttr)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
-					glog.Errorln("Unmarshal redis user attr error", err, "requuid", requuid, attr)
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
 				}
-				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, redisUserAttr.Shards, redisUserAttr.ReplicasPerShard, requuid)
+
+				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
+				if err != nil {
+					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
+					return manage.ConvertToHTTPError(err)
+				}
+
+				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, opts.Shards, opts.ReplicasPerShard, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 					return manage.ConvertToHTTPError(err)
 				}
 
 			case common.CatalogService_CouchDB:
-				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
+				if err != nil {
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
+					return manage.ConvertToHTTPError(err)
+				}
+
+				admin, adminPass := couchdbcatalog.GetAdminFromServiceConfigs(cfgfile.Spec.Content)
+
+				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Spec.Replicas, admin, adminPass, requuid)
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -623,9 +636,9 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
 	for i, m := range members {
-		memberdns := dns.GenDNSName(m.MemberName, s.domain)
-		memberips[memberdns] = m.StaticIP
-		serverips[i] = m.StaticIP
+		memberdns := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
+		memberips[memberdns] = m.Spec.StaticIP
+		serverips[i] = m.Spec.StaticIP
 	}
 
 	for i, cfg := range attr.Spec.ServiceConfigs {
@@ -647,13 +660,22 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 			}
 
 			glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
-			return serviceips, nil
+			return serverips, nil
 		}
 	}
 
 	errmsg := fmt.Sprintf("consul basic config file not found, requuid %s", requuid)
 	glog.Errorln(errmsg, attr)
 	return nil, errors.New(errmsg)
+}
+
+func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context, attr *common.ServiceAttr) (*common.ConfigFile, error) {
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if cfg.FileName == catalog.SERVICE_FILE_NAME {
+			return s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+		}
+	}
+	return nil, common.ErrNotFound
 }
 
 func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
@@ -665,7 +687,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		return nil, err
 	}
 
-	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.FileName, version+1)
+	newFileID := utils.GenConfigFileID(member.Meta.MemberName, cfgfile.Meta.FileName, version+1)
 	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
@@ -677,9 +699,9 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
 
 	// update serviceMember to point to the new config file
-	newConfigs := db.CopyMemberConfigs(member.Configs)
+	newConfigs := db.CopyConfigs(member.Spec.Configs)
 	newConfigs[cfgIndex].FileID = newcfgfile.FileID
-	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.Spec.FileMD5
 
 	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
 	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)

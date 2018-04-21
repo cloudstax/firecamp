@@ -644,12 +644,8 @@ type CatalogCreateTelegrafRequest struct {
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
 type CatalogCheckServiceInitRequest struct {
-	ServiceType string
-
-	Service *ServiceCommonRequest
-
-	Admin       string
-	AdminPasswd string
+	Service            *ServiceCommonRequest
+	CatalogServiceType string
 }
 
 // CatalogCheckServiceInitResponse returns the service init status

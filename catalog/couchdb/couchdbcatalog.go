@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/pbkdf2"
 
@@ -142,7 +143,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 	}
 
 	// create the service.conf file
-	content := fmt.Sprintf(servicefileContent, platform, uuid, opts.Admin, encryptedPasswd,
+	content := fmt.Sprintf(servicefileContent, platform, uuid, opts.Admin, opts.AdminPasswd, encryptedPasswd,
 		strconv.FormatBool(opts.EnableCors), strconv.FormatBool(opts.Credentials), opts.Origins, opts.Headers,
 		opts.Methods, strconv.FormatBool(opts.EnableSSL), strconv.FormatBool(hasCert))
 	serviceCfg := &manage.ConfigFileContent{
@@ -318,11 +319,25 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string, serv
 	return envkvs
 }
 
+func GetAdminFromServiceConfigs(content string) (admin string, adminPass string) {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		fields := strings.Split(line, "=")
+		if fields[0] == "ADMIN" {
+			admin = fields[1]
+		} else if fields[0] == "ADMIN_PASSWD" {
+			adminPass = fields[1]
+		}
+	}
+	return admin, adminPass
+}
+
 const (
 	servicefileContent = `
 PLATFORM=%s
 UUID=%s
 ADMIN=%s
+ADMIN_PASSWD=%s
 ENCRYPTED_ADMIN_PASSWD=%s
 ENABLE_CORS=%s
 CREDENTIALS=%s

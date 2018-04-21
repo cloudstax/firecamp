@@ -89,8 +89,8 @@ func GenServiceMemberHostsWithPort(cluster string, service string, replicas int6
 	return hosts
 }
 
-// ValidateUpdateOtions checks if the update options are valid
-func ValidateUpdateOtions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
+// ValidateUpdateOptions checks if the update options are valid
+func ValidateUpdateOptions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
 	if heapSizeMB < 0 {
 		return errors.New("heap size should not be less than 0")
 	}
@@ -120,9 +120,4 @@ func UpdateServiceConfigHeapAndJMX(oldContent string, heapSizeMB int64, jmxUser 
 		}
 	}
 	return content
-}
-
-// MBToBytes converts MB to bytes
-func MBToBytes(mb int64) int64 {
-	return mb * 1024 * 1024
 }
