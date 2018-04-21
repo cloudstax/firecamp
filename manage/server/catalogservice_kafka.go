@@ -165,7 +165,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	esURIs := escatalog.GenDataNodesURIs(s.cluster, esAttr.Meta.ServiceName, dataNodes)
 
 	// create kafka hosts
-	kafkaServers := kafkacatalog.GenKafkaMemberHostsWithPort(s.cluster, kafkaAttr.Meta.ServiceName, kafkaAttr.Spec.Replicas)
+	kafkaServers := catalog.GenServiceMemberHostsWithPort(s.cluster, kafkaAttr.Meta.ServiceName, kafkaAttr.Spec.Replicas, kafkacatalog.ListenPort)
 
 	// create the service in the control plane and the container platform
 	crReq, sinkESConfigs := kccatalog.GenCreateESSinkServiceRequest(s.platform, s.region, s.cluster,
@@ -262,13 +262,11 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 		return manage.ConvertToHTTPError(err)
 	}
 
+	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
+
 	// create the service in the control plane and the container platform
-	crReq, err := kmcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
-		req.Service.ServiceName, req.Options, req.Resource, zkattr)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq := kmcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+		req.Service.ServiceName, zkservers, req.Options, req.Resource)
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {

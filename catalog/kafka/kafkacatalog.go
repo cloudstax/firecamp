@@ -200,12 +200,6 @@ func genMemberConfigs(platform string, cluster string, service string, azs []str
 	return replicaCfgs
 }
 
-// GenKafkaMemberHostsWithPort creates the hostname:port list for the Kafka members.
-// example: mykafka-0.t1-firecamp.com:9092,mykafka-1.t1-firecamp.com:9092
-func GenKafkaMemberHostsWithPort(cluster string, service string, replicas int64) string {
-	return catalog.GenServiceMemberHostsWithPort(cluster, service, replicas, ListenPort)
-}
-
 // UpdateServiceConfigs update the service configs
 func UpdateServiceConfigs(oldContent string, opts *KafkaOptions) string {
 	content := oldContent
