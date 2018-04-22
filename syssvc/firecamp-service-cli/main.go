@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -718,8 +717,8 @@ func main() {
 		fmt.Printf("List %d members:\n", len(members))
 		for _, member := range members {
 			fmt.Printf("\t%+v\n", *member)
-			for _, cfg := range member.Configs {
-				fmt.Printf("\t\t%+v\n", *cfg)
+			for _, cfg := range member.Spec.Configs {
+				fmt.Printf("\t\t%+v\n", cfg)
 			}
 		}
 
@@ -906,18 +905,18 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	updateServiceHeapAndJMX(heapSizeMB, user, passwd)
+	updateServiceHeapAndJMX(ctx, cli, heapSizeMB, user, passwd)
 
 	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
-func updateServiceHeapAndJMX(heapSizeMB int64, jmxUser string, jmxPasswd string) {
+func updateServiceHeapAndJMX(ctx context.Context, cli *client.ManageClient, heapSizeMB int64, jmxUser string, jmxPasswd string) {
 	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
 	if err != nil {
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
 
 	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
 
@@ -937,13 +936,12 @@ func updateServiceHeapAndJMX(heapSizeMB int64, jmxUser string, jmxPasswd string)
 	}
 }
 
-func getConfigFile(ctx context.Context, cfgFileName string) *common.ConfigFile {
+func getConfigFile(ctx context.Context, cli *client.ManageClient, cfgFileName string) *common.ConfigFile {
 	// get service attributes
 	commonReq := &manage.ServiceCommonRequest{
 		Region:      *region,
 		Cluster:     *cluster,
 		ServiceName: *service,
-		ServiceType: common.ServiceTypeStateful,
 	}
 
 	attr, err := cli.GetServiceAttr(ctx, commonReq)
@@ -1095,7 +1093,7 @@ func updateZkService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	updateServiceHeapAndJMX(heapSizeMB, user, passwd)
+	updateServiceHeapAndJMX(ctx, cli, heapSizeMB, user, passwd)
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
@@ -1253,7 +1251,7 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
 
 	newContent := kafkacatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
 
@@ -1438,7 +1436,7 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, catalog.SERVICE_FILE_NAME)
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
 
 	newContent := rediscatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
 
@@ -2054,136 +2052,8 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Printf("%+v\n", *attr)
 
-	if attr.UserAttr != nil {
-		switch attr.UserAttr.ServiceType {
-		case common.CatalogService_Cassandra:
-			ua := &common.CasUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal CasUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_MongoDB:
-			ua := &common.MongoDBUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal MongoDBUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_PostgreSQL:
-			ua := &common.PostgresUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal PostgresUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Redis:
-			ua := &common.RedisUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal RedisUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_ZooKeeper:
-			ua := &common.ZKUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ZKUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Kafka:
-			ua := &common.KafkaUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KafkaUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_KafkaManager:
-			ua := &common.KMUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KMUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_KafkaSinkES:
-			ua := &common.KCSinkESUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KCSinkESUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_CouchDB:
-			ua := &common.CouchDBUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal CouchDBUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Consul:
-			ua := &common.ConsulUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ConsulUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_ElasticSearch:
-			ua := &common.ESUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ESUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Kibana:
-			ua := &common.KibanaUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KibanaUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Logstash:
-			ua := &common.LSUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal LSUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Telegraf:
-			ua := &common.TGUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal TGUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		}
-	}
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	fmt.Println(cfgFile.Spec.Content)
 }
 
 func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {

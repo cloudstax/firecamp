@@ -135,7 +135,7 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	}
 
 	// TODO scaling from 1 node requires to add new seed nodes.
-	if attr.Replicas == 1 {
+	if attr.Spec.Replicas == 1 {
 		errmsg := "not support to scale from 1 node, please have at least 3 nodes"
 		glog.Errorln(errmsg, "requuid", requuid, req.Service)
 		return errmsg, http.StatusBadRequest

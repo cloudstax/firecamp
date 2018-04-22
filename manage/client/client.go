@@ -47,7 +47,7 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 		return err
 	}
 
-	urlStr := c.serverURL + r.Service.ServiceName
+	urlStr := c.serverURL + manage.CreateServiceOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err

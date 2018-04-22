@@ -54,8 +54,8 @@ type KafkaOptions struct {
 	JmxRemotePasswd string
 }
 
-// ValidateUpdateRequest checks if the update options are valid
-func ValidateUpdateRequest(opts *KafkaOptions) error {
+// ValidateUpdateOptions checks if the update options are valid
+func ValidateUpdateOptions(opts *KafkaOptions) error {
 	if opts.HeapSizeMB < 0 || opts.RetentionHours < 0 {
 		return errors.New("heap size and retention hours should not be less than 0")
 	}
@@ -66,8 +66,9 @@ func ValidateUpdateRequest(opts *KafkaOptions) error {
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, opts *manage.CatalogKafkaOptions, res *common.Resources, zkServers string) *manage.CreateServiceRequest {
+func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
+	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
+	zkServers string) (crReq *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// check and set the jmx remote user and password
 	if len(opts.JmxRemoteUser) == 0 {
 		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
@@ -121,7 +122,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ReplicaConfigs: replicaCfgs,
 	}
-	return req
+	return req, jmxUser, jmxPasswd
 }
 
 // genServiceConfigs generates the service configs.

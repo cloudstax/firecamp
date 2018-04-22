@@ -40,12 +40,8 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq := rediscatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("create redis service request error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
 
 	// create the service in the control plane
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
@@ -107,15 +103,15 @@ func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Ser
 
 func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requuid string) (cfgIndex int, cfg *common.ConfigID, err error) {
 	cfgIndex = -1
-	for i, c := range member.Configs {
+	for i, c := range member.Spec.Configs {
 		if rediscatalog.IsRedisConfFile(c.FileName) {
-			cfg = c
+			cfg = &c
 			cfgIndex = i
 			break
 		}
 	}
 	if cfgIndex == -1 {
-		errmsg := fmt.Sprintf("the redis config file not found for member %s, requuid %s", member.MemberName, requuid)
+		errmsg := fmt.Sprintf("the redis config file not found for member %s, requuid %s", member.Meta.MemberName, requuid)
 		return -1, nil, errors.New(errmsg)
 	}
 	return cfgIndex, cfg, nil
@@ -174,7 +170,7 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
 	}
-	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("ScaleService error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
@@ -209,14 +205,14 @@ func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID stri
 		}
 
 		// if auth is enabled, return
-		enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Content)
+		enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Spec.Content)
 		if !enableAuth {
 			glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
 			return nil
 		}
 
 		// auth is not enabled, enable it
-		newContent := rediscatalog.EnableRedisAuth(cfgfile.Content)
+		newContent := rediscatalog.EnableRedisAuth(cfgfile.Spec.Content)
 
 		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
 		if err != nil {

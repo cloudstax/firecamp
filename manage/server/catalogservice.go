@@ -653,7 +653,7 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 			// replace member dns name with static ips
 			newContent := consulcatalog.ReplaceMemberName(cfgfile.Spec.Content, memberips)
 
-			err = s.updateConfigFile(ctx, attr, i, cfgfile, newContent)
+			err = s.updateConfigFile(ctx, attr, i, cfgfile, newContent, requuid)
 			if err != nil {
 				glog.Errorln("updateConfigFile error", err, "requuid", requuid, cfg)
 				return nil, err

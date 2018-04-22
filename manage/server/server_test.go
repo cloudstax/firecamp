@@ -253,8 +253,9 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 	if err != nil {
 		t.Fatalf("Unmarshal GetServiceAttributesResponse error %s, %s", err, w)
 	}
-	if res.Service.ServiceName != service || res.Service.ServiceStatus != targetServiceStatus ||
-		res.Service.Replicas != int64(i) || res.Service.Volumes.PrimaryVolume.VolumeSizeGB != int64(i+1) {
+	attr := res.Service
+	if attr.Meta.ServiceName != service || attr.Meta.ServiceStatus != targetServiceStatus ||
+		attr.Spec.Replicas != int64(i) || attr.Spec.Volumes.PrimaryVolume.VolumeSizeGB != int64(i+1) {
 		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", service, targetServiceStatus, i, i+1, res.Service)
 	}
 	glog.Infoln("GetServiceAttributesResponse", res)
@@ -267,7 +268,11 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
 		memberName := utils.GenServiceMemberName(service, int64(i))
-		cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+		cfg := &manage.ConfigFileContent{
+			FileName: service,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  service,
+		}
 		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: "west-az-1", MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
@@ -307,7 +312,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 	}
 
 	body := ioutil.NopCloser(bytes.NewReader(b))
-	return &http.Request{Method: "PUT", URL: &url.URL{Path: service}, Body: body}
+	return &http.Request{Method: "PUT", URL: &url.URL{Path: manage.CreateServiceOp}, Body: body}
 }
 
 func genGetServiceAttrRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {

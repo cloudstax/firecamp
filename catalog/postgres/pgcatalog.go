@@ -67,7 +67,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, defaultPort, opts)
 
 	// generate member ReplicaConfigs
-	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
+	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, defaultPort, opts)
 
 	portmapping := common.PortMapping{
 		ContainerPort: defaultPort,
@@ -162,9 +162,9 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 	return []*manage.ConfigFileContent{serviceCfg, primaryCfg, standbyCfg, primaryHbaCfg, standbyHbaCfg, recoveryCfg}
 }
 
-// genReplicaConfigs generates the replica configs.
+// GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string,
+func GenReplicaConfigs(platform string, cluster string, service string, azs []string,
 	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 

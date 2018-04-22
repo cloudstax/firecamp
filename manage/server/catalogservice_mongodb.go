@@ -41,7 +41,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 	}
 
 	// create the service in the control plane and the container platform
-	crReq = mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
+	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, keyfileContent, req.Options, req.Resource)
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)

@@ -118,27 +118,27 @@ func main() {
 	}
 
 	// update DNS if required
-	if attr.RegisterDNS && !attr.RequireStaticIP {
-		err = netIns.UpdateDNS(ctx, attr.DomainName, attr.HostedZoneID, member)
+	if attr.Spec.RegisterDNS && !attr.Spec.RequireStaticIP {
+		err = netIns.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member)
 		if err != nil {
 			glog.Fatalln("UpdateDNS error", err, "requuid", requuid, member)
 		}
 	}
 
 	// update static ip if required
-	if attr.RequireStaticIP {
-		err = netIns.UpdateStaticIP(ctx, attr.DomainName, member)
+	if attr.Spec.RequireStaticIP {
+		err = netIns.UpdateStaticIP(ctx, attr.Spec.DomainName, member)
 		if err != nil {
 			glog.Fatalln("UpdateStaticIP error", err, "requuid", requuid, member)
 		}
 
 		// create the staticip file, so the container stop could delete the attached ip.
-		err = k8ssvc.CreateStaticIPFile(member.StaticIP)
+		err = k8ssvc.CreateStaticIPFile(member.Spec.StaticIP)
 		if err != nil {
 			glog.Fatalln("create the staticip file error", err, "requuid", requuid, member)
 		}
 
-		err = netIns.AddIP(member.StaticIP)
+		err = netIns.AddIP(member.Spec.StaticIP)
 		if err != nil {
 			glog.Fatalln("AddIP error", err, "requuid", requuid, member)
 		}

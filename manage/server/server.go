@@ -334,7 +334,7 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("start container service error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
@@ -385,7 +385,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	var serviceTasks []string
 	if s.platform == common.ContainerPlatformK8s {
 		backward := true
-		serviceTasks = k8ssvc.GetStatefulSetPodNames(req.ServiceName, attr.Replicas, backward)
+		serviceTasks = k8ssvc.GetStatefulSetPodNames(req.ServiceName, attr.Spec.Replicas, backward)
 	} else {
 		// AWS ECS or Docker Swarm
 		members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
@@ -394,18 +394,18 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 			return manage.ConvertToHTTPError(err)
 		}
 
-		serviceTasks = make([]string, attr.Replicas)
+		serviceTasks = make([]string, attr.Spec.Replicas)
 		for i := 0; i < len(members); i++ {
 			idx := len(members) - i - 1
-			serviceTasks[i] = members[idx].TaskID
+			serviceTasks[i] = members[idx].Spec.TaskID
 		}
 	}
 
 	task := &manageTask{
 		serviceUUID: attr.ServiceUUID,
-		serviceName: attr.ServiceName,
+		serviceName: attr.Meta.ServiceName,
 		restartOpts: &containersvc.RollingRestartOptions{
-			Replicas:     attr.Replicas,
+			Replicas:     attr.Spec.Replicas,
 			ServiceTasks: serviceTasks,
 		},
 	}
@@ -575,7 +575,7 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 				return manage.ConvertToHTTPError(err)
 			}
 
-			err = s.updateConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent)
+			err = s.updateConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent, requuid)
 			if err != nil {
 				glog.Errorln("updateConfigFile error", err, "requuid", requuid, req.Service)
 				return manage.ConvertToHTTPError(err)
@@ -587,24 +587,25 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 		}
 	}
 
-	errmsg := fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
+	errmsg = fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
 	glog.Errorln(errmsg)
 	return errmsg, http.StatusNotFound
 }
 
-func (s *ManageHTTPServer) updateConfigFile(ctx context.Context, attr *common.ServiceAttr, serviceCfgIndex int, oldCfg *common.ConfigFile, newContent string) error {
+func (s *ManageHTTPServer) updateConfigFile(ctx context.Context, attr *common.ServiceAttr,
+	serviceCfgIndex int, oldCfg *common.ConfigFile, newContent string, requuid string) error {
 	// create the new config file
 	version, err := utils.GetConfigFileVersion(oldCfg.FileID)
 	if err != nil {
 		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, db.PrintConfigFile(oldCfg))
-		return manage.ConvertToHTTPError(err)
+		return err
 	}
 
 	newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, oldCfg.Meta.FileName, version+1)
-	newcfgfile := db.CreateNewConfigFile(cfg, newFileID, newContent)
+	newcfgfile := db.CreateNewConfigFile(oldCfg, newFileID, newContent)
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile))
 		return err
 	}
 
@@ -831,18 +832,6 @@ func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, 
 		glog.Errorln("upgradeService invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, req, "error", err)
 		return err.Error(), http.StatusBadRequest
-	}
-
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
 	}
 
 	// upgrade to 0.9.6 requires to recreate the service with the original volumes.

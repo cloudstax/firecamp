@@ -147,7 +147,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 				glog.Errorln("get elasticsearch service config file error", err, svc, "requuid", requuid, req.Service)
 				return manage.ConvertToHTTPError(err)
 			}
-			dataNodes, err := escatalog.GetDataNodes(cfgfile.Spec.Content)
+			dataNodes, err = escatalog.GetDataNodes(cfgfile.Spec.Content)
 			if err != nil {
 				glog.Errorln("get elasticsearch data nodes error", err, svc, "requuid", requuid, req.Service)
 				return manage.ConvertToHTTPError(err)
@@ -162,7 +162,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	}
 
 	// create elasticsearch data node uris
-	esURIs := escatalog.GenDataNodesURIs(s.cluster, esAttr.Meta.ServiceName, dataNodes)
+	esURIs := catalog.GenServiceMemberURIs(s.cluster, esAttr.Meta.ServiceName, int64(dataNodes), escatalog.HTTPPort)
 
 	// create kafka hosts
 	kafkaServers := catalog.GenServiceMemberHostsWithPort(s.cluster, kafkaAttr.Meta.ServiceName, kafkaAttr.Spec.Replicas, kafkacatalog.ListenPort)
@@ -213,7 +213,7 @@ func (s *ManageHTTPServer) restartKafkaSinkESInitTask(ctx context.Context, req *
 
 			sinkESConfigs := cfgfile.Spec.Content
 
-			s.addKafkaSinkESInitTask(ctx, req, attr.ServiceUUID, attr.Replicas, sinkESConfigs, requuid)
+			s.addKafkaSinkESInitTask(ctx, req, attr.ServiceUUID, attr.Spec.Replicas, sinkESConfigs, requuid)
 
 			glog.Infoln("addKafkaSinkESInitTask, requuid", requuid, req)
 			return nil

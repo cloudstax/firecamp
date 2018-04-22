@@ -113,7 +113,7 @@ func genServiceConfigs(platform string, region string, cluster string, service s
 		consulDomain = defaultDomain
 	}
 
-	content := fmt.Sprintf(servicecfgContent, platform, dc, consulDomain, opts.Encrypt, strconv.FormatBool(opts.EnableTLS), opts.HTTPSPort)
+	content := fmt.Sprintf(servicefileContent, platform, dc, consulDomain, opts.Encrypt, strconv.FormatBool(opts.EnableTLS), opts.HTTPSPort)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -184,7 +184,7 @@ func genReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create member.conf file
-		content := fmt.Sprintf(membercfgContent, az, member, memberHost, bind)
+		content := fmt.Sprintf(memberfileContent, az, member, memberHost, bind)
 		memberCfg := &manage.ConfigFileContent{
 			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
@@ -214,7 +214,7 @@ func ReplaceMemberName(content string, memberips map[string]string) string {
 }
 
 const (
-	servicecfgContent = `
+	servicefileContent = `
 PLATFORM=%s
 DC=%s
 DOMAIN=%s
@@ -223,7 +223,7 @@ ENABLE_TLS=%s
 HTTPS_PORT=%d
 `
 
-	membercfgContent = `
+	memberfileContent = `
 AVAILABILITY_ZONE=%s
 MEMBER_NAME=%s
 SERVICE_MEMBER=%s
