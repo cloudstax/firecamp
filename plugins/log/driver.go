@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/cloudstax/firecamp/plugins/log/awslogs"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	protoio "github.com/gogo/protobuf/io"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fifo"
 
 	"github.com/cloudstax/firecamp/common"
