@@ -1049,14 +1049,16 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogZooKeeperOptions{
-			Replicas:   *replicas,
-			HeapSizeMB: *zkHeapSizeMB,
+			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 				Encrypted:    *volEncrypted,
 			},
+			HeapSizeMB:      *zkHeapSizeMB,
+			JmxRemoteUser:   *jmxUser,
+			JmxRemotePasswd: *jmxPasswd,
 		},
 	}
 
