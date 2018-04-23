@@ -806,8 +806,9 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// check if it is a retry request. If not, return error
 	skipMtime := true
+	skipRevision := true
 	serviceAttr.Meta.ServiceStatus = sattr.Meta.ServiceStatus
-	if !db.EqualServiceAttr(serviceAttr, sattr, skipMtime) {
+	if !db.EqualServiceAttr(serviceAttr, sattr, skipMtime, skipRevision) {
 		glog.Errorln("service exists, old service", sattr, "new", serviceAttr, "requuid", requuid)
 		return false, sattr, common.ErrServiceExist
 	}

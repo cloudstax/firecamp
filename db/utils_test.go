@@ -50,7 +50,7 @@ func TestDBUtils(t *testing.T) {
 	attr1.Revision++
 	attr1.Meta.ServiceStatus = common.ServiceStatusActive
 	attr1.Meta.LastModified = attr2.Meta.LastModified
-	if !EqualServiceAttr(attr1, attr2, false) {
+	if !EqualServiceAttr(attr1, attr2, false, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
 
@@ -58,7 +58,7 @@ func TestDBUtils(t *testing.T) {
 	attr1.Revision++
 	attr1.Spec.Replicas = 5
 	attr1.Meta.LastModified = attr2.Meta.LastModified
-	if !EqualServiceAttr(attr1, attr2, false) {
+	if !EqualServiceAttr(attr1, attr2, false, false) {
 		t.Fatalf("attr is not the same, %s %s", attr1, attr2)
 	}
 

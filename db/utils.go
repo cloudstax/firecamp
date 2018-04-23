@@ -146,9 +146,9 @@ func CreateServiceAttr(serviceUUID string, revision int64, meta *common.ServiceM
 	}
 }
 
-func EqualServiceAttr(s1 *common.ServiceAttr, s2 *common.ServiceAttr, skipMtime bool) bool {
+func EqualServiceAttr(s1 *common.ServiceAttr, s2 *common.ServiceAttr, skipMtime bool, skipRevision bool) bool {
 	return s1.ServiceUUID == s2.ServiceUUID &&
-		s1.Revision == s2.Revision &&
+		(skipRevision || s1.Revision == s2.Revision) &&
 		EqualServiceMeta(&s1.Meta, &s2.Meta, skipMtime) &&
 		EqualServiceSpec(&s1.Spec, &s2.Spec)
 }
@@ -549,8 +549,8 @@ func CopyConfigFile(c *common.ConfigFile) *common.ConfigFile {
 }
 
 func PrintConfigFile(cfg *common.ConfigFile) string {
-	return fmt.Sprintf("serviceUUID %s fileID %s fileName %s LastModified %d fileMD5 %s fileMode %d",
-		cfg.ServiceUUID, cfg.FileID, cfg.Meta.FileName, cfg.Meta.LastModified, cfg.Spec.FileMD5, cfg.Spec.FileMode)
+	return fmt.Sprintf("serviceUUID %s fileID %s revision %d fileName %s LastModified %d fileMD5 %s fileMode %d",
+		cfg.ServiceUUID, cfg.FileID, cfg.Revision, cfg.Meta.FileName, cfg.Meta.LastModified, cfg.Spec.FileMD5, cfg.Spec.FileMode)
 }
 
 func CreateStaticIPSpec(serviceUUID string, az string, serverInstanceID string, netInterfaceID string) *common.StaticIPSpec {

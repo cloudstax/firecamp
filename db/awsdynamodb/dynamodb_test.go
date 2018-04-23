@@ -251,14 +251,14 @@ func TestServiceAttrs(t *testing.T) {
 		}
 
 		item, err := dbIns.GetServiceAttr(ctx, s[i].ServiceUUID)
-		if err != nil || !db.EqualServiceAttr(item, s[i], false) {
+		if err != nil || !db.EqualServiceAttr(item, s[i], false, false) {
 			t.Fatalf("get service attr failed, error %s, expected %s get %s", err, s[i], item)
 		}
 	}
 
 	// get service to verify
 	item, err := dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
+	if err != nil || !db.EqualServiceAttr(item, s[1], false, false) {
 		t.Fatalf("get service attr failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
@@ -274,7 +274,7 @@ func TestServiceAttrs(t *testing.T) {
 	s[1].Meta.ServiceStatus = "ACTIVE"
 	// get service again to verify the update
 	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
+	if err != nil || !db.EqualServiceAttr(item, s[1], false, false) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
 	}
 
@@ -290,7 +290,7 @@ func TestServiceAttrs(t *testing.T) {
 	s[1].Spec.Replicas = 10
 	// get service again to verify the update
 	item, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !db.EqualServiceAttr(item, s[1], false) {
+	if err != nil || !db.EqualServiceAttr(item, s[1], false, false) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], item)
 	}
 

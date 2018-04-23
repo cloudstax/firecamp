@@ -209,7 +209,7 @@ func TestServiceAttr(t *testing.T) {
 
 	// get service attr to verify
 	attr, err := dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !EqualServiceAttr(attr, s[1], false) {
+	if err != nil || !EqualServiceAttr(attr, s[1], false, false) {
 		t.Fatalf("get service attr failed, error %s, expected %s get %s", err, s[1], attr)
 	}
 
@@ -225,7 +225,7 @@ func TestServiceAttr(t *testing.T) {
 
 	// get service again to verify the update
 	attr, err = dbIns.GetServiceAttr(ctx, s[1].ServiceUUID)
-	if err != nil || !EqualServiceAttr(attr, s[1], false) {
+	if err != nil || !EqualServiceAttr(attr, s[1], false, false) {
 		t.Fatalf("get service attr after update failed, error %s, expected %s get %s", err, s[1], attr)
 	}
 
