@@ -101,9 +101,9 @@ if [ -f "$servicecfgfile" ]; then
     ListenAddr=""
   fi
   sed -i 's/listen_address:.*/listen_address: '$ListenAddr'/g' $DefaultYaml
-  sed -i 's/broadcast_address:.*/broadcast_address: '$SERVICE_MEMBER'/g' $DefaultYaml
+  sed -i 's/# broadcast_address:.*/broadcast_address: '$SERVICE_MEMBER'/g' $DefaultYaml
   sed -i 's/rpc_address:.*/rpc_address: '$RPC_ADDRESS'/g' $DefaultYaml
-  sed -i 's/broadcast_rpc_address:.*/broadcast_rpc_address: '$SERVICE_MEMBER'/g' $DefaultYaml
+  sed -i 's/# broadcast_rpc_address:.*/broadcast_rpc_address: '$SERVICE_MEMBER'/g' $DefaultYaml
 
   sed -i 's/endpoint_snitch:.*/endpoint_snitch: GossipingPropertyFileSnitch/g' $DefaultYaml
 

@@ -412,6 +412,16 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	// TODO the static ip record is created before the service member record.
 	// some static ip record may be left in DB. scan to delete them.
 
+	// delete the service's config files
+	for _, c := range sattr.Spec.ServiceConfigs {
+		err := s.dbIns.DeleteConfigFile(ctx, sattr.ServiceUUID, c.FileID)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c)
+			return volIDs, err
+		}
+		glog.V(1).Infoln("deleted config file", c.FileID, sattr.ServiceUUID, "requuid", requuid)
+	}
+
 	// delete the devices
 	err = s.deleteDevices(ctx, sattr, requuid)
 	if err != nil {
