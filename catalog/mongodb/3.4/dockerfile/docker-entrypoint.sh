@@ -18,6 +18,8 @@ membercfgfile=$confdir/member.conf
 mongodfile=$confdir/mongod.conf
 keyfile=$configdir/keyfile
 
+mongoetcdir=/etc/mongo
+
 # sanity check to make sure the data volume and journal volume are mounted to /data and /journal
 if [ ! -d "$datadir" ]; then
   echo "error: $datadir not exist. Please make sure the volume is mounted to $datadir." >&2
@@ -44,8 +46,16 @@ if [ ! -d "$dbdir" ]; then
   mkdir $dbdir
 fi
 
+# create the mongod config dir under /etc
+if [ ! -d "$mongoetcdir" ]; then
+  mkdir $mongoetcdir
+fi
+
 # allow the container to be started with `--user`
 if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
+  cp $mongodfile $mongoetcdir/mongod.conf
+  chown -R mongodb $mongoetcdir
+
   journaldiruser=$(stat -c "%U" $journaldir)
   if [ "$journaldiruser" != "mongodb" ]; then
     chown -R mongodb $journaldir
@@ -61,31 +71,31 @@ if [ "$1" = 'mongod' -a "$(id -u)" = '0' ]; then
   exec gosu mongodb "$BASH_SOURCE" "$@"
 fi
 
-# after release 0.9.5
 if [ -f "$servicecfgfile" ]; then
+  # after release 0.9.5
   # load service and member config files
   . $servicecfgfile
   . $membercfgfile
 
   # replace the member specific fields in the default mongod.conf
   # set bind ip
-  sed -i 's/bindIp: 0.0.0.0/bindIp: '$BIND_IP'/g' $mongodfile
+  sed -i 's/bindIp: 0.0.0.0/bindIp: '$BIND_IP'/g' $mongoetcdir/mongod.conf
   # set cluster role for the sharded cluster. do nothing for a single repliaset
   if [ "$CLUSTER_ROLE" = "configsvr" ]; then
-    sed -i 's/port: 27017/port: 27019/g' $mongodfile
-    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongodfile
+    sed -i 's/port: 27017/port: 27019/g' $mongoetcdir/mongod.conf
+    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
   elif [ "$CLUSTER_ROLE" = "shardsvr" ]; then
-    sed -i 's/port: 27017/port: 27018/g' $mongodfile
-    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongodfile
+    sed -i 's/port: 27017/port: 27018/g' $mongoetcdir/mongod.conf
+    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
   fi
   # set replSetName
-  sed -i 's/replSetName: default/replSetName: '$REPLICASET_NAME'/g' $mongodfile
+  sed -i 's/replSetName: default/replSetName: '$REPLICASET_NAME'/g' $mongoetcdir/mongod.conf
   # enabled security
   if [ "$ENABLE_SECURITY" = "true" ]; then
-    echo "security:\n  keyFile: ${keyfile}\n  authorization: enabled" >> $mongodfile
+    echo "security:\n  keyFile: ${keyfile}\n  authorization: enabled" >> $mongoetcdir/mongod.conf
   fi
 else
-  # load the sys config file. the syscfgfile exists before 0.9.6
+  # before release 0.9.6, load the sys config file
   . $syscfgfile
 fi
 

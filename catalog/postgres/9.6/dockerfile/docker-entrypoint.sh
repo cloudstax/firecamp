@@ -52,14 +52,22 @@ InitPrimaryDB() {
   eval "initdb -U $PGUSER -D $PGDATA"
   echo "PostgreSQL primary initdb completes, initdb -U $PGUSER -D $PGDATA"
 
-  # copy over the config files
-  cp $PrimaryPGConf $PGDATA/postgresql.conf
-  cp $PrimaryPGHbaConf $PGDATA/pg_hba.conf
+  if [ -f "$MemberConfigFile" ]; then
+    # after release 0.9.5
+    # copy over the config files
+    cp $PrimaryPGConf $PGDATA/postgresql.conf
+    cp $PrimaryPGHbaConf $PGDATA/pg_hba.conf
 
-  # update listen_addresses in postgresql.conf
-  sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
-  # update replication user in pg_hba.conf
-  sed -i 's/defaultReplUser/'$REPLICATION_USER'/g' $PGDATA/pg_hba.conf
+    # update listen_addresses in postgresql.conf
+    sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
+    # update replication user in pg_hba.conf
+    sed -i 's/defaultReplUser/'$REPLICATION_USER'/g' $PGDATA/pg_hba.conf
+  else
+    # before release 0.9.6
+    # copy over the config files
+    cp $PGConf $PGDATA/
+    cp $PGHbaConf $PGDATA/
+  fi
 
   # internal start of server to create replication user
   pg_ctl -D "$PGDATA" -o "-c listen_addresses='localhost'" -w start
@@ -98,13 +106,22 @@ InitStandbyDB() {
 
   pg_basebackup -h "$PRIMARY_HOST" -D "$PGDATA" -P -U "$REPLICATION_USER" --xlog-method=stream -w
 
-  # copy over the config files
-  cp $StandbyPGConf $PGDATA/postgresql.conf
-  cp $StandbyPGHbaConf $PGDATA/pg_hba.conf
-  cp $PGRecoveryConf $PGDATA/
+  if [ -f "$MemberConfigFile" ]; then
+    # after release 0.9.5
+    # copy over the config files
+    cp $StandbyPGConf $PGDATA/postgresql.conf
+    cp $StandbyPGHbaConf $PGDATA/pg_hba.conf
+    cp $PGRecoveryConf $PGDATA/
 
-  # update listen_addresses in postgresql.conf
-  sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
+    # update listen_addresses in postgresql.conf
+    sed -i 's/localhost/'$BIND_IP'/g' $PGDATA/postgresql.conf
+  else
+    # before release 0.9.6
+    # copy over the config files
+    cp $PGConf $PGDATA/
+    cp $PGHbaConf $PGDATA/
+    cp $PGRecoveryConf $PGDATA/
+  fi
 
   echo "PostgreSQL standby pg_basebackup from primary complete; ready for start up."
 }
@@ -126,19 +143,22 @@ if [ "$(id -u)" = '0' ]; then
   fi
   chown -R $PGUSER "$PGConfDIR"
 
-	mkdir -p /var/run/postgresql
-	chown -R postgres /var/run/postgresql
-	chmod g+s /var/run/postgresql
+  mkdir -p /var/run/postgresql
+  chown -R postgres /var/run/postgresql
+  chmod g+s /var/run/postgresql
 
-	exec gosu postgres "$BASH_SOURCE" "$@"
+  exec gosu postgres "$BASH_SOURCE" "$@"
 fi
 
 # load the configs from the config file, including the container role (primary or slave),
 # primary hostname, postgres password, replication user & password.
 . $ServiceConfigFile
+
 if [ -f "$MemberConfigFile" ]; then
+  # after release 0.9.5
   . $MemberConfigFile
 else
+  # before release 0.9.5
   . $syscfgfile
 fi
 

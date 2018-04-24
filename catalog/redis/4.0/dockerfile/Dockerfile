@@ -57,4 +57,4 @@ COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 EXPOSE 6379 16379
-CMD ["redis-server", "/etc/redis.conf"]
+CMD ["redis-server", "/etc/redis/redis.conf"]

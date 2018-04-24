@@ -16,7 +16,7 @@ myidfile=$confdir/myid
 servicecfgfile=$confdir/service.conf
 membercfgfile=$confdir/member.conf
 
-export ZOOCFGDIR=/conf
+export ZOOCFGDIR=/etc/zk
 
 # sanity check to make sure the volume is mounted to /data.
 if [ ! -d "$datadir" ]; then
@@ -31,6 +31,9 @@ fi
 if [ ! -f "$zoocfgfile" ]; then
   echo "error: $zoocfgfile not exist." >&2
   exit 1
+fi
+if [ ! -d "$ZOOCFGDIR" ]; then
+  mkdir $ZOOCFGDIR
 fi
 
 if [ "$(id -u)" = '0' ]; then
@@ -53,6 +56,10 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'zkServer.sh' -a "$(id -u)" = '0' ]; then
+  cp $zoocfgfile $ZOOCFGDIR
+  cp $logcfgfile $ZOOCFGDIR
+  chown -R $ZOO_USER $ZOOCFGDIR
+
   datadiruser=$(stat -c "%U" $datadir)
   if [ "$datadiruser" != "$ZOO_USER" ]; then
     chown -R "$ZOO_USER" "$datadir"
@@ -66,9 +73,6 @@ fi
 if [ ! -f "$datadir/myid" ]; then
   cp $myidfile $datadir/myid
 fi
-
-cp $zoocfgfile $ZOOCFGDIR
-cp $logcfgfile $ZOOCFGDIR
 
 if [ -f "$servicecfgfile" ]; then
   # after release 0.9.5
