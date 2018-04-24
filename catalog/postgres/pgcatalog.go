@@ -145,7 +145,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 
 	// create standby_pg_hba.conf
 	standbyHbaCfg := &manage.ConfigFileContent{
-		FileName: standbyPGConfFileName,
+		FileName: standbyPGHbaConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  standbyPgHbaConf,
 	}
