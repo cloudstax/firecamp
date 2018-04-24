@@ -3,15 +3,14 @@ package manageserver
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/manage"
 )
 
@@ -51,6 +50,13 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	}
 
 	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
+
+	// update static ip in member config file
+	err = s.updateRedisConfigs(ctx, serviceUUID, requuid)
+	if err != nil {
+		glog.Errorln("updateRedisConfigs error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
 
 	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
 	if err != nil {
@@ -101,20 +107,51 @@ func (s *ManageHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Ser
 	return nil
 }
 
-func (s *ManageHTTPServer) getRedisConfFile(member *common.ServiceMember, requuid string) (cfgIndex int, cfg *common.ConfigID, err error) {
-	cfgIndex = -1
-	for i, c := range member.Spec.Configs {
-		if rediscatalog.IsRedisConfFile(c.FileName) {
-			cfg = &c
-			cfgIndex = i
-			break
+func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID string, requuid string) error {
+	attr, err := s.dbIns.GetServiceAttr(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
+
+	// update the static ip in the member.conf file
+	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return err
+	}
+
+	for _, m := range members {
+		// update member config with static ip
+		find := false
+		for cfgIndex, cfg := range m.Spec.Configs {
+			if catalog.IsMemberConfigFile(cfg.FileName) {
+				cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+				if err != nil {
+					glog.Errorln("get member config file error", err, cfg, "requuid", requuid, m)
+					return err
+				}
+
+				newContent := rediscatalog.SetMemberStaticIP(cfgfile.Spec.Content, m.Spec.StaticIP)
+
+				newMember, err := s.updateMemberConfig(ctx, m, cfgfile, cfgIndex, newContent, requuid)
+				if err != nil {
+					glog.Errorln("updateMemberConfig error", err, cfg, "requuid", requuid, m)
+					return err
+				}
+
+				glog.Infoln("update member config with static ip, requuid", requuid, newMember)
+
+				find = true
+				break
+			}
+		}
+		if !find {
+			glog.Errorln("member config file not found, requuid", requuid, m)
+			return errors.New("internal error - member config file not found")
 		}
 	}
-	if cfgIndex == -1 {
-		errmsg := fmt.Sprintf("the redis config file not found for member %s, requuid %s", member.Meta.MemberName, requuid)
-		return -1, nil, errors.New(errmsg)
-	}
-	return cfgIndex, cfg, nil
+	return nil
 }
 
 func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -151,7 +188,7 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	// enable redis auth
 	statusMsg := "enable redis auth"
 	s.catalogSvcInit.UpdateTaskStatusMsg(service.ServiceUUID, statusMsg)
-	err = s.enableRedisAuth(ctx, service.ServiceUUID, requuid)
+	err = s.enableRedisAuth(ctx, attr, requuid)
 	if err != nil {
 		glog.Errorln("enableRedisAuth error", err, "requuid", requuid, service)
 		return manage.ConvertToHTTPError(err)
@@ -182,45 +219,31 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
 }
 
-func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, serviceUUID string, requuid string) error {
-	// enable auth in redis.conf
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
-		return err
-	}
+func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, attr *common.ServiceAttr, requuid string) error {
+	// enable auth in service.conf
+	for cfgIndex, cfg := range attr.Spec.ServiceConfigs {
+		if catalog.IsServiceConfigFile(cfg.FileName) {
+			// fetch the config file
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, cfg, "requuid", requuid, attr)
+				return err
+			}
 
-	for _, member := range members {
-		cfgIndex, cfg, err := s.getRedisConfFile(member, requuid)
-		if err != nil {
-			glog.Errorln(err)
-			return err
-		}
+			// auth is not enabled, enable it
+			newContent := rediscatalog.EnableRedisAuth(cfgfile.Spec.Content)
 
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return err
-		}
+			err = s.updateServiceConfigFile(ctx, attr, cfgIndex, cfgfile, newContent, requuid)
+			if err != nil {
+				glog.Errorln("updateServiceConfigFile error", err, cfgfile, "requuid", requuid, attr)
+				return err
+			}
 
-		// if auth is enabled, return
-		enableAuth := rediscatalog.NeedToEnableAuth(cfgfile.Spec.Content)
-		if !enableAuth {
-			glog.Infoln("auth is already enabled in the config file", db.PrintConfigFile(cfgfile), "requuid", requuid, member)
+			glog.Infoln("enabled redis auth, requuid", requuid, attr)
 			return nil
 		}
-
-		// auth is not enabled, enable it
-		newContent := rediscatalog.EnableRedisAuth(cfgfile.Spec.Content)
-
-		_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, member)
-			return err
-		}
 	}
 
-	glog.Infoln("enabled redis auth, serviceUUID", serviceUUID, "requuid", requuid)
-	return nil
+	glog.Errorln("internal error - redis.conf not found, requuid", requuid, attr)
+	return errors.New("internal error - redis.conf not found")
 }

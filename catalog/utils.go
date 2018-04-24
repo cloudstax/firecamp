@@ -11,6 +11,16 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
+// IsServiceConfigFile checks if the file is the service.conf file
+func IsServiceConfigFile(filename string) bool {
+	return filename == SERVICE_FILE_NAME
+}
+
+// IsMemberConfigFile checks if the file is the member.conf file
+func IsMemberConfigFile(filename string) bool {
+	return filename == MEMBER_FILE_NAME
+}
+
 // GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
 func GenStatelessServiceReplicaConfigs(cluster string, service string, replicas int) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)

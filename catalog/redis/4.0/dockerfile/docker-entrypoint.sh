@@ -10,7 +10,6 @@ syscfgfile=$confdir/sys.conf
 
 servicecfgfile=$confdir/service.conf
 membercfgfile=$confdir/member.conf
-staticipcfgfile=$confdir/staticip.conf
 rediscfgfile=$confdir/redis.conf
 
 REDIS_USER=redis
@@ -56,15 +55,9 @@ fi
 
 if [ -f $servicecfgfile ]; then
   # after release 0.9.5
-  if [ ! -f $membercfgfile ] || [ ! -f $staticipcfgfile ]; then
-    echo "error: $membercfgfile or $staticipcfgfile file not exist." >&2
-    exit 2
-  fi
-
   # load service, member and staticip configs
   . $servicecfgfile
   . $membercfgfile
-  . $staticipcfgfile
 
   # update redis.conf
   sed -i 's/bind 0.0.0.0/bind '$BIND_IP'/g' $redisetcdir/redis.conf
@@ -76,7 +69,7 @@ if [ -f $servicecfgfile ]; then
   fi
   sed -i 's/rename-command CONFIG \"\"/rename-command CONFIG \"'$CONFIG_CMD_NAME'\"/g' $redisetcdir/redis.conf
 
-  if [ -n "$AUTH_PASS" ]; then
+  if [ "$ENABLE_AUTH" = "true" -a -n "$AUTH_PASS" ]; then
     # enable auth
     echo "requirepass $AUTH_PASS" >> $redisetcdir/redis.conf
     echo "masterauth $AUTH_PASS" >> $redisetcdir/redis.conf
@@ -94,7 +87,7 @@ if [ -f $servicecfgfile ]; then
 
   if [ $SHARDS -eq 1 ]; then
     # master-slave mode or single instance
-    if [ $REPLICAS_PERSHARD -gt 1 -o $MEMBER_INDEX_INSHARD -gt 0 ]; then
+    if [ $REPLICAS_PERSHARD -gt 1 -a $MEMBER_INDEX_INSHARD -gt 0 ]; then
       # master-slave mode, set the master dnsname for the slave
       echo "slaveof $MASTER_MEMBER 6379" >> $redisetcdir/redis.conf
     fi
@@ -102,7 +95,7 @@ if [ -f $servicecfgfile ]; then
     # cluster mode
     echo "cluster-enabled yes" >> $redisetcdir/redis.conf
     echo "cluster-config-file /data/redis-node.conf" >> $redisetcdir/redis.conf
-    echo "cluster-announce-ip $STATIC_IP" >> $redisetcdir/redis.conf
+    echo "cluster-announce-ip $MEMBER_STATIC_IP" >> $redisetcdir/redis.conf
     echo "cluster-node-timeout 15000" >> $redisetcdir/redis.conf
     echo "cluster-slave-validity-factor 10" >> $redisetcdir/redis.conf
     echo "cluster-migration-barrier 1" >> $redisetcdir/redis.conf

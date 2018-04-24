@@ -175,8 +175,18 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 func genServiceConfigs(platform string, opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {
 	// create service.conf file
+
+	// for redis cluster, disable auth first as Redis cluster setup tool, redis-trib.rb, does not
+	// support auth pass yet. See Redis issue [2866](https://github.com/antirez/redis/issues/2866)
+	// and [4288](https://github.com/antirez/redis/pull/4288).
+	// After redis cluster is initialized, update service.conf to enable auth.
+	enableAuth := "true"
+	if IsClusterMode(opts.Shards) {
+		enableAuth = "false"
+	}
+
 	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard,
-		opts.MemoryCacheSizeMB, strconv.FormatBool(opts.DisableAOF), opts.AuthPass,
+		opts.MemoryCacheSizeMB, strconv.FormatBool(opts.DisableAOF), opts.AuthPass, enableAuth,
 		opts.ReplTimeoutSecs, opts.MaxMemPolicy, opts.ConfigCmdName)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
@@ -217,7 +227,9 @@ func genReplicaConfigs(platform string, cluster string, service string, azs []st
 				bindIP = catalog.BindAllIP
 			}
 
-			content := fmt.Sprintf(memberfileContent, azs[azIndex], memberHost, i, bindIP, masterMemberHost)
+			// static ip is not created yet
+			staticip := ""
+			content := fmt.Sprintf(memberfileContent, azs[azIndex], memberHost, i, bindIP, staticip, masterMemberHost)
 			memberCfg := &manage.ConfigFileContent{
 				FileName: catalog.MEMBER_FILE_NAME,
 				FileMode: common.DefaultConfigFileMode,
@@ -246,26 +258,9 @@ func IsClusterMode(shards int64) bool {
 	return shards >= minClusterShards
 }
 
-// IsRedisConfFile checks if the file is redis.conf
-func IsRedisConfFile(filename string) bool {
-	return filename == redisConfFileName
-}
-
-// NeedToEnableAuth checks whether needs to enable auth in redis.conf
-func NeedToEnableAuth(content string) bool {
-	// Currently if auth pass is not required, redis.conf will not have #requirepass
-	disabledIdx := strings.Index(content, "#requirepass")
-	if disabledIdx != -1 {
-		return true
-	}
-	// auth is either not required or already enabled
-	return false
-}
-
 // EnableRedisAuth enables the Redis access authentication, after cluster is initialized.
 func EnableRedisAuth(content string) string {
-	content = strings.Replace(content, "#requirepass", "requirepass", 1)
-	return strings.Replace(content, "#masterauth", "masterauth", 1)
+	return strings.Replace(content, "ENABLE_AUTH=false", "ENABLE_AUTH=true", 1)
 }
 
 // GenDefaultInitTaskRequest returns the default service init task request.
@@ -350,6 +345,12 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvservice, kvsvctype,
 		kvport, kvop, kvshards, kvreplicaspershard, kvmasters, kvslaves}
 	return envkvs
+}
+
+// SetMemberStaticIP sets the static ip in member.conf
+func SetMemberStaticIP(oldContent string, staticIP string) string {
+	newstr := fmt.Sprintf("MEMBER_STATIC_IP=%s", staticIP)
+	return strings.Replace(oldContent, "MEMBER_STATIC_IP=", newstr, 1)
 }
 
 // UpdateServiceConfigs update the redis configs
@@ -460,6 +461,7 @@ REPLICAS_PERSHARD=%d
 MEMORY_CACHE_MB=%d
 DISABLE_AOF=%s
 AUTH_PASS=%s
+ENABLE_AUTH=%s
 REPL_TIMEOUT_SECS=%d
 MAX_MEMORY_POLICY=%s
 CONFIG_CMD_NAME=%s
@@ -470,6 +472,7 @@ AVAILABILITY_ZONE=%s
 SERVICE_MEMBER=%s
 MEMBER_INDEX_INSHARD=%d
 BIND_IP=%s
+MEMBER_STATIC_IP=%s
 MASTER_MEMBER=%s
 `
 
