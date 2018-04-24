@@ -575,9 +575,9 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 				return manage.ConvertToHTTPError(err)
 			}
 
-			err = s.updateConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent, requuid)
+			err = s.updateServiceConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent, requuid)
 			if err != nil {
-				glog.Errorln("updateConfigFile error", err, "requuid", requuid, req.Service)
+				glog.Errorln("updateServiceConfigFile error", err, "requuid", requuid, req.Service)
 				return manage.ConvertToHTTPError(err)
 			}
 
@@ -592,7 +592,7 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 	return errmsg, http.StatusNotFound
 }
 
-func (s *ManageHTTPServer) updateConfigFile(ctx context.Context, attr *common.ServiceAttr,
+func (s *ManageHTTPServer) updateServiceConfigFile(ctx context.Context, attr *common.ServiceAttr,
 	serviceCfgIndex int, oldCfg *common.ConfigFile, newContent string, requuid string) error {
 	// create the new config file
 	version, err := utils.GetConfigFileVersion(oldCfg.FileID)

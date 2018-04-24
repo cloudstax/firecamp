@@ -60,4 +60,4 @@ EXPOSE 8080
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-CMD ["consul", "agent", "-config-dir", "/data/conf"]
+CMD ["consul", "agent", "-config-dir", "/consul/config"]

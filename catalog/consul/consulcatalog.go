@@ -184,7 +184,8 @@ func genReplicaConfigs(platform string, cluster string, service string, azs []st
 		}
 
 		// create member.conf file
-		content := fmt.Sprintf(memberfileContent, az, member, memberHost, bind)
+		staticip := ""
+		content := fmt.Sprintf(memberfileContent, az, member, memberHost, staticip, bind)
 		memberCfg := &manage.ConfigFileContent{
 			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
@@ -199,14 +200,26 @@ func genReplicaConfigs(platform string, cluster string, service string, azs []st
 	return replicaCfgs
 }
 
+// SetMemberStaticIP sets the static ip in member.conf
+func SetMemberStaticIP(oldContent string, memberHost string, staticip string) string {
+	// update member staticip.
+	newstr := fmt.Sprintf("MEMBER_STATIC_IP=%s", staticip)
+	content := strings.Replace(oldContent, "MEMBER_STATIC_IP=", newstr, 1)
+
+	// if BIND_IP is memberHost, set it with staticip as well.
+	substr := fmt.Sprintf("BIND_IP=%s", memberHost)
+	newstr = fmt.Sprintf("BIND_IP=%s", staticip)
+	return strings.Replace(content, substr, newstr, 1)
+}
+
 // IsBasicConfigFile checks if the file is the basic_config.json
 func IsBasicConfigFile(filename string) bool {
 	return filename == basicConfFileName
 }
 
-// ReplaceMemberName replaces the member's dns name with ip.
+// UpdateBasicConfigsWithIPs replace the retry_join with members' ips.
 // memberips, key: member dns name, value: ip.
-func ReplaceMemberName(content string, memberips map[string]string) string {
+func UpdateBasicConfigsWithIPs(content string, memberips map[string]string) string {
 	for dnsname, ip := range memberips {
 		content = strings.Replace(content, dnsname, ip, -1)
 	}
@@ -227,6 +240,7 @@ HTTPS_PORT=%d
 AVAILABILITY_ZONE=%s
 MEMBER_NAME=%s
 SERVICE_MEMBER=%s
+MEMBER_STATIC_IP=%s
 BIND_IP=%s
 `
 

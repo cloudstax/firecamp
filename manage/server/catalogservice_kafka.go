@@ -140,7 +140,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 
 	dataNodes := 0
 	for _, cfg := range esAttr.Spec.ServiceConfigs {
-		if cfg.FileName == catalog.SERVICE_FILE_NAME {
+		if catalog.IsServiceConfigFile(cfg.FileName) {
 			// get the number of data nodes from service.conf file
 			cfgfile, err := s.dbIns.GetConfigFile(ctx, esAttr.ServiceUUID, cfg.FileID)
 			if err != nil {

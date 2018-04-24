@@ -39,8 +39,15 @@ if [ ! -f "$basiccfgfile" ]; then
   exit 1
 fi
 
+if [ ! -d "$consulcfgdir" ]; then
+  mkdir -p $consulcfgdir
+fi
+
 # If we are running Consul, make sure it executes as the proper user.
 if [ "$1" = 'consul' -a "$(id -u)" = '0' ]; then
+  cp $basiccfgfile $consulcfgdir
+  chown -R $USER $consulcfgdir
+
   rootdiruser=$(stat -c "%U" $rootdir)
   if [ "$rootdiruser" != "$USER" ]; then
     echo "chown -R $USER $rootdir"
@@ -55,8 +62,6 @@ if [ "$1" = 'consul' -a "$(id -u)" = '0' ]; then
   set -- gosu consul "$@"
 fi
 
-cp $basiccfgfile $consulcfgdir
-
 if [ -f $servicecfgfile ]; then
   # after release 0.9.5, load service and member conf
   . $servicecfgfile
@@ -66,7 +71,7 @@ if [ -f $servicecfgfile ]; then
   # https://www.consul.io/docs/agent/options.html for details.
   sed -i 's/myDC/'$DC'/g' $consulcfgdir/basic_config.json
   sed -i 's/memberNodeName/'$MEMBER_NAME'/g' $consulcfgdir/basic_config.json
-  sed -i 's/advertiseAddr/'$SERVICE_MEMBER'/g' $consulcfgdir/basic_config.json
+  sed -i 's/advertiseAddr/'$MEMBER_STATIC_IP'/g' $consulcfgdir/basic_config.json
   sed -i 's/bindAddr/'$BIND_IP'/g' $consulcfgdir/basic_config.json
   sed -i 's/myDomain/'$DOMAIN'/g' $consulcfgdir/basic_config.json
 
@@ -94,10 +99,14 @@ if [ -f $servicecfgfile ]; then
   echo '  "ui": true' >> $consulcfgdir/basic_config.json
   echo '}' >> $consulcfgdir/basic_config.json
 
+  cat $membercfgfile
+
 else
   # before release 0.9.6, load the sys config file
   . $syscfgfile
 fi
+
+cat $consulcfgdir/basic_config.json
 
 echo $SERVICE_MEMBER
 

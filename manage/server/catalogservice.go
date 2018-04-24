@@ -639,8 +639,36 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 		memberdns := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
 		memberips[memberdns] = m.Spec.StaticIP
 		serverips[i] = m.Spec.StaticIP
+
+		// update member config with static ip
+		find := false
+		for cfgIndex, cfg := range m.Spec.Configs {
+			if catalog.IsMemberConfigFile(cfg.FileName) {
+				cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+				if err != nil {
+					glog.Errorln("get member config file error", err, cfg, "requuid", requuid, m)
+					return nil, err
+				}
+
+				newContent := consulcatalog.SetMemberStaticIP(cfgfile.Spec.Content, memberdns, m.Spec.StaticIP)
+
+				_, err = s.updateMemberConfig(ctx, m, cfgfile, cfgIndex, newContent, requuid)
+				if err != nil {
+					glog.Errorln("updateMemberConfig error", err, cfg, "requuid", requuid, m)
+					return nil, err
+				}
+
+				find = true
+				break
+			}
+		}
+		if !find {
+			glog.Errorln("member config file not found, requuid", requuid, m)
+			return nil, errors.New("member config file not found")
+		}
 	}
 
+	// update basic_config.json with static ips
 	for i, cfg := range attr.Spec.ServiceConfigs {
 		if consulcatalog.IsBasicConfigFile(cfg.FileName) {
 			// get the detail content
@@ -650,16 +678,15 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 				return nil, err
 			}
 
-			// replace member dns name with static ips
-			newContent := consulcatalog.ReplaceMemberName(cfgfile.Spec.Content, memberips)
+			newContent := consulcatalog.UpdateBasicConfigsWithIPs(cfgfile.Spec.Content, memberips)
 
-			err = s.updateConfigFile(ctx, attr, i, cfgfile, newContent, requuid)
+			err = s.updateServiceConfigFile(ctx, attr, i, cfgfile, newContent, requuid)
 			if err != nil {
-				glog.Errorln("updateConfigFile error", err, "requuid", requuid, cfg)
+				glog.Errorln("updateServiceConfigFile error", err, cfgfile, "requuid", requuid, attr.Meta)
 				return nil, err
 			}
 
-			glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
+			glog.Infoln("updated basic config, requuid", requuid, attr.Meta)
 			return serverips, nil
 		}
 	}
@@ -671,7 +698,7 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 
 func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context, attr *common.ServiceAttr) (*common.ConfigFile, error) {
 	for _, cfg := range attr.Spec.ServiceConfigs {
-		if cfg.FileName == catalog.SERVICE_FILE_NAME {
+		if catalog.IsServiceConfigFile(cfg.FileName) {
 			return s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
 		}
 	}
