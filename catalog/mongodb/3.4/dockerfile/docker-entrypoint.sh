@@ -16,7 +16,7 @@ syscfgfile=$confdir/sys.conf
 servicecfgfile=$confdir/service.conf
 membercfgfile=$confdir/member.conf
 mongodfile=$confdir/mongod.conf
-keyfile=$configdir/keyfile
+keyfile=$confdir/keyfile
 
 mongoetcdir=/etc/mongo
 
