@@ -60,6 +60,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	}
 
 	envkvs := []*common.EnvKeyValuePair{
+		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
 		&common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region},
 		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
 		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
