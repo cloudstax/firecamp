@@ -83,16 +83,20 @@ if [ -f "$servicecfgfile" ]; then
   # set cluster role for the sharded cluster. do nothing for a single repliaset
   if [ "$CLUSTER_ROLE" = "configsvr" ]; then
     sed -i 's/port: 27017/port: 27019/g' $mongoetcdir/mongod.conf
-    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
+    echo "sharding:" >> $mongoetcdir/mongod.conf
+    echo "  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
   elif [ "$CLUSTER_ROLE" = "shardsvr" ]; then
     sed -i 's/port: 27017/port: 27018/g' $mongoetcdir/mongod.conf
-    echo "sharding:\n  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
+    echo "sharding:" >> $mongoetcdir/mongod.conf
+    echo "  clusterRole: $CLUSTER_ROLE" >> $mongoetcdir/mongod.conf
   fi
   # set replSetName
   sed -i 's/replSetName: default/replSetName: '$REPLICASET_NAME'/g' $mongoetcdir/mongod.conf
   # enabled security
   if [ "$ENABLE_SECURITY" = "true" ]; then
-    echo "security:\n  keyFile: ${keyfile}\n  authorization: enabled" >> $mongoetcdir/mongod.conf
+    echo "security:" >> $mongoetcdir/mongod.conf
+    echo "  keyFile: ${keyfile}" >> $mongoetcdir/mongod.conf
+    echo "  authorization: enabled" >> $mongoetcdir/mongod.conf
   fi
 else
   # before release 0.9.6, load the sys config file

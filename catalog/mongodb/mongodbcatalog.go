@@ -31,7 +31,7 @@ const (
 	shardPort        = 27018
 	configServerPort = 27019
 
-	keyfileName      = "keyfile"
+	KeyfileName      = "keyfile"
 	keyfileRandBytes = 200
 	keyfileMode      = 0400
 
@@ -159,7 +159,7 @@ func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMong
 
 	// create the key file
 	keyfileCfg := &manage.ConfigFileContent{
-		FileName: keyfileName,
+		FileName: KeyfileName,
 		FileMode: keyfileMode,
 		Content:  keyfileContent,
 	}

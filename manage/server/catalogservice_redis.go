@@ -194,8 +194,8 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 		return manage.ConvertToHTTPError(err)
 	}
 
-	// the config files of all replicas are updated, restart all containers
-	glog.Infoln("all replicas are updated, restart all containers, requuid", requuid, req)
+	// the config file is updated, restart all containers
+	glog.Infoln("auth is enabled, restart all containers to make auth effective, requuid", requuid, req)
 
 	// update the init task status message
 	statusMsg = "restarting all containers"
@@ -244,6 +244,6 @@ func (s *ManageHTTPServer) enableRedisAuth(ctx context.Context, attr *common.Ser
 		}
 	}
 
-	glog.Errorln("internal error - redis.conf not found, requuid", requuid, attr)
-	return errors.New("internal error - redis.conf not found")
+	glog.Errorln("internal error - service.conf not found, requuid", requuid, attr)
+	return errors.New("internal error - service.conf not found")
 }
