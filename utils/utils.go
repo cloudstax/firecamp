@@ -32,7 +32,7 @@ func SetLogDir() {
 
 	err := CreateDirIfNotExist(f.Value.String())
 	if err != nil {
-		glog.Fatalln("create/check controldb log dir error", err, f.Value.String())
+		glog.Fatalln("create/check log dir error", err, f.Value.String())
 	}
 }
 
@@ -94,30 +94,17 @@ func GenServiceMemberName(serviceName string, index int64) string {
 	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }
 
-func GenMemberConfigFileID(memberName string, configFileName string, version int64) string {
+func GenConfigFileID(prefix string, configFileName string, version int64) string {
 	// configFileName may include the '_', such as pg_hba.conf for postgres.
 	// The '_' is not supported as k8s configmap name. convert configFileName to md5.
 	fileID := GenMD5(configFileName)
-	return memberName + common.NameSeparator + fileID + common.NameSeparator + strconv.FormatInt(version, 10)
+	return prefix + common.NameSeparator + fileID + common.NameSeparator + strconv.FormatInt(version, 10)
 }
 
 func GetConfigFileVersion(fileID string) (version int64, err error) {
 	fields := strings.Split(fileID, common.NameSeparator)
 	versionStr := fields[len(fields)-1]
 	return strconv.ParseInt(versionStr, 10, 64)
-}
-
-func GenControlDBServiceUUID(volID string) string {
-	return common.ControlDBUUIDPrefix + volID
-}
-
-func IsControlDBService(serviceUUID string) bool {
-	return strings.HasPrefix(serviceUUID, common.ControlDBUUIDPrefix)
-}
-
-// GetControlDBVolumeID extracts the volume id from the controldb serviceUUID
-func GetControlDBVolumeID(controldbServiceUUID string) string {
-	return strings.TrimPrefix(controldbServiceUUID, common.ControlDBUUIDPrefix)
 }
 
 // GetNextIP gets the next unused ip.

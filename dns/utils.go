@@ -121,14 +121,6 @@ func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	return surl
 }
 
-// GetDefaultControlDBAddr returns the default controldb service address,
-// example: firecamp-controldb.cluster-firecamp.com:27030
-func GetDefaultControlDBAddr(cluster string) string {
-	domain := GenDefaultDomainName(cluster)
-	dnsname := GenDNSName(common.ControlDBServiceName, domain)
-	return dnsname + ":" + strconv.Itoa(common.ControlDBServerPort)
-}
-
 // LookupHost looks up the given host using the local resolver.
 func LookupHost(host string) (addr string, err error) {
 	addrs, err := net.LookupHost(host)

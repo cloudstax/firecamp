@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog/postgres"
+	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
@@ -29,44 +29,35 @@ import (
 // 2) Wait till all service containers are running.
 // 3) Run the initialization task.
 
+const (
+	serviceCassandra = "cassandra"
+)
+
 var (
 	platform   = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
-	serverURL  = flag.String("server-url", "", "the management service url, default: "+dns.GetDefaultManageServiceURL("cluster", false))
 	tlsEnabled = flag.Bool("tls-enabled", false, "whether tls is enabled")
 	caFile     = flag.String("ca-file", "", "the ca file")
 	certFile   = flag.String("cert-file", "", "the cert file")
 	keyFile    = flag.String("key-file", "", "the key file")
 
 	// the common service creation parameters
-	serviceType     = flag.String("service-type", "", "The supported service type by this command: mongodb|postgresql")
-	region          = flag.String("region", "", "The target AWS region")
-	cluster         = flag.String("cluster", "default", "The ECS cluster")
-	service         = flag.String("service", "", "The target service name in ECS")
-	replicas        = flag.Int64("replicas", 1, "The number of replicas for the service")
-	azs             = flag.String("zones", "", "The availability zones for the replicas, separated by \",\". Example: us-west-2a,us-west-2b,us-west-2c")
-	volSizeGB       = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
-	reserveCPUUnits = flag.Int64("cpu-units", 128, "The number of cpu units reserved for the container")
-	reserveMemMB    = flag.Int64("memory", 128, "The memory reserved for the container, unit: MB")
-	port            = flag.Int64("port", 0, "The service listening port")
+	serviceType = flag.String("service-type", serviceCassandra, "The service type")
+	region      = flag.String("region", "", "The target AWS region")
+	cluster     = flag.String("cluster", "", "The ECS cluster")
+	service     = flag.String("service", "", "The service name")
+	replicas    = flag.Int64("replicas", 1, "The number of replicas for the service")
+	azs         = flag.String("zones", "", "The availability zones for the replicas, separated by \",\". Example: us-west-2a,us-west-2b,us-west-2c")
+	volSizeGB   = flag.Int64("volume-size", 0, "The size of each EBS volume, unit: GB")
 
-	// security parameters
-	admin       = flag.String("admin", "admin", "The DB admin")
-	adminPasswd = flag.String("passwd", "password", "The DB admin password")
-
-	// The postgres service creation specific parameters.
-	replUser   = flag.String("replication-user", "repluser", "The replication user that the standby DB replicates from the primary")
-	replPasswd = flag.String("replication-passwd", "replpassword", "The password for the standby DB to access the primary")
-)
-
-const (
-	servicePostgres = "postgresql"
+	// The cassandra service creation specific parameters.
+	heapSizeMB = flag.Int64("cas-heap-size", 512, "The cassandra service heap size, unit: MB")
 )
 
 func main() {
 	flag.Parse()
 
-	if *serviceType == "" || *service == "" || *volSizeGB == 0 || *port == 0 {
-		fmt.Println("Please specify the valid service type, service name, volume size and listening port")
+	if *serviceType == "" || *cluster == "" || *service == "" || *volSizeGB == 0 {
+		fmt.Println("Please specify the valid service type, cluster name, service name, volume size")
 		os.Exit(-1)
 	}
 
@@ -111,101 +102,64 @@ func main() {
 		}
 	}
 
-	if *serverURL == "" {
-		// use default server url
-		*serverURL = dns.GetDefaultManageServiceURL(*cluster, *tlsEnabled)
-	} else {
-		// format url
-		*serverURL = dns.FormatManageServiceURL(*serverURL, *tlsEnabled)
-	}
+	// use default server url
+	serverURL := dns.GetDefaultManageServiceURL(*cluster, *tlsEnabled)
 
-	cli := client.NewManageClient(*serverURL, tlsConf)
+	cli := client.NewManageClient(serverURL, tlsConf)
 	ctx := context.Background()
 
 	switch strings.ToLower(*serviceType) {
-	case servicePostgres:
-		opts := &manage.CatalogPostgreSQLOptions{
+	case serviceCassandra:
+		// 1. generate the service creation request
+		opts := &manage.CatalogCassandraOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,
 				VolumeSizeGB: *volSizeGB,
 			},
-			ContainerImage: pgcatalog.ContainerImage,
-			AdminPasswd:    *adminPasswd,
-			ReplUser:       *replUser,
-			ReplUserPasswd: *replPasswd,
+			JournalVolume: &common.ServiceVolume{
+				VolumeType:   common.VolumeTypeGPSSD,
+				VolumeSizeGB: *volSizeGB,
+			},
+			HeapSizeMB:      *heapSizeMB,
+			JmxRemoteUser:   "jmxUser",
+			JmxRemotePasswd: "jmxPasswd",
 		}
-		replicaCfgs := pgcatalog.GenReplicaConfigs(*platform, *cluster, *service, zones, *port, opts)
-		createAndWaitService(ctx, cli, replicaCfgs, pgcatalog.ContainerImage)
+		res := &common.Resources{}
+		createReq, _, _ := cascatalog.GenDefaultCreateServiceRequest(*platform, *region, zones, *cluster, *service, opts, res)
 
-		initializePostgreSQL(ctx, cli)
+		// 2. create the service
+		err := cli.CreateService(ctx, createReq)
+		if err != nil {
+			fmt.Println("CreateService error", err)
+			os.Exit(-1)
+		}
+
+		fmt.Println("Service is created, wait for all containers running")
+
+		// 3. wait till all service containers are running
+		waitServiceRunning(ctx, cli, createReq.Service)
+
+		// 4. run the cassandra init task
+		envs := cascatalog.GenInitTaskEnvKVPairs(*region, *cluster, *service, serverURL)
+		initReq := &manage.RunTaskRequest{
+			Service: createReq.Service,
+			Resource: &common.Resources{
+				MaxCPUUnits:     common.DefaultMaxCPUUnits,
+				ReserveCPUUnits: common.DefaultReserveCPUUnits,
+				MaxMemMB:        common.DefaultMaxMemoryMB,
+				ReserveMemMB:    common.DefaultReserveMemoryMB,
+			},
+			ContainerImage: cascatalog.InitContainerImage,
+			TaskType:       common.TaskTypeInit,
+			Envkvs:         envs,
+		}
+		initializeService(ctx, cli, *region, initReq)
 
 	default:
 		fmt.Println("Please specify the service to create: mongodb|postgresql")
 		os.Exit(-1)
 	}
-}
-
-func createAndWaitService(ctx context.Context, cli *client.ManageClient, replicaCfgs []*manage.ReplicaConfig, containerImage string) {
-	// create the service at the firecamp control plane and the container platform.
-	p := common.PortMapping{
-		ContainerPort: *port,
-		HostPort:      *port,
-	}
-
-	req := &manage.CreateServiceRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
-
-		Resource: &common.Resources{
-			MaxCPUUnits:     *reserveCPUUnits,
-			ReserveCPUUnits: *reserveCPUUnits,
-			MaxMemMB:        *reserveMemMB,
-			ReserveMemMB:    *reserveMemMB,
-		},
-
-		ContainerImage: containerImage,
-		Replicas:       *replicas,
-		Volume: &common.ServiceVolume{
-			VolumeType:   common.VolumeTypeGPSSD,
-			VolumeSizeGB: *volSizeGB,
-		},
-		ContainerPath: common.DefaultContainerMountPath,
-		PortMappings:  []common.PortMapping{p},
-
-		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
-	}
-
-	err := cli.CreateService(ctx, req)
-	if err != nil {
-		fmt.Println("CreateService error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("Service is created, wait for all containers running")
-
-	// wait till all service containers are running
-	waitServiceRunning(ctx, cli, req.Service)
-}
-
-func initializePostgreSQL(ctx context.Context, cli *client.ManageClient) {
-	req := &manage.ServiceCommonRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceName: *service,
-	}
-
-	err := cli.SetServiceInitialized(ctx, req)
-	if err != nil {
-		fmt.Println("initializeService error", err)
-		os.Exit(-1)
-	}
-
-	fmt.Println("The PostgreSQl are successfully initialized")
 }
 
 func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {

@@ -1,7 +1,9 @@
 package k8sconfigdb
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -17,9 +19,12 @@ import (
 func (s *K8sConfigDB) CreateServiceStaticIP(ctx context.Context, serviceip *common.ServiceStaticIP) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	cfgmap := s.serviceIPToConfigMap(serviceip)
+	cfgmap, err := s.serviceIPToConfigMap(serviceip)
+	if err != nil {
+		return err
+	}
 
-	_, err := s.cliset.CoreV1().ConfigMaps(s.namespace).Create(cfgmap)
+	_, err = s.cliset.CoreV1().ConfigMaps(s.namespace).Create(cfgmap)
 	if err != nil {
 		glog.Errorln("failed to create service static ip", serviceip, "error", err, "requuid", requuid)
 		return s.convertError(err)
@@ -33,17 +38,18 @@ func (s *K8sConfigDB) CreateServiceStaticIP(ctx context.Context, serviceip *comm
 func (s *K8sConfigDB) UpdateServiceStaticIP(ctx context.Context, oldIP *common.ServiceStaticIP, newIP *common.ServiceStaticIP) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// sanity check. ServiceUUID, AvailableZone, etc, are not allowed to update.
-	if oldIP.StaticIP != newIP.StaticIP ||
-		oldIP.ServiceUUID != newIP.ServiceUUID ||
-		oldIP.AvailableZone != newIP.AvailableZone {
-		glog.Errorln("immutable attributes are updated, oldIP", oldIP, "newIP", newIP, "requuid", requuid)
+	if (oldIP.Revision+1) != newIP.Revision ||
+		!db.EqualServiceStaticIPImmutableFields(oldIP, newIP) {
+		glog.Errorln("revision is not increased by 1 or immutable attributes are updated, oldIP", oldIP, "newIP", newIP, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
 
-	cfgmap := s.serviceIPToConfigMap(newIP)
+	cfgmap, err := s.serviceIPToConfigMap(newIP)
+	if err != nil {
+		return err
+	}
 
-	_, err := s.cliset.CoreV1().ConfigMaps(s.namespace).Update(cfgmap)
+	_, err = s.cliset.CoreV1().ConfigMaps(s.namespace).Update(cfgmap)
 	if err != nil {
 		glog.Errorln("failed to update service static ip", oldIP, "to", newIP, "error", err, "requuid", requuid)
 		return s.convertError(err)
@@ -65,17 +71,25 @@ func (s *K8sConfigDB) GetServiceStaticIP(ctx context.Context, staticIP string) (
 		return nil, s.convertError(err)
 	}
 
-	if cfgmap == nil || len(cfgmap.Data) != 5 {
+	if cfgmap == nil {
 		glog.Infoln("service static ip", name, "not found, requuid", requuid)
 		return nil, db.ErrDBRecordNotFound
 	}
 
-	serviceip = db.CreateServiceStaticIP(
-		staticIP,
-		cfgmap.Data[db.ServiceUUID],
-		cfgmap.Data[db.AvailableZone],
-		cfgmap.Data[db.ServerInstanceID],
-		cfgmap.Data[db.NetworkInterfaceID])
+	revision, err := strconv.ParseInt(cfgmap.Data[db.Revision], 10, 64)
+	if err != nil {
+		glog.Errorln("ParseInt Revision error", err, "requuid", requuid, cfgmap)
+		return nil, db.ErrDBInternal
+	}
+
+	var spec common.StaticIPSpec
+	err = json.Unmarshal([]byte(cfgmap.Data[db.StaticIPSpec]), &spec)
+	if err != nil {
+		glog.Errorln("Unmarshal StaticIPSpec error", err, "requuid", requuid, cfgmap)
+		return nil, db.ErrDBInternal
+	}
+
+	serviceip = db.CreateServiceStaticIP(staticIP, revision, &spec)
 
 	glog.Infoln("get service static ip", serviceip, "requuid", requuid)
 	return serviceip, nil
@@ -97,22 +111,26 @@ func (s *K8sConfigDB) DeleteServiceStaticIP(ctx context.Context, staticIP string
 	return nil
 }
 
-func (s *K8sConfigDB) serviceIPToConfigMap(serviceip *common.ServiceStaticIP) *corev1.ConfigMap {
+func (s *K8sConfigDB) serviceIPToConfigMap(serviceip *common.ServiceStaticIP) (*corev1.ConfigMap, error) {
+	specBytes, err := json.Marshal(serviceip.Spec)
+	if err != nil {
+		glog.Errorln("Marshal ServiceSpec error", err, serviceip.Spec)
+		return nil, err
+	}
+
 	cfgmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      s.genStaticIPConfigMapName(serviceip.StaticIP),
 			Namespace: s.namespace,
-			Labels:    s.genStaticIPListLabels(serviceip.ServiceUUID),
+			Labels:    s.genStaticIPListLabels(serviceip.Spec.ServiceUUID),
 		},
 		Data: map[string]string{
-			db.StaticIP:           serviceip.StaticIP,
-			db.ServiceUUID:        serviceip.ServiceUUID,
-			db.AvailableZone:      serviceip.AvailableZone,
-			db.ServerInstanceID:   serviceip.ServerInstanceID,
-			db.NetworkInterfaceID: serviceip.NetworkInterfaceID,
+			db.StaticIP:     serviceip.StaticIP,
+			db.Revision:     strconv.FormatInt(serviceip.Revision, 10),
+			db.StaticIPSpec: string(specBytes),
 		},
 	}
-	return cfgmap
+	return cfgmap, nil
 }
 
 func (s *K8sConfigDB) genStaticIPConfigMapName(staticIP string) string {

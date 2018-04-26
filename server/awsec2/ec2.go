@@ -61,8 +61,7 @@ const (
 	// misc default value
 	defaultInstanceType = "t2.micro"
 	devicePrefix        = "/dev/xvd"
-	controldbDevice     = "/dev/xvdf"
-	firstDevice         = "/dev/xvdg"
+	firstDevice         = "/dev/xvdf"
 	lastDeviceSeq       = "z"
 
 	filterAz               = "availability-zone"
@@ -399,11 +398,6 @@ func (s *AWSEc2) DeleteVolume(ctx context.Context, volID string) error {
 
 	glog.Infoln("deleted volume", volID, "requuid", requuid, "resp", resp)
 	return nil
-}
-
-// GetControlDBDeviceName returns the default controldb device name
-func (s *AWSEc2) GetControlDBDeviceName() string {
-	return controldbDevice
 }
 
 // GetFirstDeviceName returns the first device name

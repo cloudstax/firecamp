@@ -76,8 +76,7 @@ func CreateConfigFile(ctx context.Context, dbIns db.DB, cfgfile *common.ConfigFi
 	skipMtime := true
 	skipContent := true
 	if !db.EqualConfigFile(currcfg, cfgfile, skipMtime, skipContent) {
-		glog.Errorln("config file not match, current", db.PrintConfigFile(currcfg),
-			"new", db.PrintConfigFile(cfgfile), "requuid", requuid)
+		glog.Errorln("config file not match, current", currcfg, "new", cfgfile, "requuid", requuid)
 		return nil, common.ErrConfigMismatch
 	}
 

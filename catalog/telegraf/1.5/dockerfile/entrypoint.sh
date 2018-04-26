@@ -34,20 +34,28 @@ IFS=$OIFS
 
 # add redis input plugin
 if [ "$MONITOR_SERVICE_TYPE" = "redis" ]; then
-  # check the service required parameters
-  # TODO simply pass redis auth password in the env variable. should fetch from DB or manage server.
-  if [ -z "$REDIS_AUTH" ]; then
-    echo "error: please specify REDIS_AUTH $REDIS_AUTH"
-    exit 2
+  if [ "$CONTAINER_PLATFORM" = "ecs" -o "$CONTAINER_PLATFORM" = "swarm" ]; then
+    # load redis service configs to get the redis auth pass
+    /firecamp-getserviceconf -cluster=$CLUSTER -service-name=$MONITOR_SERVICE_NAME -outputfile=/redisservice.conf
   fi
+  # for k8s, the redis config should be mounted
+  . /redisservice.conf
 
   servers=""
   i=0
   for m in "${members[@]}"; do
     if [ "$i" = "0" ]; then
-      servers="\"tcp:\/\/:$REDIS_AUTH@$m\""
+      if [ "$ENABLE_AUTH" = "true" -a -n "$AUTH_PASS" ]; then
+        servers="\"tcp:\/\/:$AUTH_PASS@$m\""
+      else
+        servers="\"tcp:\/\/:$m\""
+      fi
     else
-      servers+=",\"tcp:\/\/:$REDIS_AUTH@$m\""
+      if [ "$ENABLE_AUTH" = "true" -a -n "$AUTH_PASS" ]; then
+        servers+=",\"tcp:\/\/:$AUTH_PASS@$m\""
+      else
+        servers+=",\"tcp:\/\/:$m\""
+      fi
     fi
     i=$(( $i + 1 ))
   done
@@ -77,6 +85,8 @@ if [ "$MONITOR_SERVICE_TYPE" = "zookeeper" ]; then
 
   # add service input plugin to telegraf.conf
   cat $configDir/input_zk.conf >> $configDir/telegraf.conf
+
+  cat $configDir/input_zk.conf
 fi
 
 # add cassandra input plugin
@@ -112,6 +122,8 @@ if [ "$MONITOR_SERVICE_TYPE" = "cassandra" ]; then
 
   # add service input plugin to telegraf.conf
   cat $casfile >> $configDir/telegraf.conf
+
+  cat $casfile
 fi
 
 # add output plugin
@@ -122,7 +134,7 @@ fi
 # https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html
 cat $configDir/output_cloudwatch.conf >> $configDir/telegraf.conf
 
-cat $configDir/telegraf.conf
+# cat $configDir/telegraf.conf
 
 echo "$@"
 exec "$@"

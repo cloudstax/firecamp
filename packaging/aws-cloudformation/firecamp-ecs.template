@@ -17,8 +17,7 @@
     },
     "DBType": {
       "AllowedValues": [
-        "clouddb",
-        "controldb"
+        "clouddb"
       ],
       "Default": "clouddb",
       "Type": "String"

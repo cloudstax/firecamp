@@ -1,6 +1,7 @@
 package mongodbcatalog
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,11 +12,6 @@ import (
 )
 
 func TestMongoDBReplicaConfig(t *testing.T) {
-	keyfileContent, err := genKeyfileContent()
-	if err != nil {
-		t.Fatalf("genKeyfileContent error %s", err)
-	}
-
 	region := "reg1"
 	platform := "ecs"
 	cluster := "t1"
@@ -26,63 +22,62 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	az := "az1"
 	azs := []string{"az1", "az2", "az3"}
 	maxMemMB := int64(256)
-	keyfileCfg := &manage.ReplicaConfigFile{FileName: keyfileName, FileMode: keyfileMode, Content: keyfileContent}
 
 	replSetName := getConfigServerName(service)
 	role := configRole
-	cfg := genReplicaConfig(platform, domain, member, replSetName, role, az, maxMemMB, keyfileCfg)
-	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 3 {
-		t.Fatalf("expect zone %s member name %s 3 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
+	cfg := genReplicaConfig(platform, domain, member, replSetName, role, az)
+	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 1 {
+		t.Fatalf("expect zone %s member name %s 1 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
 	}
-	if !strings.Contains(cfg.Configs[1].Content, "port: 27019") {
-		t.Fatalf("expect 27019 for config server, get %s", cfg.Configs[1].Content)
-	}
-	if !strings.Contains(cfg.Configs[1].Content, "clusterRole: configsvr") {
-		t.Fatalf("expect configsvr role for config server, get %s", cfg.Configs[1].Content)
+	if !strings.Contains(cfg.Configs[0].Content, configRole) {
+		t.Fatalf("expect configsvr role for config server, get %s", cfg.Configs[0].Content)
 	}
 
 	replSetName = getShardName(service, 0)
 	role = shardRole
-	cfg = genReplicaConfig(platform, domain, member, replSetName, role, az, maxMemMB, keyfileCfg)
-	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 3 {
-		t.Fatalf("expect zone %s member name %s 3 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
+	cfg = genReplicaConfig(platform, domain, member, replSetName, role, az)
+	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 1 {
+		t.Fatalf("expect zone %s member name %s 1 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
 	}
-	if !strings.Contains(cfg.Configs[1].Content, "port: 27018") {
-		t.Fatalf("expect 27018 for shard server, get %s", cfg.Configs[1].Content)
-	}
-	if !strings.Contains(cfg.Configs[1].Content, "clusterRole: shardsvr") {
-		t.Fatalf("expect shardsvr role for shard, get %s", cfg.Configs[1].Content)
+	if !strings.Contains(cfg.Configs[0].Content, shardRole) {
+		t.Fatalf("expect shardsvr role for shard, get %s", cfg.Configs[0].Content)
 	}
 
 	replSetName = service
 	role = emptyRole
-	cfg = genReplicaConfig(platform, domain, member, replSetName, role, az, maxMemMB, keyfileCfg)
-	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 3 {
-		t.Fatalf("expect zone %s member name %s 3 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
+	cfg = genReplicaConfig(platform, domain, member, replSetName, role, az)
+	if cfg.Zone != az || cfg.MemberName != member || len(cfg.Configs) != 1 {
+		t.Fatalf("expect zone %s member name %s 1 configs, get %s %s %d", az, member, cfg.Zone, cfg.MemberName, len(cfg.Configs))
 	}
-	if !strings.Contains(cfg.Configs[1].Content, "port: 27017") {
-		t.Fatalf("expect 27017 for replica set, get %s", cfg.Configs[1].Content)
-	}
-	if strings.Contains(cfg.Configs[1].Content, "clusterRole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", cfg.Configs[1].Content)
+	if strings.Contains(cfg.Configs[0].Content, "clusterRole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", cfg.Configs[0].Content)
 	}
 
-	// test replica configs
+	// test service configs
 	opts := &manage.CatalogMongoDBOptions{
 		Shards:           1,
 		ReplicasPerShard: 1,
 		ReplicaSetOnly:   true,
 	}
+
+	keyfileContent, err := GenKeyfileContent()
+	if err != nil {
+		t.Fatalf("genKeyfileContent error %s", err)
+	}
+
+	serviceCfgs := genServiceConfigs(platform, maxMemMB, opts, keyfileContent)
+	if !strings.Contains(serviceCfgs[0].Content, "SHARDS=1") {
+		t.Fatalf("expect 1 shards, get %s", cfg.Configs[0].Content)
+	}
+
+	// test replica configs
 	member = service + "-0"
-	replcfgs := GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 1 || len(replcfgs[0].Configs) != 3 {
+	replcfgs := genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 1 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 1 replcfg 3 configs, get %s %s %d %d", azs[0], member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27017") {
-		t.Fatalf("expect 27017 for replica set, get %s", replcfgs[0].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[0].Configs[1].Content, "clusterRole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[0].Configs[1].Content)
+	if strings.Contains(replcfgs[0].Configs[0].Content, "clusterRole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
 	members := dns.GenDNSName(service+"-0", domain)
 	kvs := GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
@@ -92,15 +87,12 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 
 	opts.ReplicasPerShard = 3
 	member = service + "-0"
-	replcfgs = GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 3 || len(replcfgs[0].Configs) != 3 {
+	replcfgs = genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 3 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 3 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	if !strings.Contains(replcfgs[1].Configs[1].Content, "port: 27017") {
-		t.Fatalf("expect 27017 for replica set, get %s", replcfgs[1].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[1].Configs[1].Content, "clusterRole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[1].Configs[0].Content, "clusterRole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
 	members = dns.GenDNSName(service+"-0", domain) + "," + dns.GenDNSName(service+"-1", domain) + "," + dns.GenDNSName(service+"-2", domain)
 	kvs = GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
@@ -112,21 +104,15 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	opts.ReplicaSetOnly = false
 	opts.ConfigServers = 1
 	member = service + "-config-0"
-	replcfgs = GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 2 || len(replcfgs[0].Configs) != 3 {
+	replcfgs = genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 2 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 2 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27019") {
-		t.Fatalf("expect 27019 for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[0].Configs[0].Content, "clusterrole: configsvr") {
+		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
-	if strings.Contains(replcfgs[0].Configs[1].Content, "clusterrole: configsvr") {
-		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[1].Content)
-	}
-	if !strings.Contains(replcfgs[1].Configs[1].Content, "port: 27018") {
-		t.Fatalf("expect 27018 for shard replica set, get %s", replcfgs[1].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[1].Configs[1].Content, "clusterrole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[1].Configs[0].Content, "clusterrole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[1].Configs[0].Content)
 	}
 	kvs = GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
 	members = dns.GenDNSName(service+"-config-0", domain)
@@ -142,21 +128,15 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	opts.ReplicaSetOnly = false
 	opts.ConfigServers = 1
 	member = service + "-config-0"
-	replcfgs = GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 4 || len(replcfgs[0].Configs) != 3 {
+	replcfgs = genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 4 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 4 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27019") {
-		t.Fatalf("expect 27019 for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[0].Configs[0].Content, "clusterrole: configsvr") {
+		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
-	if strings.Contains(replcfgs[0].Configs[1].Content, "clusterrole: configsvr") {
-		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[1].Content)
-	}
-	if !strings.Contains(replcfgs[1].Configs[1].Content, "port: 27018") {
-		t.Fatalf("expect 27018 for shard replica set, get %s", replcfgs[1].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[1].Configs[1].Content, "clusterrole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[1].Configs[0].Content, "clusterrole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[1].Configs[0].Content)
 	}
 	kvs = GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
 	members = dns.GenDNSName(service+"-config-0", domain)
@@ -172,21 +152,15 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	opts.ReplicaSetOnly = false
 	opts.ConfigServers = 3
 	member = service + "-config-0"
-	replcfgs = GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 6 || len(replcfgs[0].Configs) != 3 {
+	replcfgs = genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 6 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 6 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
-	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27019") {
-		t.Fatalf("expect 27019 for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[0].Configs[0].Content, "clusterrole: configsvr") {
+		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
-	if strings.Contains(replcfgs[0].Configs[1].Content, "clusterrole: configsvr") {
-		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[1].Content)
-	}
-	if !strings.Contains(replcfgs[3].Configs[1].Content, "port: 27018") {
-		t.Fatalf("expect 27018 for shard replica set, get %s", replcfgs[3].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[3].Configs[1].Content, "clusterrole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[3].Configs[1].Content)
+	if strings.Contains(replcfgs[3].Configs[0].Content, "clusterrole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[3].Configs[0].Content)
 	}
 	kvs = GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
 	members = dns.GenDNSName(service+"-config-0", domain) + "," + dns.GenDNSName(service+"-config-1", domain) + "," + dns.GenDNSName(service+"-config-2", domain)
@@ -203,8 +177,8 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	opts.ReplicaSetOnly = false
 	opts.ConfigServers = 3
 	member = service + "-config-0"
-	replcfgs = GenReplicaConfigs(platform, azs, cluster, service, maxMemMB, keyfileContent, opts)
-	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 9 || len(replcfgs[0].Configs) != 3 {
+	replcfgs = genReplicaConfigs(platform, azs, cluster, service, maxMemMB, opts)
+	if replcfgs[0].Zone != azs[0] || replcfgs[0].MemberName != member || len(replcfgs) != 9 || len(replcfgs[0].Configs) != 1 {
 		t.Fatalf("expect zone %s member name %s 9 replcfg 3 configs, get %s %s %d", az, member, replcfgs[0].Zone, replcfgs[0].MemberName, len(replcfgs), len(replcfgs[0].Configs))
 	}
 	// 3 config servers
@@ -240,17 +214,11 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(replcfgs[0].Configs[1].Content, "port: 27019") {
-		t.Fatalf("expect 27019 for replica set, get %s", replcfgs[1].Configs[1].Content)
+	if strings.Contains(replcfgs[0].Configs[0].Content, "clusterrole: configsvr") {
+		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[0].Content)
 	}
-	if strings.Contains(replcfgs[0].Configs[1].Content, "clusterrole: configsvr") {
-		t.Fatalf("expect cluster role configsvr for replica set, get %s", replcfgs[0].Configs[1].Content)
-	}
-	if !strings.Contains(replcfgs[3].Configs[1].Content, "port: 27018") {
-		t.Fatalf("expect 27018 for shard replica set, get %s", replcfgs[3].Configs[1].Content)
-	}
-	if strings.Contains(replcfgs[3].Configs[1].Content, "clusterrole:") {
-		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[3].Configs[1].Content)
+	if strings.Contains(replcfgs[3].Configs[0].Content, "clusterrole:") {
+		t.Fatalf("not expect cluster role for replica set, get %s", replcfgs[3].Configs[0].Content)
 	}
 	kvs = GenInitTaskEnvKVPairs(region, cluster, service, manageurl, opts)
 	members = dns.GenDNSName(service+"-config-0", domain) + "," + dns.GenDNSName(service+"-config-1", domain) + "," + dns.GenDNSName(service+"-config-2", domain)
@@ -263,4 +231,25 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 		t.Fatalf("expect name %s value %s, get %s", envShardMembers, members, kvs[12])
 	}
 
+}
+
+func TestParseServiceConfigs(t *testing.T) {
+	shards := int64(2)
+	replPerShard := int64(3)
+	replSetOnly := false
+	configServers := int64(3)
+	admin := "admin"
+	pass := "pass"
+	content := fmt.Sprintf(servicefileContent, "ecs", shards, replPerShard,
+		strconv.FormatBool(replSetOnly), configServers, admin, pass)
+
+	opts, err := ParseServiceConfigs(content)
+	if err != nil {
+		t.Fatalf("ParseServiceConfigs expect success, get error %s", err)
+	}
+	if opts.Shards != shards || opts.ReplicasPerShard != replPerShard ||
+		opts.ReplicaSetOnly != replSetOnly || opts.ConfigServers != configServers ||
+		opts.Admin != admin || opts.AdminPasswd != pass {
+		t.Fatalf("config mismatch, get %s", opts)
+	}
 }

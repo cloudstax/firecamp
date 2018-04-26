@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log/jsonfile"
 	"github.com/cloudstax/firecamp/manage"
@@ -64,51 +62,6 @@ func TestClientMgrOperationsWithMemDB(t *testing.T) {
 	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
 	cli := NewManageClient(surl, nil)
 	serviceNum := 23
-	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
-
-	lis.Close()
-}
-
-func TestClientMgrOperationsWithControlDB(t *testing.T) {
-	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
-
-	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
-	cluster := "cluster1"
-	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
-	manageurl := dns.GetDefaultManageServiceDNSName(cluster)
-
-	testdb := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 1}
-	go testdb.RunControldbTestServer(cluster)
-	defer testdb.StopControldbTestServer()
-
-	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+1))
-	dnsIns := dns.NewMockDNS()
-	logIns := jsonfilelog.NewLog()
-	serverIns := server.NewMemServer()
-	serverInfo := server.NewMockServerInfo()
-	containersvcIns := containersvc.NewMemContainerSvc()
-
-	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
-		manageurl, dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
-	addr := "localhost:" + strconv.Itoa(common.ManageHTTPServerPort+1)
-
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		t.Fatalf("failed to listen on addr", addr, "error", err)
-	}
-
-	s := &http.Server{
-		Addr:    addr,
-		Handler: mgtsvc,
-	}
-
-	go s.Serve(lis)
-
-	tlsEnabled := false
-	surl := dns.FormatManageServiceURL(addr, tlsEnabled)
-	cli := NewManageClient(surl, nil)
-	serviceNum := 14
 	testMgrOps(t, cli, cluster, serverInfo, serviceNum)
 
 	lis.Close()
@@ -179,14 +132,17 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	// create services
 	registerDNS := true
 	servicePrefix := "service-"
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
 	for repNum := 1; repNum < serviceNum+1; repNum++ {
 		service := servicePrefix + strconv.Itoa(repNum)
 
 		replicaCfgs := make([]*manage.ReplicaConfig, repNum)
 		for i := 0; i < repNum; i++ {
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-			configs := []*manage.ReplicaConfigFile{cfg}
+			cfg := &manage.ConfigFileContent{FileName: service, Content: service}
+			configs := []*manage.ConfigFileContent{cfg}
 			replicaCfg := &manage.ReplicaConfig{Zone: "us-west-1c", MemberName: memberName, Configs: configs}
 			replicaCfgs[i] = replicaCfg
 		}
@@ -212,6 +168,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			},
 			ContainerPath:  "",
 			RegisterDNS:    registerDNS,
+			ServiceConfigs: serviceCfgs,
 			ReplicaConfigs: replicaCfgs,
 		}
 
@@ -332,8 +289,8 @@ func queryServiceTest(t *testing.T, cli *ManageClient, cluster string, servicePr
 		t.Fatalf("GetServiceAttr error %s, %s", err, r)
 	}
 
-	if attr.ServiceName != s1 || attr.ServiceStatus != targetServiceStatus ||
-		attr.Replicas != int64(i) || attr.Volumes.PrimaryVolume.VolumeSizeGB != int64(i) {
+	if attr.Meta.ServiceName != s1 || attr.Meta.ServiceStatus != targetServiceStatus ||
+		attr.Spec.Replicas != int64(i) || attr.Spec.Volumes.PrimaryVolume.VolumeSizeGB != int64(i) {
 		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", s1, targetServiceStatus, i, i, attr)
 	}
 	glog.Infoln("GetServiceAttr output", attr)

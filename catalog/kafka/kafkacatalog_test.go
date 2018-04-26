@@ -2,13 +2,10 @@ package kafkacatalog
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cloudstax/firecamp/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 )
 
@@ -22,7 +19,6 @@ func TestKafkaCatalog(t *testing.T) {
 	maxMemMB := int64(128)
 	allowTopicDel := true
 	retentionHours := int64(10)
-	domain := dns.GenDefaultDomainName(cluster)
 
 	zkservice := "zk1"
 	vols := common.ServiceVolumes{
@@ -32,9 +28,7 @@ func TestKafkaCatalog(t *testing.T) {
 			VolumeSizeGB: volSizeGB,
 		},
 	}
-	zkattr := db.CreateServiceAttr("zkuuid", common.ServiceStatusActive, time.Now().UnixNano(),
-		replicas, cluster, zkservice, vols, true, domain, "hostedzone", false, nil, common.Resources{}, "")
-	zkservers := catalog.GenServiceMemberHostsWithPort(zkattr.ClusterName, zkattr.ServiceName, zkattr.Replicas, zkcatalog.ClientPort)
+	zkservers := catalog.GenServiceMemberHostsWithPort(cluster, zkservice, replicas, zkcatalog.ClientPort)
 	expectZkServers := "zk1-0.c1-firecamp.com:2181,zk1-1.c1-firecamp.com:2181,zk1-2.c1-firecamp.com:2181"
 	if zkservers != expectZkServers {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)
@@ -50,7 +44,7 @@ func TestKafkaCatalog(t *testing.T) {
 		JmxRemoteUser:   "u1",
 		JmxRemotePasswd: "p1",
 	}
-	cfgs := GenReplicaConfigs(platform, cluster, kafkaservice, azs, opts, zkservers)
+	cfgs := genMemberConfigs(platform, cluster, kafkaservice, azs, opts)
 	if len(cfgs) != int(replicas) {
 		t.Fatalf("expect %d replica configs, get %d", replicas, len(cfgs))
 	}

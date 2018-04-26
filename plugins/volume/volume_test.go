@@ -100,8 +100,8 @@ func TestVolumeFunctions(t *testing.T) {
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
 		memberName := utils.GenServiceMemberName(service1, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{FileName: "configfile-name", Content: "configfile-content"}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -203,8 +203,8 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
 		memberName := utils.GenServiceMemberName(service1, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{FileName: "configfile-name", Content: "configfile-content"}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -288,7 +288,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 		t.Fatalf("ListServiceMembers error", err, "members", members)
 	}
 	member := members[0]
-	member.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
+	member.Spec.ContainerInstanceID = mockContInfo.GetLocalContainerInstanceID()
 
 	driver2 := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
@@ -344,7 +344,12 @@ func TestFindIdleVolume(t *testing.T) {
 		MaxMemMB:        common.DefaultMaxMemoryMB,
 		ReserveMemMB:    common.DefaultReserveMemoryMB,
 	}
-	sattr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, replicas, cluster, service, svols, true, domain, "hostedzone", false, nil, res, "")
+	cfgids := []common.ConfigID{
+		common.ConfigID{FileName: "fname", FileID: "fid", FileMD5: "fmd5"},
+	}
+	attrMeta := db.CreateServiceMeta(cluster, service, mtime, common.ServiceTypeStateful, common.ServiceStatusActive)
+	attrSpec := db.CreateServiceSpec(replicas, &res, true, domain, "hostedzone", false, cfgids, common.CatalogService_Kafka, &svols)
+	sattr := db.CreateServiceAttr(serviceUUID, 0, attrMeta, attrSpec)
 
 	// add 2 service tasks
 	for i := 0; i < 2; i++ {
@@ -363,9 +368,13 @@ func TestFindIdleVolume(t *testing.T) {
 			PrimaryVolumeID:   volIDPrefix + str,
 			PrimaryDeviceName: "/dev/xvdf",
 		}
-		m := db.CreateServiceMember(serviceUUID, int64(i), common.ServiceMemberStatusActive,
-			utils.GenServiceMemberName(service, int64(i)), mockServerInfo.GetLocalAvailabilityZone(),
-			taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+
+		memberName := utils.GenServiceMemberName(service, int64(i))
+		memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+		memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
+			taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
+		m := db.CreateServiceMember(serviceUUID, int64(i), 0, memberMeta, memberSpec)
+
 		err := dbIns.CreateServiceMember(ctx, m)
 		if err != nil {
 			t.Fatalf("CreateServiceMember error %s, index %d", err, i)
@@ -378,9 +387,13 @@ func TestFindIdleVolume(t *testing.T) {
 		PrimaryVolumeID:   volIDPrefix + str,
 		PrimaryDeviceName: "/dev/xvdf",
 	}
-	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), common.ServiceMemberStatusActive,
-		utils.GenServiceMemberName(service, int64(memNumber+1)), mockServerInfo.GetLocalAvailabilityZone(),
-		taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(), serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+
+	memberName := utils.GenServiceMemberName(service, int64(memNumber+1))
+	memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+	memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
+		taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(), serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
+	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), 0, memberMeta, memberSpec)
+
 	err := dbIns.CreateServiceMember(ctx, m)
 	if err != nil {
 		t.Fatalf("CreateServiceMember error %s, index %d", err, memNumber+1)
@@ -412,9 +425,13 @@ func TestFindIdleVolume(t *testing.T) {
 				PrimaryVolumeID:   volIDPrefix + str,
 				PrimaryDeviceName: "/dev/xvdf",
 			}
-			m := db.CreateServiceMember(serviceUUID, int64(i), common.ServiceMemberStatusActive,
-				utils.GenServiceMemberName(service, int64(i)), mockServerInfo.GetLocalAvailabilityZone(),
-				taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, mtime, mvols, common.DefaultHostIP, nil)
+
+			memberName := utils.GenServiceMemberName(service, int64(i))
+			memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+			memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
+				taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
+			m := db.CreateServiceMember(serviceUUID, int64(i), 0, memberMeta, memberSpec)
+
 			if db.EqualServiceMember(m, m1, false) {
 				fmt.Println("select member", i)
 				selected = true
@@ -469,8 +486,8 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCounts)
 	for i := 0; i < taskCounts; i++ {
 		memberName := utils.GenServiceMemberName(service1, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: "configfile-name", Content: "configfile-content"}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{FileName: "configfile-name", Content: "configfile-content"}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}

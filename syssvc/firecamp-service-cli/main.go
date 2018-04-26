@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -717,8 +717,8 @@ func main() {
 		fmt.Printf("List %d members:\n", len(members))
 		for _, member := range members {
 			fmt.Printf("\t%+v\n", *member)
-			for _, cfg := range member.Configs {
-				fmt.Printf("\t\t%+v\n", *cfg)
+			for _, cfg := range member.Spec.Configs {
+				fmt.Printf("\t\t%+v\n", cfg)
 			}
 		}
 
@@ -796,10 +796,8 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 	}
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_MongoDB,
-		Service:     req.Service,
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_MongoDB,
 	}
 	waitServiceInit(ctx, cli, initReq)
 	waitServiceRunning(ctx, cli, req.Service)
@@ -868,8 +866,8 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	fmt.Println(time.Now().UTC(), "wait till the service gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_Cassandra,
-		Service:     req.Service,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_Cassandra,
 	}
 
 	if req.Options.Replicas > 1 {
@@ -880,8 +878,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 
 func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	if *service == "" {
-		fmt.Println("please specify the valid service name")
-		os.Exit(-1)
+		glog.Fatalln("please specify the valid service name")
 	}
 
 	// get all set command-line flags
@@ -891,11 +888,14 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	heapSizeMB := int64(0)
 	if flagset[flagCasHeapSize] {
 		heapSizeMB = *casHeapSizeMB
-		if *casHeapSizeMB < cascatalog.DefaultHeapMB {
+		if heapSizeMB < cascatalog.DefaultHeapMB {
 			fmt.Printf("the heap size is less than %d. Please increase it for production system\n", cascatalog.DefaultHeapMB)
 		}
-		if *casHeapSizeMB < cascatalog.MinHeapMB {
+		if heapSizeMB < cascatalog.MinHeapMB {
 			fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
+		}
+		if heapSizeMB > cascatalog.MaxHeapMB {
+			glog.Fatalln("invalid parameters - max cassandra heap size is", cascatalog.MaxHeapMB)
 		}
 	}
 	user := ""
@@ -905,30 +905,77 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	req := &manage.CatalogUpdateCassandraRequest{
+	updateServiceHeapAndJMX(ctx, cli, heapSizeMB, user, passwd)
+
+	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
+}
+
+func updateServiceHeapAndJMX(ctx context.Context, cli *client.ManageClient, heapSizeMB int64, jmxUser string, jmxPasswd string) {
+	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
+	if err != nil {
+		glog.Fatalln("invalid parameters", err)
+	}
+
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+
+	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		HeapSizeMB:      heapSizeMB,
-		JmxRemoteUser:   user,
-		JmxRemotePasswd: passwd,
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
 	}
-
-	err := cascatalog.ValidateUpdateRequest(req)
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("update service error", err)
+	}
+}
+
+func getConfigFile(ctx context.Context, cli *client.ManageClient, cfgFileName string) *common.ConfigFile {
+	// get service attributes
+	commonReq := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
 	}
 
-	err = cli.CatalogUpdateCassandraService(ctx, req)
+	attr, err := cli.GetServiceAttr(ctx, commonReq)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update cassandra service error", err)
-		os.Exit(-1)
+		glog.Fatalln("get service error", err)
 	}
 
-	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
+	// get the current service configs
+	var serviceCfg *common.ConfigID
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if cfg.FileName == cfgFileName {
+			serviceCfg = &cfg
+			break
+		}
+	}
+
+	if serviceCfg == nil {
+		glog.Fatalln("service config not found")
+	}
+
+	// get the config file content
+	getReq := &manage.GetConfigFileRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceUUID: attr.ServiceUUID,
+		FileID:      serviceCfg.FileID,
+	}
+
+	cfgFile, err := cli.GetConfigFile(ctx, getReq)
+	if err != nil {
+		glog.Fatalln("GetConfigFile error", err, serviceCfg)
+	}
+
+	return cfgFile
 }
 
 func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
@@ -1002,14 +1049,16 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 			ReserveMemMB:    *reserveMemMB,
 		},
 		Options: &manage.CatalogZooKeeperOptions{
-			Replicas:   *replicas,
-			HeapSizeMB: *zkHeapSizeMB,
+			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
 				Iops:         *volIops,
 				VolumeSizeGB: *volSizeGB,
 				Encrypted:    *volEncrypted,
 			},
+			HeapSizeMB:      *zkHeapSizeMB,
+			JmxRemoteUser:   *jmxUser,
+			JmxRemotePasswd: *jmxPasswd,
 		},
 	}
 
@@ -1046,28 +1095,7 @@ func updateZkService(ctx context.Context, cli *client.ManageClient) {
 		passwd = *jmxPasswd
 	}
 
-	req := &manage.CatalogUpdateZooKeeperRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
-		HeapSizeMB:      heapSizeMB,
-		JmxRemoteUser:   user,
-		JmxRemotePasswd: passwd,
-	}
-
-	err := zkcatalog.ValidateUpdateRequest(req)
-	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
-	}
-
-	err = cli.CatalogUpdateZooKeeperService(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "update service error", err)
-		os.Exit(-1)
-	}
+	updateServiceHeapAndJMX(ctx, cli, heapSizeMB, user, passwd)
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
@@ -1175,8 +1203,8 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_KafkaSinkES,
-		Service:     req.Service,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_KafkaSinkES,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
@@ -1212,12 +1240,7 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		allowTopicDel = utils.BoolPtr(*kafkaAllowTopicDel)
 	}
 
-	req := &manage.CatalogUpdateKafkaRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
+	opts := &kafkacatalog.KafkaOptions{
 		HeapSizeMB:      heapSizeMB,
 		AllowTopicDel:   allowTopicDel,
 		RetentionHours:  retentionHours,
@@ -1225,16 +1248,28 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 		JmxRemotePasswd: passwd,
 	}
 
-	err := kafkacatalog.ValidateUpdateRequest(req)
+	err := kafkacatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("invalid parameters", err)
 	}
 
-	err = cli.CatalogUpdateKafkaService(ctx, req)
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+
+	newContent := kafkacatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update service error", err)
 	}
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
@@ -1345,8 +1380,8 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 		initReq := &manage.CatalogCheckServiceInitRequest{
-			ServiceType: common.CatalogService_Redis,
-			Service:     req.Service,
+			Service:            req.Service,
+			CatalogServiceType: common.CatalogService_Redis,
 		}
 
 		waitServiceInit(ctx, cli, initReq)
@@ -1390,12 +1425,7 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		cfgcmdName = &(*redisConfigCmdName)
 	}
 
-	req := &manage.CatalogUpdateRedisRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      *region,
-			Cluster:     *cluster,
-			ServiceName: *service,
-		},
+	opts := &rediscatalog.RedisOptions{
 		MemoryCacheSizeMB: memSizeMB,
 		AuthPass:          authPass,
 		ReplTimeoutSecs:   replTimeout,
@@ -1403,16 +1433,28 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 		ConfigCmdName:     cfgcmdName,
 	}
 
-	err := rediscatalog.ValidateUpdateRequest(req)
+	err := rediscatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		fmt.Println("invalid parameters", err)
-		os.Exit(-1)
+		glog.Fatalln("invalid parameters", err)
 	}
 
-	err = cli.CatalogUpdateRedisService(ctx, req)
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+
+	newContent := rediscatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		fmt.Println(time.Now().UTC(), "update redis service error", err)
-		os.Exit(-1)
+		glog.Fatalln("update service error", err)
 	}
 
 	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
@@ -1499,10 +1541,8 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
 	initReq := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: common.CatalogService_CouchDB,
-		Service:     req.Service,
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		Service:            req.Service,
+		CatalogServiceType: common.CatalogService_CouchDB,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
@@ -1955,14 +1995,12 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 	req := &manage.CatalogCheckServiceInitRequest{
-		ServiceType: *serviceType,
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
 		},
-		Admin:       *admin,
-		AdminPasswd: *adminPasswd,
+		CatalogServiceType: *serviceType,
 	}
 
 	initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, req)
@@ -2016,136 +2054,8 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Printf("%+v\n", *attr)
 
-	if attr.UserAttr != nil {
-		switch attr.UserAttr.ServiceType {
-		case common.CatalogService_Cassandra:
-			ua := &common.CasUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal CasUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_MongoDB:
-			ua := &common.MongoDBUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal MongoDBUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_PostgreSQL:
-			ua := &common.PostgresUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal PostgresUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Redis:
-			ua := &common.RedisUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal RedisUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_ZooKeeper:
-			ua := &common.ZKUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ZKUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Kafka:
-			ua := &common.KafkaUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KafkaUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_KafkaManager:
-			ua := &common.KMUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KMUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_KafkaSinkES:
-			ua := &common.KCSinkESUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KCSinkESUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_CouchDB:
-			ua := &common.CouchDBUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal CouchDBUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Consul:
-			ua := &common.ConsulUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ConsulUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_ElasticSearch:
-			ua := &common.ESUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal ESUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Kibana:
-			ua := &common.KibanaUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal KibanaUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Logstash:
-			ua := &common.LSUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal LSUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		case common.CatalogService_Telegraf:
-			ua := &common.TGUserAttr{}
-			err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-			if err != nil {
-				fmt.Println("Unmarshal TGUserAttr error", err)
-				os.Exit(-1)
-			}
-			fmt.Printf("%+v\n", *ua)
-
-		}
-	}
+	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	fmt.Println(cfgFile.Spec.Content)
 }
 
 func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {

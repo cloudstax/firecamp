@@ -32,7 +32,12 @@
 			"ImportPath": "github.com/PuerkitoBio/urlesc",
 			"Rev": "de5bf2ad457846296e2031421a34e2568e304e35"
 		},
-		{
+    {
+      "ImportPath": "github.com/Sirupsen/logrus",
+      "Comment": "v0.10.0-38-g3ec0642",
+      "Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
+    },
+    {
 			"ImportPath": "github.com/aws/amazon-ecs-agent/agent/api",
 			"Comment": "v1.14.4",
 			"Rev": "f94beb472760dac30e6c1fccdcdc5e0a2e66cb60"

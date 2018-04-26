@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,34 +11,35 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
-// CreateSysConfigFile creates the content for the sys.conf file.
-// example:
-//   PLATFORM=ecs
-//   SERVICE_MEMBER=mycas-0.cluster-firecamp.com
-func CreateSysConfigFile(platform string, memberDNSName string) *manage.ReplicaConfigFile {
-	content := fmt.Sprintf(sysContent, platform, memberDNSName)
-	return &manage.ReplicaConfigFile{
-		FileName: SYS_FILE_NAME,
-		FileMode: common.DefaultConfigFileMode,
-		Content:  content,
-	}
+// IsServiceConfigFile checks if the file is the service.conf file
+func IsServiceConfigFile(filename string) bool {
+	return filename == SERVICE_FILE_NAME
+}
+
+// IsMemberConfigFile checks if the file is the member.conf file
+func IsMemberConfigFile(filename string) bool {
+	return filename == MEMBER_FILE_NAME
 }
 
 // GenStatelessServiceReplicaConfigs generates the replica configs for the stateless service.
-func GenStatelessServiceReplicaConfigs(platform string, cluster string, service string, replicas int) []*manage.ReplicaConfig {
+func GenStatelessServiceReplicaConfigs(cluster string, service string, replicas int) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, replicas)
 	for i := 0; i < replicas; i++ {
-		// create the sys.conf file
 		member := utils.GenServiceMemberName(service, int64(i))
 		memberHost := dns.GenDNSName(member, domain)
-		sysCfg := CreateSysConfigFile(platform, memberHost)
 
-		configs := []*manage.ReplicaConfigFile{sysCfg}
+		content := fmt.Sprintf("SERVICE_MEMBER=%s", memberHost)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: MEMBER_FILE_NAME,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  content,
+		}
 
-		replicaCfg := &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
-		replicaCfgs[i] = replicaCfg
+		configs := []*manage.ConfigFileContent{memberCfg}
+
+		replicaCfgs[i] = &manage.ReplicaConfig{Zone: common.AnyAvailabilityZone, MemberName: member, Configs: configs}
 	}
 	return replicaCfgs
 }
@@ -97,66 +99,35 @@ func GenServiceMemberHostsWithPort(cluster string, service string, replicas int6
 	return hosts
 }
 
-// TODO currently only support one jmx user.
-
-// CreateJmxRemotePasswdConfFile creates the jmx remote password file.
-func CreateJmxRemotePasswdConfFile(jmxUser string, jmxPasswd string) *manage.ReplicaConfigFile {
-	return &manage.ReplicaConfigFile{
-		FileName: JmxRemotePasswdConfFileName,
-		FileMode: JmxConfFileMode,
-		Content:  CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd),
+// ValidateUpdateOptions checks if the update options are valid
+func ValidateUpdateOptions(heapSizeMB int64, jmxUser string, jmxPasswd string) error {
+	if heapSizeMB < 0 {
+		return errors.New("heap size should not be less than 0")
 	}
-}
-
-// IsJmxPasswdConfFile checks if the file is jmx password conf file
-func IsJmxPasswdConfFile(filename string) bool {
-	return filename == JmxRemotePasswdConfFileName
-}
-
-// CreateJmxPasswdConfFileContent returns the jmxremote.password file content
-func CreateJmxPasswdConfFileContent(jmxUser string, jmxPasswd string) string {
-	return fmt.Sprintf(jmxPasswdFileContent, jmxUser, jmxPasswd)
-}
-
-// CreateJmxRemoteAccessConfFile creates the jmx remote access file.
-func CreateJmxRemoteAccessConfFile(jmxUser string, accessPerm string) *manage.ReplicaConfigFile {
-	return &manage.ReplicaConfigFile{
-		FileName: JmxRemoteAccessConfFileName,
-		FileMode: JmxConfFileMode,
-		Content:  CreateJmxAccessConfFileContent(jmxUser, accessPerm),
+	if len(jmxUser) != 0 && len(jmxPasswd) == 0 {
+		return errors.New("please set the new jmx remote password")
 	}
+	return nil
 }
 
-// IsJmxAccessConfFile checks if the file is jmx access conf file
-func IsJmxAccessConfFile(filename string) bool {
-	return filename == JmxRemoteAccessConfFileName
+// UpdateServiceConfigHeapAndJMX updates the service.conf file content
+func UpdateServiceConfigHeapAndJMX(oldContent string, heapSizeMB int64, jmxUser string, jmxPasswd string) string {
+	content := oldContent
+	lines := strings.Split(oldContent, "\n")
+	for _, line := range lines {
+		if heapSizeMB > 0 && strings.HasPrefix(line, "HEAP_SIZE_MB") {
+			newHeap := fmt.Sprintf("HEAP_SIZE_MB=%d", heapSizeMB)
+			content = strings.Replace(content, line, newHeap, 1)
+		}
+		if len(jmxUser) != 0 && len(jmxPasswd) != 0 {
+			if strings.HasPrefix(line, "JMX_REMOTE_USER") {
+				newUser := fmt.Sprintf("JMX_REMOTE_USER=%s", jmxUser)
+				content = strings.Replace(content, line, newUser, 1)
+			} else if strings.HasPrefix(line, "JMX_REMOTE_PASSWD") {
+				newPasswd := fmt.Sprintf("JMX_REMOTE_PASSWD=%s", jmxPasswd)
+				content = strings.Replace(content, line, newPasswd, 1)
+			}
+		}
+	}
+	return content
 }
-
-// CreateJmxAccessConfFileContent returns the jmxremote.access file content
-func CreateJmxAccessConfFileContent(jmxUser string, accessPerm string) string {
-	return fmt.Sprintf(jmxAccessFileContent, jmxUser, accessPerm)
-}
-
-// ReplaceJmxUserInAccessConfFile replaces the old jmx user in the access conf file
-func ReplaceJmxUserInAccessConfFile(content string, newUser string, oldUser string) string {
-	return strings.Replace(content, oldUser, newUser, 1)
-}
-
-// MBToBytes converts MB to bytes
-func MBToBytes(mb int64) int64 {
-	return mb * 1024 * 1024
-}
-
-const (
-	separator  = "="
-	sysContent = `
-PLATFORM=%s
-SERVICE_MEMBER=%s
-`
-
-	// jmx passwd file content format: "user passwd"
-	jmxPasswdFileContent = "%s %s\n"
-
-	// jmx access file content format: "user accessPermission"
-	jmxAccessFileContent = "%s %s\n"
-)

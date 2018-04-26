@@ -40,10 +40,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err := GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req := GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -55,10 +52,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -69,10 +63,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -91,10 +82,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -102,8 +90,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, i) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("replica %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=mix") {
+			t.Fatalf("replica %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -117,10 +105,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -128,8 +113,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -137,8 +122,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -153,10 +138,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -164,8 +146,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -173,8 +155,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -195,10 +177,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 0 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas || len(req.ReplicaConfigs) != int(replicas) {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -206,8 +185,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, i) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=mix") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -221,10 +200,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -232,8 +208,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -241,8 +217,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -257,10 +233,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -268,8 +241,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -277,8 +250,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -296,10 +269,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+3 || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -307,8 +277,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -316,8 +286,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -329,10 +299,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 3 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(3) || len(req.ReplicaConfigs) != int(replicas)+3 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -340,8 +307,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -349,8 +316,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 
@@ -365,10 +332,7 @@ func TestESCatalog(t *testing.T) {
 		t.Fatalf("expect hosts %s get %s, expect masterNodes %d get %d, expect addMasterNodes 5 get %d", expectHosts, unicastHosts, expectMasterNodes, masterNodeNumber, addMasterNodes)
 	}
 
-	req, err = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
-	if err != nil {
-		t.Fatalf("GenDefaultCreateServiceRequest error %s", err)
-	}
+	req = GenDefaultCreateServiceRequest(platform, region, azs, cluster, service, res, opts)
 	if req.Replicas != replicas+int64(5) || len(req.ReplicaConfigs) != int(replicas)+5 {
 		t.Fatalf("expect replicas %d get %d, ReplicaConfigs %d", replicas, req.Replicas, len(req.ReplicaConfigs))
 	}
@@ -376,8 +340,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != getDedicatedMasterName(service, i) {
 			t.Fatalf("expect master member name %s get %%s", getDedicatedMasterName(service, i), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: true") {
-			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=master") {
+			t.Fatalf("master member %d could become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 	for j := int64(0); j < replicas; j++ {
@@ -385,8 +349,8 @@ func TestESCatalog(t *testing.T) {
 		if req.ReplicaConfigs[i].MemberName != utils.GenServiceMemberName(service, j) {
 			t.Fatalf("expect replicas member name %s get %%s", utils.GenServiceMemberName(service, j), req.ReplicaConfigs[i].MemberName)
 		}
-		if !strings.Contains(req.ReplicaConfigs[i].Configs[1].Content, "node.master: false") {
-			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[1].Content)
+		if !strings.Contains(req.ReplicaConfigs[i].Configs[0].Content, "MEMBER_ROLE=data") {
+			t.Fatalf("replica %d could not become master, get %s", i, req.ReplicaConfigs[i].Configs[0].Content)
 		}
 	}
 

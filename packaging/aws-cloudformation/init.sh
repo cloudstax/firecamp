@@ -157,6 +157,13 @@ if [ "$containerPlatform" = "ecs" ]; then
   # install firecamp docker volume plugin
   mkdir -p /var/log/firecamp
   docker plugin install --grant-all-permissions ${org}firecamp-volume:$version
+  if [ "$?" != "0" ]; then
+    # volume plugin installation may fail. for example, pulling image from docker may timeout.
+    # wait and retry
+    sleep 10
+    docker plugin install --grant-all-permissions ${org}firecamp-volume:$version
+  fi
+
   # If ecs agent is not ready, plugin is installed but not enabled.
   # The command is taken as failed. not check the install result here.
   # The following enabled check covers the actual install failure.
@@ -166,7 +173,7 @@ if [ "$containerPlatform" = "ecs" ]; then
   if [ "$?" != "0" ]; then
     echo "install firecamp volume plugin error, stop ecs agent"
     # stop ecs agent to avoid this instance to be included in the cluster.
-    docker stop ${org}firecamp-amazon-ecs-agent:latest
+    docker stop ecs-agent
     echo "stop ecs agent result $?"
     exit 3
   fi
@@ -177,7 +184,7 @@ if [ "$containerPlatform" = "ecs" ]; then
     if [ "$?" != "0" ]; then
       echo "enable firecamp volume plugin error, stop ecs agent"
       # stop ecs agent to avoid this instance to be included in the cluster.
-      docker stop ${org}firecamp-amazon-ecs-agent:latest
+      docker stop ecs-agent
       echo "stop ecs agent result $?"
       exit 3
     fi
@@ -195,7 +202,7 @@ if [ "$containerPlatform" = "ecs" ]; then
       docker plugin disable -f ${org}firecamp-volume:$version
       echo "disable firecamp volume plugin result $?"
       # stop ecs agent to avoid this instance to be included in the cluster.
-      docker stop ${org}firecamp-amazon-ecs-agent:latest
+      docker stop ecs-agent
       echo "stop ecs agent result $?"
       exit 3
     fi

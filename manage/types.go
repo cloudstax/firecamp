@@ -6,12 +6,15 @@ import (
 
 const (
 	// special service operations
-	SpecialOpPrefix         = "?"
-	ListServiceOp           = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp     = SpecialOpPrefix + "List-ServiceMember"
-	GetConfigFileOp         = SpecialOpPrefix + "Get-Config-File"
-	GetServiceStatusOp      = SpecialOpPrefix + "Get-Service-Status"
-	ServiceInitializedOp    = SpecialOpPrefix + "Set-Service-Initialized"
+	SpecialOpPrefix      = "?"
+	ListServiceOp        = SpecialOpPrefix + "List-Service"
+	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
+	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
+	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
+	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+
+	CreateServiceOp         = SpecialOpPrefix + "Create-Service"
+	UpdateServiceConfigOp   = SpecialOpPrefix + "Update-Service-Config"
 	UpdateServiceResourceOp = SpecialOpPrefix + "Update-Service-Resource"
 	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
 	StartServiceOp          = SpecialOpPrefix + "Start-Service"
@@ -42,11 +45,7 @@ const (
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
 	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
-	CatalogUpdateCassandraOp     = CatalogOpPrefix + "Update-Cassandra"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
-	CatalogUpdateRedisOp         = CatalogOpPrefix + "Update-Redis"
-	CatalogUpdateKafkaOp         = CatalogOpPrefix + "Update-Kafka"
-	CatalogUpdateZooKeeperOp     = CatalogOpPrefix + "Update-ZooKeeper"
 
 	InternalOpPrefix                 = SpecialOpPrefix + "Internal-"
 	InternalGetServiceTaskOp         = InternalOpPrefix + "GetServiceTask"
@@ -66,11 +65,11 @@ type ReplicaConfig struct {
 	// The replica's member name.
 	MemberName string
 	// The detail config files for this replica.
-	Configs []*ReplicaConfigFile
+	Configs []*ConfigFileContent
 }
 
-// ReplicaConfigFile contains the detail config file name and content.
-type ReplicaConfigFile struct {
+// ConfigFileContent contains the detail config file name and content.
+type ConfigFileContent struct {
 	FileName string
 	FileMode uint32
 	Content  string
@@ -96,6 +95,8 @@ type CreateServiceRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 
+	CatalogServiceType string
+
 	ContainerImage string
 	Replicas       int64
 	PortMappings   []common.PortMapping
@@ -104,8 +105,7 @@ type CreateServiceRequest struct {
 	// whether need to register DNS
 	RegisterDNS bool
 
-	// The service's custom attributes
-	UserAttr *common.ServiceUserAttr
+	ServiceConfigs []*ConfigFileContent
 
 	// Below fields are used by the stateful service only.
 
@@ -122,6 +122,12 @@ type CreateServiceRequest struct {
 
 	// The detail configs for each replica
 	ReplicaConfigs []*ReplicaConfig
+}
+
+type UpdateServiceConfigRequest struct {
+	Service           *ServiceCommonRequest
+	ConfigFileName    string
+	ConfigFileContent string
 }
 
 // UpdateServiceResourceRequest updates the service resource.
@@ -314,16 +320,6 @@ type CatalogCreateCassandraResponse struct {
 	JmxRemotePasswd string
 }
 
-// CatalogUpdateCassandraRequest updates the configs of the Cassandra service.
-type CatalogUpdateCassandraRequest struct {
-	Service    *ServiceCommonRequest
-	HeapSizeMB int64 // 0 means no change
-	// empty JmxRemoteUser means no change, jmx user could not be disabled.
-	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
 // CatalogScaleCassandraRequest scales the Cassandra service.
 type CatalogScaleCassandraRequest struct {
 	Service  *ServiceCommonRequest
@@ -357,16 +353,6 @@ type CatalogCreateZooKeeperResponse struct {
 	JmxRemotePasswd string
 }
 
-// CatalogUpdateZooKeeperRequest updates the configs of the ZooKeeper service.
-type CatalogUpdateZooKeeperRequest struct {
-	Service    *ServiceCommonRequest
-	HeapSizeMB int64 // 0 == no change
-	// empty JmxRemoteUser means no change, jmx user could not be disabled.
-	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
 // CatalogKafkaOptions includes the options for Kafka.
 type CatalogKafkaOptions struct {
 	Replicas int64
@@ -393,18 +379,6 @@ type CatalogCreateKafkaRequest struct {
 
 // CatalogCreateKafkaResponse returns the Kafka JMX user and password.
 type CatalogCreateKafkaResponse struct {
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// CatalogUpdateKafkaRequest updates the configs of the Kafka service.
-type CatalogUpdateKafkaRequest struct {
-	Service        *ServiceCommonRequest
-	HeapSizeMB     int64 // 0 == no change
-	AllowTopicDel  *bool // nil == no change
-	RetentionHours int64 // 0 == no change
-	// empty JmxRemoteUser means no change, jmx user could not be disabled.
-	// JmxRemotePasswd could not be empty if JmxRemoteUser is set.
 	JmxRemoteUser   string
 	JmxRemotePasswd string
 }
@@ -505,19 +479,6 @@ type CatalogCreateRedisRequest struct {
 	Resource *common.Resources
 
 	Options *CatalogRedisOptions
-}
-
-// CatalogUpdateRedisRequest updates the configs of the Redis service.
-// If the field is not changed, please leave it 0 or empty.
-type CatalogUpdateRedisRequest struct {
-	Service           *ServiceCommonRequest
-	MemoryCacheSizeMB int64 // 0 == no change
-	// empty == no change. if auth is enabled, it could not be disabled.
-	AuthPass        string
-	ReplTimeoutSecs int64  // 0 == no change
-	MaxMemPolicy    string // empty == no change
-	// nil == no change. to disable config cmd, set empty string
-	ConfigCmdName *string
 }
 
 // CatalogCouchDBOptions includes the config options for CouchDB.
@@ -683,12 +644,8 @@ type CatalogCreateTelegrafRequest struct {
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
 type CatalogCheckServiceInitRequest struct {
-	ServiceType string
-
-	Service *ServiceCommonRequest
-
-	Admin       string
-	AdminPasswd string
+	Service            *ServiceCommonRequest
+	CatalogServiceType string
 }
 
 // CatalogCheckServiceInitResponse returns the service init status

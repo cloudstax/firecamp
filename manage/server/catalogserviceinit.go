@@ -171,7 +171,7 @@ func (c *catalogServiceInit) isServiceInitialized(ctx context.Context, task *ser
 		return false, err
 	}
 
-	return attr.ServiceStatus == common.ServiceStatusActive, nil
+	return attr.Meta.ServiceStatus == common.ServiceStatusActive, nil
 }
 
 func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *serviceTask, requuid string) error {

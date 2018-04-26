@@ -3,10 +3,10 @@ package couchdbcatalog
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/pbkdf2"
 
@@ -17,7 +17,6 @@ import (
 	"github.com/cloudstax/firecamp/log"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -82,13 +81,12 @@ func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions, existingEncryptPasswd string) (*manage.CreateServiceRequest, error) {
+	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions) *manage.CreateServiceRequest {
+	// generate service configs
+	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, opts)
+
 	// generate service ReplicaConfigs
-	encryptedPasswd := existingEncryptPasswd
-	if len(existingEncryptPasswd) == 0 {
-		encryptedPasswd = encryptPasswd(opts.AdminPasswd)
-	}
-	replicaCfgs := GenReplicaConfigs(platform, cluster, service, azs, opts, encryptedPasswd)
+	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: httpPort, HostPort: httpPort, IsServicePort: true},
@@ -106,144 +104,139 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		}
 	}
 
-	userAttr := &common.CouchDBUserAttr{
-		Admin:           opts.Admin,
-		EncryptedPasswd: encryptedPasswd,
-		EnableCors:      opts.EnableCors,
-		Credentials:     opts.Credentials,
-		Origins:         opts.Origins,
-		Headers:         opts.Headers,
-		Methods:         opts.Methods,
-		EnableSSL:       opts.EnableSSL,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
-
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
-		Resource: res,
+		Resource:           res,
+		CatalogServiceType: common.CatalogService_CouchDB,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
 		PortMappings:   portMappings,
-
 		RegisterDNS:    true,
-		ReplicaConfigs: replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_CouchDB,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:        opts.Volume,
+		ContainerPath: common.DefaultContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	return req, nil
+	return req
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions, encryptedPasswd string) []*manage.ReplicaConfig {
-	domain := dns.GenDefaultDomainName(cluster)
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions) []*manage.ConfigFileContent {
 	uuid := utils.GenUUID()
+
+	// encrypt password
+	encryptedPasswd := encryptPasswd(opts.AdminPasswd)
+
+	hasCert := false
+	if len(opts.CACertFileContent) != 0 {
+		hasCert = true
+	}
+
+	// create the service.conf file
+	content := fmt.Sprintf(servicefileContent, platform, uuid, opts.Admin, opts.AdminPasswd, encryptedPasswd,
+		strconv.FormatBool(opts.EnableCors), strconv.FormatBool(opts.Credentials), opts.Origins, opts.Headers,
+		opts.Methods, strconv.FormatBool(opts.EnableSSL), strconv.FormatBool(hasCert))
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create vm.args file
+	content = fmt.Sprintf(vmArgsConfigs, erlangClusterListenPortMax)
+	vmArgsCfg := &manage.ConfigFileContent{
+		FileName: vmArgsConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the local.ini file
+	couchContent := couchConfigs
+
+	// set cluster configs
+	if opts.Replicas >= int64(3) {
+		placement := ""
+		if len(azs) == 1 {
+			placement = fmt.Sprintf(zonePlacementFmt, azs[0], 3)
+		} else if len(azs) == 2 {
+			placement = fmt.Sprintf(zonePlacementFmt, azs[0], 2) + zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[1], 1)
+		} else {
+			// len(azs) >= 3
+			placement = fmt.Sprintf(zonePlacementFmt, azs[0], 1) + zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[1], 1) +
+				zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[2], 1)
+		}
+
+		clusterContent := fmt.Sprintf(clusterConfigs, opts.Replicas, defaultReadCopies, defaultWriteCopies, placement)
+		couchContent += clusterContent
+	}
+
+	couchCfg := &manage.ConfigFileContent{
+		FileName: localIniConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  couchContent,
+	}
+
+	configs := []*manage.ConfigFileContent{serviceCfg, vmArgsCfg, couchCfg}
+
+	// add ssl config files
+	if opts.EnableSSL {
+		certCfg := &manage.ConfigFileContent{
+			FileName: certConfFileName,
+			FileMode: common.ReadOnlyFileMode,
+			Content:  opts.CertFileContent,
+		}
+		keyCfg := &manage.ConfigFileContent{
+			FileName: privateKeyConfFileName,
+			FileMode: common.ReadOnlyFileMode,
+			Content:  opts.KeyFileContent,
+		}
+		configs = append(configs, certCfg, keyCfg)
+
+		if len(opts.CACertFileContent) != 0 {
+			caCfg := &manage.ConfigFileContent{
+				FileName: caCertConfFileName,
+				FileMode: common.ReadOnlyFileMode,
+				Content:  opts.CACertFileContent,
+			}
+			configs = append(configs, caCfg)
+		}
+	}
+	return configs
+}
+
+// genReplicaConfigs generates the replica configs.
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := int64(0); i < opts.Replicas; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
 
-		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
-
-		// create vm.args file
-		vmArgsContent := ""
-		vmArgsContent = fmt.Sprintf(vmArgsConfigs, memberHost, erlangClusterListenPortMax)
-		vmArgsCfg := &manage.ReplicaConfigFile{
-			FileName: vmArgsConfFileName,
-			FileMode: common.DefaultConfigFileMode,
-			Content:  vmArgsContent,
-		}
-
 		// The CouchDB init task follows the same way to assign the az to each node.
 		// If the az selection algo is changed here, please also update the init task.
 		azIndex := int(i) % len(azs)
 		az := azs[azIndex]
 
-		// create the local.ini file
-		couchContent := fmt.Sprintf(couchConfigs, uuid+common.NameSeparator+member,
-			strconv.FormatBool(opts.EnableCors), opts.Admin, encryptedPasswd)
-
-		// set cluster configs
-		if opts.Replicas >= int64(3) {
-			placement := ""
-			if len(azs) == 1 {
-				placement = fmt.Sprintf(zonePlacementFmt, azs[0], 3)
-			} else if len(azs) == 2 {
-				placement = fmt.Sprintf(zonePlacementFmt, azs[0], 2) + zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[1], 1)
-			} else {
-				// len(azs) >= 3
-				placement = fmt.Sprintf(zonePlacementFmt, azs[0], 1) + zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[1], 1) +
-					zonePlaceSep + fmt.Sprintf(zonePlacementFmt, azs[2], 1)
-			}
-
-			clusterContent := fmt.Sprintf(clusterConfigs, opts.Replicas, defaultReadCopies, defaultWriteCopies, placement)
-			couchContent += clusterContent
-		}
-
-		// set cors configs
-		if opts.EnableCors {
-			corsContent := fmt.Sprintf(corsConfigs, strconv.FormatBool(opts.Credentials), opts.Origins, opts.Headers, opts.Methods)
-			couchContent += corsContent
-		}
-
-		// set ssl configs
-		if opts.EnableSSL {
-			cafileContent := ""
-			if len(opts.CACertFileContent) != 0 {
-				cafileContent = cacertConfig
-			}
-			sslContent := fmt.Sprintf(sslConfigs, cafileContent)
-			couchContent += sslContent
-		}
-
-		couchCfg := &manage.ReplicaConfigFile{
-			FileName: localIniConfFileName,
+		// create the member.conf file
+		content := fmt.Sprintf(memberfileContent, az, member, memberHost)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
-			Content:  couchContent,
+			Content:  content,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, vmArgsCfg, couchCfg}
-
-		// add ssl config files
-		if opts.EnableSSL {
-			certCfg := &manage.ReplicaConfigFile{
-				FileName: certConfFileName,
-				FileMode: common.DefaultConfigFileMode,
-				Content:  opts.CertFileContent,
-			}
-			keyCfg := &manage.ReplicaConfigFile{
-				FileName: privateKeyConfFileName,
-				FileMode: common.DefaultConfigFileMode,
-				Content:  opts.KeyFileContent,
-			}
-			configs = append(configs, certCfg, keyCfg)
-
-			if len(opts.CACertFileContent) != 0 {
-				caCfg := &manage.ReplicaConfigFile{
-					FileName: caCertConfFileName,
-					FileMode: common.DefaultConfigFileMode,
-					Content:  opts.CACertFileContent,
-				}
-				configs = append(configs, caCfg)
-			}
-		}
-
+		configs := []*manage.ConfigFileContent{memberCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -326,13 +319,48 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string, serv
 	return envkvs
 }
 
+func GetAdminFromServiceConfigs(content string) (admin string, adminPass string) {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		fields := strings.Split(line, "=")
+		if fields[0] == "ADMIN" {
+			admin = fields[1]
+		} else if fields[0] == "ADMIN_PASSWD" {
+			adminPass = fields[1]
+		}
+	}
+	return admin, adminPass
+}
+
 const (
+	servicefileContent = `
+PLATFORM=%s
+UUID=%s
+ADMIN=%s
+ADMIN_PASSWD=%s
+ENCRYPTED_ADMIN_PASSWD=%s
+ENABLE_CORS=%s
+CREDENTIALS=%s
+ORIGINS=%s
+HEADERS=%s
+METHODS=%s
+ENABLE_SSL=%s
+HAS_CA_CERT_FILE=%s
+`
+
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+MEMBER_NAME=%s
+SERVICE_MEMBER=%s
+`
+
 	pbkdf2Fmt        = "-pbkdf2-%s,%s,%d"
 	zonePlacementFmt = "%s:%d"
 	zonePlaceSep     = ","
 
+	// couchdb@localhost will be replaced at docker entrypoint
 	vmArgsConfigs = `
--name couchdb@%s
+-name couchdb@localhost
 
 # All nodes must share the same magic cookie for distributed Erlang to work.
 # Comment out this line if you synchronized the cookies by other means (using
@@ -359,7 +387,7 @@ const (
 
 	couchConfigs = `
 [couchdb]
-uuid = %s
+uuid = uuid-member
 database_dir = /data/couchdb
 view_index_dir = /data/couchdb
 
@@ -378,7 +406,7 @@ require_valid_user = true
 [httpd]
 port = 5986
 bind_address = 0.0.0.0
-enable_cors = %s
+enable_cors = false
 
 WWW-Authenticate = Basic realm="administrator"
 
@@ -387,7 +415,7 @@ require_valid_user = true
 
 ; 'username = password'
 [admins]
-%s = %s
+admin = encryptePasswd
 `
 
 	clusterConfigs = `
@@ -399,30 +427,5 @@ w=%d
 n=3
 placement = %s
 ; placement = metro-dc-a:2,metro-dc-b:1
-`
-
-	corsConfigs = `
-[cors]
-credentials = %s
-; List of origins separated by a comma, * means accept all
-; Origins must include the scheme: http://example.com
-; You can't set origins: * and credentials = true at the same time.
-origins = %s
-; List of accepted headers separated by a comma
-headers = %s
-; List of accepted methods
-methods = %s
-`
-
-	cacertConfig = "cacert_file = /data/conf/ca-certificates.crt"
-
-	sslConfigs = `
-[daemons]
-httpsd = {couch_httpd, start_link, [https]}
-
-[ssl]
-cert_file = /data/conf/couchdb.pem
-key_file = /data/conf/privkey.pem
-%s
 `
 )

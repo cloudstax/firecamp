@@ -14,9 +14,6 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/catalog/kafka"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/k8s"
@@ -38,9 +35,8 @@ const (
 // It will run in a container, publish a well-known DNS name, which could be accessed
 // publicly or privately depend on the customer.
 //
-// The service creation needs to talk to DB (the controldb, dynamodb, etc), which is
-// accessable inside the cloud platform (aws, etc). For example, the controldb running
-// as the container in AWS ECS, and accessable via the private DNS name.
+// The service creation needs to talk to DB (dynamodb, etc), which is
+// accessable inside the cloud platform (aws, etc).
 // The ManageHTTPServer will accept the calls from the admin, and talk with DB. This also
 // enhance the security. The ManageHTTPServer REST APIs are the only exposed access to
 // the cluster.
@@ -162,6 +158,10 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 	// check if the request is other special request.
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
+		case manage.CreateServiceOp:
+			return s.createService(ctx, w, r, requuid)
+		case manage.UpdateServiceConfigOp:
+			return s.updateServiceConfig(ctx, w, r, requuid)
 		case manage.ServiceInitializedOp:
 			return s.putServiceInitialized(ctx, w, r, requuid)
 		case manage.RunTaskOp:
@@ -181,8 +181,7 @@ func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	// the common service creation request.
-	return s.createService(ctx, w, r, requuid)
+	return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 }
 
 func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
@@ -335,7 +334,7 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 		return manage.ConvertToHTTPError(err)
 	}
 
-	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Replicas)
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("start container service error", err, "requuid", requuid, req)
 		return manage.ConvertToHTTPError(err)
@@ -386,7 +385,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	var serviceTasks []string
 	if s.platform == common.ContainerPlatformK8s {
 		backward := true
-		serviceTasks = k8ssvc.GetStatefulSetPodNames(req.ServiceName, attr.Replicas, backward)
+		serviceTasks = k8ssvc.GetStatefulSetPodNames(req.ServiceName, attr.Spec.Replicas, backward)
 	} else {
 		// AWS ECS or Docker Swarm
 		members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
@@ -395,18 +394,18 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 			return manage.ConvertToHTTPError(err)
 		}
 
-		serviceTasks = make([]string, attr.Replicas)
+		serviceTasks = make([]string, attr.Spec.Replicas)
 		for i := 0; i < len(members); i++ {
 			idx := len(members) - i - 1
-			serviceTasks[i] = members[idx].TaskID
+			serviceTasks[i] = members[idx].Spec.TaskID
 		}
 	}
 
 	task := &manageTask{
 		serviceUUID: attr.ServiceUUID,
-		serviceName: attr.ServiceName,
+		serviceName: attr.Meta.ServiceName,
 		restartOpts: &containersvc.RollingRestartOptions{
-			Replicas:     attr.Replicas,
+			Replicas:     attr.Spec.Replicas,
 			ServiceTasks: serviceTasks,
 		},
 	}
@@ -536,6 +535,102 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 	}
 
 	glog.Infoln("create service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
+	return nil
+}
+
+func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.UpdateServiceConfigRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("updateServiceConfig decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("updateServiceConfig invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	for i, cfg := range attr.Spec.ServiceConfigs {
+		if req.ConfigFileName == cfg.FileName {
+			// get the current config file
+			currCfgFile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			err = s.updateServiceConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent, requuid)
+			if err != nil {
+				glog.Errorln("updateServiceConfigFile error", err, "requuid", requuid, req.Service)
+				return manage.ConvertToHTTPError(err)
+			}
+
+			glog.Infoln("updated service config, requuid", requuid, req.Service)
+
+			return "", http.StatusOK
+		}
+	}
+
+	errmsg = fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
+	glog.Errorln(errmsg)
+	return errmsg, http.StatusNotFound
+}
+
+func (s *ManageHTTPServer) updateServiceConfigFile(ctx context.Context, attr *common.ServiceAttr,
+	serviceCfgIndex int, oldCfg *common.ConfigFile, newContent string, requuid string) error {
+	// create the new config file
+	version, err := utils.GetConfigFileVersion(oldCfg.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, db.PrintConfigFile(oldCfg))
+		return err
+	}
+
+	newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, oldCfg.Meta.FileName, version+1)
+	newcfgfile := db.CreateNewConfigFile(oldCfg, newFileID, newContent)
+	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile))
+		return err
+	}
+
+	// update ServiceAttr
+	newAttr := db.UpdateServiceConfig(attr, serviceCfgIndex, newFileID, newcfgfile.Spec.FileMD5)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, newAttr)
+		return err
+	}
+
+	glog.Infoln("updated service config ", oldCfg.Meta.FileName, "requuid", requuid, newAttr)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//      for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, attr.ServiceUUID, oldCfg.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(oldCfg))
+	} else {
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(oldCfg))
+	}
+
 	return nil
 }
 
@@ -739,57 +834,19 @@ func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, 
 		return err.Error(), http.StatusBadRequest
 	}
 
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
-	}
-
-	if common.Version == common.Version095 {
-		return s.upgradeServiceToV095(ctx, attr, req, requuid)
-	}
+	// upgrade to 0.9.6 requires to recreate the service with the original volumes.
 
 	errmsg = fmt.Sprintf("unsupported upgrade to version %s", common.Version)
 	glog.Errorln(errmsg, "requuid", requuid, req)
 	return errmsg, http.StatusBadRequest
 }
 
-func (s *ManageHTTPServer) upgradeServiceToV095(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) generalUpgradeService(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) (errmsg string, errcode int) {
 	// the default container service update request
 	opts := &containersvc.UpdateServiceOptions{
 		Cluster:        req.Cluster,
 		ServiceName:    req.ServiceName,
 		ReleaseVersion: common.Version,
-	}
-
-	switch attr.UserAttr.ServiceType {
-	case common.CatalogService_Cassandra:
-		// create the container service update request
-		opts = cascatalog.GenUpgradeRequestV095(s.cluster, attr.ServiceName)
-
-	case common.CatalogService_Kafka:
-		err := s.upgradeKafkaToVersion095(ctx, attr, req, requuid)
-		if err != nil {
-			return manage.ConvertToHTTPError(err)
-		}
-
-		// create the container service update request
-		opts = kafkacatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
-
-	case common.CatalogService_ZooKeeper:
-		err := s.upgradeZkToV095(ctx, attr, req, requuid)
-		if err != nil {
-			return manage.ConvertToHTTPError(err)
-		}
-
-		// create the container service update request
-		opts = zkcatalog.GenUpgradeRequestV095(s.cluster, req.ServiceName)
 	}
 
 	// update the container service
@@ -799,7 +856,7 @@ func (s *ManageHTTPServer) upgradeServiceToV095(ctx context.Context, attr *commo
 		return manage.ConvertToHTTPError(err)
 	}
 
-	glog.Infoln("upgraded service to release 0.9.5, requuid", requuid, req)
+	glog.Infoln("upgraded service to release", common.Version, "requuid", requuid, req)
 	return "", http.StatusOK
 }
 

@@ -31,8 +31,7 @@ func (d *DynamoDB) CreateService(ctx context.Context, svc *common.Service) error
 				S: aws.String(svc.ServiceUUID),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
 	_, err := dbsvc.PutItem(params)
 
@@ -60,8 +59,7 @@ func (d *DynamoDB) GetService(ctx context.Context, clusterName string, serviceNa
 				S: aws.String(serviceName),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 
@@ -100,8 +98,7 @@ func (d *DynamoDB) DeleteService(ctx context.Context, clusterName string, servic
 				S: aws.String(serviceName),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyDelCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyDelCondition),
 	}
 
 	resp, err := dbsvc.DeleteItem(params)
@@ -141,8 +138,7 @@ func (d *DynamoDB) listServicesWithLimit(ctx context.Context, clusterName string
 					S: aws.String(servicePartitionKeyPrefix + clusterName),
 				},
 			},
-			ConsistentRead:         aws.Bool(true),
-			ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+			ConsistentRead: aws.Bool(true),
 		}
 		if limit > 0 {
 			// set the query limit

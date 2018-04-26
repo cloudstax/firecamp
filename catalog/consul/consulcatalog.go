@@ -1,9 +1,9 @@
 package consulcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cloudstax/firecamp/catalog"
@@ -11,7 +11,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -29,6 +28,9 @@ const (
 	defaultDomain = "consul."
 
 	basicConfFileName = "basic_config.json"
+	tlsKeyFileName    = "key.pem"
+	tlsCertFileName   = "cert.pem"
+	tlsCAFileName     = "ca.crt"
 )
 
 // ValidateRequest checks if the request is valid
@@ -52,9 +54,12 @@ func ValidateRequest(r *manage.CatalogCreateConsulRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogConsulOptions) (*manage.CreateServiceRequest, error) {
+	service string, res *common.Resources, opts *manage.CatalogConsulOptions) *manage.CreateServiceRequest {
+	// generate service configs
+	serviceCfgs := genServiceConfigs(platform, region, cluster, service, opts)
+
 	// generate service ReplicaConfigs
-	replicaCfgs := GenReplicaConfigs(platform, region, cluster, service, azs, opts)
+	replicaCfgs := genReplicaConfigs(platform, cluster, service, azs, opts)
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: rpcPort, HostPort: rpcPort},
@@ -68,48 +73,54 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 		portMappings = append(portMappings, httpsPort)
 	}
 
-	userAttr := &common.ConsulUserAttr{
-		Datacenter: opts.Datacenter,
-		Domain:     opts.Domain,
-		Encrypt:    opts.Encrypt,
-		EnableTLS:  opts.EnableTLS,
-		HTTPSPort:  opts.HTTPSPort,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
-
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 
-		Resource: res,
+		Resource:           res,
+		CatalogServiceType: common.CatalogService_Consul,
 
-		ContainerImage: ContainerImage,
-		Replicas:       opts.Replicas,
-		Volume:         opts.Volume,
-		ContainerPath:  common.DefaultContainerMountPath,
-		PortMappings:   portMappings,
-
+		ContainerImage:  ContainerImage,
+		Replicas:        opts.Replicas,
+		PortMappings:    portMappings,
 		RegisterDNS:     true,
 		RequireStaticIP: true,
-		ReplicaConfigs:  replicaCfgs,
 
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_Consul,
-			AttrBytes:   b,
-		},
+		ServiceConfigs: serviceCfgs,
+
+		Volume:        opts.Volume,
+		ContainerPath: common.DefaultContainerMountPath,
+
+		ReplicaConfigs: replicaCfgs,
 	}
-	return req, nil
+	return req
 }
 
-// GenReplicaConfigs generates the replica configs.
-func GenReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogConsulOptions) []*manage.ReplicaConfig {
+// genServiceConfigs generates the service configs.
+func genServiceConfigs(platform string, region string, cluster string, service string, opts *manage.CatalogConsulOptions) []*manage.ConfigFileContent {
+
+	// create the service.conf file
+	dc := region
+	if len(opts.Datacenter) != 0 {
+		dc = opts.Datacenter
+	}
+	consulDomain := opts.Domain
+	if len(consulDomain) == 0 {
+		consulDomain = defaultDomain
+	}
+
+	content := fmt.Sprintf(servicefileContent, platform, dc, consulDomain, opts.Encrypt, strconv.FormatBool(opts.EnableTLS), opts.HTTPSPort)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	// create the default basic_config.json file
 	domain := dns.GenDefaultDomainName(cluster)
 
 	retryJoinNodes := ""
@@ -123,48 +134,65 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 		}
 	}
 
+	content = fmt.Sprintf(basicConfigs, opts.Replicas, retryJoinNodes)
+	basicCfg := &manage.ConfigFileContent{
+		FileName: basicConfFileName,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
+	}
+
+	configs := []*manage.ConfigFileContent{serviceCfg, basicCfg}
+
+	if opts.EnableTLS {
+		// create the key, cert and ca files
+		certCfg := &manage.ConfigFileContent{
+			FileName: tlsCertFileName,
+			FileMode: common.ReadOnlyFileMode,
+			Content:  opts.CertFileContent,
+		}
+		keyCfg := &manage.ConfigFileContent{
+			FileName: tlsKeyFileName,
+			FileMode: common.ReadOnlyFileMode,
+			Content:  opts.KeyFileContent,
+		}
+		caCfg := &manage.ConfigFileContent{
+			FileName: tlsCAFileName,
+			FileMode: common.ReadOnlyFileMode,
+			Content:  opts.CACertFileContent,
+		}
+		configs = append(configs, certCfg, keyCfg, caCfg)
+	}
+
+	return configs
+}
+
+// genReplicaConfigs generates the replica configs.
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogConsulOptions) []*manage.ReplicaConfig {
+	domain := dns.GenDefaultDomainName(cluster)
+
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 	for i := int64(0); i < opts.Replicas; i++ {
 		member := utils.GenServiceMemberName(service, i)
 		memberHost := dns.GenDNSName(member, domain)
-		// create the sys.conf file
-		sysCfg := catalog.CreateSysConfigFile(platform, memberHost)
 
-		// create basic_config.json file
-		consulDomain := opts.Domain
-		if len(consulDomain) == 0 {
-			consulDomain = defaultDomain
-		}
+		azIndex := int(i) % len(azs)
+		az := azs[azIndex]
+
 		bind := memberHost
 		if platform == common.ContainerPlatformSwarm {
 			bind = catalog.BindAllIP
 		}
 
-		dc := region
-		if len(opts.Datacenter) != 0 {
-			dc = opts.Datacenter
-		}
-
-		content := configHeader
-		content += fmt.Sprintf(basicConfigs, dc, member, opts.Replicas, memberHost, bind, consulDomain, retryJoinNodes)
-		if len(opts.Encrypt) != 0 {
-			content += fmt.Sprintf(encryptConfigs, opts.Encrypt)
-		}
-		if opts.EnableTLS {
-			content += fmt.Sprintf(tlsConfigs, opts.KeyFileContent, opts.CertFileContent, opts.CACertFileContent, opts.HTTPSPort)
-		}
-		content += configFooter
-
-		basicCfg := &manage.ReplicaConfigFile{
-			FileName: basicConfFileName,
+		// create member.conf file
+		staticip := ""
+		content := fmt.Sprintf(memberfileContent, az, member, memberHost, staticip, bind)
+		memberCfg := &manage.ConfigFileContent{
+			FileName: catalog.MEMBER_FILE_NAME,
 			FileMode: common.DefaultConfigFileMode,
 			Content:  content,
 		}
 
-		configs := []*manage.ReplicaConfigFile{sysCfg, basicCfg}
-
-		azIndex := int(i) % len(azs)
-		az := azs[azIndex]
+		configs := []*manage.ConfigFileContent{memberCfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: az, MemberName: member, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -172,14 +200,26 @@ func GenReplicaConfigs(platform string, region string, cluster string, service s
 	return replicaCfgs
 }
 
+// SetMemberStaticIP sets the static ip in member.conf
+func SetMemberStaticIP(oldContent string, memberHost string, staticip string) string {
+	// update member staticip.
+	newstr := fmt.Sprintf("MEMBER_STATIC_IP=%s", staticip)
+	content := strings.Replace(oldContent, "MEMBER_STATIC_IP=", newstr, 1)
+
+	// if BIND_IP is memberHost, set it with staticip as well.
+	substr := fmt.Sprintf("BIND_IP=%s", memberHost)
+	newstr = fmt.Sprintf("BIND_IP=%s", staticip)
+	return strings.Replace(content, substr, newstr, 1)
+}
+
 // IsBasicConfigFile checks if the file is the basic_config.json
 func IsBasicConfigFile(filename string) bool {
 	return filename == basicConfFileName
 }
 
-// ReplaceMemberName replaces the member's dns name with ip.
+// UpdateBasicConfigsWithIPs replace the retry_join with members' ips.
 // memberips, key: member dns name, value: ip.
-func ReplaceMemberName(content string, memberips map[string]string) string {
+func UpdateBasicConfigsWithIPs(content string, memberips map[string]string) string {
 	for dnsname, ip := range memberips {
 		content = strings.Replace(content, dnsname, ip, -1)
 	}
@@ -187,27 +227,34 @@ func ReplaceMemberName(content string, memberips map[string]string) string {
 }
 
 const (
-	// https://www.consul.io/docs/agent/options.html for details.
-	configHeader = `
-{
+	servicefileContent = `
+PLATFORM=%s
+DC=%s
+DOMAIN=%s
+ENCRYPT=%s
+ENABLE_TLS=%s
+HTTPS_PORT=%d
 `
 
-	configFooter = `
-  "log_level": "INFO",
-  "ui": true
-}
+	memberfileContent = `
+AVAILABILITY_ZONE=%s
+MEMBER_NAME=%s
+SERVICE_MEMBER=%s
+MEMBER_STATIC_IP=%s
+BIND_IP=%s
 `
 
 	// set raft_multiplier to 1 for production. https://www.consul.io/docs/agent/options.html#performance
 	basicConfigs = `
-  "datacenter": "%s",
+{
+  "datacenter": "myDC",
   "data_dir": "/data/consul/",
-  "node_name": "%s",
+  "node_name": "memberNodeName",
   "server": true,
   "bootstrap_expect": %d,
-  "advertise_addr": "%s",
-  "bind_addr": "%s",
-  "domain": "%s",
+  "advertise_addr": "advertiseAddr",
+  "bind_addr": "bindAddr",
+  "domain": "myDomain",
   "leave_on_terminate": false,
   "skip_leave_on_interrupt": true,
   "rejoin_after_leave": true,
@@ -218,24 +265,5 @@ const (
   "performance": {
     "raft_multiplier": 1
   },
-`
-
-	// The secret key to use for encryption of Consul network traffic. This key must be 16-bytes that are Base64-encoded.
-	// All nodes within a cluster must share the same encryption key to communicate.
-	encryptConfigs = `
-  "encrypt": "%s",
-`
-
-	tlsConfigs = `
-  "key_file": "%s",
-  "cert_file": "%s",
-  "ca_file": "%s",
-  "ports": {
-    "https": %d
-  },
-  "verify_incoming": true,
-  "verify_incoming_rpc": true,
-  "verify_incoming_https": true,
-  "verify_outgoing": true,
 `
 )

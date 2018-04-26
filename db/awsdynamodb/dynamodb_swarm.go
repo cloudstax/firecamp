@@ -52,8 +52,7 @@ func (d *DynamoDB) TakeInitManager(ctx context.Context, clusterName string, addr
 				S: aws.String(addr),
 			},
 		},
-		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tablePartitionKeyPutCondition),
 	}
 
 	_, err := dbsvc.PutItem(params)
@@ -89,8 +88,7 @@ func (d *DynamoDB) GetInitManager(ctx context.Context, clusterName string) (addr
 				S: aws.String(initManager),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 
@@ -133,8 +131,7 @@ func (d *DynamoDB) CreateJoinToken(ctx context.Context, clusterName string, toke
 				S: aws.String(token),
 			},
 		},
-		ConditionExpression:    aws.String(tablePartitionKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tablePartitionKeyPutCondition),
 	}
 	_, err := dbsvc.PutItem(params)
 
@@ -167,8 +164,7 @@ func (d *DynamoDB) GetJoinToken(ctx context.Context, clusterName string, role st
 				S: aws.String(role),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 
@@ -205,8 +201,7 @@ func (d *DynamoDB) createManagerAddrs(ctx context.Context, clusterName string, a
 				S: aws.String(addr),
 			},
 		},
-		ConditionExpression:    aws.String(tableSortKeyPutCondition),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConditionExpression: aws.String(tableSortKeyPutCondition),
 	}
 
 	_, err := dbsvc.PutItem(params)
@@ -234,8 +229,7 @@ func (d *DynamoDB) GetManagerAddrs(ctx context.Context, clusterName string) (add
 				S: aws.String(managers),
 			},
 		},
-		ConsistentRead:         aws.Bool(true),
-		ReturnConsumedCapacity: aws.String(dynamodb.ReturnConsumedCapacityTotal),
+		ConsistentRead: aws.Bool(true),
 	}
 	resp, err := dbsvc.GetItem(params)
 

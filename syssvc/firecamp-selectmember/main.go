@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -12,9 +13,7 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/awsecs"
 	"github.com/cloudstax/firecamp/containersvc/swarm"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/plugins/network"
@@ -30,7 +29,6 @@ var (
 	service      = flag.String("service-name", "", "The firecamp service name")
 	memberIndex  = flag.Int64("member-index", -1, "The target service member index")
 	contPlatform = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
-	dbtype       = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	outputfile   = flag.String("outputfile", "/etc/firecamp-member", "The output file to store the assigned service member name")
 )
 
@@ -62,14 +60,7 @@ func main() {
 		glog.Fatalln("NewEc2Info error", err)
 	}
 
-	var dbIns db.DB
-	switch *dbtype {
-	case common.DBTypeCloudDB:
-		dbIns = awsdynamodb.NewDynamoDB(sess, *cluster)
-	case common.DBTypeControlDB:
-		addr := dns.GetDefaultControlDBAddr(*cluster)
-		dbIns = controldbcli.NewControlDBCli(addr)
-	}
+	dbIns := awsdynamodb.NewDynamoDB(sess, *cluster)
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
 
@@ -113,8 +104,9 @@ func main() {
 	}
 
 	memberHost := dns.GenDNSName(memberName, domain)
+	content := fmt.Sprintf("SERVICE_MEMBER=%s", memberHost)
 
-	err = utils.CreateOrOverwriteFile(*outputfile, []byte(memberHost), utils.DefaultFileMode)
+	err = utils.CreateOrOverwriteFile(*outputfile, []byte(content), utils.DefaultFileMode)
 	if err != nil {
 		glog.Fatalln("create outputfile", *outputfile, "error", err, "service", *service, "memberName", memberName, "index", *memberIndex)
 	}

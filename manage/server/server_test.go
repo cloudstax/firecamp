@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log/jsonfile"
 	"github.com/cloudstax/firecamp/manage"
@@ -51,34 +49,6 @@ func TestServerMgrOperationsWithMemDB(t *testing.T) {
 	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
 		dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	serviceNum := 29
-	testMgrOps(ctx, t, mgtsvc, serviceNum)
-}
-
-func TestServerMgrOperationsWithControlDB(t *testing.T) {
-	flag.Parse()
-	//flag.Set("stderrthreshold", "INFO")
-
-	testdir := "/tmp/test-" + strconv.FormatInt((time.Now().UnixNano()), 10)
-	cluster := "cluster1"
-	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
-	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
-
-	s := &controldbcli.TestControlDBServer{Testdir: testdir, ListenPort: common.ControlDBServerPort + 2}
-	go s.RunControldbTestServer(cluster)
-	defer s.StopControldbTestServer()
-
-	dbcli := controldbcli.NewControlDBCli("localhost:" + strconv.Itoa(common.ControlDBServerPort+2))
-	dnsIns := dns.NewMockDNS()
-	logIns := jsonfilelog.NewLog()
-	serverIns := server.NewMemServer()
-	serverInfo := server.NewMockServerInfo()
-	containersvcIns := containersvc.NewMemContainerSvc()
-
-	ctx := context.Background()
-
-	mgtsvc := NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs, manageurl,
-		dbcli, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
-	serviceNum := 15
 	testMgrOps(ctx, t, mgtsvc, serviceNum)
 }
 
@@ -283,19 +253,27 @@ func getServiceAttrTest(ctx context.Context, t *testing.T, mgtsvc *ManageHTTPSer
 	if err != nil {
 		t.Fatalf("Unmarshal GetServiceAttributesResponse error %s, %s", err, w)
 	}
-	if res.Service.ServiceName != service || res.Service.ServiceStatus != targetServiceStatus ||
-		res.Service.Replicas != int64(i) || res.Service.Volumes.PrimaryVolume.VolumeSizeGB != int64(i+1) {
+	attr := res.Service
+	if attr.Meta.ServiceName != service || attr.Meta.ServiceStatus != targetServiceStatus ||
+		attr.Spec.Replicas != int64(i) || attr.Spec.Volumes.PrimaryVolume.VolumeSizeGB != int64(i+1) {
 		t.Fatalf("expect service %s status %s TaskCounts %d ServiceMemberSize %d, got %s", service, targetServiceStatus, i, i+1, res.Service)
 	}
 	glog.Infoln("GetServiceAttributesResponse", res)
 }
 
 func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
+	serviceCfgs := []*manage.ConfigFileContent{
+		&manage.ConfigFileContent{FileName: "fname", FileMode: common.DefaultConfigFileMode, Content: "content"},
+	}
 	replicaCfgs := make([]*manage.ReplicaConfig, taskCount)
 	for i := 0; i < taskCount; i++ {
 		memberName := utils.GenServiceMemberName(service, int64(i))
-		cfg := &manage.ReplicaConfigFile{FileName: service, Content: service}
-		configs := []*manage.ReplicaConfigFile{cfg}
+		cfg := &manage.ConfigFileContent{
+			FileName: service,
+			FileMode: common.DefaultConfigFileMode,
+			Content:  service,
+		}
+		configs := []*manage.ConfigFileContent{cfg}
 		replicaCfg := &manage.ReplicaConfig{Zone: "west-az-1", MemberName: memberName, Configs: configs}
 		replicaCfgs[i] = replicaCfg
 	}
@@ -305,6 +283,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			Region:      mgtsvc.region,
 			Cluster:     mgtsvc.cluster,
 			ServiceName: service,
+			ServiceType: common.ServiceTypeStateful,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     2,
@@ -312,6 +291,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			MaxMemMB:        2,
 			ReserveMemMB:    2,
 		},
+		CatalogServiceType: common.CatalogService_Kafka,
 
 		ContainerImage: "image",
 		Replicas:       int64(taskCount),
@@ -322,6 +302,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 		ContainerPath:   "",
 		RegisterDNS:     true,
 		RequireStaticIP: false,
+		ServiceConfigs:  serviceCfgs,
 		ReplicaConfigs:  replicaCfgs,
 	}
 
@@ -331,7 +312,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 	}
 
 	body := ioutil.NopCloser(bytes.NewReader(b))
-	return &http.Request{Method: "PUT", URL: &url.URL{Path: service}, Body: body}
+	return &http.Request{Method: "PUT", URL: &url.URL{Path: manage.CreateServiceOp}, Body: body}
 }
 
 func genGetServiceAttrRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {

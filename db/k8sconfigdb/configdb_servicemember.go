@@ -2,7 +2,6 @@ package k8sconfigdb
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -40,14 +39,10 @@ func (s *K8sConfigDB) CreateServiceMember(ctx context.Context, member *common.Se
 func (s *K8sConfigDB) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	// sanity check. ServiceUUID, VolumeID, etc, are not allowed to update.
-	if oldMember.ServiceUUID != newMember.ServiceUUID ||
-		!db.EqualMemberVolumes(&(oldMember.Volumes), &(newMember.Volumes)) ||
-		oldMember.AvailableZone != newMember.AvailableZone ||
-		oldMember.MemberIndex != newMember.MemberIndex ||
-		oldMember.MemberName != newMember.MemberName ||
-		oldMember.StaticIP != newMember.StaticIP {
-		glog.Errorln("immutable attributes are updated, oldMember", oldMember, "newMember", newMember, "requuid", requuid)
+	if oldMember.Revision+1 != newMember.Revision ||
+		!db.EqualServiceMemberImmutableFields(oldMember, newMember) {
+		glog.Errorln("revision is not increased by 1 or immutable attributes are updated, oldMember",
+			oldMember, "newMember", newMember, "requuid", requuid)
 		return db.ErrDBInvalidRequest
 	}
 
@@ -170,90 +165,45 @@ func (s *K8sConfigDB) DeleteServiceMember(ctx context.Context, serviceUUID strin
 }
 
 func (s *K8sConfigDB) cfgmapToServiceMember(serviceUUID string, cfgmap *corev1.ConfigMap) (*common.ServiceMember, error) {
-	mtime, err := strconv.ParseInt(cfgmap.Data[db.LastModified], 10, 64)
-	if err != nil {
-		glog.Errorln("ParseInt LastModified error", err, cfgmap.Name, cfgmap.Namespace)
-		return nil, db.ErrDBInternal
-	}
-
-	var configs []*common.MemberConfig
-	err = json.Unmarshal([]byte(cfgmap.Data[db.MemberConfigs]), &configs)
-	if err != nil {
-		glog.Errorln("Unmarshal json MemberConfigs error", err, cfgmap.Name, cfgmap.Namespace)
-		return nil, db.ErrDBInternal
-	}
-
-	var volumes common.MemberVolumes
-	err = json.Unmarshal([]byte(cfgmap.Data[db.MemberVolumes]), &volumes)
-	if err != nil {
-		glog.Errorln("Unmarshal json MemberVolumes error", err, cfgmap.Name, cfgmap.Namespace)
-		return nil, db.ErrDBInternal
-	}
-
 	memberIndex, err := strconv.ParseInt(cfgmap.Data[db.MemberIndex], 10, 64)
 	if err != nil {
 		glog.Errorln("parse MemberIndex error", err, cfgmap.Name, cfgmap.Namespace)
 		return nil, db.ErrDBInternal
 	}
 
-	member := db.CreateServiceMember(serviceUUID,
-		memberIndex,
-		cfgmap.Data[db.MemberStatus],
-		cfgmap.Data[db.MemberName],
-		cfgmap.Data[db.AvailableZone],
-		cfgmap.Data[db.TaskID],
-		cfgmap.Data[db.ContainerInstanceID],
-		cfgmap.Data[db.ServerInstanceID],
-		mtime,
-		volumes,
-		cfgmap.Data[db.StaticIP],
-		configs)
+	revision, err := strconv.ParseInt(cfgmap.Data[db.Revision], 10, 64)
+	if err != nil {
+		glog.Errorln("ParseInt Revision error", err, cfgmap.Name, cfgmap.Namespace)
+		return nil, db.ErrDBInternal
+	}
 
+	var meta common.MemberMeta
+	err = json.Unmarshal([]byte(cfgmap.Data[db.MemberMeta]), &meta)
+	if err != nil {
+		glog.Errorln("Unmarshal json MemberMeta error", err, cfgmap.Name, cfgmap.Namespace)
+		return nil, db.ErrDBInternal
+	}
+
+	var spec common.MemberSpec
+	err = json.Unmarshal([]byte(cfgmap.Data[db.MemberSpec]), &spec)
+	if err != nil {
+		glog.Errorln("Unmarshal json MemberSpec error", err, cfgmap.Name, cfgmap.Namespace)
+		return nil, db.ErrDBInternal
+	}
+
+	member := db.CreateServiceMember(serviceUUID, memberIndex, revision, &meta, &spec)
 	return member, nil
 }
 
-// UpdateServiceMemberVolume updates the ServiceMember's volume in DB
-func (s *K8sConfigDB) UpdateServiceMemberVolume(ctx context.Context, member *common.ServiceMember, newVolID string, badVolID string) error {
-	requuid := utils.GetReqIDFromContext(ctx)
-
-	if member.Volumes.JournalVolumeID != badVolID && member.Volumes.PrimaryVolumeID != badVolID {
-		glog.Errorln("the bad volume", badVolID, "does not belong to member", member, member.Volumes)
-		return errors.New("the bad volume does not belong to member")
-	}
-
-	if member.Volumes.JournalVolumeID == badVolID {
-		member.Volumes.JournalVolumeID = newVolID
-		glog.Infoln("replace the journal volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
-	} else {
-		member.Volumes.PrimaryVolumeID = newVolID
-		glog.Infoln("replace the data volume", badVolID, "with new volume", newVolID, "requuid", requuid, member)
-	}
-
-	cfgmap, err := s.memberToConfigMap(member, requuid)
-	if err != nil {
-		glog.Errorln("memberToConfigMap error", err, "requuid", requuid, member)
-		return s.convertError(err)
-	}
-
-	_, err = s.cliset.CoreV1().ConfigMaps(s.namespace).Update(cfgmap)
-	if err != nil {
-		glog.Errorln("update serviceMember error", err, "requuid", requuid, member)
-		return s.convertError(err)
-	}
-
-	glog.Infoln("updated serviceMember to use new volume", newVolID, "bad volume", badVolID, "requuid", requuid, member)
-	return nil
-}
-
 func (s *K8sConfigDB) memberToConfigMap(member *common.ServiceMember, requuid string) (*corev1.ConfigMap, error) {
-	volBytes, err := json.Marshal(member.Volumes)
+	metaBytes, err := json.Marshal(member.Meta)
 	if err != nil {
-		glog.Errorln("Marshal MemberVolumes error", err, member, "requuid", requuid)
+		glog.Errorln("Marshal MemberMeta error", err, member, "requuid", requuid)
 		return nil, err
 	}
-	configBytes, err := json.Marshal(member.Configs)
+	specBytes, err := json.Marshal(member.Spec)
 	if err != nil {
-		glog.Errorln("Marshal MemberConfigs error", err, member, "requuid", requuid)
+		glog.Errorln("Marshal MemberSpec error", err, member, "requuid", requuid)
 		return nil, err
 	}
 
@@ -264,18 +214,11 @@ func (s *K8sConfigDB) memberToConfigMap(member *common.ServiceMember, requuid st
 			Labels:    s.genServiceMemberListLabels(member.ServiceUUID),
 		},
 		Data: map[string]string{
-			db.ServiceUUID:         member.ServiceUUID,
-			db.MemberIndex:         strconv.FormatInt(member.MemberIndex, 10),
-			db.MemberStatus:        member.Status,
-			db.MemberName:          member.MemberName,
-			db.LastModified:        strconv.FormatInt(member.LastModified, 10),
-			db.AvailableZone:       member.AvailableZone,
-			db.TaskID:              member.TaskID,
-			db.ContainerInstanceID: member.ContainerInstanceID,
-			db.ServerInstanceID:    member.ServerInstanceID,
-			db.MemberVolumes:       string(volBytes),
-			db.StaticIP:            member.StaticIP,
-			db.MemberConfigs:       string(configBytes),
+			db.ServiceUUID: member.ServiceUUID,
+			db.MemberIndex: strconv.FormatInt(member.MemberIndex, 10),
+			db.Revision:    strconv.FormatInt(member.Revision, 10),
+			db.MemberMeta:  string(metaBytes),
+			db.MemberSpec:  string(specBytes),
 		},
 	}
 

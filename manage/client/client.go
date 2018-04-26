@@ -47,7 +47,27 @@ func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServic
 		return err
 	}
 
-	urlStr := c.serverURL + r.Service.ServiceName
+	urlStr := c.serverURL + manage.CreateServiceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
+// UpdateServiceConfig updates the service config
+func (c *ManageClient) UpdateServiceConfig(ctx context.Context, r *manage.UpdateServiceConfigRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.UpdateServiceConfigOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err
@@ -203,7 +223,7 @@ func (c *ManageClient) IsServiceInitialized(ctx context.Context, r *manage.Servi
 		return false, err
 	}
 
-	if attr.ServiceStatus == common.ServiceStatusActive {
+	if attr.Meta.ServiceStatus == common.ServiceStatusActive {
 		return true, nil
 	}
 
@@ -555,26 +575,6 @@ func (c *ManageClient) CatalogCreateCassandraService(ctx context.Context, r *man
 	return res.JmxRemoteUser, res.JmxRemotePasswd, err
 }
 
-// CatalogUpdateCassandraService updates the configs of Cassandra service.
-func (c *ManageClient) CatalogUpdateCassandraService(ctx context.Context, r *manage.CatalogUpdateCassandraRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateCassandraOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // CatalogScaleCassandraService scales the Cassandra service.
 func (c *ManageClient) CatalogScaleCassandraService(ctx context.Context, r *manage.CatalogScaleCassandraRequest) error {
 	b, err := json.Marshal(r)
@@ -621,26 +621,6 @@ func (c *ManageClient) CatalogCreateZooKeeperService(ctx context.Context, r *man
 	res := &manage.CatalogCreateZooKeeperResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.JmxRemoteUser, res.JmxRemotePasswd, err
-}
-
-// CatalogUpdateZooKeeperService updates the ZooKeeper service configs.
-func (c *ManageClient) CatalogUpdateZooKeeperService(ctx context.Context, r *manage.CatalogUpdateZooKeeperRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateZooKeeperOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
 }
 
 // CatalogCreateKafkaService creates a new catalog Kafka service.
@@ -711,26 +691,6 @@ func (c *ManageClient) CatalogCreateKafkaManagerService(ctx context.Context, r *
 	return manage.ConvertHTTPError(resp)
 }
 
-// CatalogUpdateKafkaService updates the Kafka service configs.
-func (c *ManageClient) CatalogUpdateKafkaService(ctx context.Context, r *manage.CatalogUpdateKafkaRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateKafkaOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
 // CatalogCreateRedisService creates a new catalog Redis service.
 func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.CatalogCreateRedisRequest) error {
 	b, err := json.Marshal(r)
@@ -739,26 +699,6 @@ func (c *ManageClient) CatalogCreateRedisService(ctx context.Context, r *manage.
 	}
 
 	urlStr := c.serverURL + manage.CatalogCreateRedisOp
-	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.cli.Do(req)
-	if err != nil {
-		return err
-	}
-	return manage.ConvertHTTPError(resp)
-}
-
-// CatalogUpdateRedisService updates the Redis service configs.
-func (c *ManageClient) CatalogUpdateRedisService(ctx context.Context, r *manage.CatalogUpdateRedisRequest) error {
-	b, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-
-	urlStr := c.serverURL + manage.CatalogUpdateRedisOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err

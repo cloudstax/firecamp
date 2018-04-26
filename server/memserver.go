@@ -105,12 +105,8 @@ func (s *MemServer) DeleteVolume(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *MemServer) GetControlDBDeviceName() string {
-	return devPrefix + strconv.Itoa(0)
-}
-
 func (s *MemServer) GetFirstDeviceName() string {
-	return devPrefix + strconv.Itoa(1)
+	return devPrefix + strconv.Itoa(0)
 }
 
 func (s *MemServer) GetNextDeviceName(lastDev string) (devName string, err error) {

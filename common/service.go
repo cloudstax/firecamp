@@ -119,13 +119,27 @@ type Service struct {
 // The ServiceUUID is passed as volume name to the volume driver. The volume driver
 // could get the detail service attributes for other operations.
 type ServiceAttr struct {
-	ServiceUUID   string // partition key
+	ServiceUUID string // partition key
+	// Everytime ServiceAttr is updated, revision is increased.
+	Revision int64
+	Meta     ServiceMeta
+	Spec     ServiceSpec
+}
+
+// ServiceMeta represents the service metadata
+type ServiceMeta struct {
+	ClusterName  string
+	ServiceName  string
+	LastModified int64
+	// common.ServiceTypeStateful or ServiceTypeStateless
+	ServiceType   string
 	ServiceStatus string
-	LastModified  int64
-	Replicas      int64
-	ClusterName   string
-	ServiceName   string
-	Volumes       ServiceVolumes
+}
+
+// ServiceSpec represents service detail spec
+type ServiceSpec struct {
+	Replicas int64
+	Resource Resources
 
 	// whether the service members need to know each other, such as database replicas.
 	// if yes, the member will be registered to DNS. in aws, DNS will be Route53.
@@ -138,16 +152,14 @@ type ServiceAttr struct {
 	// Whether the service member needs the static ip. This is required by Redis & Consul.
 	RequireStaticIP bool
 
-	// The custom service attributes.
-	// This field should not be nil. Every service will have its own user attr.
-	UserAttr *ServiceUserAttr
+	// ServiceConfigs includes the configs for the service.
+	ServiceConfigs []ConfigID
 
-	// The specified resources for the service.
-	Resource Resources
+	// The catalog service type, such as mongodb, etc.
+	CatalogServiceType string
 
-	// ServiceType is added after release 0.9.3, to support stateless service such as kafka manager.
-	// common.ServiceTypeStateful or ServiceTypeStateless
-	ServiceType string
+	// stateful service specific fields
+	Volumes ServiceVolumes
 }
 
 // ServiceVolumes represent the volumes of one service.
@@ -173,18 +185,30 @@ type ServiceVolume struct {
 type ServiceMember struct {
 	ServiceUUID string // partition key
 	MemberIndex int64  // sort key
+	// Everytime ServiceMember is updated, revision is increased.
+	Revision int64
+	Meta     MemberMeta
+	Spec     MemberSpec
+}
+
+// MemberMeta represents the service member's metadata
+type MemberMeta struct {
+	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
+	MemberName   string
+	LastModified int64
 	// The member status: Active, Pause, Bad.
 	// This will be useful for some cases. For example, prevent the member container
 	// from running when doing some maintenance for one member.
 	Status string
-	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
-	MemberName string
+}
+
+// MemberSpec represents service member detail spec
+type MemberSpec struct {
 	// For the stateless service, AvailableZone is ingored, simply set to "any".
 	AvailableZone       string
 	TaskID              string
 	ContainerInstanceID string
 	ServerInstanceID    string
-	LastModified        int64
 
 	// The volumes of one member. One member could have multiple volumes.
 	// For example, one for DB data, the other for journal.
@@ -194,9 +218,9 @@ type ServiceMember struct {
 	// The static IP assigned to this member
 	StaticIP string
 
-	// One member could have multiple config files.
-	// For example, cassandra.yaml and rackdc properties files.
-	Configs []*MemberConfig
+	// The specific configs for one member. The common service configs are kept in ServiceAttr.ServiceConfigs.
+	// The configs may be nil for the stateless service.
+	Configs []ConfigID
 }
 
 // MemberVolumes represent the volumes of one member.
@@ -215,8 +239,8 @@ type MemberVolumes struct {
 	JournalDeviceName string
 }
 
-// MemberConfig represents the configs of one member
-type MemberConfig struct {
+// ConfigID includes the FileID that keeps the detail configs.
+type ConfigID struct {
 	FileName string
 	// The config file uuid
 	FileID string
@@ -227,26 +251,41 @@ type MemberConfig struct {
 	FileMD5 string
 }
 
-// ConfigFile represents the detail config content of service member.
-// To update the ConfigFile content of one replica, 2 steps are required:
-// 1) create a new ConfigFile with a new FileID, 2) update ServiceMember MemberConfig
-// to point to the new ConfigFile.
+// ConfigFile includes the detail config content.
+// To update the ConfigFile of one replica, 2 steps are required:
+// 1) create a new ConfigFile with a new FileID, 2) update ServiceAttr to point to the new ConfigFile.
 // We could not directly update the old ConfigFile. If node crashes before step2,
-// ServiceMember MemberConfig will not be consistent with ConfigFile.
+// ServiceAttr thinks the ConfigFile is not changed.
 type ConfigFile struct {
-	ServiceUUID  string // partition key
-	FileID       string // sort key
-	FileMD5      string
+	ServiceUUID string // partition key
+	FileID      string // sort key
+	Revision    int64
+	Meta        ConfigFileMeta
+	Spec        ConfigFileSpec
+}
+
+// ConfigFileMeta represents the config file metadata
+type ConfigFileMeta struct {
 	FileName     string
-	FileMode     uint32
 	LastModified int64
-	Content      string // The content of the config file.
+}
+
+// ConfigFileSpec includes the detail config file spec
+type ConfigFileSpec struct {
+	FileMode uint32
+	FileMD5  string
+	Content  string // The content of the config file.
 }
 
 // ServiceStaticIP represents the owner service of one static IP.
 type ServiceStaticIP struct {
 	StaticIP string // partition key
+	Revision int64
+	Spec     StaticIPSpec
+}
 
+// StaticIPSpec includes the detail static ip spec
+type StaticIPSpec struct {
 	// The owner service of this static IP.
 	ServiceUUID string
 	// TODO adding MemberName would be a good optimization.
@@ -258,181 +297,4 @@ type ServiceStaticIP struct {
 	ServerInstanceID string
 	// The network interface this IP is assigned to.
 	NetworkInterfaceID string
-}
-
-// ServiceUserAttr represents the custom service attributes.
-type ServiceUserAttr struct {
-	// catalog service type such as CatalogService_MongoDB.
-	ServiceType string
-	AttrBytes   []byte
-}
-
-// MongoDBUserAttr represents the custom MongoDB service attributes.
-type MongoDBUserAttr struct {
-	// if ReplicaSetOnly == true and Shards == 1, create a single replicaset, else create a sharded cluster.
-	Shards           int64
-	ReplicasPerShard int64
-	ReplicaSetOnly   bool
-	// the number of config servers, ignored if ReplicaSetOnly == true and Shards == 1.
-	ConfigServers int64
-	// the content of the key file.
-	KeyFileContent string
-}
-
-// CasUserAttr represents the custom Cassandra service attributes.
-type CasUserAttr struct {
-	HeapSizeMB      int64
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// PostgresUserAttr represents the postgresql service attributes.
-type PostgresUserAttr struct {
-	ContainerImage string
-}
-
-// RedisUserAttr represents the custom Redis service attributes.
-type RedisUserAttr struct {
-	Shards           int64
-	ReplicasPerShard int64
-
-	MemoryCacheSizeMB int64
-	DisableAOF        bool
-	AuthPass          string
-	ReplTimeoutSecs   int64
-	MaxMemPolicy      string
-	ConfigCmdName     string
-}
-
-// ZKUserAttr represents the zookeeper service attributes.
-type ZKUserAttr struct {
-	HeapSizeMB int64
-	// jmx remote user is added in 0.9.5, upgrade to 0.9.5 will do:
-	// - create jmx password and access file
-	// - add jmx options into java env file
-	// - add jmx user and password to ZKUserAttr
-	// - update service spec to expose the jmx listening port
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// KafkaUserAttr represents the kafka service attributes.
-type KafkaUserAttr struct {
-	HeapSizeMB     int64
-	AllowTopicDel  bool
-	RetentionHours int64
-	ZkServiceName  string
-	// jmx remote user is added in 0.9.5, upgrade to 0.9.5 will do:
-	// - create jmx password and access file
-	// - add jmx options into java env file
-	// - add jmx user and password to KafkaUserAttr
-	// - update service spec to expose the jmx listening port
-	JmxRemoteUser   string
-	JmxRemotePasswd string
-}
-
-// KMUserAttr represents the kafka manager service attributes.
-// This is added in 0.9.5, upgrade to 0.9.5 will create the user attr for
-// the existing kafka manager service.
-type KMUserAttr struct {
-	// Kafka Manager JVM heap size
-	HeapSizeMB int64
-
-	// Kafka Manager user and password
-	User     string
-	Password string
-
-	// The existing ZooKeeper service that Kafka Manager will use.
-	ZkServiceName string
-}
-
-// KCSinkESUserAttr represents the kafka connect service attributes.
-type KCSinkESUserAttr struct {
-	// Kafka Connect JVM heap size
-	HeapSizeMB int64
-
-	// The Kafka service to sink from
-	KafkaServiceName string
-
-	// The Kafka Topic to read data from
-	Topic string
-
-	// The ElasticSearch service to sink to
-	ESServiceName string
-
-	// The type to use for each index
-	TypeName string
-
-	MaxBufferedRecords int
-	BatchSize          int
-
-	// The storage replication factor for storage, offset and status topics
-	ConfigReplFactor uint
-	OffsetReplFactor uint
-	StatusReplFactor uint
-}
-
-// CouchDBUserAttr represents the couchdb service attributes.
-type CouchDBUserAttr struct {
-	Admin           string
-	EncryptedPasswd string
-
-	// CouchDB Cors configs
-	EnableCors  bool
-	Credentials bool
-	Origins     string
-	Headers     string
-	Methods     string
-
-	EnableSSL bool
-}
-
-// ConsulUserAttr represents the consul service attributes.
-type ConsulUserAttr struct {
-	Datacenter string
-	Domain     string
-
-	Encrypt   string
-	EnableTLS bool
-	HTTPSPort int64
-}
-
-// ESUserAttr represents the elasticsearch service attributes.
-type ESUserAttr struct {
-	HeapSizeMB             int64
-	DedicatedMasters       int64
-	DisableDedicatedMaster bool
-	DisableForceAwareness  bool
-	// DataNodes are the number of ElasticSearch data nodes, this field is added in 0.9.5.
-	// Assume no one is using ElasticSearch before 0.9.5. No upgrade is supported.
-	DataNodes int64
-}
-
-// KibanaUserAttr represents the kibana service attributes.
-type KibanaUserAttr struct {
-	ESServiceName string
-	ProxyBasePath string
-	EnableSSL     bool
-}
-
-// LSUserAttr represents the logstash service attributes.
-type LSUserAttr struct {
-	HeapSizeMB     int64
-	ContainerImage string
-
-	QueueType             string
-	EnableDeadLetterQueue bool
-
-	PipelineConfigs       string
-	PipelineWorkers       int
-	PipelineOutputWorkers int
-	PipelineBatchSize     int
-	PipelineBatchDelay    int
-}
-
-// TGUserAttr represents the telegraf service attributes.
-type TGUserAttr struct {
-	CollectIntervalSecs int
-	MonitorServiceName  string
-	MonitorMetrics      string
 }

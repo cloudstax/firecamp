@@ -15,6 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kibana"
 	"github.com/cloudstax/firecamp/catalog/logstash"
+	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/common"
@@ -59,16 +60,8 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 		return s.catalogSetServiceInit(ctx, r, requuid)
 	case manage.CatalogSetRedisInitOp:
 		return s.setRedisInit(ctx, r, requuid)
-	case manage.CatalogUpdateRedisOp:
-		return s.updateRedisService(ctx, r, requuid)
-	case manage.CatalogUpdateCassandraOp:
-		return s.updateCasService(ctx, r, requuid)
 	case manage.CatalogScaleCassandraOp:
 		return s.scaleCasService(ctx, r, requuid)
-	case manage.CatalogUpdateZooKeeperOp:
-		return s.updateZkService(ctx, r, requuid)
-	case manage.CatalogUpdateKafkaOp:
-		return s.updateKafkaService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
@@ -94,7 +87,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	// get service uuid
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("GetService", req.Service.ServiceName, req.ServiceType, "error", err, "requuid", requuid)
+		glog.Errorln("GetService", req.Service.ServiceName, req.CatalogServiceType, "error", err, "requuid", requuid)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -102,11 +95,11 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	initialized := false
 	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, service.ServiceUUID)
 	if hasTask {
-		glog.Infoln("The service", req.Service.ServiceName, req.ServiceType,
+		glog.Infoln("The service", req.Service.ServiceName, req.CatalogServiceType,
 			"is under initialization, requuid", requuid)
 	} else {
 		// no init task is running, check if the service is initialized
-		glog.Infoln("No init task for service", req.Service.ServiceName, req.ServiceType, "requuid", requuid)
+		glog.Infoln("No init task for service", req.Service.ServiceName, req.CatalogServiceType, "requuid", requuid)
 
 		attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 		if err != nil {
@@ -116,7 +109,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 		glog.Infoln("service attribute", attr, "requuid", requuid)
 
-		switch attr.ServiceStatus {
+		switch attr.Meta.ServiceStatus {
 		case common.ServiceStatusActive:
 			initialized = true
 
@@ -128,21 +121,18 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			// TODO scan the pending init catalog service at start.
 
 			// trigger the init task.
-			switch req.ServiceType {
+			switch req.CatalogServiceType {
 			case common.CatalogService_MongoDB:
-				userAttr := &common.MongoDBUserAttr{}
-				err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
-					glog.Errorln("Unmarshal mongodb user attr error", err, "requuid", requuid, attr)
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
 				}
-				opts := &manage.CatalogMongoDBOptions{
-					Shards:           userAttr.Shards,
-					ReplicasPerShard: userAttr.ReplicasPerShard,
-					ReplicaSetOnly:   userAttr.ReplicaSetOnly,
-					ConfigServers:    userAttr.ConfigServers,
-					Admin:            req.Admin,
-					AdminPasswd:      req.AdminPasswd,
+
+				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
+				if err != nil {
+					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
+					return manage.ConvertToHTTPError(err)
 				}
 
 				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
@@ -182,20 +172,34 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				}
 
 			case common.CatalogService_Redis:
-				redisUserAttr := &common.RedisUserAttr{}
-				err = json.Unmarshal(attr.UserAttr.AttrBytes, redisUserAttr)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
-					glog.Errorln("Unmarshal redis user attr error", err, "requuid", requuid, attr)
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
 					return manage.ConvertToHTTPError(err)
 				}
-				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, redisUserAttr.Shards, redisUserAttr.ReplicasPerShard, requuid)
+
+				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
+				if err != nil {
+					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
+					return manage.ConvertToHTTPError(err)
+				}
+
+				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, opts.Shards, opts.ReplicasPerShard, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
 					return manage.ConvertToHTTPError(err)
 				}
 
 			case common.CatalogService_CouchDB:
-				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Replicas, req.Admin, req.AdminPasswd, requuid)
+				cfgfile, err := s.getServiceConfigFile(ctx, attr)
+				if err != nil {
+					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
+					return manage.ConvertToHTTPError(err)
+				}
+
+				admin, adminPass := couchdbcatalog.GetAdminFromServiceConfigs(cfgfile.Spec.Content)
+
+				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Spec.Replicas, admin, adminPass, requuid)
 
 			default:
 				return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -247,11 +251,8 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -286,19 +287,10 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 		return err.Error(), http.StatusBadRequest
 	}
 
-	existingEncryptPasswd, err := s.getCouchDBExistingEncryptPasswd(ctx, req, requuid)
-	if err != nil {
-		glog.Errorln("getCouchDBExistingEncryptPasswd error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
-
 	// create the service in the control plane and the container platform
-	crReq, err := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Options, existingEncryptPasswd)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -311,50 +303,6 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	glog.Infoln("created CouchDB service", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
 	return "", http.StatusOK
-}
-
-func (s *ManageHTTPServer) getCouchDBExistingEncryptPasswd(ctx context.Context, req *manage.CatalogCreateCouchDBRequest, requuid string) (existingEncryptPasswd string, err error) {
-	// get the possible existing service attr.
-	// the couchdbcatalog.encryptPasswd generates a uuid as salt to encrypt the password.
-	// the uuid will be different for the retry request and causes the retry failed.
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		if err == db.ErrDBRecordNotFound {
-			// service not exist
-			return "", nil
-		}
-
-		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	// service exists, get attr
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		if err == db.ErrDBRecordNotFound {
-			// service attr not exists
-			return "", nil
-		}
-
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	// service attr exists, get the existing encryptedPasswd
-	if attr.UserAttr.ServiceType != common.CatalogService_CouchDB {
-		glog.Errorln("existing service is not couchdb", attr.UserAttr.ServiceType, attr, "requuid", requuid, req.Service)
-		return "", common.ErrServiceExist
-	}
-
-	ua := &common.CouchDBUserAttr{}
-	err = json.Unmarshal(attr.UserAttr.AttrBytes, ua)
-	if err != nil {
-		glog.Errorln("Unmarshal user attr error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	glog.Infoln("get existing encryptPasswd, requuid", requuid, req.Service)
-	return ua.EncryptedPasswd, nil
 }
 
 func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
@@ -397,12 +345,8 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq := consulcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
 
 	// create the service in the control plane
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
@@ -470,12 +414,9 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -525,15 +466,12 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 		return manage.ConvertToHTTPError(err)
 	}
 
-	esNode := escatalog.GetFirstMemberHost(attr.DomainName, attr.ServiceName)
+	esNodeURI := escatalog.GetFirstMemberURI(attr.Spec.DomainName, attr.Meta.ServiceName)
 
 	// create the service in the control plane and the container platform
-	crReq, err := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
-		req.Service.ServiceName, req.Resource, req.Options, esNode)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
+		req.Service.ServiceName, req.Resource, req.Options, esNodeURI)
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -569,12 +507,9 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
+	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
+
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
@@ -631,12 +566,8 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	}
 
 	// create the service in the control plane and the container platform
-	crReq, err := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
+	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, attr, members, req.Options, req.Resource)
-	if err != nil {
-		glog.Errorln("GenDefaultCreateServiceRequest error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
-	}
 
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
@@ -689,6 +620,12 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 }
 
 func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, requuid string) (serverips []string, err error) {
+	attr, err := s.dbIns.GetServiceAttr(ctx, serviceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		return nil, err
+	}
+
 	// update the consul member address to the assigned static ip in the basic_config.json file
 	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
 	if err != nil {
@@ -699,50 +636,73 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
 	for i, m := range members {
-		memberdns := dns.GenDNSName(m.MemberName, s.domain)
-		memberips[memberdns] = m.StaticIP
-		serverips[i] = m.StaticIP
-	}
+		memberdns := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
+		memberips[memberdns] = m.Spec.StaticIP
+		serverips[i] = m.Spec.StaticIP
 
-	for _, m := range members {
-		err = s.updateConsulMemberConfig(ctx, m, memberips, requuid)
-		if err != nil {
-			return nil, err
+		// update member config with static ip
+		find := false
+		for cfgIndex, cfg := range m.Spec.Configs {
+			if catalog.IsMemberConfigFile(cfg.FileName) {
+				cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+				if err != nil {
+					glog.Errorln("get member config file error", err, cfg, "requuid", requuid, m)
+					return nil, err
+				}
+
+				newContent := consulcatalog.SetMemberStaticIP(cfgfile.Spec.Content, memberdns, m.Spec.StaticIP)
+
+				_, err = s.updateMemberConfig(ctx, m, cfgfile, cfgIndex, newContent, requuid)
+				if err != nil {
+					glog.Errorln("updateMemberConfig error", err, cfg, "requuid", requuid, m)
+					return nil, err
+				}
+
+				find = true
+				break
+			}
+		}
+		if !find {
+			glog.Errorln("member config file not found, requuid", requuid, m)
+			return nil, errors.New("member config file not found")
 		}
 	}
 
-	glog.Infoln("updated ip to consul configs", serviceUUID, "requuid", requuid)
-	return serverips, nil
+	// update basic_config.json with static ips
+	for i, cfg := range attr.Spec.ServiceConfigs {
+		if consulcatalog.IsBasicConfigFile(cfg.FileName) {
+			// get the detail content
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, serviceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, serviceUUID, "requuid", requuid, cfg)
+				return nil, err
+			}
+
+			newContent := consulcatalog.UpdateBasicConfigsWithIPs(cfgfile.Spec.Content, memberips)
+
+			err = s.updateServiceConfigFile(ctx, attr, i, cfgfile, newContent, requuid)
+			if err != nil {
+				glog.Errorln("updateServiceConfigFile error", err, cfgfile, "requuid", requuid, attr.Meta)
+				return nil, err
+			}
+
+			glog.Infoln("updated basic config, requuid", requuid, attr.Meta)
+			return serverips, nil
+		}
+	}
+
+	errmsg := fmt.Sprintf("consul basic config file not found, requuid %s", requuid)
+	glog.Errorln(errmsg, attr)
+	return nil, errors.New(errmsg)
 }
 
-func (s *ManageHTTPServer) updateConsulMemberConfig(ctx context.Context, member *common.ServiceMember, memberips map[string]string, requuid string) error {
-	var cfg *common.MemberConfig
-	cfgIndex := -1
-	for i, c := range member.Configs {
-		if consulcatalog.IsBasicConfigFile(c.FileName) {
-			cfg = c
-			cfgIndex = i
-			break
+func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context, attr *common.ServiceAttr) (*common.ConfigFile, error) {
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if catalog.IsServiceConfigFile(cfg.FileName) {
+			return s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
 		}
 	}
-	if cfgIndex == -1 {
-		errmsg := fmt.Sprintf("consul config file not found, service uuid %s, requuid %s", member.ServiceUUID, requuid)
-		glog.Errorln(errmsg)
-		return errors.New(errmsg)
-	}
-
-	// fetch the config file
-	cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-		return err
-	}
-
-	// replace the original member dns name by member ip
-	newContent := consulcatalog.ReplaceMemberName(cfgfile.Content, memberips)
-
-	_, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-	return err
+	return nil, common.ErrNotFound
 }
 
 func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
@@ -754,8 +714,8 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		return nil, err
 	}
 
-	newFileID := utils.GenMemberConfigFileID(member.MemberName, cfgfile.FileName, version+1)
-	newcfgfile := db.UpdateConfigFile(cfgfile, newFileID, newContent)
+	newFileID := utils.GenConfigFileID(member.Meta.MemberName, cfgfile.Meta.FileName, version+1)
+	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
@@ -766,9 +726,9 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
 
 	// update serviceMember to point to the new config file
-	newConfigs := db.CopyMemberConfigs(member.Configs)
+	newConfigs := db.CopyConfigs(member.Spec.Configs)
 	newConfigs[cfgIndex].FileID = newcfgfile.FileID
-	newConfigs[cfgIndex].FileMD5 = newcfgfile.FileMD5
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.Spec.FileMD5
 
 	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
 	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
@@ -789,220 +749,6 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
 	} else {
 		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-	}
-
-	return newMember, nil
-}
-
-func (s *ManageHTTPServer) jmxPasswdFileIndex(memberConfigs []*common.MemberConfig) int {
-	for i, c := range memberConfigs {
-		if catalog.IsJmxPasswdConfFile(c.FileName) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (s *ManageHTTPServer) updateJmxPasswdFile(ctx context.Context, serviceUUID string,
-	members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) (newMembers []*common.ServiceMember, err error) {
-	for _, member := range members {
-		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
-		if cfgIndex < 0 {
-			errmsg := fmt.Sprintf("jmx passwd file not found for member %s, requuid %s", member.MemberName, requuid)
-			glog.Errorln(errmsg)
-			return nil, errors.New(errmsg)
-		}
-
-		cfg := member.Configs[cfgIndex]
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return nil, err
-		}
-
-		// replace the original member jmx passwd file content
-		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.CreateJmxPasswdConfFileContent(jmxUser, jmxPasswd)
-		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return nil, err
-		}
-
-		newMembers = append(newMembers, newMember)
-
-		glog.Infoln("updated jmx user & password", jmxUser, "for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("updated jmx user & password for service", serviceUUID, "requuid", requuid)
-	return newMembers, nil
-}
-
-func (s *ManageHTTPServer) jmxAccessFileIndex(memberConfigs []*common.MemberConfig) int {
-	for i, c := range memberConfigs {
-		if catalog.IsJmxAccessConfFile(c.FileName) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (s *ManageHTTPServer) updateJmxAccessFile(ctx context.Context, serviceUUID string,
-	members []*common.ServiceMember, jmxUser string, oldJmxUser string, requuid string) (newMembers []*common.ServiceMember, err error) {
-	for _, member := range members {
-		cfgIndex := s.jmxAccessFileIndex(member.Configs)
-		if cfgIndex < 0 {
-			errmsg := fmt.Sprintf("jmx access file not found for member %s, requuid", member.MemberName, requuid)
-			glog.Errorln(errmsg)
-			return nil, errors.New(errmsg)
-		}
-
-		cfg := member.Configs[cfgIndex]
-
-		// fetch the config file
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, cfg.FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg, member)
-			return nil, err
-		}
-
-		// replace the original member jmx access file content
-		// TODO if there are like 100 nodes, it may be worth for all members to use the same config file.
-		newContent := catalog.ReplaceJmxUserInAccessConfFile(cfgfile.Content, jmxUser, oldJmxUser)
-		newMember, err := s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newContent, requuid)
-		if err != nil {
-			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, cfg, member)
-			return nil, err
-		}
-
-		newMembers = append(newMembers, newMember)
-
-		glog.Infoln("updated jmx access file", jmxUser, "for member", member, "requuid", requuid)
-	}
-
-	glog.Infoln("updated jmx access file for service", serviceUUID, "requuid", requuid)
-	return newMembers, nil
-}
-
-func (s *ManageHTTPServer) getExistingJmxPasswd(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (jmxUser string, jmxPasswd string, err error) {
-	// check if service attributes exist. If yes, this would be a retry request, use the existing JmxRemoteUser & JmxRemotePasswd.
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
-	if err != nil {
-		if err != db.ErrDBRecordNotFound {
-			glog.Errorln("GetService error", err, "requuid", requuid, req)
-			return "", "", err
-		}
-		// service not exist
-		return "", "", nil
-	}
-
-	// service exists
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		if err != db.ErrDBRecordNotFound {
-			glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-			return "", "", err
-		}
-		// service attr not exist
-		return "", "", nil
-	}
-
-	// service attributes exist, use the existing JmxRemoteUser & JmxRemotePasswd
-	switch attr.UserAttr.ServiceType {
-	case common.CatalogService_Cassandra:
-		userAttr := &common.CasUserAttr{}
-		err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
-		if err != nil {
-			glog.Errorln("Unmarshal CasUserAttr error", err, "requuid", requuid, req)
-			return "", "", err
-		}
-
-		glog.Infoln("get existing jmx user and passwd for cassandra, requuid", requuid, req)
-		return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
-
-	case common.CatalogService_Kafka:
-		userAttr := &common.KafkaUserAttr{}
-		err = json.Unmarshal(attr.UserAttr.AttrBytes, userAttr)
-		if err != nil {
-			glog.Errorln("Unmarshal KafkaUserAttr error", err, "requuid", requuid, req)
-			return "", "", err
-		}
-
-		glog.Infoln("get existing jmx user and passwd for kafka, requuid", requuid, req)
-		return userAttr.JmxRemoteUser, userAttr.JmxRemotePasswd, nil
-
-	default:
-		errmsg := fmt.Sprintf("service %s does not support jmx user, requuid %s", req, requuid)
-		glog.Errorln(errmsg)
-		return "", "", errors.New(errmsg)
-	}
-}
-
-func (s *ManageHTTPServer) createJmxFiles(ctx context.Context, members []*common.ServiceMember, jmxUser string, jmxPasswd string, requuid string) (newMembers []*common.ServiceMember, err error) {
-	for _, member := range members {
-		// the upgrade request may fail and get retried. if jmx password file exists, update it with the new password.
-		cfgIndex := s.jmxPasswdFileIndex(member.Configs)
-		newcfg := catalog.CreateJmxRemotePasswdConfFile(jmxUser, jmxPasswd)
-		newMember, err := s.createOrUpdateJmxFile(ctx, member, cfgIndex, newcfg, requuid)
-		if err != nil {
-			glog.Errorln("create or update jmx password file error", err, "requuid", requuid, member)
-			return nil, err
-		}
-
-		// the upgrade request may fail and get retried. if jmx access file exists, update it.
-		cfgIndex = s.jmxAccessFileIndex(newMember.Configs)
-		newcfg = catalog.CreateJmxRemoteAccessConfFile(jmxUser, catalog.JmxReadOnlyAccess)
-		newMember, err = s.createOrUpdateJmxFile(ctx, newMember, cfgIndex, newcfg, requuid)
-		if err != nil {
-			glog.Errorln("create or update jmx access file error", err, "requuid", requuid, newMember)
-			return nil, err
-		}
-
-		newMembers = append(newMembers, newMember)
-	}
-
-	glog.Infoln("created jmx password and access configs, requuid", requuid)
-	return newMembers, nil
-}
-
-func (s *ManageHTTPServer) createOrUpdateJmxFile(ctx context.Context, member *common.ServiceMember, cfgIndex int, newcfg *manage.ReplicaConfigFile, requuid string) (newMember *common.ServiceMember, err error) {
-	if cfgIndex < 0 {
-		// jmx file not exists, create it
-		jmxCfg, err := s.svc.CreateMemberConfig(ctx, member.ServiceUUID, member.MemberName, newcfg, 0, requuid)
-		if err != nil {
-			glog.Errorln("create jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
-			return nil, err
-		}
-
-		// update member configs
-		newConfigs := db.CopyMemberConfigs(member.Configs)
-		newConfigs = append(newConfigs, jmxCfg)
-
-		newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
-		err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-		if err != nil {
-			glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-			return nil, err
-		}
-
-		glog.Infoln("created jmx config file", newcfg.FileName, "requuid", requuid, member)
-	} else {
-		// jmx file exists, update it
-		cfgfile, err := s.dbIns.GetConfigFile(ctx, member.ServiceUUID, member.Configs[cfgIndex].FileID)
-		if err != nil {
-			glog.Errorln("GetConfigFile error", err, "requuid", requuid, member.Configs[cfgIndex])
-			return nil, err
-		}
-
-		newMember, err = s.updateMemberConfig(ctx, member, cfgfile, cfgIndex, newcfg.Content, requuid)
-		if err != nil {
-			glog.Errorln("update the existing jmx config file", newcfg.FileName, "error", err, "requuid", requuid, member)
-			return nil, err
-		}
-
-		glog.Infoln("updated jmx config file", newcfg.FileName, "requuid", requuid, member)
 	}
 
 	return newMember, nil

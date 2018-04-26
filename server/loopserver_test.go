@@ -35,14 +35,14 @@ func TestLoopServerVolume(t *testing.T) {
 
 	// attach 2 volumes
 	ins1 := "instanceid-1"
-	dev1 := "/dev/loop1"
+	dev1 := "/dev/loop0"
 	err = s.AttachVolume(ctx, vol1, ins1, dev1)
 	if err != nil {
 		t.Fatalf("failed to attach volume", vol1, "error", err)
 	}
 
 	ins2 := "instanceid-2"
-	dev2 := "/dev/loop2"
+	dev2 := "/dev/loop1"
 	err = s.AttachVolume(ctx, vol2, ins2, dev2)
 	if err != nil {
 		t.Fatalf("failed to attach volume", vol2, "error", err)

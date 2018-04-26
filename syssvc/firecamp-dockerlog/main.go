@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-plugins-helpers/sdk"
-	"github.com/sirupsen/logrus"
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/plugins/log"

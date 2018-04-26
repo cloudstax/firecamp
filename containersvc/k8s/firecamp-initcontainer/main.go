@@ -15,9 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/db/k8sconfigdb"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/plugins/network"
 	"github.com/cloudstax/firecamp/plugins/volume"
@@ -68,10 +66,6 @@ func main() {
 	case common.DBTypeCloudDB:
 		dbIns = awsdynamodb.NewDynamoDB(sess, *cluster)
 
-	case common.DBTypeControlDB:
-		addr := dns.GetDefaultControlDBAddr(*cluster)
-		dbIns = controldbcli.NewControlDBCli(addr)
-
 	case common.DBTypeK8sDB:
 		namespace := os.Getenv(common.ENV_K8S_NAMESPACE)
 		if len(namespace) == 0 {
@@ -118,33 +112,33 @@ func main() {
 	}
 
 	// create the config files if necessary
-	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, member, dbIns)
+	err = dockervolume.CreateConfigFile(ctx, common.DefaultConfigPath, attr, member, dbIns)
 	if err != nil {
 		glog.Fatalln("CreateConfigFile error", err, "requuid", requuid, member)
 	}
 
 	// update DNS if required
-	if attr.RegisterDNS && !attr.RequireStaticIP {
-		err = netIns.UpdateDNS(ctx, attr.DomainName, attr.HostedZoneID, member)
+	if attr.Spec.RegisterDNS && !attr.Spec.RequireStaticIP {
+		err = netIns.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member)
 		if err != nil {
 			glog.Fatalln("UpdateDNS error", err, "requuid", requuid, member)
 		}
 	}
 
 	// update static ip if required
-	if attr.RequireStaticIP {
-		err = netIns.UpdateStaticIP(ctx, attr.DomainName, member)
+	if attr.Spec.RequireStaticIP {
+		err = netIns.UpdateStaticIP(ctx, attr.Spec.DomainName, member)
 		if err != nil {
 			glog.Fatalln("UpdateStaticIP error", err, "requuid", requuid, member)
 		}
 
 		// create the staticip file, so the container stop could delete the attached ip.
-		err = k8ssvc.CreateStaticIPFile(member.StaticIP)
+		err = k8ssvc.CreateStaticIPFile(member.Spec.StaticIP)
 		if err != nil {
 			glog.Fatalln("create the staticip file error", err, "requuid", requuid, member)
 		}
 
-		err = netIns.AddIP(member.StaticIP)
+		err = netIns.AddIP(member.Spec.StaticIP)
 		if err != nil {
 			glog.Fatalln("AddIP error", err, "requuid", requuid, member)
 		}

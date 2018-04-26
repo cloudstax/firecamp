@@ -222,12 +222,8 @@ func (s *LoopServer) DeleteVolume(ctx context.Context, volID string) error {
 	return nil
 }
 
-func (s *LoopServer) GetControlDBDeviceName() string {
-	return "/dev/loop0"
-}
-
 func (s *LoopServer) GetFirstDeviceName() string {
-	return "/dev/loop1"
+	return "/dev/loop0"
 }
 
 func (s *LoopServer) GetNextDeviceName(lastDev string) (devName string, err error) {

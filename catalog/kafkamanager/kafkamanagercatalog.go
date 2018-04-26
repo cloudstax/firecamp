@@ -1,17 +1,12 @@
 package kmcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
-	"github.com/golang/glog"
 )
 
 const (
@@ -29,8 +24,6 @@ const (
 	ENV_JAVA_OPTS   = "JAVA_OPTS"
 	ENV_KM_USERNAME = "KM_USERNAME"
 	ENV_KM_PASSWORD = "KM_PASSWORD"
-
-	zkServerSep = ","
 )
 
 // The Yahoo Kafka Manager catalog service, https://github.com/yahoo/kafka-manager
@@ -53,17 +46,14 @@ func ValidateRequest(opts *manage.CatalogKafkaManagerOptions) error {
 }
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
-func GenDefaultCreateServiceRequest(platform string, region string, cluster string,
-	service string, opts *manage.CatalogKafkaManagerOptions, res *common.Resources,
-	zkattr *common.ServiceAttr) (*manage.CreateServiceRequest, error) {
-
-	zkServers := genZkServerList(zkattr)
+func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
+	zkServers string, opts *manage.CatalogKafkaManagerOptions, res *common.Resources) *manage.CreateServiceRequest {
 
 	envkvs := []*common.EnvKeyValuePair{
 		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
 		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
 		&common.EnvKeyValuePair{Name: ENV_ZKHOSTS, Value: zkServers},
-		&common.EnvKeyValuePair{Name: ENV_JAVA_OPTS, Value: fmt.Sprintf("-Xms%dM -Xmx%dM", opts.HeapSizeMB, opts.HeapSizeMB)},
+		&common.EnvKeyValuePair{Name: ENV_JAVA_OPTS, Value: fmt.Sprintf("-Xms%dm -Xmx%dm", opts.HeapSizeMB, opts.HeapSizeMB)},
 		// TODO it is not best to put user & password directly in container environment.
 		// consider to add a record to DB and fetch from DB?
 		&common.EnvKeyValuePair{Name: ENV_KM_USERNAME, Value: opts.User},
@@ -79,19 +69,9 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		reserveMemMB = opts.HeapSizeMB
 	}
 
-	userAttr := &common.KMUserAttr{
-		HeapSizeMB:    opts.HeapSizeMB,
-		ZkServiceName: opts.ZkServiceName,
-		User:          opts.User,
-		Password:      opts.Password,
-	}
-	b, err := json.Marshal(userAttr)
-	if err != nil {
-		glog.Errorln("Marshal UserAttr error", err, opts)
-		return nil, err
-	}
+	serviceCfgs := genServiceConfigs(platform, opts)
 
-	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(platform, cluster, service, 1)
+	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(cluster, service, 1)
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
@@ -108,32 +88,36 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		CatalogServiceType: common.CatalogService_KafkaManager,
+
 		ContainerImage: ContainerImage,
 		// Kafka Manager only needs 1 container.
 		Replicas:       1,
 		PortMappings:   portMappings,
 		Envkvs:         envkvs,
 		RegisterDNS:    true,
+		ServiceConfigs: serviceCfgs,
 		ReplicaConfigs: replicaCfgs,
-
-		UserAttr: &common.ServiceUserAttr{
-			ServiceType: common.CatalogService_KafkaManager,
-			AttrBytes:   b,
-		},
 	}
-	return req, nil
+	return req
 }
 
-// genZkServerList creates the zookeeper server list
-func genZkServerList(zkattr *common.ServiceAttr) string {
-	zkServers := ""
-	for i := int64(0); i < zkattr.Replicas; i++ {
-		member := utils.GenServiceMemberName(zkattr.ServiceName, i)
-		dnsname := dns.GenDNSName(member, zkattr.DomainName)
-		if len(zkServers) != 0 {
-			zkServers += zkServerSep
-		}
-		zkServers += fmt.Sprintf("%s:%d", dnsname, zkcatalog.ClientPort)
+func genServiceConfigs(platform string, opts *manage.CatalogKafkaManagerOptions) []*manage.ConfigFileContent {
+	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, opts.User, opts.Password, opts.ZkServiceName)
+	serviceCfg := &manage.ConfigFileContent{
+		FileName: catalog.SERVICE_FILE_NAME,
+		FileMode: common.DefaultConfigFileMode,
+		Content:  content,
 	}
-	return zkServers
+	return []*manage.ConfigFileContent{serviceCfg}
 }
+
+const (
+	servicefileContent = `
+PLATFORM=%s
+HEAP_SIZE_MB=%d
+KM_USER=%s
+KM_PASSWD=%s
+ZK_SERVICE_NAME=%s
+`
+)

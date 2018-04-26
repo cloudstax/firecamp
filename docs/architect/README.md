@@ -75,8 +75,6 @@ The database is the central place to store all stateful services related metadat
 
 There are 2 requirements for the database: 1) conditional creation/update (create-if-not-exist and update-if-match). 2) strong consistency on get/list. The customer is free to use the databases they are familiar with, as long as the database supports these 2 requirements. FireCamp has built-in support on AWS DynamoDB for AWS ECS and Docker Swarm. For Kubernetes, FireCamp implements DB base on Kubernetes ConfigMap. This will be used for Kubernetes on the public and private clouds.
 
-For Docker Swarm in the private cloud, there are multiple options. FireCamp has a simple controldb (based on the EBS like storage). Or we could consider to deploy an etcd cluster on the Swarm manager nodes. Or if Swarm exposes the similar api with Kubernetes ConfigMap, we could also implement a DB on top of it.
-
 ## The Registry Service
 Currently the major component of the Registry Service is the DNS service. Every service member will have a unique DNS name. No matter where the container moves, FireCamp will keep the DNS server updated. So the members could always talk with each other, and clients could reach the members through the DNS names.
 

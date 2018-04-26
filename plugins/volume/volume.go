@@ -108,12 +108,6 @@ func (d *FireCampVolumeDriver) Create(r volume.Request) volume.Response {
 		return volume.Response{}
 	}
 
-	if utils.IsControlDBService(serviceUUID) {
-		// controldb service volume, return success
-		glog.Infoln("Create, controldb service volume", serviceUUID)
-		return volume.Response{}
-	}
-
 	ctx := context.Background()
 
 	// volume not in cache, check if service exists in DB
@@ -209,7 +203,7 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 		name := containersvc.GenVolumeSourceName(svcuuid, v.member.MemberIndex)
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
-		if len(v.member.Volumes.JournalVolumeID) != 0 {
+		if len(v.member.Spec.Volumes.JournalVolumeID) != 0 {
 			logvolpath := utils.GetServiceJournalVolumeName(svcuuid)
 			name = containersvc.GenVolumeSourceName(logvolpath, v.member.MemberIndex)
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
@@ -272,16 +266,16 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
 	// if the service requires the static ip, no need to update DNS as DNS always points to the static ip.
-	if serviceAttr.RegisterDNS && !serviceAttr.RequireStaticIP {
-		err = d.netSvc.UpdateDNS(ctx, serviceAttr.DomainName, serviceAttr.HostedZoneID, member)
+	if serviceAttr.Spec.RegisterDNS && !serviceAttr.Spec.RequireStaticIP {
+		err = d.netSvc.UpdateDNS(ctx, serviceAttr.Spec.DomainName, serviceAttr.Spec.HostedZoneID, member)
 		if err != nil {
 			return volume.Response{Err: err.Error()}
 		}
 	}
 
 	// updateStaticIP if the service requires the static ip.
-	if serviceAttr.RequireStaticIP {
-		err = d.netSvc.UpdateStaticIP(ctx, serviceAttr.DomainName, member)
+	if serviceAttr.Spec.RequireStaticIP {
+		err = d.netSvc.UpdateStaticIP(ctx, serviceAttr.Spec.DomainName, member)
 		if err != nil {
 			return volume.Response{Err: err.Error()}
 		}
@@ -305,8 +299,8 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// add the ip to network
-	if serviceAttr.RequireStaticIP {
-		err = d.netSvc.AddIP(member.StaticIP)
+	if serviceAttr.Spec.RequireStaticIP {
+		err = d.netSvc.AddIP(member.Spec.StaticIP)
 		if err != nil {
 			errmsg := fmt.Sprintf("add ip error %s, member %s, requuid %s", err, member, requuid)
 			glog.Errorln(errmsg)
@@ -321,8 +315,8 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 		glog.Errorln(errmsg)
 
 		// try to del the ip from network
-		if serviceAttr.RequireStaticIP {
-			err = d.netSvc.DeleteIP(member.StaticIP)
+		if serviceAttr.Spec.RequireStaticIP {
+			err = d.netSvc.DeleteIP(member.Spec.StaticIP)
 			glog.Errorln("delIP error", err, "member", member, "requuid", requuid)
 		}
 
@@ -332,10 +326,10 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	// create the service config file if necessary
 	mpath := d.mountpoint(member.ServiceUUID)
 	configDirPath := filepath.Join(mpath, common.DefaultConfigDir)
-	err = CreateConfigFile(ctx, configDirPath, member, d.dbIns)
+	err = CreateConfigFile(ctx, configDirPath, serviceAttr, member, d.dbIns)
 	if err == nil {
 		// create the service member so the log driver could know the service member.
-		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.MemberName, requuid)
+		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.Meta.MemberName, requuid)
 		if err != nil {
 			glog.Errorln("CreatePluginServiceMemberFile error", err, "requuid", requuid, member)
 			// cleanup the possbile garbage
@@ -355,8 +349,8 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 			glog.Errorln("detached member volumes", member, "error", err, "requuid", requuid)
 
 			// try to del the ip from network
-			if serviceAttr.RequireStaticIP {
-				err = d.netSvc.DeleteIP(member.StaticIP)
+			if serviceAttr.Spec.RequireStaticIP {
+				err = d.netSvc.DeleteIP(member.Spec.StaticIP)
 				glog.Errorln("delIP error", err, "member", member, "requuid", requuid)
 			}
 
@@ -372,7 +366,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	// cache mounted volume
 	d.addMountedVolumeNoLock(serviceUUID, member)
 
-	glog.Infoln("Mount done, requuid", requuid, member.Volumes, member)
+	glog.Infoln("Mount done, requuid", requuid, member.Spec.Volumes, member)
 	return volume.Response{Mountpoint: mountPath}
 }
 
@@ -422,11 +416,11 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 		return volume.Response{}
 	}
 
-	if vol.member.StaticIP != common.DefaultHostIP {
+	if vol.member.Spec.StaticIP != common.DefaultHostIP {
 		// delete the ip from network to make sure no one could access this node by member's ip.
 		// no need to unassign from network interface. The new node that takes over the member
 		// will do it.
-		err = d.netSvc.DeleteIP(vol.member.StaticIP)
+		err = d.netSvc.DeleteIP(vol.member.Spec.StaticIP)
 		if err != nil {
 			errmsg := fmt.Sprintf("delete ip error %s, member %s, requuid %s", err, vol.member, requuid)
 			glog.Errorln(errmsg)
@@ -448,7 +442,7 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 	}
 
 	// last container for the volume, umount fs
-	glog.Infoln("last container for the volume, requuid", requuid, vol.member.Volumes, vol.member)
+	glog.Infoln("last container for the volume, requuid", requuid, vol.member.Spec.Volumes, vol.member)
 	err = d.umountVolumes(ctx, vol.member, requuid)
 	if err != nil {
 		errmsg := fmt.Sprintf("Unmount failed, umount fs %s error %s requuid %s", mountPath, err, requuid)
@@ -463,7 +457,7 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 
 	// detach volume, ignore the possible error.
 	d.detachVolumes(ctx, vol.member, requuid)
-	glog.Infoln("detached volume", vol.member.Volumes, "serverID",
+	glog.Infoln("detached volume", vol.member.Spec.Volumes, "serverID",
 		d.serverInfo.GetLocalInstanceID(), "error", err, "requuid", requuid)
 
 	// don't wait till detach complete, detach may take long time and cause container stop timeout.
@@ -511,42 +505,8 @@ func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string
 
 func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serviceUUID string,
 	memberIndex int64, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
-	var err error
-	// check if the volume is for the controldb service
-	if utils.IsControlDBService(serviceUUID) {
-		// get the hostedZoneID
-		domainName := dns.GenDefaultDomainName(d.containerInfo.GetContainerClusterID())
-		vpcID := d.serverInfo.GetLocalVpcID()
-		vpcRegion := d.serverInfo.GetLocalRegion()
-		private := true
-		hostedZoneID, err := d.dnsIns.GetOrCreateHostedZoneIDByName(ctx, domainName, vpcID, vpcRegion, private)
-		if err != nil {
-			errmsg = fmt.Sprintf("GetOrCreateHostedZoneIDByName error %s domain %s vpc %s %s, service %s, requuid %s",
-				err, domainName, vpcID, vpcRegion, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return nil, nil, errmsg
-		}
-		glog.Infoln("get hostedZoneID", hostedZoneID, "for service", serviceUUID,
-			"domain", domainName, "vpc", vpcID, vpcRegion, "requuid", requuid)
-
-		// detach the volume from the last owner
-		err = d.detachControlDBVolume(ctx, utils.GetControlDBVolumeID(serviceUUID), requuid)
-		if err != nil {
-			errmsg = fmt.Sprintf("detachControlDBVolume error %s service %s, requuid %s", err, serviceUUID, requuid)
-			glog.Errorln(errmsg)
-			return nil, nil, errmsg
-		}
-
-		// get the volume and serviceAttr for the controldb service
-		member, serviceAttr = d.getControlDBVolumeAndServiceAttr(serviceUUID, domainName, hostedZoneID)
-
-		glog.Infoln("get controldb service volume", member, "serviceAttr", serviceAttr, "requuid", requuid)
-		return serviceAttr, member, ""
-	}
-
-	// the application service, talks with the controldb service for volume
 	// get cluster and service names by serviceUUID
-	serviceAttr, err = d.dbIns.GetServiceAttr(ctx, serviceUUID)
+	serviceAttr, err := d.dbIns.GetServiceAttr(ctx, serviceUUID)
 	if err != nil {
 		errmsg := fmt.Sprintf("GetServiceAttr error %s serviceUUID %s requuid %s", err, serviceUUID, requuid)
 		glog.Errorln(errmsg)
@@ -610,16 +570,16 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 	}
 
 	// detach volume from the last owner
-	if len(member.Volumes.JournalVolumeID) != 0 {
-		err = d.detachVolumeFromLastOwner(ctx, member.Volumes.JournalVolumeID, member.ServerInstanceID, member.Volumes.JournalDeviceName, requuid)
+	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
+		err = d.detachVolumeFromLastOwner(ctx, member.Spec.Volumes.JournalVolumeID, member.Spec.ServerInstanceID, member.Spec.Volumes.JournalDeviceName, requuid)
 		if err != nil {
-			glog.Errorln("detach journal volume from last owner error", err, "requuid", requuid, member.Volumes, member)
+			glog.Errorln("detach journal volume from last owner error", err, "requuid", requuid, member.Spec.Volumes, member)
 			return nil, err
 		}
 	}
-	err = d.detachVolumeFromLastOwner(ctx, member.Volumes.PrimaryVolumeID, member.ServerInstanceID, member.Volumes.PrimaryDeviceName, requuid)
+	err = d.detachVolumeFromLastOwner(ctx, member.Spec.Volumes.PrimaryVolumeID, member.Spec.ServerInstanceID, member.Spec.Volumes.PrimaryDeviceName, requuid)
 	if err != nil {
-		glog.Errorln("detach primary volume from last owner error", err, "requuid", requuid, member.Volumes, member)
+		glog.Errorln("detach primary volume from last owner error", err, "requuid", requuid, member.Spec.Volumes, member)
 		return nil, err
 	}
 
@@ -634,8 +594,8 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 		// get taskID of the local task.
 		// assume only one task on one node for one service. It does not make sense to run
 		// like mongodb primary and standby on the same node.
-		localTaskID, err = d.containersvcIns.GetServiceTask(ctx, serviceAttr.ClusterName,
-			serviceAttr.ServiceName, d.containerInfo.GetLocalContainerInstanceID())
+		localTaskID, err = d.containersvcIns.GetServiceTask(ctx, serviceAttr.Meta.ClusterName,
+			serviceAttr.Meta.ServiceName, d.containerInfo.GetLocalContainerInstanceID())
 		if err != nil {
 			glog.Errorln("get local task id error", err, "requuid", requuid,
 				"containerInsID", d.containerInfo.GetLocalContainerInstanceID(), "service attr", serviceAttr)
@@ -660,80 +620,6 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 	return newMember, nil
 }
 
-func (d *FireCampVolumeDriver) detachControlDBVolume(ctx context.Context, volID string, requuid string) error {
-	volInfo, err := d.serverIns.GetVolumeInfo(ctx, volID)
-	if err != nil {
-		glog.Errorln("GetVolumeInfo error", err, volID, "requuid", requuid)
-		return err
-	}
-
-	// sanity check
-	if volInfo.State == server.VolumeStateDetaching || volInfo.State == server.VolumeStateAttaching {
-		if volInfo.Device != d.serverIns.GetControlDBDeviceName() {
-			errmsg := fmt.Sprintf("sanity error, expect controldb device %s, got %s, %s, requuid %s",
-				d.serverIns.GetControlDBDeviceName(), volInfo.Device, volInfo, requuid)
-			glog.Errorln(errmsg)
-			return errors.New(errmsg)
-		}
-	}
-
-	glog.Infoln("get controldb volume", volInfo, "requuid", requuid)
-
-	if len(volInfo.AttachInstanceID) != 0 {
-		// volume was attached to some server, detach it
-		return d.detachVolumeFromLastOwner(ctx, volInfo.VolID, volInfo.AttachInstanceID, volInfo.Device, requuid)
-	}
-	return nil
-}
-
-func (d *FireCampVolumeDriver) getControlDBVolumeAndServiceAttr(serviceUUID string, domainName string, hostedZoneID string) (*common.ServiceMember, *common.ServiceAttr) {
-	mtime := time.Now().UnixNano()
-	// construct the vol for the controldb service
-	// could actually get the taksID, as only one controldb task is running at any time.
-	// but taskID is useless for the controldb service, so simply use empty taskID.
-	taskID := ""
-	mvols := common.MemberVolumes{
-		PrimaryVolumeID:   utils.GetControlDBVolumeID(serviceUUID),
-		PrimaryDeviceName: d.serverIns.GetControlDBDeviceName(),
-	}
-	member := db.CreateServiceMember(serviceUUID,
-		0, // member index
-		common.ServiceMemberStatusActive,
-		common.ControlDBServiceName,
-		d.serverInfo.GetLocalAvailabilityZone(),
-		taskID,
-		d.containerInfo.GetLocalContainerInstanceID(),
-		d.serverInfo.GetLocalInstanceID(),
-		mtime,
-		mvols,
-		"", // static ip
-		nil)
-
-	// construct the serviceAttr for the controldb service
-	// taskCounts and volSizeGB are useless for the controldb service
-	taskCounts := int64(1)
-	registerDNS := true
-	requireStaticIP := false
-	svols := common.ServiceVolumes{
-		PrimaryDeviceName: d.serverIns.GetControlDBDeviceName(),
-		PrimaryVolume: common.ServiceVolume{
-			VolumeType:   common.VolumeTypeGPSSD,
-			VolumeSizeGB: 0,
-		},
-	}
-	res := common.Resources{
-		MaxCPUUnits:     common.DefaultMaxCPUUnits,
-		ReserveCPUUnits: common.DefaultMaxCPUUnits,
-		MaxMemMB:        common.DefaultMaxMemoryMB,
-		ReserveMemMB:    common.DefaultMaxMemoryMB,
-	}
-	attr := db.CreateServiceAttr(serviceUUID, common.ServiceStatusActive, mtime, taskCounts,
-		d.containerInfo.GetContainerClusterID(), common.ControlDBServiceName,
-		svols, registerDNS, domainName, hostedZoneID, requireStaticIP, nil, res, "")
-
-	return member, attr
-}
-
 func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 	serviceAttr *common.ServiceAttr, requuid string) (member *common.ServiceMember, err error) {
 	// list all tasks of the service
@@ -746,14 +632,14 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 	// https://mesosphere.github.io/marathon/docs/rest-api.html
 	// k8: kubectl get pods -l app=nginx
 	// http://kubernetes.io/docs/tutorials/stateless-application/run-stateless-application-deployment/
-	taskIDs, err := d.containersvcIns.ListActiveServiceTasks(ctx, serviceAttr.ClusterName, serviceAttr.ServiceName)
+	taskIDs, err := d.containersvcIns.ListActiveServiceTasks(ctx, serviceAttr.Meta.ClusterName, serviceAttr.Meta.ServiceName)
 	if err != nil {
 		glog.Errorln("ListActiveServiceTasks error", err, "service attr", serviceAttr, "requuid", requuid)
 		return nil, err
 	}
 
 	var localIPs map[string]bool
-	if serviceAttr.RequireStaticIP {
+	if serviceAttr.Spec.RequireStaticIP {
 		netif, err := d.serverIns.GetInstanceNetworkInterface(ctx, d.serverInfo.GetLocalInstanceID())
 		if err != nil {
 			glog.Errorln("GetInstanceNetworkInterface error", err, "requuid", requuid, serviceAttr)
@@ -783,25 +669,25 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 	for i, member := range members {
 		// TODO filter out non local zone member at ListServiceMembers
 		zone := d.serverInfo.GetLocalAvailabilityZone()
-		if member.AvailableZone != zone {
+		if member.Spec.AvailableZone != zone {
 			glog.V(1).Infoln("member is not in local zone", zone, member)
 			continue
 		}
 
 		// check if the member is idle
-		_, ok := taskIDs[member.TaskID]
+		_, ok := taskIDs[member.Spec.TaskID]
 		if !ok {
 			glog.Infoln("find idle member", member, "service", serviceAttr, "requuid", requuid)
 
 			// select the idle member that is previously owned by the local node
-			if member.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
+			if member.Spec.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
 				glog.Infoln("idle member is previously owned by the local instance", member, "requuid", requuid)
 				return member, nil
 			}
 
 			// select the member if the member's static ip is assigned to the local node
-			if serviceAttr.RequireStaticIP {
-				_, local := localIPs[member.StaticIP]
+			if serviceAttr.Spec.RequireStaticIP {
+				_, local := localIPs[member.Spec.StaticIP]
 				if local {
 					glog.Infoln("member's static ip is assigned to the local node, requuid", requuid, member)
 					return member, nil
@@ -828,7 +714,7 @@ func (d *FireCampVolumeDriver) findIdleMember(ctx context.Context,
 		// member's task is still running
 		// It is weird, but when testing mongodb container with member, the same task
 		// may mount and umount the volume, then try to mount again. Don't know why.
-		if member.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
+		if member.Spec.ContainerInstanceID == d.containerInfo.GetLocalContainerInstanceID() {
 			glog.Infoln("member task is still running on local instance, reuse it", member, "requuid", requuid)
 			return member, nil
 		}
@@ -850,19 +736,19 @@ func (d *FireCampVolumeDriver) mountpoint(subpath string) string {
 }
 
 func (d *FireCampVolumeDriver) attachVolumes(ctx context.Context, member *common.ServiceMember, requuid string) error {
-	vols := &(member.Volumes)
+	vols := &(member.Spec.Volumes)
 	// attach the primary volume to host
-	err := d.serverIns.AttachVolume(ctx, vols.PrimaryVolumeID, member.ServerInstanceID, vols.PrimaryDeviceName)
+	err := d.serverIns.AttachVolume(ctx, vols.PrimaryVolumeID, member.Spec.ServerInstanceID, vols.PrimaryDeviceName)
 	if err != nil {
 		glog.Errorln("attach the primary volume error", err, "requuid", requuid, vols, member)
 		return err
 	}
 
 	if len(vols.JournalVolumeID) != 0 {
-		err := d.serverIns.AttachVolume(ctx, vols.JournalVolumeID, member.ServerInstanceID, vols.JournalDeviceName)
+		err := d.serverIns.AttachVolume(ctx, vols.JournalVolumeID, member.Spec.ServerInstanceID, vols.JournalDeviceName)
 		if err != nil {
-			glog.Errorln("attach the journal volume error", err, "requuid", requuid, member.Volumes, member)
-			d.serverIns.DetachVolume(ctx, vols.PrimaryVolumeID, member.ServerInstanceID, vols.PrimaryDeviceName)
+			glog.Errorln("attach the journal volume error", err, "requuid", requuid, member.Spec.Volumes, member)
+			d.serverIns.DetachVolume(ctx, vols.PrimaryVolumeID, member.Spec.ServerInstanceID, vols.PrimaryDeviceName)
 			return err
 		}
 	}
@@ -895,14 +781,14 @@ func (d *FireCampVolumeDriver) attachVolumes(ctx context.Context, member *common
 }
 
 func (d *FireCampVolumeDriver) detachVolumes(ctx context.Context, member *common.ServiceMember, requuid string) {
-	vols := &(member.Volumes)
+	vols := &(member.Spec.Volumes)
 
 	err := d.serverIns.DetachVolume(ctx, vols.PrimaryVolumeID, d.serverInfo.GetLocalInstanceID(), vols.PrimaryDeviceName)
 	if err != nil {
 		glog.Errorln("detach the primary volume error", err, "requuid", requuid, vols, member)
 	}
 
-	if len(member.Volumes.JournalVolumeID) != 0 {
+	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
 		err = d.serverIns.DetachVolume(ctx, vols.JournalVolumeID, d.serverInfo.GetLocalInstanceID(), vols.JournalDeviceName)
 		if err != nil {
 			glog.Errorln("detach the journal volume error", err, "requuid", requuid, vols, member)
@@ -912,21 +798,21 @@ func (d *FireCampVolumeDriver) detachVolumes(ctx context.Context, member *common
 
 func (d *FireCampVolumeDriver) formatVolumes(ctx context.Context, member *common.ServiceMember, requuid string) error {
 	// format dev if necessary
-	formatted := d.isFormatted(member.Volumes.PrimaryDeviceName)
+	formatted := d.isFormatted(member.Spec.Volumes.PrimaryDeviceName)
 	if !formatted {
-		err := d.formatFS(member.Volumes.PrimaryDeviceName)
+		err := d.formatFS(member.Spec.Volumes.PrimaryDeviceName)
 		if err != nil {
-			glog.Errorln("format the primary device error", err, "requuid", requuid, member.Volumes)
+			glog.Errorln("format the primary device error", err, "requuid", requuid, member.Spec.Volumes)
 			return err
 		}
 	}
 
-	if len(member.Volumes.JournalVolumeID) != 0 {
-		formatted := d.isFormatted(member.Volumes.JournalDeviceName)
+	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
+		formatted := d.isFormatted(member.Spec.Volumes.JournalDeviceName)
 		if !formatted {
-			err := d.formatFS(member.Volumes.JournalDeviceName)
+			err := d.formatFS(member.Spec.Volumes.JournalDeviceName)
 			if err != nil {
-				glog.Errorln("format the journal device error", err, "requuid", requuid, member.Volumes)
+				glog.Errorln("format the journal device error", err, "requuid", requuid, member.Spec.Volumes)
 				return err
 			}
 		}
@@ -938,24 +824,24 @@ func (d *FireCampVolumeDriver) formatVolumes(ctx context.Context, member *common
 func (d *FireCampVolumeDriver) mountVolumes(ctx context.Context, member *common.ServiceMember, requuid string) error {
 	// mount the primary volume
 	primaryMountPath := d.mountpoint(member.ServiceUUID)
-	err := d.mountFS(member.Volumes.PrimaryDeviceName, primaryMountPath)
+	err := d.mountFS(member.Spec.Volumes.PrimaryDeviceName, primaryMountPath)
 	if err != nil {
-		glog.Errorln("mount primary device error", err, "requuid", requuid, "mount path", primaryMountPath, member.Volumes)
+		glog.Errorln("mount primary device error", err, "requuid", requuid, "mount path", primaryMountPath, member.Spec.Volumes)
 		return err
 	}
-	glog.Infoln("mount primary device to", primaryMountPath, "requuid", requuid, member.Volumes)
+	glog.Infoln("mount primary device to", primaryMountPath, "requuid", requuid, member.Spec.Volumes)
 
 	// mount the journal volume
-	if len(member.Volumes.JournalVolumeID) != 0 {
+	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
 		mpath := d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
-		err := d.mountFS(member.Volumes.JournalDeviceName, mpath)
+		err := d.mountFS(member.Spec.Volumes.JournalDeviceName, mpath)
 		if err != nil {
-			glog.Errorln("mount journal device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
+			glog.Errorln("mount journal device error", err, "requuid", requuid, "mount path", mpath, member.Spec.Volumes)
 			// unmount the primary device. TODO if the unmount fails, manual retry may be required.
 			d.unmountFS(primaryMountPath)
 			return err
 		}
-		glog.Infoln("mount journal device to", mpath, "requuid", requuid, member.Volumes)
+		glog.Infoln("mount journal device to", mpath, "requuid", requuid, member.Spec.Volumes)
 	}
 
 	return nil
@@ -966,20 +852,20 @@ func (d *FireCampVolumeDriver) umountVolumes(ctx context.Context, member *common
 	mpath := d.mountpoint(member.ServiceUUID)
 	err := d.unmountFS(mpath)
 	if err != nil {
-		glog.Errorln("umount primary device error", err, "requuid", requuid, "mount path", mpath, member.Volumes)
+		glog.Errorln("umount primary device error", err, "requuid", requuid, "mount path", mpath, member.Spec.Volumes)
 	} else {
-		glog.Infoln("umount primary device from", mpath, "requuid", requuid, member.Volumes)
+		glog.Infoln("umount primary device from", mpath, "requuid", requuid, member.Spec.Volumes)
 	}
 
 	// umount the journal volume
-	if len(member.Volumes.JournalVolumeID) != 0 {
+	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
 		mpath = d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
 		err1 := d.unmountFS(mpath)
 		if err1 != nil {
-			glog.Errorln("umount journal device error", err1, "requuid", requuid, "mount path", mpath, member.Volumes)
+			glog.Errorln("umount journal device error", err1, "requuid", requuid, "mount path", mpath, member.Spec.Volumes)
 			return err1
 		}
-		glog.Infoln("umount journal device from", mpath, "requuid", requuid, member.Volumes)
+		glog.Infoln("umount journal device from", mpath, "requuid", requuid, member.Spec.Volumes)
 	}
 
 	return err

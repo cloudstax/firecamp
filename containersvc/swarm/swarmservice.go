@@ -54,7 +54,7 @@ const (
 // Swarm doesn't support the task execution. The SwarmSvc will have to manage the task
 // lifecycle. The Docker daemon on the swarm worker node will have to listen on the
 // host port, so docker API could be accessed remotely. The SwarmSvc will periodically
-// collect the metrics, select one node, store it in the controldb. If the node is full,
+// collect the metrics, select one node, store it in db. If the node is full,
 // select another node to run the task.
 // At v1, the task is simply run on the swarm manager node. This is not a big issue, as
 // the task would usually run some simple job, such as setup the MongoDB ReplicaSet.

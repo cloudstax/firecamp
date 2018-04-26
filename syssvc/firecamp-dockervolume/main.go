@@ -17,7 +17,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc/swarm"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/controldb/client"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/plugins/volume"
@@ -30,7 +29,6 @@ const socketAddress = "/run/docker/plugins/" + common.SystemName + "vol.sock"
 
 var (
 	platform  = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
-	dbtype    = flag.String("dbtype", common.DBTypeCloudDB, "The db type, such as the AWS DynamoDB or the embedded controldb")
 	tlsVerify = flag.Bool("tlsverify", false, "Whether enable tls verify to talk with swarm manager")
 	caFile    = flag.String("tlscacert", "", "The CA file")
 	certFile  = flag.String("tlscert", "", "The TLS server certificate file")
@@ -127,14 +125,7 @@ func main() {
 		glog.Fatalln("NewEc2Info error", err)
 	}
 
-	var dbIns db.DB
-	switch *dbtype {
-	case common.DBTypeCloudDB:
-		dbIns = awsdynamodb.NewDynamoDB(sess, info.GetContainerClusterID())
-	case common.DBTypeControlDB:
-		addr := dns.GetDefaultControlDBAddr(info.GetContainerClusterID())
-		dbIns = controldbcli.NewControlDBCli(addr)
-	}
+	dbIns := awsdynamodb.NewDynamoDB(sess, info.GetContainerClusterID())
 
 	ec2Ins := awsec2.NewAWSEc2(sess)
 	dnsIns := awsroute53.NewAWSRoute53(sess)

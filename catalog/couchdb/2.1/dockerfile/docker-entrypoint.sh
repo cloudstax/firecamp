@@ -4,14 +4,19 @@ set -e
 rootdir=/data
 datadir=/data/couchdb
 confdir=/data/conf
-localinifile=$confdir/local.ini
-vmargsfile=$confdir/vm.args
 
+# after release 0.9.5, these files are not created any more.
 syscfgfile=$confdir/sys.conf
 
-USER=couchdb
 
-export ERL_FLAGS="-couch_ini /opt/couchdb/etc/default.ini $localinifile"
+localinifile=$confdir/local.ini
+vmargsfile=$confdir/vm.args
+servicecfgfile=$confdir/service.conf
+membercfgfile=$confdir/member.conf
+
+couchdir=/opt/couchdb/etc
+
+USER=couchdb
 
 # sanity check to make sure the volume is mounted to /data.
 if [ ! -d "$rootdir" ]; then
@@ -34,10 +39,6 @@ if [ ! -f "$vmargsfile" ]; then
   echo "error: $vmargsfile not exist." >&2
   exit 1
 fi
-if [ ! -f "$syscfgfile" ]; then
-  echo "error: $syscfgfile not exist." >&2
-  exit 1
-fi
 
 # allow the container to be started with `--user`
 if [ "$1" = '/opt/couchdb/bin/couchdb' -a "$(id -u)" = '0' ]; then
@@ -55,11 +56,53 @@ if [ "$1" = '/opt/couchdb/bin/couchdb' -a "$(id -u)" = '0' ]; then
   exec gosu "$USER" "$BASH_SOURCE" "$@"
 fi
 
-# add configuration files
-cp $vmargsfile /opt/couchdb/etc/
+# copy the configuration files
+cp $localinifile $couchdir
+cp $vmargsfile $couchdir
 
-# load the sys config file
-. $syscfgfile
+if [ -f $servicecfgfile ]; then
+  # after release 0.9.5, load service and member configs
+  . $servicecfgfile
+  . $membercfgfile
+
+  # update vm.args file
+  sed -i 's/couchdb@localhost/couchdb@'$SERVICE_MEMBER'/g' $couchdir/vm.args
+
+  # update local.ini file
+  sed -i 's/uuid = uuid-member/uuid = '$UUID'-'$MEMBER_NAME'/g' $couchdir/local.ini
+  sed -i 's/enable_cors = false/enable_cors = '$ENABLE_CORS'/g' $couchdir/local.ini
+  sed -i 's/admin = encryptePasswd/'$ADMIN' = '$ENCRYPTED_ADMIN_PASSWD'/g' $couchdir/local.ini
+
+  if [ "$ENABLE_CORS" = "true" ]; then
+    echo "[cors]" >> $couchdir/local.ini
+    echo "credentials = $CREDENTIALS" >> $couchdir/local.ini
+    echo "; List of origins separated by a comma, * means accept all" >> $couchdir/local.ini
+    echo "; Origins must include the scheme: http://example.com" >> $couchdir/local.ini
+    echo "; You can't set origins: * and credentials = true at the same time." >> $couchdir/local.ini
+    echo "origins = $ORIGINS" >> $couchdir/local.ini
+    echo "; List of accepted headers separated by a comma" >> $couchdir/local.ini
+    echo "headers = $HEADERS" >> $couchdir/local.ini
+    echo "; List of accepted methods" >> $couchdir/local.ini
+    echo "methods = $METHODS" >> $couchdir/local.ini
+  fi
+
+  if [ "$ENABLE_SSL" = "true" ]; then
+    echo "[daemons]" >> $couchdir/local.ini
+    echo "httpsd = {couch_httpd, start_link, [https]}" >> $couchdir/local.ini
+    echo "[ssl]" >> $couchdir/local.ini
+    echo "cert_file = /data/conf/couchdb.pem" >> $couchdir/local.ini
+    echo "key_file = /data/conf/privkey.pem" >> $couchdir/local.ini
+
+    if [ "$HAS_CA_CERT_FILE" = "true" ]; then
+      echo "cacert_file = /data/conf/ca-certificates.crt" >> $couchdir/local.ini
+    fi
+  fi
+
+else
+  # load the sys config file
+  . $syscfgfile
+fi
+
 echo $SERVICE_MEMBER
 
 echo "$@"

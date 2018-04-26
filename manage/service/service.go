@@ -157,7 +157,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 	glog.Infoln("created service attr, requuid", requuid, serviceAttr)
 
 	// create the desired number of serviceMembers
-	err = s.CheckAndCreateServiceMembers(ctx, serviceAttr, req)
+	err = s.CheckAndCreateServiceMembers(ctx, req.Replicas, serviceAttr, req.ReplicaConfigs)
 	if err != nil {
 		glog.Errorln("CheckAndCreateServiceMembers failed", err, "requuid", requuid, "service", serviceAttr)
 		return "", err
@@ -191,7 +191,7 @@ func (s *ManageService) SetServiceInitialized(ctx context.Context, cluster strin
 		return err
 	}
 
-	switch sattr.ServiceStatus {
+	switch sattr.Meta.ServiceStatus {
 	case common.ServiceStatusCreating:
 		glog.Errorln("service is at the creating status, requuid", requuid, sattr)
 		return db.ErrDBConditionalCheckFailed
@@ -245,11 +245,11 @@ func (s *ManageService) ListServiceVolumes(ctx context.Context, cluster string, 
 	}
 
 	for _, m := range members {
-		if len(m.Volumes.PrimaryVolumeID) != 0 {
-			serviceVolumes = append(serviceVolumes, m.Volumes.PrimaryVolumeID)
+		if len(m.Spec.Volumes.PrimaryVolumeID) != 0 {
+			serviceVolumes = append(serviceVolumes, m.Spec.Volumes.PrimaryVolumeID)
 		}
-		if len(m.Volumes.JournalVolumeID) != 0 {
-			serviceVolumes = append(serviceVolumes, m.Volumes.JournalVolumeID)
+		if len(m.Spec.Volumes.JournalVolumeID) != 0 {
+			serviceVolumes = append(serviceVolumes, m.Spec.Volumes.JournalVolumeID)
 		}
 	}
 
@@ -321,7 +321,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		return volIDs, err
 	}
 
-	if sattr.ServiceStatus != common.ServiceStatusDeleting {
+	if sattr.Meta.ServiceStatus != common.ServiceStatusDeleting {
 		// set service status to deleting
 		newAttr := db.UpdateServiceStatus(sattr, common.ServiceStatusDeleting)
 		err = s.dbIns.UpdateServiceAttr(ctx, sattr, newAttr)
@@ -347,12 +347,12 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	glog.Infoln("deleting the config files from DB, service attr, requuid", requuid, sattr)
 	for _, m := range members {
 		// delete the member's dns record
-		dnsname := dns.GenDNSName(m.MemberName, sattr.DomainName)
-		s.deleteDNSRecord(ctx, dnsname, sattr.HostedZoneID, requuid)
+		dnsname := dns.GenDNSName(m.Meta.MemberName, sattr.Spec.DomainName)
+		s.deleteDNSRecord(ctx, dnsname, sattr.Spec.HostedZoneID, requuid)
 
 		// delete the member's static ip
-		if sattr.RequireStaticIP {
-			err = s.dbIns.DeleteServiceStaticIP(ctx, m.StaticIP)
+		if sattr.Spec.RequireStaticIP {
+			err = s.dbIns.DeleteServiceStaticIP(ctx, m.Spec.StaticIP)
 			if err != nil && err != db.ErrDBRecordNotFound {
 				glog.Errorln("DeleteServiceStaticIP error", err, "requuid", requuid, "member", m)
 				return volIDs, err
@@ -361,7 +361,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 		}
 
 		// delete the member's config files
-		for _, c := range m.Configs {
+		for _, c := range m.Spec.Configs {
 			err := s.dbIns.DeleteConfigFile(ctx, m.ServiceUUID, c.FileID)
 			if err != nil && err != db.ErrDBRecordNotFound {
 				glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c, "serviceMember", m)
@@ -375,7 +375,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 			// k8s statefulset takes care of the volume, no need to detach.
 			err = s.detachVolumes(ctx, m, requuid)
 			if err != nil {
-				glog.Errorln("detach volume error", err, "requuid", requuid, m.Volumes, m)
+				glog.Errorln("detach volume error", err, "requuid", requuid, m.Spec.Volumes, m)
 				return volIDs, err
 			}
 		}
@@ -385,11 +385,11 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	glog.Infoln("deleting serviceMembers from DB, service attr", sattr, "serviceMembers", len(members), "requuid", requuid)
 	for _, m := range members {
 		// delete the container service volume, the possible error is skipped
-		if len(m.Volumes.PrimaryVolumeID) != 0 {
-			s.containersvcIns.DeleteServiceVolume(ctx, sattr.ServiceName, m.MemberIndex, false)
+		if len(m.Spec.Volumes.PrimaryVolumeID) != 0 {
+			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberIndex, false)
 		}
-		if len(m.Volumes.JournalVolumeID) != 0 {
-			s.containersvcIns.DeleteServiceVolume(ctx, sattr.ServiceName, m.MemberIndex, true)
+		if len(m.Spec.Volumes.JournalVolumeID) != 0 {
+			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberIndex, true)
 		}
 
 		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberIndex)
@@ -400,11 +400,11 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 
 		glog.V(1).Infoln("deleted serviceMember, requuid", requuid, m)
 
-		if len(m.Volumes.PrimaryVolumeID) != 0 {
-			volIDs = append(volIDs, m.Volumes.PrimaryVolumeID)
+		if len(m.Spec.Volumes.PrimaryVolumeID) != 0 {
+			volIDs = append(volIDs, m.Spec.Volumes.PrimaryVolumeID)
 		}
-		if len(m.Volumes.JournalVolumeID) != 0 {
-			volIDs = append(volIDs, m.Volumes.JournalVolumeID)
+		if len(m.Spec.Volumes.JournalVolumeID) != 0 {
+			volIDs = append(volIDs, m.Spec.Volumes.JournalVolumeID)
 		}
 	}
 	glog.Infoln("deleted", len(members), "serviceMembers from DB, service attr", sattr, "requuid", requuid)
@@ -412,10 +412,20 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	// TODO the static ip record is created before the service member record.
 	// some static ip record may be left in DB. scan to delete them.
 
+	// delete the service's config files
+	for _, c := range sattr.Spec.ServiceConfigs {
+		err := s.dbIns.DeleteConfigFile(ctx, sattr.ServiceUUID, c.FileID)
+		if err != nil && err != db.ErrDBRecordNotFound {
+			glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, "config", c)
+			return volIDs, err
+		}
+		glog.V(1).Infoln("deleted config file", c.FileID, sattr.ServiceUUID, "requuid", requuid)
+	}
+
 	// delete the devices
 	err = s.deleteDevices(ctx, sattr, requuid)
 	if err != nil {
-		glog.Errorln("delete device error", err, "requuid", requuid, sattr.Volumes, sattr)
+		glog.Errorln("delete device error", err, "requuid", requuid, sattr.Spec.Volumes, sattr)
 		return volIDs, err
 	}
 
@@ -466,25 +476,25 @@ func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMemb
 	// returned volume not mounted. No unmount call to the volume driver.
 
 	// detach the journal volume
-	if len(m.Volumes.JournalVolumeID) != 0 {
-		err := s.detachVolume(ctx, m.Volumes.JournalVolumeID, m.ServerInstanceID, m.Volumes.JournalDeviceName, requuid)
+	if len(m.Spec.Volumes.JournalVolumeID) != 0 {
+		err := s.detachVolume(ctx, m.Spec.Volumes.JournalVolumeID, m.Spec.ServerInstanceID, m.Spec.Volumes.JournalDeviceName, requuid)
 		if err != nil {
-			glog.Errorln("detach journal volume error", err, m.Volumes.JournalVolumeID, "requuid", requuid, m)
+			glog.Errorln("detach journal volume error", err, m.Spec.Volumes.JournalVolumeID, "requuid", requuid, m)
 			return err
 		}
 
-		glog.Infoln("detached journal volume", m.Volumes.JournalVolumeID, "requuid", requuid, m.MemberName)
+		glog.Infoln("detached journal volume", m.Spec.Volumes.JournalVolumeID, "requuid", requuid, m.Meta.MemberName)
 	}
 
 	// detach the primary volume
-	if len(m.Volumes.PrimaryVolumeID) != 0 {
-		err := s.detachVolume(ctx, m.Volumes.PrimaryVolumeID, m.ServerInstanceID, m.Volumes.PrimaryDeviceName, requuid)
+	if len(m.Spec.Volumes.PrimaryVolumeID) != 0 {
+		err := s.detachVolume(ctx, m.Spec.Volumes.PrimaryVolumeID, m.Spec.ServerInstanceID, m.Spec.Volumes.PrimaryDeviceName, requuid)
 		if err != nil {
-			glog.Errorln("detach volume error", err, m.Volumes.PrimaryVolumeID, "requuid", requuid, m)
+			glog.Errorln("detach volume error", err, m.Spec.Volumes.PrimaryVolumeID, "requuid", requuid, m)
 			return err
 		}
 
-		glog.Infoln("detached volume", m.Volumes.PrimaryVolumeID, "requuid", requuid, m.MemberName)
+		glog.Infoln("detached volume", m.Spec.Volumes.PrimaryVolumeID, "requuid", requuid, m.Meta.MemberName)
 	}
 
 	return nil
@@ -509,23 +519,23 @@ func (s *ManageService) detachVolume(ctx context.Context, volID string, serverIn
 }
 
 func (s *ManageService) deleteDevices(ctx context.Context, sattr *common.ServiceAttr, requuid string) error {
-	if len(sattr.Volumes.PrimaryDeviceName) != 0 {
+	if len(sattr.Spec.Volumes.PrimaryDeviceName) != 0 {
 		// delete the primary device
-		err := s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.PrimaryDeviceName)
+		err := s.dbIns.DeleteDevice(ctx, sattr.Meta.ClusterName, sattr.Spec.Volumes.PrimaryDeviceName)
 		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("delete primary device error", err, "requuid", requuid, sattr.Volumes, sattr)
+			glog.Errorln("delete primary device error", err, "requuid", requuid, sattr.Spec.Volumes, sattr)
 			return err
 		}
-		glog.Infoln("deleted primary device, requuid", requuid, sattr.Volumes, sattr)
+		glog.Infoln("deleted primary device, requuid", requuid, sattr.Spec.Volumes, sattr)
 	}
 
-	if len(sattr.Volumes.JournalDeviceName) != 0 {
-		err := s.dbIns.DeleteDevice(ctx, sattr.ClusterName, sattr.Volumes.JournalDeviceName)
+	if len(sattr.Spec.Volumes.JournalDeviceName) != 0 {
+		err := s.dbIns.DeleteDevice(ctx, sattr.Meta.ClusterName, sattr.Spec.Volumes.JournalDeviceName)
 		if err != nil && err != db.ErrDBRecordNotFound {
-			glog.Errorln("delete journal device error", err, "requuid", requuid, sattr.Volumes, sattr)
+			glog.Errorln("delete journal device error", err, "requuid", requuid, sattr.Spec.Volumes, sattr)
 			return err
 		}
-		glog.Infoln("deleted journal device, requuid", requuid, sattr.Volumes, sattr)
+		glog.Infoln("deleted journal device, requuid", requuid, sattr.Spec.Volumes, sattr)
 	}
 
 	return nil
@@ -772,10 +782,17 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	domainName string, hostedZoneID string, req *manage.CreateServiceRequest) (serviceCreated bool, sattr *common.ServiceAttr, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
+	// check and create the config file first
+	cfgs, err := s.checkAndCreateConfigFile(ctx, serviceUUID, req.Service.ServiceName, req.ServiceConfigs)
+	if err != nil {
+		glog.Errorln("checkAndCreateConfigFile error", err, "service", req.Service.ServiceName, "requuid", requuid)
+		return false, nil, err
+	}
+
 	// create service attr
-	serviceAttr := db.CreateInitialServiceAttr(serviceUUID, req.Replicas, req.Service.Cluster,
-		req.Service.ServiceName, *svols, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP,
-		req.UserAttr, *req.Resource, req.Service.ServiceType)
+	meta := db.CreateServiceMeta(req.Service.Cluster, req.Service.ServiceName, time.Now().UnixNano(), req.Service.ServiceType, common.ServiceStatusCreating)
+	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, req.CatalogServiceType, svols)
+	serviceAttr := db.CreateServiceAttr(serviceUUID, 0, meta, spec)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {
 		glog.Infoln("created service attr in db", serviceAttr, "requuid", requuid)
@@ -799,14 +816,15 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// check if it is a retry request. If not, return error
 	skipMtime := true
-	serviceAttr.ServiceStatus = sattr.ServiceStatus
-	if !db.EqualServiceAttr(serviceAttr, sattr, skipMtime) {
+	skipRevision := true
+	serviceAttr.Meta.ServiceStatus = sattr.Meta.ServiceStatus
+	if !db.EqualServiceAttr(serviceAttr, sattr, skipMtime, skipRevision) {
 		glog.Errorln("service exists, old service", sattr, "new", serviceAttr, "requuid", requuid)
 		return false, sattr, common.ErrServiceExist
 	}
 
 	// a retry request, check the service status
-	switch sattr.ServiceStatus {
+	switch sattr.Meta.ServiceStatus {
 	case common.ServiceStatusCreating:
 		// service is at creating status, continue the creation
 		glog.V(0).Infoln("service is at the creating status", sattr, "requuid", requuid)
@@ -835,7 +853,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 }
 
 // CheckAndCreateServiceMembers check and create the service members
-func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr *common.ServiceAttr, req *manage.CreateServiceRequest) error {
+func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, replicas int64, sattr *common.ServiceAttr, replicaConfigs []*manage.ReplicaConfig) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// list to find out how many serviceMembers were already created
@@ -846,8 +864,8 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 	}
 
 	var staticIPs map[string][]*common.ServiceStaticIP
-	if req.RequireStaticIP {
-		staticIPs, err = s.createStaticIPs(ctx, sattr, req, members)
+	if sattr.Spec.RequireStaticIP {
+		staticIPs, err = s.createStaticIPs(ctx, sattr, replicaConfigs, members)
 		if err != nil {
 			glog.Errorln("createStaticIPs error", err, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 			return err
@@ -862,21 +880,21 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 	// old config. The retry will not recreate those serviceMembers.
 	// If the customer wants to retry with the different config, should delete the current service first.
 
-	allMembers := make([]*common.ServiceMember, req.Replicas)
+	allMembers := make([]*common.ServiceMember, replicas)
 	copy(allMembers, members)
 
-	for i := len(members); i < int(req.Replicas); i++ {
-		replicaCfg := req.ReplicaConfigs[i]
+	for i := len(members); i < int(replicas); i++ {
+		replicaCfg := replicaConfigs[i]
 
 		// create the dns record with faked ip. This could help to reduce the initial dns lookup wait time (60s).
 		// sometimes, the dns lookup wait could be reduced to like 15s in the volume driver.
-		dnsname := dns.GenDNSName(replicaCfg.MemberName, sattr.DomainName)
+		dnsname := dns.GenDNSName(replicaCfg.MemberName, sattr.Spec.DomainName)
 
 		// faked host ip for DNS update
 		// TODO could get all server instance IDs and ips, assign the member to one instance.
 		//      this may help to reduce the initial 1m dns lookup waiting.
 		hostIP := common.DefaultHostIP
-		if sattr.RequireStaticIP {
+		if sattr.Spec.RequireStaticIP {
 			// get one static ip
 			ips, ok := staticIPs[replicaCfg.Zone]
 			if !ok {
@@ -899,7 +917,7 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 			staticIPs[replicaCfg.Zone] = ips
 		}
 
-		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.HostedZoneID)
+		err = s.dnsIns.UpdateDNSRecord(ctx, dnsname, hostIP, sattr.Spec.HostedZoneID)
 		if err != nil {
 			// ignore the error. When container is created, the actual dns record will be created.
 			glog.Errorln("UpdateDNSRecord error", err, "dnsname", dnsname, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
@@ -907,7 +925,7 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 		glog.Infoln("updated member dns", dnsname, "to", hostIP, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 
 		// check and create the config file first
-		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, replicaCfg)
+		cfgs, err := s.checkAndCreateConfigFile(ctx, sattr.ServiceUUID, replicaCfg.MemberName, replicaCfg.Configs)
 		if err != nil {
 			glog.Errorln("checkAndCreateConfigFile error", err, "service", sattr.ServiceUUID,
 				"member", replicaCfg.MemberName, "requuid", requuid)
@@ -923,31 +941,31 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 		allMembers[i] = member
 	}
 
-	glog.Infoln("created", req.Replicas-int64(len(members)), "serviceMembers for serviceUUID",
-		sattr.ServiceUUID, req.Service, "requuid", requuid)
+	glog.Infoln("created", replicas-int64(len(members)), "serviceMembers for service",
+		sattr, "requuid", requuid)
 
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if sattr.Meta.ServiceType != common.ServiceTypeStateless {
 		// EBS volume creation is async in the background. Volume state will be creating,
 		// then available. block waiting here, as EBS Volume creation is pretty fast,
 		// usually 3 seconds. see ec2_test.go output.
 		for _, member := range allMembers {
-			if len(member.Volumes.PrimaryVolumeID) != 0 {
-				err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.PrimaryVolumeID)
+			if len(member.Spec.Volumes.PrimaryVolumeID) != 0 {
+				err = s.serverIns.WaitVolumeCreated(ctx, member.Spec.Volumes.PrimaryVolumeID)
 				if err != nil {
-					glog.Errorln("wait primary volume created error", err, "requuid", requuid, member.Volumes, member)
+					glog.Errorln("wait primary volume created error", err, "requuid", requuid, member.Spec.Volumes, member)
 					return errors.New("wait volume created error: " + err.Error())
 				}
 			}
 
-			if len(member.Volumes.JournalVolumeID) != 0 {
-				err = s.serverIns.WaitVolumeCreated(ctx, member.Volumes.JournalVolumeID)
+			if len(member.Spec.Volumes.JournalVolumeID) != 0 {
+				err = s.serverIns.WaitVolumeCreated(ctx, member.Spec.Volumes.JournalVolumeID)
 				if err != nil {
-					glog.Errorln("wait journal volume created error", err, "requuid", requuid, member.Volumes, member)
+					glog.Errorln("wait journal volume created error", err, "requuid", requuid, member.Spec.Volumes, member)
 					return errors.New("wait volume created error: " + err.Error())
 				}
 			}
 
-			glog.Infoln("created volumes, requuid", requuid, member.Volumes, member)
+			glog.Infoln("created volumes, requuid", requuid, member.Spec.Volumes, member)
 		}
 	}
 
@@ -955,45 +973,43 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, sattr 
 }
 
 func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUID string,
-	replicaCfg *manage.ReplicaConfig) ([]*common.MemberConfig, error) {
+	prefix string, cfgs []*manage.ConfigFileContent) (configs []common.ConfigID, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the first version of the config file
 	version := int64(0)
-
-	configs := make([]*common.MemberConfig, len(replicaCfg.Configs))
-	for i, cfg := range replicaCfg.Configs {
-		config, err := s.CreateMemberConfig(ctx, serviceUUID, replicaCfg.MemberName, cfg, version, requuid)
+	for _, cfg := range cfgs {
+		config, err := s.CreateConfig(ctx, serviceUUID, prefix, cfg, version, requuid)
 		if err != nil {
-			glog.Errorln("createConfigFile error", err, "service", serviceUUID, "requuid", requuid)
+			glog.Errorln("createConfigFile error", err, "service", serviceUUID, "prefix", prefix, "requuid", requuid)
 			return nil, err
 		}
-		configs[i] = config
+		configs = append(configs, *config)
 	}
 	return configs, nil
 }
 
-// CreateMemberConfig creates the member config file
-func (s *ManageService) CreateMemberConfig(ctx context.Context, serviceUUID string, memberName string,
-	cfg *manage.ReplicaConfigFile, version int64, requuid string) (*common.MemberConfig, error) {
-	fileID := utils.GenMemberConfigFileID(memberName, cfg.FileName, version)
+// CreateConfig creates the config file
+func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, prefix string,
+	cfg *manage.ConfigFileContent, version int64, requuid string) (*common.ConfigID, error) {
+	fileID := utils.GenConfigFileID(prefix, cfg.FileName, version)
 	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
 	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 	if err != nil {
 		glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
 		return nil, err
 	}
-	config := &common.MemberConfig{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.FileMD5}
+	config := &common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.Spec.FileMD5}
 	return config, nil
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
-	az string, memberIndex int64, memberName string, staticIP string, cfgs []*common.MemberConfig) (member *common.ServiceMember, err error) {
+	az string, memberIndex int64, memberName string, staticIP string, cfgs []common.ConfigID) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	mvols := common.MemberVolumes{}
 
-	if len(sattr.Volumes.PrimaryDeviceName) != 0 {
+	if len(sattr.Spec.Volumes.PrimaryDeviceName) != 0 {
 		volID, err := s.createVolume(ctx, sattr, az, memberIndex, memberName, false)
 		if err != nil {
 			glog.Errorln("create primary volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
@@ -1001,12 +1017,12 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		}
 
 		mvols.PrimaryVolumeID = volID
-		mvols.PrimaryDeviceName = sattr.Volumes.PrimaryDeviceName
+		mvols.PrimaryDeviceName = sattr.Spec.Volumes.PrimaryDeviceName
 
 		glog.Infoln("created primary volume", volID, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
 	}
 
-	if len(sattr.Volumes.JournalDeviceName) != 0 {
+	if len(sattr.Spec.Volumes.JournalDeviceName) != 0 {
 		volID, err := s.createVolume(ctx, sattr, az, memberIndex, memberName, true)
 		if err != nil {
 			glog.Errorln("create journal volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
@@ -1014,12 +1030,14 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		}
 
 		mvols.JournalVolumeID = volID
-		mvols.JournalDeviceName = sattr.Volumes.JournalDeviceName
+		mvols.JournalDeviceName = sattr.Spec.Volumes.JournalDeviceName
 
 		glog.Infoln("created journal volume", volID, "az", az, "requuid", requuid, sattr)
 	}
 
-	member = db.CreateInitialServiceMember(sattr.ServiceUUID, memberIndex, memberName, az, mvols, staticIP, cfgs)
+	meta := db.CreateMemberMeta(memberName, time.Now().UnixNano(), common.ServiceMemberStatusActive)
+	spec := db.CreateInitialMemberSpec(az, &mvols, staticIP, cfgs)
+	member = db.CreateServiceMember(sattr.ServiceUUID, memberIndex, 0, meta, spec)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)
@@ -1034,11 +1052,11 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 	az string, memberIndex int64, memberName string, journal bool) (volID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	nameTag := sattr.ClusterName + common.NameSeparator + memberName
-	vol := &sattr.Volumes.PrimaryVolume
+	nameTag := sattr.Meta.ClusterName + common.NameSeparator + memberName
+	vol := &sattr.Spec.Volumes.PrimaryVolume
 	if journal {
 		nameTag += common.NameSeparator + common.JournalVolumeNamePrefix
-		vol = &sattr.Volumes.JournalVolume
+		vol = &sattr.Spec.Volumes.JournalVolume
 	}
 
 	volOpts := &server.CreateVolumeOptions{
@@ -1064,7 +1082,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 
 	glog.Infoln("created volume", volID, "member", memberIndex, "az", az, "requuid", requuid, sattr)
 
-	existingVolID, err := s.containersvcIns.CreateServiceVolume(ctx, sattr.ServiceName, memberIndex, volID, vol.VolumeSizeGB, journal)
+	existingVolID, err := s.containersvcIns.CreateServiceVolume(ctx, sattr.Meta.ServiceName, memberIndex, volID, vol.VolumeSizeGB, journal)
 	if err != nil {
 		if err != containersvc.ErrVolumeExist {
 			glog.Errorln("create the container service volume error", err, "volume", volID, "member index", memberIndex, "requuid", requuid, sattr)
@@ -1086,7 +1104,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 }
 
 func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.ServiceAttr,
-	req *manage.CreateServiceRequest, members []*common.ServiceMember) (map[string][]*common.ServiceStaticIP, error) {
+	replicaConfigs []*manage.ReplicaConfig, members []*common.ServiceMember) (map[string][]*common.ServiceStaticIP, error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the lock to protect the concurrent creations
@@ -1095,7 +1113,7 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 
 	// get the number of replicas per zone
 	pendingReplicas := make(map[string]int)
-	for _, cfg := range req.ReplicaConfigs {
+	for _, cfg := range replicaConfigs {
 		replicas, ok := pendingReplicas[cfg.Zone]
 		if ok {
 			replicas++
@@ -1108,15 +1126,15 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 	// get the assigned static ips
 	assignedIPs := make(map[string]string)
 	for _, m := range members {
-		assignedIPs[m.StaticIP] = m.MemberName
+		assignedIPs[m.Spec.StaticIP] = m.Meta.MemberName
 
-		replicas, ok := pendingReplicas[m.AvailableZone]
+		replicas, ok := pendingReplicas[m.Spec.AvailableZone]
 		if !ok {
 			glog.Errorln("internal error, member zone is invalid", m, "requuid", requuid)
 			return nil, common.ErrInternal
 		}
 		replicas--
-		pendingReplicas[m.AvailableZone] = replicas
+		pendingReplicas[m.Spec.AvailableZone] = replicas
 	}
 
 	glog.Infoln("create static ip for the pending replicas", pendingReplicas, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
@@ -1144,7 +1162,7 @@ func (s *ManageService) createStaticIPsForZone(ctx context.Context, sattr *commo
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// get all existing ips
-	netInterfaces, cidrBlock, err := s.serverIns.GetNetworkInterfaces(ctx, sattr.ClusterName, s.serverInfo.GetLocalVpcID(), zone)
+	netInterfaces, cidrBlock, err := s.serverIns.GetNetworkInterfaces(ctx, sattr.Meta.ClusterName, s.serverInfo.GetLocalVpcID(), zone)
 	if err != nil {
 		glog.Errorln("GetNetworkInterfaceAndIPs error", err, "vpc", s.serverInfo.GetLocalVpcID(),
 			"zone", zone, "serviceUUID", sattr.ServiceUUID, "requuid", requuid)
@@ -1203,8 +1221,8 @@ func (s *ManageService) createStaticIPsForZone(ctx context.Context, sattr *commo
 		}
 
 		ip := nextIP.String()
-		serviceip := db.CreateServiceStaticIP(ip, sattr.ServiceUUID, zone,
-			netInterface.ServerInstanceID, netInterface.InterfaceID)
+		spec := db.CreateStaticIPSpec(sattr.ServiceUUID, zone, netInterface.ServerInstanceID, netInterface.InterfaceID)
+		serviceip := db.CreateServiceStaticIP(ip, 0, spec)
 
 		glog.Infoln("assigned static ip", ip, "to network interface", serviceip, "requuid", requuid)
 
@@ -1276,8 +1294,8 @@ func (s *ManageService) getUnassignedIPs(ctx context.Context, sattr *common.Serv
 				glog.Infoln("ip", ip, "is available, serviceUUID", sattr.ServiceUUID, "requuid", requuid)
 
 				// put ip into db
-				serviceip = db.CreateServiceStaticIP(ip, sattr.ServiceUUID, zone,
-					netInterface.ServerInstanceID, netInterface.InterfaceID)
+				spec := db.CreateStaticIPSpec(sattr.ServiceUUID, zone, netInterface.ServerInstanceID, netInterface.InterfaceID)
+				serviceip = db.CreateServiceStaticIP(ip, 0, spec)
 				err = s.dbIns.CreateServiceStaticIP(ctx, serviceip)
 				if err != nil {
 					glog.Errorln("CreateServiceStaticIP error", err, "requuid", requuid, serviceip)
@@ -1291,7 +1309,7 @@ func (s *ManageService) getUnassignedIPs(ctx context.Context, sattr *common.Serv
 			}
 
 			// get ServiceStaticIP from db
-			if serviceip.ServiceUUID == sattr.ServiceUUID {
+			if serviceip.Spec.ServiceUUID == sattr.ServiceUUID {
 				// ip belongs to the service but not assigned to any member yet.
 				glog.Infoln("static ip belongs to the current service", sattr.ServiceUUID, "requuid", requuid, serviceip)
 

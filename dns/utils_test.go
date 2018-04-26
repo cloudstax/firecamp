@@ -70,20 +70,3 @@ func TestMgt(t *testing.T) {
 		t.Fatalf("GetDefaultManageServiceURL expect %s, got %s", expect, url)
 	}
 }
-
-func TestControldb(t *testing.T) {
-	cluster := "cluster"
-	portStr := strconv.Itoa(common.ControlDBServerPort)
-	expect := "firecamp-controldb.cluster-firecamp.com:" + portStr
-	addr := GetDefaultControlDBAddr(cluster)
-	if addr != expect {
-		t.Fatalf("GetDefaultControlDBAddr expect %s, got %s", expect, addr)
-	}
-
-	cluster = "c1"
-	expect = "firecamp-controldb.c1-firecamp.com:" + portStr
-	addr = GetDefaultControlDBAddr(cluster)
-	if addr != expect {
-		t.Fatalf("GetDefaultControlDBAddr expect %s, got %s", expect, addr)
-	}
-}
