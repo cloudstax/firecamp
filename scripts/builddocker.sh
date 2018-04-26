@@ -198,11 +198,12 @@ BuildCatalogImages() {
   # build kafka-manager docker image
   echo
   target=$system"-kafka-manager"
-  image="${org}${target}:1.3.3"
+  # see catalog/kafkamanager/kafkamanagercatalog.go for why version is included
+  image="${org}${target}:1.3.3-${version}"
   path="${TOPWD}/catalog/kafkamanager/1.3.3/dockerfile/"
-  cp ${GOPATH}/bin/firecamp-service-updatedns ${path}
+  cp ${GOPATH}/bin/firecamp-selectmember ${path}
   docker build -q -t $image $path
-  rm -f ${path}/firecamp-service-updatedns
+  rm -f ${path}/firecamp-selectmember
   docker push $image
 
   # build kafka-connect docker image

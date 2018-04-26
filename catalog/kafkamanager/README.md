@@ -10,7 +10,7 @@ Kafka Manager stores its data on ZooKeeper. There is only 1 replica of Kafka Man
 The default Java heap size, both Xmx and Xms, are set to 4GB. If your Kafka Manager wants other memory, you could specify the "km-heap-size" when creating the Kafka Manager service by the firecamp-service-cli.
 
 **Set JVM TTL for Kafka Java client**
-By default, JVM caches a successful DNS lookup forever. The [JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) is set to 60 seconds. So when Kafka container or  moves to another node, JVM could lookup the new address.
+By default, JVM caches a successful DNS lookup forever. The [JVM TTL](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/java-dg-jvm-ttl.html) is set to 60 seconds. So when Kafka container moves to another node, JVM could lookup the new address.
 
 **User and Password**
 The user and password are required. You MUST specify the Kafka Manager user and password when creating the service.
@@ -30,4 +30,4 @@ Assume the cluster name is "t1", the AWS Region is "us-east-1" and the existing 
 firecamp-service-cli -op=create-service -service-type=kafkamanager -region=us-east-1 -cluster=t1 -service-name=mykm -km-zk-service=myzoo -km-heap-size=4096 -km-user=u1 -km-passwd=p1
 ```
 
-By default, the FireCamp service is only accessible from the AppAccessSecurityGroup. To access the Kafka Manager service on the FireCamp cluster, you will need to set up an EC2 instance in the AppAccessSecurityGroup. The EC2 instance should have browser to access Kafka Manager service, or have the proxy server to proxy the access from the internet.
+The Kafka Manager service could be accessed by mykm-0.t1-firecamp.com:9000. By default, the FireCamp service is only accessible from the AppAccessSecurityGroup. To access the Kafka Manager service on the FireCamp cluster, you will need to set up an EC2 instance in the AppAccessSecurityGroup. The EC2 instance should have browser to access Kafka Manager service, or have the proxy server to proxy the access from the internet.
