@@ -208,7 +208,8 @@ BuildCatalogImages() {
   # build kafka-connect docker image
   echo
   target=$system"-kafka-connect"
-  image="${org}${target}:4.0"
+  # see catalog/kafkaconnect/kccatalog.go for why version is included
+  image="${org}${target}:4.0-${version}"
   path="${TOPWD}/catalog/kafkaconnect/4.0/dockerfile/"
   cp ${GOPATH}/bin/firecamp-selectmember ${path}
   docker build -q -t $image $path

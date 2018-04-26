@@ -99,6 +99,10 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 	// generate the container env variables
 	envkvs := genEnvs(platform, region, cluster, service, kafkaServers, req.Options)
 
+	portMappings := []common.PortMapping{
+		{ContainerPort: connectRestPort, HostPort: connectRestPort, IsServicePort: true},
+	}
+
 	serviceCfgs, sinkESConfigs := genServiceConfigs(platform, cluster, service, esURIs, req.Options)
 
 	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(cluster, service, int(req.Options.Replicas))
@@ -106,6 +110,18 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 	reserveMemMB := req.Resource.ReserveMemMB
 	if req.Resource.ReserveMemMB < req.Options.HeapSizeMB {
 		reserveMemMB = req.Options.HeapSizeMB
+	}
+
+	// kafkaconnect docker-entrypoint script includes the firecamp-selectmember tool to select
+	// the member and update dns. the firecamp-selectmember tool is different for different releases.
+	// Every release has to use its own docker image.
+	// TODO this is not good. we should consider to drop Docker Swarm. For AWS ECS, could use the
+	// 			init container to do the work.
+	// Note: scripts/builddocker.sh also builds the kafka connect image with the release version,
+	// 			 the release upgrade needs to update the version as well.
+	containerImage := ContainerImage
+	if platform != common.ContainerPlatformK8s {
+		containerImage = ContainerImage + common.NameSeparator + common.Version
 	}
 
 	crReq = &manage.CreateServiceRequest{
@@ -125,8 +141,9 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 
 		CatalogServiceType: common.CatalogService_KafkaSinkES,
 
-		ContainerImage: ContainerImage,
+		ContainerImage: containerImage,
 		Replicas:       req.Options.Replicas,
+		PortMappings:   portMappings,
 		Envkvs:         envkvs,
 		RegisterDNS:    true,
 
