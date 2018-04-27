@@ -78,10 +78,11 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
-			ServiceType: common.ServiceTypeStateful,
 		},
 
-		Resource:           res,
+		Resource: res,
+
+		ServiceType:        common.ServiceTypeStateful,
 		CatalogServiceType: common.CatalogService_Consul,
 
 		ContainerImage:  ContainerImage,

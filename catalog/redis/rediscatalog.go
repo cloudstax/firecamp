@@ -144,7 +144,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
-			ServiceType: common.ServiceTypeStateful,
 		},
 
 		Resource: &common.Resources{
@@ -154,6 +153,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    opts.MemoryCacheSizeMB,
 		},
 
+		ServiceType:        common.ServiceTypeStateful,
 		CatalogServiceType: common.CatalogService_Redis,
 
 		ContainerImage: ContainerImage,

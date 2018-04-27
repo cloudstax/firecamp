@@ -1173,7 +1173,6 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
-			ServiceType: common.ServiceTypeStateless,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     *maxCPUUnits,
@@ -1289,7 +1288,6 @@ func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
 			Region:      *region,
 			Cluster:     *cluster,
 			ServiceName: *service,
-			ServiceType: common.ServiceTypeStateless,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     *maxCPUUnits,

@@ -113,7 +113,6 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
-			ServiceType: common.ServiceTypeStateless,
 		},
 
 		Resource: &common.Resources{
@@ -123,6 +122,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		ServiceType:        common.ServiceTypeStateless,
 		CatalogServiceType: common.CatalogService_KafkaSinkES,
 
 		ContainerImage: ContainerImage,

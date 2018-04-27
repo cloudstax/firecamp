@@ -521,7 +521,7 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 	}
 	if !exist {
 		var logConfig *cloudlog.LogConfig
-		if req.Service.ServiceType != common.ServiceTypeStateless {
+		if req.ServiceType != common.ServiceTypeStateless {
 			logConfig = s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
 		} else {
 			logConfig = s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID, req.Service.ServiceName)
@@ -640,7 +640,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    serviceUUID,
-		ServiceType:    req.Service.ServiceType,
+		ServiceType:    req.ServiceType,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
 		LogConfig:      logConfig,
@@ -674,7 +674,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		}
 	}
 
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if req.ServiceType != common.ServiceTypeStateless {
 		zones := make(map[string]bool)
 		for _, replCfg := range req.ReplicaConfigs {
 			zones[replCfg.Zone] = true

@@ -78,7 +78,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 			Region:      region,
 			Cluster:     cluster,
 			ServiceName: service,
-			ServiceType: common.ServiceTypeStateless,
 		},
 
 		Resource: &common.Resources{
@@ -88,6 +87,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 			ReserveMemMB:    reserveMemMB,
 		},
 
+		ServiceType:        common.ServiceTypeStateless,
 		CatalogServiceType: common.CatalogService_KafkaManager,
 
 		ContainerImage: ContainerImage,
