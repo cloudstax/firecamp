@@ -135,7 +135,7 @@ func TestParseRedisConfigs(t *testing.T) {
 	configCmd := ""
 
 	content := fmt.Sprintf(servicefileContent, platform, shards, replPerShard, memorySize,
-		strconv.FormatBool(disableAof), authPass, replTimeout, maxMemPolicy, configCmd)
+		strconv.FormatBool(disableAof), authPass, "true", replTimeout, maxMemPolicy, configCmd)
 	opts, err := ParseServiceConfigs(content)
 	if err != nil {
 		t.Fatalf("ParseServiceConfigs error %s", err)

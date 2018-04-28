@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"hash/fnv"
 	"net"
 	"strconv"
@@ -34,6 +35,16 @@ func SetLogDir() {
 	if err != nil {
 		glog.Fatalln("create/check log dir error", err, f.Value.String())
 	}
+}
+
+func CheckResource(r *common.Resources) error {
+	if r.MaxCPUUnits != common.DefaultMaxCPUUnits && r.MaxCPUUnits < r.ReserveCPUUnits {
+		return fmt.Errorf("invalid resource - MaxCPUUnits %d less than ReserveCPUUnits %d", r.MaxCPUUnits, r.ReserveCPUUnits)
+	}
+	if r.MaxMemMB != common.DefaultMaxMemoryMB && r.MaxMemMB < r.ReserveMemMB {
+		return fmt.Errorf("invalid resource - MaxMemMB %d less than ReserveMemMB %d", r.MaxMemMB, r.ReserveMemMB)
+	}
+	return nil
 }
 
 func Hash(s string) uint32 {

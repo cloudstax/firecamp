@@ -89,7 +89,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 		glog.Errorln("invalid args", req.Service, "vpc", vpcID)
 		return "", common.ErrInvalidArgs
 	}
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if req.ServiceType != common.ServiceTypeStateless {
 		if req.Replicas <= 0 || req.Volume.VolumeSizeGB <= 0 {
 			glog.Errorln("invalid args", req.Service, "Replicas", req.Replicas, "VolumeSizeGB", req.Volume.VolumeSizeGB)
 			return "", common.ErrInvalidArgs
@@ -128,7 +128,7 @@ func (s *ManageService) CreateService(ctx context.Context, req *manage.CreateSer
 
 	// create service volumes
 	svols := &common.ServiceVolumes{}
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if req.ServiceType != common.ServiceTypeStateless {
 		svols, err = s.createServiceVolumes(ctx, req)
 		if err != nil {
 			glog.Errorln("createServiceVolumes error", err, "requuid", requuid, req.Service)
@@ -790,7 +790,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 	}
 
 	// create service attr
-	meta := db.CreateServiceMeta(req.Service.Cluster, req.Service.ServiceName, time.Now().UnixNano(), req.Service.ServiceType, common.ServiceStatusCreating)
+	meta := db.CreateServiceMeta(req.Service.Cluster, req.Service.ServiceName, time.Now().UnixNano(), req.ServiceType, common.ServiceStatusCreating)
 	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, req.CatalogServiceType, svols)
 	serviceAttr := db.CreateServiceAttr(serviceUUID, 0, meta, spec)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)

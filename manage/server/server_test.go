@@ -283,7 +283,6 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			Region:      mgtsvc.region,
 			Cluster:     mgtsvc.cluster,
 			ServiceName: service,
-			ServiceType: common.ServiceTypeStateful,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     2,
@@ -291,6 +290,7 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 			MaxMemMB:        2,
 			ReserveMemMB:    2,
 		},
+		ServiceType:        common.ServiceTypeStateful,
 		CatalogServiceType: common.CatalogService_Kafka,
 
 		ContainerImage: "image",

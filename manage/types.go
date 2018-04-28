@@ -82,9 +82,6 @@ type ServiceCommonRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
-	// ServiceType: stateful or stateless. default: stateful.
-	// The empty string means stateful as this field is added after 0.9.3.
-	ServiceType string
 }
 
 // CreateServiceRequest contains the parameters for creating a service.
@@ -95,6 +92,11 @@ type CreateServiceRequest struct {
 	Service  *ServiceCommonRequest
 	Resource *common.Resources
 
+	// ServiceType: stateful or stateless. default: stateful.
+	// The empty string means stateful as this field is added after 0.9.3.
+	ServiceType string
+
+	// Catalog Service, such as Cassandra, Kafka, etc.
 	CatalogServiceType string
 
 	ContainerImage string
@@ -124,6 +126,7 @@ type CreateServiceRequest struct {
 	ReplicaConfigs []*ReplicaConfig
 }
 
+// UpdateServiceConfigRequest updates the config file of the service
 type UpdateServiceConfigRequest struct {
 	Service           *ServiceCommonRequest
 	ConfigFileName    string

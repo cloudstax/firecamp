@@ -40,7 +40,7 @@ func TestKafkaManagerCatalog(t *testing.T) {
 	if req.Resource.ReserveMemMB != maxMemMB {
 		t.Fatalf("expect reserved mem %d, get %d", maxMemMB, req.Resource.ReserveMemMB)
 	}
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if req.ServiceType != common.ServiceTypeStateless {
 		t.Fatalf("expect stateless service, get %s", req)
 	}
 }

@@ -263,6 +263,39 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 		return err.Error(), http.StatusBadRequest
 	}
 
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	res := db.CopyResources(&attr.Spec.Resource)
+	if req.MaxCPUUnits != nil {
+		res.MaxCPUUnits = *req.MaxCPUUnits
+	}
+	if req.ReserveCPUUnits != nil {
+		res.ReserveCPUUnits = *req.ReserveCPUUnits
+	}
+	if req.MaxMemMB != nil {
+		res.MaxMemMB = *req.MaxMemMB
+	}
+	if req.ReserveMemMB != nil {
+		res.ReserveMemMB = *req.ReserveMemMB
+	}
+
+	err = utils.CheckResource(res)
+	if err != nil {
+		glog.Errorln("invalid resource", err, res, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// update container service to use the new resource
 	opts := &containersvc.UpdateServiceOptions{
 		Cluster:         s.cluster,
 		ServiceName:     req.Service.ServiceName,
@@ -275,6 +308,14 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	err = s.containersvcIns.UpdateService(ctx, opts)
 	if err != nil {
 		glog.Errorln("update container service error", err, "requuid", requuid, req.Service)
+		return manage.ConvertToHTTPError(err)
+	}
+
+	// update service attr
+	newAttr := db.UpdateServiceResources(attr, res)
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service)
 		return manage.ConvertToHTTPError(err)
 	}
 
@@ -523,7 +564,7 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 	}
 	if !exist {
 		var logConfig *cloudlog.LogConfig
-		if req.Service.ServiceType != common.ServiceTypeStateless {
+		if req.ServiceType != common.ServiceTypeStateless {
 			logConfig = s.logIns.CreateServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID)
 		} else {
 			logConfig = s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, serviceUUID, req.Service.ServiceName)
@@ -642,7 +683,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		Cluster:        req.Service.Cluster,
 		ServiceName:    req.Service.ServiceName,
 		ServiceUUID:    serviceUUID,
-		ServiceType:    req.Service.ServiceType,
+		ServiceType:    req.ServiceType,
 		ContainerImage: req.ContainerImage,
 		Resource:       req.Resource,
 		LogConfig:      logConfig,
@@ -676,7 +717,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 		}
 	}
 
-	if req.Service.ServiceType != common.ServiceTypeStateless {
+	if req.ServiceType != common.ServiceTypeStateless {
 		zones := make(map[string]bool)
 		for _, replCfg := range req.ReplicaConfigs {
 			zones[replCfg.Zone] = true

@@ -220,6 +220,21 @@ func UpdateServiceConfig(s *common.ServiceAttr, cfgIndex int, newFileID string, 
 	}
 }
 
+func UpdateServiceResources(s *common.ServiceAttr, res *common.Resources) *common.ServiceAttr {
+	newMeta := CopyServiceMeta(&s.Meta)
+	newMeta.LastModified = time.Now().UnixNano()
+
+	newSpec := CopyServiceSpec(&s.Spec)
+	newSpec.Resource = *res
+
+	return &common.ServiceAttr{
+		ServiceUUID: s.ServiceUUID,
+		Revision:    s.Revision + 1,
+		Meta:        *newMeta,
+		Spec:        *newSpec,
+	}
+}
+
 func EqualResources(r1 *common.Resources, r2 *common.Resources) bool {
 	if r1.MaxCPUUnits == r2.MaxCPUUnits &&
 		r1.ReserveCPUUnits == r2.ReserveCPUUnits &&
