@@ -271,23 +271,20 @@ func CopyServiceVolume(v *common.ServiceVolume) *common.ServiceVolume {
 	}
 }
 
-func CreateMemberMeta(memberName string, mtime int64, status string) *common.MemberMeta {
+func CreateMemberMeta(mtime int64, status string) *common.MemberMeta {
 	return &common.MemberMeta{
-		MemberName:   memberName,
 		LastModified: mtime,
 		Status:       status,
 	}
 }
 
 func EqualMemberMeta(m1 *common.MemberMeta, m2 *common.MemberMeta, skipMtime bool) bool {
-	return m1.MemberName == m2.MemberName &&
-		(skipMtime || m1.LastModified == m2.LastModified) &&
+	return (skipMtime || m1.LastModified == m2.LastModified) &&
 		m1.Status == m2.Status
 }
 
 func CopyMemberMeta(m *common.MemberMeta) *common.MemberMeta {
 	return &common.MemberMeta{
-		MemberName:   m.MemberName,
 		LastModified: m.LastModified,
 		Status:       m.Status,
 	}
@@ -340,10 +337,10 @@ func CopyMemberSpec(m *common.MemberSpec) *common.MemberSpec {
 	}
 }
 
-func CreateServiceMember(serviceUUID string, memberIndex int64, revision int64, meta *common.MemberMeta, spec *common.MemberSpec) *common.ServiceMember {
+func CreateServiceMember(serviceUUID string, memberName string, revision int64, meta *common.MemberMeta, spec *common.MemberSpec) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID: serviceUUID,
-		MemberIndex: memberIndex,
+		MemberName:  memberName,
 		Revision:    revision,
 		Meta:        *meta,
 		Spec:        *spec,
@@ -352,7 +349,7 @@ func CreateServiceMember(serviceUUID string, memberIndex int64, revision int64, 
 
 func EqualServiceMember(t1 *common.ServiceMember, t2 *common.ServiceMember, skipMtime bool) bool {
 	return t1.ServiceUUID == t2.ServiceUUID &&
-		t1.MemberIndex == t2.MemberIndex &&
+		t1.MemberName == t2.MemberName &&
 		t1.Revision == t2.Revision &&
 		EqualMemberMeta(&t1.Meta, &t2.Meta, skipMtime) &&
 		EqualMemberSpec(&t1.Spec, &t2.Spec)
@@ -362,8 +359,7 @@ func EqualServiceMemberImmutableFields(m1 *common.ServiceMember, m2 *common.Serv
 	// Only Revision, Meta.LastModified, Meta.Status, Spec.TaskID, Spec.ContainerInstanceID,
 	// Spec.ServerInstanceID, Spec.Volumes, Spec.Configs are allowed to change
 	return m1.ServiceUUID == m2.ServiceUUID &&
-		m1.MemberIndex == m2.MemberIndex &&
-		m1.Meta.MemberName == m2.Meta.MemberName &&
+		m1.MemberName == m2.MemberName &&
 		m1.Spec.AvailableZone == m2.Spec.AvailableZone &&
 		m1.Spec.StaticIP == m2.Spec.StaticIP
 }
@@ -371,7 +367,7 @@ func EqualServiceMemberImmutableFields(m1 *common.ServiceMember, m2 *common.Serv
 func CopyServiceMember(m *common.ServiceMember) *common.ServiceMember {
 	return &common.ServiceMember{
 		ServiceUUID: m.ServiceUUID,
-		MemberIndex: m.MemberIndex,
+		MemberName:  m.MemberName,
 		Revision:    m.Revision,
 		Meta:        *CopyMemberMeta(&m.Meta),
 		Spec:        *CopyMemberSpec(&m.Spec),
@@ -387,7 +383,7 @@ func UpdateServiceMemberConfigs(t1 *common.ServiceMember, c []common.ConfigID) *
 
 	return &common.ServiceMember{
 		ServiceUUID: t1.ServiceUUID,
-		MemberIndex: t1.MemberIndex,
+		MemberName:  t1.MemberName,
 		Revision:    t1.Revision + 1,
 		Meta:        *newMeta,
 		Spec:        *newSpec,
@@ -405,7 +401,7 @@ func UpdateServiceMemberOwner(t1 *common.ServiceMember, taskID string, container
 
 	return &common.ServiceMember{
 		ServiceUUID: t1.ServiceUUID,
-		MemberIndex: t1.MemberIndex,
+		MemberName:  t1.MemberName,
 		Revision:    t1.Revision + 1,
 		Meta:        *newMeta,
 		Spec:        *newSpec,

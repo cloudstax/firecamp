@@ -53,34 +53,34 @@ func (s *ServiceNetwork) SetIfname(ifname string) {
 }
 
 // UpdateDNS updates the dns record of the service member to the private ip of the local server.
-func (s *ServiceNetwork) UpdateDNS(ctx context.Context, domainName string, hostedZoneID string, member *common.ServiceMember) error {
+func (s *ServiceNetwork) UpdateDNS(ctx context.Context, domainName string, hostedZoneID string, memberName string) (dnsName string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// update dns record
-	dnsName := dns.GenDNSName(member.Meta.MemberName, domainName)
+	dnsName = dns.GenDNSName(memberName, domainName)
 	privateIP := s.serverInfo.GetPrivateIP()
 
-	err := s.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, hostedZoneID)
+	err = s.dnsIns.UpdateDNSRecord(ctx, dnsName, privateIP, hostedZoneID)
 	if err != nil {
-		glog.Errorln("UpdateDNSRecord error", err, "requuid", requuid, "member", member)
-		return err
+		glog.Errorln("UpdateDNSRecord error", err, "requuid", requuid, "member", memberName)
+		return dnsName, err
 	}
 
 	// make sure DNS returns the updated record
 	dnsIP, err := s.dnsIns.WaitDNSRecordUpdated(ctx, dnsName, privateIP, hostedZoneID)
 	if err != nil {
-		glog.Errorln("WaitDNSRecordUpdated error", err, "expect privateIP", privateIP, "got", dnsIP, "requuid", requuid, "member", member)
-		return err
+		glog.Errorln("WaitDNSRecordUpdated error", err, "expect privateIP", privateIP, "got", dnsIP, "requuid", requuid, "member", memberName)
+		return dnsName, err
 	}
 
 	err = s.waitDNSLookup(ctx, dnsName, privateIP, requuid)
 	if err != nil {
-		glog.Errorln("waitDNSLookup error", err, "requuid", requuid, "member", member)
-		return err
+		glog.Errorln("waitDNSLookup error", err, "requuid", requuid, "member", memberName)
+		return dnsName, err
 	}
 
-	glog.Infoln("updated dns", dnsName, "to ip", privateIP, "requuid", requuid, "member", member)
-	return nil
+	glog.Infoln("updated dns", dnsName, "to ip", privateIP, "requuid", requuid, "member", memberName)
+	return dnsName, nil
 }
 
 func (s *ServiceNetwork) waitDNSLookup(ctx context.Context, dnsName string, ip string, requuid string) error {
@@ -233,7 +233,7 @@ func (s *ServiceNetwork) UpdateStaticIP(ctx context.Context, domainName string, 
 	}
 
 	// wait the DNS is updated to the static ip, this will only happen after service is created and DNS is not updated yet.
-	dnsName := dns.GenDNSName(member.Meta.MemberName, domainName)
+	dnsName := dns.GenDNSName(member.MemberName, domainName)
 	err = s.waitDNSLookup(ctx, dnsName, memberStaticIP.StaticIP, requuid)
 	if err != nil {
 		glog.Errorln("waitDNSLookup error", err, "requuid", requuid, member)
@@ -255,49 +255,54 @@ func (s *ServiceNetwork) DeleteIP(ip string) error {
 
 // UpdateServiceMemberDNS updates the DNS for the service member.
 // If memberIndex is not specified, an idle member will be assigned.
-func (s *ServiceNetwork) UpdateServiceMemberDNS(ctx context.Context, cluster string, service string, memberIndex int64,
-	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string) (memberName string, domain string, err error) {
+func (s *ServiceNetwork) UpdateServiceMemberDNS(ctx context.Context, cluster string, service string, memberName string,
+	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string) (memberHost string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	svc, err := s.dbIns.GetService(ctx, cluster, service)
 	if err != nil {
 		glog.Errorln("GetService error", err, "cluster", cluster, "service", service, "requuid", requuid)
-		return "", "", err
+		return "", err
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
-		return "", "", err
+		return "", err
 	}
 
-	member, err := s.getMemberForTask(ctx, attr, memberIndex, containersvcIns, localContainerInstanceID, requuid)
+	member, err := s.getMemberForTask(ctx, attr, memberName, containersvcIns, localContainerInstanceID, requuid)
 	if err != nil {
 		glog.Errorln("getMemberForTask error", err, "requuid", requuid, svc)
-		return "", "", err
+		return "", err
 	}
 
-	err = s.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member)
+	memberHost, err = s.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member.MemberName)
 	if err != nil {
 		glog.Errorln("UpdateDNS error", err, "requuid", requuid, svc)
-		return "", "", err
+		return "", err
 	}
 
-	glog.Infoln("get and update dns for member", member, "requuid", requuid)
-	return member.Meta.MemberName, attr.Spec.DomainName, nil
+	glog.Infoln("get and update dns for member", memberName, "requuid", requuid)
+	return memberHost, nil
 }
 
 // TODO merge getMemberForTask and findIdleMember with volume.getMemberForTask and volume.findIdleMember.
-func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, memberIndex int64,
+func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr, memberName string,
 	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string, requuid string) (member *common.ServiceMember, err error) {
-	if memberIndex != int64(-1) {
-		glog.Infoln("member index is passed in", memberIndex, "requuid", requuid, serviceAttr)
+	localTaskID := ""
+	if memberName != "" {
+		glog.Infoln("member is passed in", memberName, "requuid", requuid, serviceAttr)
 
-		member, err = s.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberIndex)
+		member, err = s.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberName)
 		if err != nil {
-			glog.Errorln("GetServiceMember error", err, "memberIndex", memberIndex, "requuid", requuid, "service", serviceAttr)
+			glog.Errorln("GetServiceMember error", err, memberName, "requuid", requuid, "service", serviceAttr)
 			return nil, err
 		}
+
+		// the container framework passes in the member index for the volume.
+		// no need to get the real task id, simply set to the server instance id.
+		localTaskID = s.serverInfo.GetLocalInstanceID()
 	} else {
 		// find one idle member
 		member, err = s.findIdleMember(ctx, serviceAttr, containersvcIns, requuid)
@@ -305,14 +310,7 @@ func (s *ServiceNetwork) getMemberForTask(ctx context.Context, serviceAttr *comm
 			glog.Errorln("findIdleMember error", err, "requuid", requuid, "service", serviceAttr)
 			return nil, err
 		}
-	}
 
-	localTaskID := ""
-	if memberIndex != int64(-1) {
-		// the container framework passes in the member index for the volume.
-		// no need to get the real task id, simply set to the server instance id.
-		localTaskID = s.serverInfo.GetLocalInstanceID()
-	} else {
 		// get taskID of the local task.
 		// assume only one task on one node for one service. It does not make sense to run
 		// like mongodb primary and standby on the same node.

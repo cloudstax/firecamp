@@ -45,10 +45,6 @@ const (
 	// Task types
 	TaskTypeInit = "init"
 
-	// The journal volume name prefix, the journal volume name will be journal-serviceuuid,
-	// the mount path will be /mnt/journal-serviceuuid
-	JournalVolumeNamePrefix = "journal"
-
 	// General Purpose SSD
 	VolumeTypeGPSSD = "gp2"
 	// Provisioned IOPS SSD
@@ -184,7 +180,8 @@ type ServiceVolume struct {
 // ServiceMember represents the attributes of one service member.
 type ServiceMember struct {
 	ServiceUUID string // partition key
-	MemberIndex int64  // sort key
+	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
+	MemberName string // sort key
 	// Everytime ServiceMember is updated, revision is increased.
 	Revision int64
 	Meta     MemberMeta
@@ -193,8 +190,6 @@ type ServiceMember struct {
 
 // MemberMeta represents the service member's metadata
 type MemberMeta struct {
-	// The service member name, such as mypg-0, myredis-0. MemberName.DomainName is the member's DNS name.
-	MemberName   string
 	LastModified int64
 	// The member status: Active, Pause, Bad.
 	// This will be useful for some cases. For example, prevent the member container
@@ -288,9 +283,6 @@ type ServiceStaticIP struct {
 type StaticIPSpec struct {
 	// The owner service of this static IP.
 	ServiceUUID string
-	// TODO adding MemberName would be a good optimization.
-	//      so volume plugin could directly get the local static IP and get the member.
-	// MemberName  string
 	// The AvailableZone this static IP belongs to.
 	AvailableZone string
 	// The server instance this IP is assigned to.

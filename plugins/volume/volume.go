@@ -200,12 +200,12 @@ func (d *FireCampVolumeDriver) List(r volume.Request) volume.Response {
 	var vols []*volume.Volume
 	for _, v := range d.volumes {
 		svcuuid := v.member.ServiceUUID
-		name := containersvc.GenVolumeSourceName(svcuuid, v.member.MemberIndex)
+		name := containersvc.GenVolumeSourceName(svcuuid, v.member.MemberName)
 		vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(svcuuid)})
 
 		if len(v.member.Spec.Volumes.JournalVolumeID) != 0 {
-			logvolpath := utils.GetServiceJournalVolumeName(svcuuid)
-			name = containersvc.GenVolumeSourceName(logvolpath, v.member.MemberIndex)
+			logvolpath := containersvc.GetServiceJournalVolumeName(svcuuid)
+			name = containersvc.GenVolumeSourceName(logvolpath, v.member.MemberName)
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: d.mountpoint(logvolpath)})
 		}
 	}
@@ -232,7 +232,7 @@ func (d *FireCampVolumeDriver) genReqUUID(serviceUUID string) string {
 func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	glog.Infoln("handle Mount ", r)
 
-	serviceUUID, mountPath, memberIndex, err := d.parseRequestName(r.Name)
+	serviceUUID, mountPath, memberName, err := d.parseRequestName(r.Name)
 	if err != nil {
 		errmsg := fmt.Sprintf("invalid volume name %s, error: %s", r, err)
 		glog.Errorln(errmsg)
@@ -259,7 +259,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	}
 
 	// get the service attr and the service member for the current container
-	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, memberIndex, requuid)
+	serviceAttr, member, errmsg := d.getServiceAttrAndMember(ctx, serviceUUID, memberName, requuid)
 	if len(errmsg) != 0 {
 		return volume.Response{Err: errmsg}
 	}
@@ -267,7 +267,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	// update DNS, this MUST be done after volume is assigned to this node (updated in DB).
 	// if the service requires the static ip, no need to update DNS as DNS always points to the static ip.
 	if serviceAttr.Spec.RegisterDNS && !serviceAttr.Spec.RequireStaticIP {
-		err = d.netSvc.UpdateDNS(ctx, serviceAttr.Spec.DomainName, serviceAttr.Spec.HostedZoneID, member)
+		_, err = d.netSvc.UpdateDNS(ctx, serviceAttr.Spec.DomainName, serviceAttr.Spec.HostedZoneID, member.MemberName)
 		if err != nil {
 			return volume.Response{Err: err.Error()}
 		}
@@ -329,7 +329,7 @@ func (d *FireCampVolumeDriver) Mount(r volume.MountRequest) volume.Response {
 	err = CreateConfigFile(ctx, configDirPath, serviceAttr, member, d.dbIns)
 	if err == nil {
 		// create the service member so the log driver could know the service member.
-		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.Meta.MemberName, requuid)
+		err = firecampplugin.CreatePluginServiceMemberFile(member.ServiceUUID, member.MemberName, requuid)
 		if err != nil {
 			glog.Errorln("CreatePluginServiceMemberFile error", err, "requuid", requuid, member)
 			// cleanup the possbile garbage
@@ -468,43 +468,37 @@ func (d *FireCampVolumeDriver) Unmount(r volume.UnmountRequest) volume.Response 
 	return volume.Response{}
 }
 
-func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string, mountPath string, memberIndex int64, err error) {
-	strs := strings.Split(name, common.NameSeparator)
+func (d *FireCampVolumeDriver) parseRequestName(name string) (serviceUUID string, mountPath string, memberName string, err error) {
+	strs := strings.Split(name, common.VolumeNameSeparator)
 
 	if len(strs) == 1 {
 		// serviceuuid
-		return strs[0], strs[0], -1, nil
+		return strs[0], strs[0], "", nil
 	}
 
 	if len(strs) == 2 {
-		if strs[0] == common.JournalVolumeNamePrefix {
-			// journal-serviceuuid
-			return strs[1], name, -1, nil
+		if strs[0] == containersvc.JournalVolumeNamePrefix {
+			// journal_serviceuuid
+			return strs[1], name, "", nil
 		}
 
-		// serviceuuid-1
-		memberIndex, err = strconv.ParseInt(strs[1], 10, 64)
-		// docker swarm task slot starts with 1, 2, ...
-		memberIndex--
-		return strs[0], strs[0], memberIndex, err
+		// serviceuuid_memberName
+		return strs[0], strs[0], strs[1], err
 	}
 
 	if len(strs) == 3 {
-		if strs[0] == common.JournalVolumeNamePrefix {
-			// journal-serviceuuid-1
-			memberIndex, err = strconv.ParseInt(strs[2], 10, 64)
-			// docker swarm task slot starts with 1, 2, ...
-			memberIndex--
-			return strs[1], utils.GetServiceJournalVolumeName(strs[1]), memberIndex, err
+		if strs[0] == containersvc.JournalVolumeNamePrefix {
+			// journal_serviceuuid_memberName
+			return strs[1], containersvc.GetServiceJournalVolumeName(strs[1]), strs[2], err
 		}
 	}
 
 	// invalid
-	return "", "", -1, common.ErrInvalidArgs
+	return "", "", "", common.ErrInvalidArgs
 }
 
 func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serviceUUID string,
-	memberIndex int64, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
+	memberName string, requuid string) (serviceAttr *common.ServiceAttr, member *common.ServiceMember, errmsg string) {
 	// get cluster and service names by serviceUUID
 	serviceAttr, err := d.dbIns.GetServiceAttr(ctx, serviceUUID)
 	if err != nil {
@@ -515,7 +509,7 @@ func (d *FireCampVolumeDriver) getServiceAttrAndMember(ctx context.Context, serv
 	glog.Infoln("get service attr", serviceAttr, "requuid", requuid)
 
 	// get one member for this mount
-	member, err = d.getMemberForTask(ctx, serviceAttr, memberIndex, requuid)
+	member, err = d.getMemberForTask(ctx, serviceAttr, memberName, requuid)
 	if err != nil {
 		errmsg := fmt.Sprintf("Mount failed, get service member error %s, serviceUUID %s, requuid %s", err, serviceUUID, requuid)
 		glog.Errorln(errmsg)
@@ -551,13 +545,13 @@ func (d *FireCampVolumeDriver) checkAndUnmountNotCachedVolume(mountPath string) 
 // getMemberForTask will get one idle member, not used or owned by down task,
 // detach it and update the new owner in DB.
 func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr *common.ServiceAttr,
-	memberIndex int64, requuid string) (member *common.ServiceMember, err error) {
-	if memberIndex != int64(-1) {
-		glog.Infoln("member index is passed in", memberIndex, "requuid", requuid, serviceAttr)
+	memberName string, requuid string) (member *common.ServiceMember, err error) {
+	if memberName != "" {
+		glog.Infoln("member is passed in", memberName, "requuid", requuid, serviceAttr)
 
-		member, err = d.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberIndex)
+		member, err = d.dbIns.GetServiceMember(ctx, serviceAttr.ServiceUUID, memberName)
 		if err != nil {
-			glog.Errorln("GetServiceMember error", err, "memberIndex", memberIndex, "requuid", requuid, "service", serviceAttr)
+			glog.Errorln("GetServiceMember error", err, "member", memberName, "requuid", requuid, "service", serviceAttr)
 			return nil, err
 		}
 	} else {
@@ -586,7 +580,7 @@ func (d *FireCampVolumeDriver) getMemberForTask(ctx context.Context, serviceAttr
 	glog.Infoln("got and detached member volume", member, "requuid", requuid)
 
 	localTaskID := ""
-	if memberIndex != int64(-1) {
+	if memberName != "" {
 		// the container framework passes in the member index for the volume.
 		// no need to get the real task id, simply set to the server instance id.
 		localTaskID = d.serverInfo.GetLocalInstanceID()
@@ -833,7 +827,7 @@ func (d *FireCampVolumeDriver) mountVolumes(ctx context.Context, member *common.
 
 	// mount the journal volume
 	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
-		mpath := d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
+		mpath := d.mountpoint(containersvc.GetServiceJournalVolumeName(member.ServiceUUID))
 		err := d.mountFS(member.Spec.Volumes.JournalDeviceName, mpath)
 		if err != nil {
 			glog.Errorln("mount journal device error", err, "requuid", requuid, "mount path", mpath, member.Spec.Volumes)
@@ -859,7 +853,7 @@ func (d *FireCampVolumeDriver) umountVolumes(ctx context.Context, member *common
 
 	// umount the journal volume
 	if len(member.Spec.Volumes.JournalVolumeID) != 0 {
-		mpath = d.mountpoint(utils.GetServiceJournalVolumeName(member.ServiceUUID))
+		mpath = d.mountpoint(containersvc.GetServiceJournalVolumeName(member.ServiceUUID))
 		err1 := d.unmountFS(mpath)
 		if err1 != nil {
 			glog.Errorln("umount journal device error", err1, "requuid", requuid, "mount path", mpath, member.Spec.Volumes)

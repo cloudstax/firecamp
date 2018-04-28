@@ -1055,7 +1055,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 	nameTag := sattr.Meta.ClusterName + common.NameSeparator + memberName
 	vol := &sattr.Spec.Volumes.PrimaryVolume
 	if journal {
-		nameTag += common.NameSeparator + common.JournalVolumeNamePrefix
+		nameTag += common.NameSeparator + containersvc.JournalVolumeNamePrefix
 		vol = &sattr.Spec.Volumes.JournalVolume
 	}
 

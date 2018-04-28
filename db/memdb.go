@@ -227,7 +227,7 @@ func (d *MemDB) DeleteServiceAttr(ctx context.Context, serviceUUID string) error
 }
 
 func (d *MemDB) CreateServiceMember(ctx context.Context, member *common.ServiceMember) error {
-	key := member.ServiceUUID + strconv.FormatInt(member.MemberIndex, 10)
+	key := member.ServiceUUID + member.MemberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
@@ -243,7 +243,7 @@ func (d *MemDB) CreateServiceMember(ctx context.Context, member *common.ServiceM
 }
 
 func (d *MemDB) UpdateServiceMember(ctx context.Context, oldMember *common.ServiceMember, newMember *common.ServiceMember) error {
-	key := oldMember.ServiceUUID + strconv.FormatInt(oldMember.MemberIndex, 10)
+	key := oldMember.ServiceUUID + oldMember.MemberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()
@@ -262,8 +262,8 @@ func (d *MemDB) UpdateServiceMember(ctx context.Context, oldMember *common.Servi
 	return nil
 }
 
-func (d *MemDB) GetServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) (member *common.ServiceMember, err error) {
-	key := serviceUUID + strconv.FormatInt(memberIndex, 10)
+func (d *MemDB) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
+	key := serviceUUID + memberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()

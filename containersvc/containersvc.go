@@ -10,6 +10,10 @@ import (
 )
 
 const (
+	// The journal volume name prefix, the journal volume name will be journal-serviceuuid,
+	// the mount path will be /mnt/journal-serviceuuid
+	JournalVolumeNamePrefix = "journal"
+
 	// TestBusyBoxContainerImage is the busybox image for unit test.
 	TestBusyBoxContainerImage = common.OrgName + common.SystemName + "-busybox"
 )

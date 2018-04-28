@@ -65,16 +65,15 @@ func TestDBUtils(t *testing.T) {
 	// test service member
 	volID := "vol-1"
 	az := "az-1"
-	memberIndex := int64(1)
 	memberName := "member-1"
 	staticIP := "10.0.0.1"
 	mvols := common.MemberVolumes{
 		PrimaryVolumeID:   volID,
 		PrimaryDeviceName: svols.PrimaryDeviceName,
 	}
-	memberMeta := CreateMemberMeta(memberName, time.Now().UnixNano(), common.ServiceMemberStatusActive)
+	memberMeta := CreateMemberMeta(time.Now().UnixNano(), common.ServiceMemberStatusActive)
 	memberSpec := CreateMemberSpec(az, DefaultTaskID, DefaultContainerInstanceID, DefaultServerInstanceID, &mvols, staticIP, cfgs)
-	m1 := CreateServiceMember(serviceUUID, memberIndex, 0, memberMeta, memberSpec)
+	m1 := CreateServiceMember(serviceUUID, memberName, 0, memberMeta, memberSpec)
 
 	taskID := "task-1"
 	containerInstanceID := "containerInstance-1"
