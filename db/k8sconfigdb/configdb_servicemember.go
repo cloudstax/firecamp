@@ -63,13 +63,13 @@ func (s *K8sConfigDB) UpdateServiceMember(ctx context.Context, oldMember *common
 }
 
 // GetServiceMember gets the serviceMemberItem from DB
-func (s *K8sConfigDB) GetServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) (member *common.ServiceMember, err error) {
+func (s *K8sConfigDB) GetServiceMember(ctx context.Context, serviceUUID string, memberName string) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	name := s.genServiceMemberConfigMapName(serviceUUID, memberIndex)
+	name := s.genServiceMemberConfigMapName(serviceUUID, memberName)
 	cfgmap, err := s.cliset.CoreV1().ConfigMaps(s.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		glog.Errorln("get serviceMember error", err, "memberIndex", memberIndex, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("get serviceMember error", err, "member", memberName, "serviceUUID", serviceUUID, "requuid", requuid)
 		return nil, s.convertError(err)
 	}
 
@@ -150,27 +150,21 @@ func (s *K8sConfigDB) ListServiceMembersWithLimit(ctx context.Context, serviceUU
 }
 
 // DeleteServiceMember deletes the serviceMember from DB
-func (s *K8sConfigDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) error {
+func (s *K8sConfigDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	name := s.genServiceMemberConfigMapName(serviceUUID, memberIndex)
+	name := s.genServiceMemberConfigMapName(serviceUUID, memberName)
 	err := s.cliset.CoreV1().ConfigMaps(s.namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
-		glog.Errorln("delete serviceMember error", err, "memberIndex", memberIndex, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("delete serviceMember error", err, "member", memberName, "serviceUUID", serviceUUID, "requuid", requuid)
 		return s.convertError(err)
 	}
 
-	glog.Infoln("deleted serviceMember", memberIndex, "serviceUUID", serviceUUID, "requuid", requuid)
+	glog.Infoln("deleted serviceMember", memberName, "serviceUUID", serviceUUID, "requuid", requuid)
 	return nil
 }
 
 func (s *K8sConfigDB) cfgmapToServiceMember(serviceUUID string, cfgmap *corev1.ConfigMap) (*common.ServiceMember, error) {
-	memberIndex, err := strconv.ParseInt(cfgmap.Data[db.MemberIndex], 10, 64)
-	if err != nil {
-		glog.Errorln("parse MemberIndex error", err, cfgmap.Name, cfgmap.Namespace)
-		return nil, db.ErrDBInternal
-	}
-
 	revision, err := strconv.ParseInt(cfgmap.Data[db.Revision], 10, 64)
 	if err != nil {
 		glog.Errorln("ParseInt Revision error", err, cfgmap.Name, cfgmap.Namespace)
@@ -191,7 +185,9 @@ func (s *K8sConfigDB) cfgmapToServiceMember(serviceUUID string, cfgmap *corev1.C
 		return nil, db.ErrDBInternal
 	}
 
-	member := db.CreateServiceMember(serviceUUID, memberIndex, revision, &meta, &spec)
+	memberName := cfgmap.Data[db.MemberName]
+
+	member := db.CreateServiceMember(serviceUUID, memberName, revision, &meta, &spec)
 	return member, nil
 }
 
@@ -209,13 +205,13 @@ func (s *K8sConfigDB) memberToConfigMap(member *common.ServiceMember, requuid st
 
 	cfgmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.genServiceMemberConfigMapName(member.ServiceUUID, member.MemberIndex),
+			Name:      s.genServiceMemberConfigMapName(member.ServiceUUID, member.MemberName),
 			Namespace: s.namespace,
 			Labels:    s.genServiceMemberListLabels(member.ServiceUUID),
 		},
 		Data: map[string]string{
 			db.ServiceUUID: member.ServiceUUID,
-			db.MemberIndex: strconv.FormatInt(member.MemberIndex, 10),
+			db.MemberName:  member.MemberName,
 			db.Revision:    strconv.FormatInt(member.Revision, 10),
 			db.MemberMeta:  string(metaBytes),
 			db.MemberSpec:  string(specBytes),
@@ -225,8 +221,8 @@ func (s *K8sConfigDB) memberToConfigMap(member *common.ServiceMember, requuid st
 	return cfgmap, nil
 }
 
-func (s *K8sConfigDB) genServiceMemberConfigMapName(serviceUUID string, memberIndex int64) string {
-	return fmt.Sprintf("%s-%s-%s-%d", common.SystemName, serviceMemberLabel, serviceUUID, memberIndex)
+func (s *K8sConfigDB) genServiceMemberConfigMapName(serviceUUID string, memberName string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", common.SystemName, serviceMemberLabel, serviceUUID, memberName)
 }
 
 func (s *K8sConfigDB) genServiceMemberLabel(serviceUUID string) string {

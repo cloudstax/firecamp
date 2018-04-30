@@ -1,7 +1,6 @@
 package db
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/golang/glog"
@@ -293,8 +292,8 @@ func (d *MemDB) listServiceMembersWithLimit(ctx context.Context, serviceUUID str
 	return members, nil
 }
 
-func (d *MemDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberIndex int64) error {
-	key := serviceUUID + strconv.FormatInt(memberIndex, 10)
+func (d *MemDB) DeleteServiceMember(ctx context.Context, serviceUUID string, memberName string) error {
+	key := serviceUUID + memberName
 
 	d.mlock.Lock()
 	defer d.mlock.Unlock()

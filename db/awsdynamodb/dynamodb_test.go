@@ -329,8 +329,10 @@ func TestServiceAttrs(t *testing.T) {
 }
 
 func TestServiceMembers(t *testing.T) {
-	service1 := "serviceuuid-1"
-	service2 := "serviceuuid-2"
+	service1 := "service1"
+	service2 := "service2"
+	uuid1 := "uuid1"
+	uuid2 := "uuid2"
 	dev1 := "/dev/xvdf"
 	dev2 := "/dev/xvdg"
 	volPrefix := "vol-"
@@ -348,7 +350,7 @@ func TestServiceMembers(t *testing.T) {
 
 	// create 6 serviceMembers for service1
 	x := [6]string{"a", "b", "c", "d", "e", "f"}
-	var s1 [6]*common.ServiceMember
+	s1 := make(map[string]*common.ServiceMember)
 	for i, c := range x {
 		cfgs := []common.ConfigID{
 			common.ConfigID{FileName: fileNamePrefix + c, FileID: fileIDPrefix + c, FileMD5: fileMD5Prefix + c},
@@ -357,23 +359,24 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev1,
 		}
-		memberMeta := db.CreateMemberMeta(service1+c, mtime, common.ServiceMemberStatusActive)
+		memberName := utils.GenServiceMemberName(service1, int64(i))
+		memberMeta := db.CreateMemberMeta(mtime, common.ServiceMemberStatusActive)
 		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
-		s1[i] = db.CreateServiceMember(service1, int64(i), 0, memberMeta, memberSpec)
+		s1[memberName] = db.CreateServiceMember(uuid1, memberName, 0, memberMeta, memberSpec)
 
-		err := dbIns.CreateServiceMember(ctx, s1[i])
+		err := dbIns.CreateServiceMember(ctx, s1[memberName])
 		if err != nil {
 			t.Fatalf("failed to create serviceMember %s, err %s", c, err)
 		}
 
-		item, err := dbIns.GetServiceMember(ctx, service1, int64(i))
-		if err != nil || !db.EqualServiceMember(item, s1[i], false) {
-			t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s1[i], item)
+		item, err := dbIns.GetServiceMember(ctx, uuid1, memberName)
+		if err != nil || !db.EqualServiceMember(item, s1[memberName], false) {
+			t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s1[memberName], item)
 		}
 	}
 
 	// create 4 serviceMembers for service2
-	var s2 [4]*common.ServiceMember
+	s2 := make(map[string]*common.ServiceMember)
 	for i := 0; i < 4; i++ {
 		c := x[i]
 		cfgs := []common.ConfigID{
@@ -383,25 +386,27 @@ func TestServiceMembers(t *testing.T) {
 			PrimaryVolumeID:   volPrefix + c,
 			PrimaryDeviceName: dev2,
 		}
-		memberMeta := db.CreateMemberMeta(service2+c, mtime, common.ServiceMemberStatusActive)
+		memberName := utils.GenServiceMemberName(service2, int64(i))
+		memberMeta := db.CreateMemberMeta(mtime, common.ServiceMemberStatusActive)
 		memberSpec := db.CreateMemberSpec(azPrefix+c, taskPrefix+c, contPrefix+c, hostPrefix+c, &mvols, staticIPPrefix+c, cfgs)
-		s2[i] = db.CreateServiceMember(service2, int64(i), 0, memberMeta, memberSpec)
+		s2[memberName] = db.CreateServiceMember(uuid2, memberName, 0, memberMeta, memberSpec)
 
-		err := dbIns.CreateServiceMember(ctx, s2[i])
+		err := dbIns.CreateServiceMember(ctx, s2[memberName])
 		if err != nil {
 			t.Fatalf("failed to create serviceMember %s, err %s", c, err)
 		}
 
-		item, err := dbIns.GetServiceMember(ctx, service2, int64(i))
-		if err != nil || !db.EqualServiceMember(item, s2[i], false) {
-			t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s2[i], item)
+		item, err := dbIns.GetServiceMember(ctx, uuid2, memberName)
+		if err != nil || !db.EqualServiceMember(item, s2[memberName], false) {
+			t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s2[memberName], item)
 		}
 	}
 
 	// get service to verify
-	item, err := dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
-	if err != nil || !db.EqualServiceMember(item, s1[1], false) {
-		t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s1[1], item)
+	member1 := utils.GenServiceMemberName(service1, 1)
+	item, err := dbIns.GetServiceMember(ctx, s1[member1].ServiceUUID, member1)
+	if err != nil || !db.EqualServiceMember(item, s1[member1], false) {
+		t.Fatalf("get serviceMember failed, error %s, expected %s get %s", err, s1[member1], item)
 	}
 
 	// update serviceMember
@@ -409,74 +414,76 @@ func TestServiceMembers(t *testing.T) {
 	item.Spec.TaskID = taskPrefix + "z"
 	item.Spec.ContainerInstanceID = contPrefix + "z"
 	item.Spec.ServerInstanceID = hostPrefix + "z"
-	err = dbIns.UpdateServiceMember(ctx, s1[1], item)
+	err = dbIns.UpdateServiceMember(ctx, s1[member1], item)
 	if err != nil {
 		t.Fatalf("update serviceMember failed, serviceMember %s error %s", item, err)
 	}
 
 	// serviceMember updated
-	s1[1].Revision++
-	s1[1].Meta.LastModified = item.Meta.LastModified
-	s1[1].Spec.TaskID = item.Spec.TaskID
-	s1[1].Spec.ContainerInstanceID = item.Spec.ContainerInstanceID
-	s1[1].Spec.ServerInstanceID = item.Spec.ServerInstanceID
+	s1[member1].Revision++
+	s1[member1].Meta.LastModified = item.Meta.LastModified
+	s1[member1].Spec.TaskID = item.Spec.TaskID
+	s1[member1].Spec.ContainerInstanceID = item.Spec.ContainerInstanceID
+	s1[member1].Spec.ServerInstanceID = item.Spec.ServerInstanceID
 
 	// get serviceMember again to verify the update
-	item, err = dbIns.GetServiceMember(ctx, s1[1].ServiceUUID, s1[1].MemberIndex)
-	if err != nil || !db.EqualServiceMember(item, s1[1], false) {
-		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[1], item)
+	item, err = dbIns.GetServiceMember(ctx, s1[member1].ServiceUUID, member1)
+	if err != nil || !db.EqualServiceMember(item, s1[member1], false) {
+		t.Fatalf("get serviceMember after update failed, error %s, expected %s get %s", err, s1[member1], item)
 	}
 
 	// list serviceMembers of service1
-	items, err := dbIns.ListServiceMembers(ctx, s1[0].ServiceUUID)
+	items, err := dbIns.ListServiceMembers(ctx, s1[member1].ServiceUUID)
 	if err != nil || len(items) != len(s1) {
 		t.Fatalf("expected %d serviceMembers for service %s, got %s, error %s",
-			len(s1), s1[0].ServiceUUID, items, err)
+			len(s1), s1[member1].ServiceUUID, items, err)
 	}
 	for i, item := range items {
-		if !db.EqualServiceMember(item, s1[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s1[i], item, i)
+		if !db.EqualServiceMember(item, s1[item.MemberName], false) {
+			t.Fatalf("expected %s, got %s, index %d", s1[item.MemberName], item, i)
 		}
 	}
 
 	// pagination list serviceMembers of service2
-	items, err = dbIns.listServiceMembersWithLimit(ctx, s2[0].ServiceUUID, 3)
+	member1 = utils.GenServiceMemberName(service2, 1)
+	items, err = dbIns.listServiceMembersWithLimit(ctx, s2[member1].ServiceUUID, 3)
 	if err != nil || len(items) != len(s2) {
 		t.Fatalf("expected %d serviceMembers for service %s, got %s, error %s",
-			len(s2), s2[0].ServiceUUID, items, err)
+			len(s2), s2[member1].ServiceUUID, items, err)
 	}
 	for i, item := range items {
-		if !db.EqualServiceMember(item, s2[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s2[i], item, i)
+		if !db.EqualServiceMember(item, s2[item.MemberName], false) {
+			t.Fatalf("expected %s, got %s, index %d", s2[member1], item, i)
 		}
 	}
 
 	// delete serviceMember
-	err = dbIns.DeleteServiceMember(ctx, s1[len(s1)-1].ServiceUUID, s1[len(s1)-1].MemberIndex)
+	lastMember := utils.GenServiceMemberName(service1, int64(len(s1)-1))
+	err = dbIns.DeleteServiceMember(ctx, s1[lastMember].ServiceUUID, lastMember)
 	if err != nil {
-		t.Fatalf("failed to delete serviceMember %s error %s", s1[len(s1)-1], err)
+		t.Fatalf("failed to delete serviceMember %s error %s", s1[lastMember], err)
 	}
 
 	// pagination list serviceMembers of service1
-	items, err = dbIns.listServiceMembersWithLimit(ctx, s1[0].ServiceUUID, 3)
+	items, err = dbIns.listServiceMembersWithLimit(ctx, uuid1, 3)
 	if err != nil || len(items) != (len(s1)-1) {
 		t.Fatalf("expected %d serviceMembers for service %s, got %s, error %s",
-			len(s1)-1, s1[0].ServiceUUID, items, err)
+			len(s1)-1, uuid1, items, err)
 	}
 	for i, item := range items {
-		if !db.EqualServiceMember(item, s1[i], false) {
-			t.Fatalf("expected %s, got %s, index %d", s1[i], item, i)
+		if !db.EqualServiceMember(item, s1[item.MemberName], false) {
+			t.Fatalf("expected %s, got %s, index %d", s1[item.MemberName], item, i)
 		}
 	}
 
 	// get one unexist serviceMember
-	item, err = dbIns.GetServiceMember(ctx, s1[0].ServiceUUID, 100)
+	item, err = dbIns.GetServiceMember(ctx, uuid1, "non-exist-member")
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("get unexist serviceMember, expect db.ErrDBRecordNotFound, got error %s item %s", err, item)
 	}
 
 	// delete one unexist serviceMember
-	err = dbIns.DeleteServiceMember(ctx, s1[0].ServiceUUID, 100)
+	err = dbIns.DeleteServiceMember(ctx, uuid1, "non-exist")
 	if err == nil || err != db.ErrDBRecordNotFound {
 		t.Fatalf("delete unexist serviceMember, expect db.ErrDBRecordNotFound, got error %s", err)
 	}
