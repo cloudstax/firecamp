@@ -23,7 +23,6 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/manage"
 	managecli "github.com/cloudstax/firecamp/manage/client"
-	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -176,7 +175,7 @@ func (s *SwarmSvc) CreateServiceSpec(opts *containersvc.CreateServiceOptions) sw
 	if opts.JournalVolume != nil {
 		// The Task.Slot in the volume name does not work on the multiple zones cluster,
 		// as task slot is not aware of zone.
-		source := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
+		source := containersvc.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
 		//if len(s.azs) == 1 {
 		// enable Task.Slot for the single zone cluster.
 		// TODO revisit it when support adding a new zone.
@@ -1210,11 +1209,11 @@ func (s *SwarmSvc) RemoveDownManagerNode(ctx context.Context, node swarm.Node) e
 }
 
 // CreateServiceVolume is a non-op for swarm.
-func (s *SwarmSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+func (s *SwarmSvc) CreateServiceVolume(ctx context.Context, service string, memberName string, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
 	return "", nil
 }
 
 // DeleteServiceVolume is a non-op for swarm.
-func (s *SwarmSvc) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+func (s *SwarmSvc) DeleteServiceVolume(ctx context.Context, service string, memberName string, journal bool) error {
 	return nil
 }

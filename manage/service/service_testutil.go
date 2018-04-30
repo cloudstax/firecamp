@@ -132,11 +132,11 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount1, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+			return memberItems[i].MemberName < memberItems[j].MemberName
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
-			if member.Meta.MemberName != name {
+			if member.MemberName != name {
 				t.Fatalf("expect member name %s, get %s", name, member)
 			}
 			if requireStaticIP {
@@ -271,11 +271,11 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount2, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+			return memberItems[i].MemberName < memberItems[j].MemberName
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
-			if member.Meta.MemberName != name {
+			if member.MemberName != name {
 				t.Fatalf("expect member name %s, get %s", name, member)
 			}
 			if requireStaticIP {
@@ -400,11 +400,11 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 			t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount3, service)
 		}
 		sort.Slice(memberItems, func(i, j int) bool {
-			return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+			return memberItems[i].MemberName < memberItems[j].MemberName
 		})
 		for i, member := range memberItems {
 			name := utils.GenServiceMemberName(service, int64(i))
-			if member.Meta.MemberName != name {
+			if member.MemberName != name {
 				t.Fatalf("expect member name %s, get %s", name, member)
 			}
 			if requireStaticIP {
@@ -538,11 +538,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+		return memberItems[i].MemberName < memberItems[j].MemberName
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
-		if member.Meta.MemberName != name {
+		if member.MemberName != name {
 			t.Fatalf("expect member name %s, get %s", name, member)
 		}
 		if requireStaticIP {
@@ -620,11 +620,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+		return memberItems[i].MemberName < memberItems[j].MemberName
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
-		if member.Meta.MemberName != name {
+		if member.MemberName != name {
 			t.Fatalf("expect member name %s, get %s", name, member)
 		}
 		if requireStaticIP {
@@ -720,11 +720,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+		return memberItems[i].MemberName < memberItems[j].MemberName
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
-		if member.Meta.MemberName != name {
+		if member.MemberName != name {
 			t.Fatalf("expect member name %s, get %s", name, member)
 		}
 		if requireStaticIP {
@@ -819,7 +819,7 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		}
 	}
 
-	_, err = s.createServiceMember(ctx, serviceAttr, az, 0, replicaCfgs[0].MemberName, ip, cfgs)
+	_, err = s.createServiceMember(ctx, serviceAttr, az, replicaCfgs[0].MemberName, ip, cfgs)
 	if err != nil {
 		t.Fatalf("createServiceServiceMember error %s, serviceItem %s", err, serviceItem)
 	}
@@ -870,11 +870,11 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 		t.Fatalf("got %d, expect %d serviceMembers for service %s", len(memberItems), taskCount, service)
 	}
 	sort.Slice(memberItems, func(i, j int) bool {
-		return memberItems[i].MemberIndex < memberItems[j].MemberIndex
+		return memberItems[i].MemberName < memberItems[j].MemberName
 	})
 	for i, member := range memberItems {
 		name := utils.GenServiceMemberName(service, int64(i))
-		if member.Meta.MemberName != name {
+		if member.MemberName != name {
 			t.Fatalf("expect member name %s, get %s", name, member)
 		}
 		if requireStaticIP {

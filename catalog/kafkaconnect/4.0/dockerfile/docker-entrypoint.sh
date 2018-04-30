@@ -41,14 +41,8 @@ fi
 
 # for now, simply pass all configs in env variables. later, we may put all configs in service.conf
 if [ "$CONTAINER_PLATFORM" = "ecs" -o "$CONTAINER_PLATFORM" = "swarm" ]; then
-  # for AWS ECS and Docker swarm
-  MEMBER_INDEX=-1
-  if [ "$CONTAINER_PLATFORM" = "swarm" ]; then
-    MEMBER_INDEX=$TASK_SLOT
-  fi
-
   # select one service member, update member dns and write the member dns name to /etc/firecamp-member.
-  /firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -container-platform=$CONTAINER_PLATFORM
+  /firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -container-platform=$CONTAINER_PLATFORM
 
   # load member configs
   . /etc/firecamp-member

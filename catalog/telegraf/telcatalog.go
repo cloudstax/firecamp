@@ -51,7 +51,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 	members := ""
 	for i, m := range monitorServiceMembers {
-		dnsname := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
+		dnsname := dns.GenDNSName(m.MemberName, attr.Spec.DomainName)
 		if i == 0 {
 			members = dnsname
 		} else {

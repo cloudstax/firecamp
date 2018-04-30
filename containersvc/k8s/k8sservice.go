@@ -105,15 +105,15 @@ func (s *K8sSvc) GetContainerSvcType() string {
 }
 
 // CreateServiceVolume creates PV and PVC for the service member.
-func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, memberName string, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	pvname := s.genDataVolumePVName(service, memberIndex)
-	pvcname := s.genDataVolumePVCName(service, memberIndex)
+	pvname := s.genDataVolumePVName(service, memberName)
+	pvcname := s.genDataVolumePVCName(service, memberName)
 	sclassname := s.genDataVolumeStorageClassName(service)
 	if journal {
-		pvname = s.genJournalVolumePVName(service, memberIndex)
-		pvcname = s.genJournalVolumePVCName(service, memberIndex)
+		pvname = s.genJournalVolumePVName(service, memberName)
+		pvcname = s.genJournalVolumePVCName(service, memberName)
 		sclassname = s.genJournalVolumeStorageClassName(service)
 	}
 
@@ -140,14 +140,14 @@ func (s *K8sSvc) CreateServiceVolume(ctx context.Context, service string, member
 }
 
 // DeleteServiceVolume deletes the pv and pvc for the service member.
-func (s *K8sSvc) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+func (s *K8sSvc) DeleteServiceVolume(ctx context.Context, service string, memberName string, journal bool) error {
 	requuid := utils.GetReqIDFromContext(ctx)
 
-	pvname := s.genDataVolumePVName(service, memberIndex)
-	pvcname := s.genDataVolumePVCName(service, memberIndex)
+	pvname := s.genDataVolumePVName(service, memberName)
+	pvcname := s.genDataVolumePVCName(service, memberName)
 	if journal {
-		pvname = s.genJournalVolumePVName(service, memberIndex)
-		pvcname = s.genJournalVolumePVCName(service, memberIndex)
+		pvname = s.genJournalVolumePVName(service, memberName)
+		pvcname = s.genJournalVolumePVCName(service, memberName)
 	}
 
 	err := s.deletePVC(pvcname, requuid)
@@ -1221,28 +1221,30 @@ func (s *K8sSvc) genJournalVolumeStorageClassName(service string) string {
 	return fmt.Sprintf("%s-%s", service, journalVolumeName)
 }
 
-func (s *K8sSvc) genDataVolumePVName(service string, memberIndex int64) string {
-	// example: service-data-pv-0
-	return fmt.Sprintf("%s-%s-%s-%d", service, dataVolumeName, pvName, memberIndex)
+func (s *K8sSvc) genDataVolumePVName(service string, memberName string) string {
+	// example: mycas-data-pv-mycas-0
+	return fmt.Sprintf("%s-%s-%s-%s", service, dataVolumeName, pvName, memberName)
 }
 
-func (s *K8sSvc) genJournalVolumePVName(service string, memberIndex int64) string {
-	// example: service-journal-pv-0
-	return fmt.Sprintf("%s-%s-%s-%d", service, journalVolumeName, pvName, memberIndex)
+func (s *K8sSvc) genJournalVolumePVName(service string, memberName string) string {
+	// example: mycas-journal-pv-mycas-0
+	return fmt.Sprintf("%s-%s-%s-%s", service, journalVolumeName, pvName, memberName)
 }
 
-func (s *K8sSvc) genDataVolumePVCName(service string, memberIndex int64) string {
-	// example: service-data-service-0.
+func (s *K8sSvc) genDataVolumePVCName(service string, memberName string) string {
+	// example: mycas-data-mycas-0.
 	// Note: this format could not be changed. this is the default k8s format.
 	// statefulset relies on this name to select the pvc.
-	return fmt.Sprintf("%s-%s-%s-%d", service, dataVolumeName, service, memberIndex)
+	// see getPersistentVolumeClaimName() in kubernetes/pkg/controller/statefulset/stateful_set_utils.go,
+	// the pvc name format is: claimName-statefulsetName-ordinal
+	return fmt.Sprintf("%s-%s-%s", service, dataVolumeName, memberName)
 }
 
-func (s *K8sSvc) genJournalVolumePVCName(service string, memberIndex int64) string {
-	// example: service-journal-service-0
+func (s *K8sSvc) genJournalVolumePVCName(service string, memberName string) string {
+	// example: mycas-journal-mycas-0
 	// Note: this format could not be changed. this is the default k8s format.
 	// statefulset relies on this name to select the pvc.
-	return fmt.Sprintf("%s-%s-%s-%d", service, journalVolumeName, service, memberIndex)
+	return fmt.Sprintf("%s-%s-%s", service, journalVolumeName, memberName)
 }
 
 func (s *K8sSvc) volumeQuantity(volSizeGB int64) resource.Quantity {

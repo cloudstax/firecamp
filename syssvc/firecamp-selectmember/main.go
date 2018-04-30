@@ -14,7 +14,6 @@ import (
 	"github.com/cloudstax/firecamp/containersvc/awsecs"
 	"github.com/cloudstax/firecamp/containersvc/swarm"
 	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/plugins/network"
 	"github.com/cloudstax/firecamp/server/awsec2"
@@ -27,7 +26,7 @@ import (
 var (
 	cluster      = flag.String("cluster", "", "The firecamp cluster")
 	service      = flag.String("service-name", "", "The firecamp service name")
-	memberIndex  = flag.Int64("member-index", -1, "The target service member index")
+	memberName   = flag.String("member-name", "", "The target service member name")
 	contPlatform = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
 	outputfile   = flag.String("outputfile", "/etc/firecamp-member", "The output file to store the assigned service member name")
 )
@@ -98,20 +97,19 @@ func main() {
 	}
 
 	ctx := context.Background()
-	memberName, domain, err := snet.UpdateServiceMemberDNS(ctx, *cluster, *service, *memberIndex, containersvcIns, info.GetLocalContainerInstanceID())
+	memberHost, err := snet.UpdateServiceMemberDNS(ctx, *cluster, *service, *memberName, containersvcIns, info.GetLocalContainerInstanceID())
 	if err != nil {
-		glog.Fatalln("UpdateServiceMemberDNS error", err, "service", *service, "memberIndex", *memberIndex)
+		glog.Fatalln("UpdateServiceMemberDNS error", err, "service", *service, "memberName", *memberName)
 	}
 
-	memberHost := dns.GenDNSName(memberName, domain)
 	content := fmt.Sprintf("SERVICE_MEMBER=%s", memberHost)
 
 	err = utils.CreateOrOverwriteFile(*outputfile, []byte(content), utils.DefaultFileMode)
 	if err != nil {
-		glog.Fatalln("create outputfile", *outputfile, "error", err, "service", *service, "memberName", memberName, "index", *memberIndex)
+		glog.Fatalln("create outputfile", *outputfile, "error", err, "service", *service, "member", memberHost)
 	}
 
-	glog.Infoln("assign member", memberName, "index", *memberIndex, "for service", *service)
+	glog.Infoln("updated member dns", memberHost, "for service", *service)
 
 	glog.Flush()
 }

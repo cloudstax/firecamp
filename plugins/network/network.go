@@ -254,7 +254,7 @@ func (s *ServiceNetwork) DeleteIP(ip string) error {
 }
 
 // UpdateServiceMemberDNS updates the DNS for the service member.
-// If memberIndex is not specified, an idle member will be assigned.
+// If memberName is empty, an idle member will be assigned.
 func (s *ServiceNetwork) UpdateServiceMemberDNS(ctx context.Context, cluster string, service string, memberName string,
 	containersvcIns containersvc.ContainerSvc, localContainerInstanceID string) (memberHost string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)

@@ -15,7 +15,5 @@ then
   exit 1
 fi
 
-MEMBER_INDEX=$(echo $POD_NAME | awk -F "-" '{ print $2 }')
-
-/firecamp-initcontainer -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-index=$MEMBER_INDEX -dbtype=$DB_TYPE
+/firecamp-initcontainer -cluster=$CLUSTER -service-name=$SERVICE_NAME -member-name=$POD_NAME -dbtype=$DB_TYPE
 

@@ -636,7 +636,7 @@ func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID 
 	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
 	for i, m := range members {
-		memberdns := dns.GenDNSName(m.Meta.MemberName, attr.Spec.DomainName)
+		memberdns := dns.GenDNSName(m.MemberName, attr.Spec.DomainName)
 		memberips[memberdns] = m.Spec.StaticIP
 		serverips[i] = m.Spec.StaticIP
 
@@ -714,7 +714,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 		return nil, err
 	}
 
-	newFileID := utils.GenConfigFileID(member.Meta.MemberName, cfgfile.Meta.FileName, version+1)
+	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.Meta.FileName, version+1)
 	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
 
 	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)

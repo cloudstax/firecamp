@@ -152,8 +152,8 @@ type ContainerSvc interface {
 	DeleteTask(ctx context.Context, cluster string, service string, taskType string) error
 
 	// Create the service volume. This is only useful for k8s to create PV and PVC. And simply non-op for ECS and Swarm.
-	CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error)
-	DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error
+	CreateServiceVolume(ctx context.Context, service string, memberName string, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error)
+	DeleteServiceVolume(ctx context.Context, service string, memberName string, journal bool) error
 }
 
 // Info defines the operations for the container related info
