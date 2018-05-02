@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 // Kafka Manager will store the data in ZooKeeper. So Kafka Manager itself is stateless.
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(opts *manage.CatalogKafkaManagerOptions) error {
+func ValidateRequest(opts *catalog.CatalogKafkaManagerOptions) error {
 	if len(opts.User) == 0 || len(opts.Password) == 0 {
 		return errors.New("Please specify the user and password")
 	}
@@ -47,7 +47,7 @@ func ValidateRequest(opts *manage.CatalogKafkaManagerOptions) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
-	zkServers string, opts *manage.CatalogKafkaManagerOptions, res *common.Resources) *manage.CreateServiceRequest {
+	zkServers string, opts *catalog.CatalogKafkaManagerOptions, res *common.Resources) *manage.CreateServiceRequest {
 
 	envkvs := []*common.EnvKeyValuePair{
 		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
@@ -115,7 +115,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	return req
 }
 
-func genServiceConfigs(platform string, opts *manage.CatalogKafkaManagerOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *catalog.CatalogKafkaManagerOptions) []*manage.ConfigFileContent {
 	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, opts.User, opts.Password, opts.ZkServiceName)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,

@@ -1,4 +1,4 @@
-package manageservice
+package managesvc
 
 import (
 	"sort"
@@ -10,10 +10,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )

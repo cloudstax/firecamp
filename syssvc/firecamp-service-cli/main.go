@@ -14,7 +14,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	catalogclient "github.com/cloudstax/firecamp/api/catalog/client"
+	"github.com/cloudstax/firecamp/api/manage"
+	manageclient "github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
@@ -30,8 +33,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/manage/client"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -597,8 +598,11 @@ func main() {
 		*serverURL = dns.FormatManageServiceURL(*serverURL, *tlsEnabled)
 	}
 
-	cli := client.NewManageClient(*serverURL, tlsConf)
+	cli := manageclient.NewManageClient(*serverURL, tlsConf)
 	ctx := context.Background()
+
+	catalogServerURL := dns.GetDefaultCatalogServiceURL(*cluster, *tlsEnabled)
+	catalogcli := catalogclient.NewCatalogServiceClient(catalogServerURL, tlsConf)
 
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
@@ -622,33 +626,33 @@ func main() {
 		}
 		switch *serviceType {
 		case common.CatalogService_MongoDB:
-			createMongoDBService(ctx, cli, journalVol)
+			createMongoDBService(ctx, catalogcli, journalVol)
 		case common.CatalogService_PostgreSQL:
-			createPostgreSQLService(ctx, cli, journalVol)
+			createPostgreSQLService(ctx, catalogcli, journalVol)
 		case common.CatalogService_Cassandra:
-			createCassandraService(ctx, cli, journalVol)
+			createCassandraService(ctx, catalogcli, journalVol)
 		case common.CatalogService_ZooKeeper:
-			createZkService(ctx, cli)
+			createZkService(ctx, catalogcli)
 		case common.CatalogService_Kafka:
-			createKafkaService(ctx, cli)
+			createKafkaService(ctx, catalogcli)
 		case common.CatalogService_KafkaSinkES:
-			createKafkaSinkESService(ctx, cli)
+			createKafkaSinkESService(ctx, catalogcli)
 		case common.CatalogService_KafkaManager:
-			createKafkaManagerService(ctx, cli)
+			createKafkaManagerService(ctx, catalogcli)
 		case common.CatalogService_Redis:
-			createRedisService(ctx, cli)
+			createRedisService(ctx, catalogcli)
 		case common.CatalogService_CouchDB:
-			createCouchDBService(ctx, cli)
+			createCouchDBService(ctx, catalogcli)
 		case common.CatalogService_Consul:
-			createConsulService(ctx, cli)
+			createConsulService(ctx, catalogcli)
 		case common.CatalogService_ElasticSearch:
-			createESService(ctx, cli)
+			createESService(ctx, catalogcli)
 		case common.CatalogService_Kibana:
-			createKibanaService(ctx, cli)
+			createKibanaService(ctx, catalogcli)
 		case common.CatalogService_Logstash:
-			createLogstashService(ctx, cli)
+			createLogstashService(ctx, catalogcli)
 		case common.CatalogService_Telegraf:
-			createTelService(ctx, cli)
+			createTelService(ctx, catalogcli)
 		default:
 			fmt.Printf("Invalid service type, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
 				common.CatalogService_MongoDB, common.CatalogService_PostgreSQL,
@@ -660,6 +664,8 @@ func main() {
 				common.CatalogService_Telegraf)
 			os.Exit(-1)
 		}
+
+		waitServiceRunning(ctx, cli)
 
 	case opUpdateResource:
 		updateServiceResource(ctx, cli)
@@ -682,11 +688,13 @@ func main() {
 	case opScale:
 		switch *serviceType {
 		case common.CatalogService_Cassandra:
-			scaleCassandraService(ctx, cli)
+			scaleCassandraService(ctx, catalogcli)
 		default:
 			fmt.Printf("Invalid service type, scale service only support cassandra\n")
 			os.Exit(-1)
 		}
+
+		waitServiceRunning(ctx, cli)
 
 	case opStop:
 		stopService(ctx, cli)
@@ -701,7 +709,7 @@ func main() {
 		rollingRestartService(ctx, cli)
 
 	case opCheckInit:
-		checkServiceInit(ctx, cli)
+		checkServiceInit(ctx, catalogcli)
 
 	case opDelete:
 		deleteService(ctx, cli)
@@ -732,7 +740,7 @@ func main() {
 	}
 }
 
-func createMongoDBService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
+func createMongoDBService(ctx context.Context, cli *catalogclient.CatalogServiceClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -746,7 +754,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateMongoDBRequest{
+	req := &catalog.CatalogCreateMongoDBRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -758,7 +766,7 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogMongoDBOptions{
+		Options: &catalog.CatalogMongoDBOptions{
 			Shards:           *mongoShards,
 			ReplicasPerShard: *mongoReplPerShard,
 			ReplicaSetOnly:   *mongoReplSetOnly,
@@ -795,15 +803,14 @@ func createMongoDBService(ctx context.Context, cli *client.ManageClient, journal
 		fmt.Println(time.Now().UTC(), "Wait till the sharded cluster gets initialized")
 	}
 
-	initReq := &manage.CatalogCheckServiceInitRequest{
+	initReq := &catalog.CatalogCheckServiceInitRequest{
 		Service:            req.Service,
 		CatalogServiceType: common.CatalogService_MongoDB,
 	}
 	waitServiceInit(ctx, cli, initReq)
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createCassandraService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
+func createCassandraService(ctx context.Context, cli *catalogclient.CatalogServiceClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -823,7 +830,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 		fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
 	}
 
-	req := &manage.CatalogCreateCassandraRequest{
+	req := &catalog.CatalogCreateCassandraRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -835,7 +842,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogCassandraOptions{
+		Options: &catalog.CatalogCassandraOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -865,7 +872,7 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	fmt.Println(time.Now().UTC(), "The catalog service is created, jmx user", jmxUser, "password", jmxPasswd)
 	fmt.Println(time.Now().UTC(), "wait till the service gets initialized")
 
-	initReq := &manage.CatalogCheckServiceInitRequest{
+	initReq := &catalog.CatalogCheckServiceInitRequest{
 		Service:            req.Service,
 		CatalogServiceType: common.CatalogService_Cassandra,
 	}
@@ -873,10 +880,9 @@ func createCassandraService(ctx context.Context, cli *client.ManageClient, journ
 	if req.Options.Replicas > 1 {
 		waitServiceInit(ctx, cli, initReq)
 	}
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
+func updateCassandraService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		glog.Fatalln("please specify the valid service name")
 	}
@@ -910,7 +916,7 @@ func updateCassandraService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
-func updateServiceHeapAndJMX(ctx context.Context, cli *client.ManageClient, heapSizeMB int64, jmxUser string, jmxPasswd string) {
+func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient, heapSizeMB int64, jmxUser string, jmxPasswd string) {
 	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
 	if err != nil {
 		glog.Fatalln("invalid parameters", err)
@@ -936,7 +942,7 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *client.ManageClient, heap
 	}
 }
 
-func getConfigFile(ctx context.Context, cli *client.ManageClient, cfgFileName string) *common.ConfigFile {
+func getConfigFile(ctx context.Context, cli *manageclient.ManageClient, cfgFileName string) *common.ConfigFile {
 	// get service attributes
 	commonReq := &manage.ServiceCommonRequest{
 		Region:      *region,
@@ -978,13 +984,13 @@ func getConfigFile(ctx context.Context, cli *client.ManageClient, cfgFileName st
 	return cfgFile
 }
 
-func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
+func scaleCassandraService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogScaleCassandraRequest{
+	req := &catalog.CatalogScaleCassandraRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1000,11 +1006,9 @@ func scaleCassandraService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println("The cassandra service is scaled to", *replicas, "nodes, wait for the containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *manage.CatalogCheckServiceInitRequest) {
+func waitServiceInit(ctx context.Context, cli *catalogclient.CatalogServiceClient, initReq *catalog.CatalogCheckServiceInitRequest) {
 	for sec := time.Duration(0); sec < maxServiceWaitTime; sec += retryWaitTime {
 		initialized, statusMsg, err := cli.CatalogCheckServiceInit(ctx, initReq)
 		if err == nil {
@@ -1023,7 +1027,7 @@ func waitServiceInit(ctx context.Context, cli *client.ManageClient, initReq *man
 	os.Exit(-1)
 }
 
-func createZkService(ctx context.Context, cli *client.ManageClient) {
+func createZkService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1036,7 +1040,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The ZooKeeper heap size is less than %d. Please increase it for production system\n", zkcatalog.DefaultHeapMB)
 	}
 
-	req := &manage.CatalogCreateZooKeeperRequest{
+	req := &catalog.CatalogCreateZooKeeperRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1048,7 +1052,7 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogZooKeeperOptions{
+		Options: &catalog.CatalogZooKeeperOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1070,11 +1074,9 @@ func createZkService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The zookeeper service is created, jmx user", jmxUser, "password", jmxPasswd)
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func updateZkService(ctx context.Context, cli *client.ManageClient) {
+func updateZkService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1100,7 +1102,7 @@ func updateZkService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
 
-func createKafkaService(ctx context.Context, cli *client.ManageClient) {
+func createKafkaService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1113,7 +1115,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The Kafka heap size is less than %d. Please increase it for production system\n", kafkacatalog.DefaultHeapMB)
 	}
 
-	req := &manage.CatalogCreateKafkaRequest{
+	req := &catalog.CatalogCreateKafkaRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1125,7 +1127,7 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogKafkaOptions{
+		Options: &catalog.CatalogKafkaOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1151,11 +1153,9 @@ func createKafkaService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The kafka service is created, jmx user", jmxUser, "password", jmxPasswd)
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
+func createKafkaSinkESService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1168,7 +1168,7 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The Kafka connec heap size is less than %d. Please increase it for production system\n", kccatalog.DefaultHeapMB)
 	}
 
-	req := &manage.CatalogCreateKafkaSinkESRequest{
+	req := &catalog.CatalogCreateKafkaSinkESRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1180,7 +1180,7 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogKafkaSinkESOptions{
+		Options: &catalog.CatalogKafkaSinkESOptions{
 			Replicas:           *replicas,
 			HeapSizeMB:         *kcHeapSizeMB,
 			KafkaServiceName:   *kcKafkaService,
@@ -1201,16 +1201,15 @@ func createKafkaSinkESService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
-	initReq := &manage.CatalogCheckServiceInitRequest{
+	initReq := &catalog.CatalogCheckServiceInitRequest{
 		Service:            req.Service,
 		CatalogServiceType: common.CatalogService_KafkaSinkES,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
+func updateKafkaService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1274,7 +1273,7 @@ func updateKafkaService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
 }
 
-func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
+func createKafkaManagerService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" || *kmZkService == "" {
 		fmt.Println("please specify the valid service name and zookeeper service name")
 		os.Exit(-1)
@@ -1283,7 +1282,7 @@ func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The Kafka Manager heap size is less than %d. Please increase it for production system\n", kmcatalog.DefaultHeapMB)
 	}
 
-	req := &manage.CatalogCreateKafkaManagerRequest{
+	req := &catalog.CatalogCreateKafkaManagerRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1295,7 +1294,7 @@ func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogKafkaManagerOptions{
+		Options: &catalog.CatalogKafkaManagerOptions{
 			HeapSizeMB:    *kmHeapSizeMB,
 			User:          *kmUser,
 			Password:      *kmPasswd,
@@ -1316,11 +1315,9 @@ func createKafkaManagerService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The kafka manager service is created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createRedisService(ctx context.Context, cli *client.ManageClient) {
+func createRedisService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1330,7 +1327,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateRedisRequest{
+	req := &catalog.CatalogCreateRedisRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1342,7 +1339,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogRedisOptions{
+		Options: &catalog.CatalogRedisOptions{
 			Shards:            *redisShards,
 			ReplicasPerShard:  *redisReplicasPerShard,
 			MemoryCacheSizeMB: *redisMemSizeMB,
@@ -1377,7 +1374,7 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 	if rediscatalog.IsClusterMode(*redisShards) {
 		fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
-		initReq := &manage.CatalogCheckServiceInitRequest{
+		initReq := &catalog.CatalogCheckServiceInitRequest{
 			Service:            req.Service,
 			CatalogServiceType: common.CatalogService_Redis,
 		}
@@ -1386,10 +1383,9 @@ func createRedisService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The service is created, wait for all containers running")
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func updateRedisService(ctx context.Context, cli *client.ManageClient) {
+func updateRedisService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1458,7 +1454,7 @@ func updateRedisService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
-func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
+func createCouchDBService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1468,7 +1464,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateCouchDBRequest{
+	req := &catalog.CatalogCreateCouchDBRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1480,7 +1476,7 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogCouchDBOptions{
+		Options: &catalog.CatalogCouchDBOptions{
 			Replicas:    *replicas,
 			Admin:       *admin,
 			AdminPasswd: *adminPasswd,
@@ -1538,16 +1534,15 @@ func createCouchDBService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The service is created, wait till it gets initialized")
 
-	initReq := &manage.CatalogCheckServiceInitRequest{
+	initReq := &catalog.CatalogCheckServiceInitRequest{
 		Service:            req.Service,
 		CatalogServiceType: common.CatalogService_CouchDB,
 	}
 
 	waitServiceInit(ctx, cli, initReq)
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createConsulService(ctx context.Context, cli *client.ManageClient) {
+func createConsulService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1557,7 +1552,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateConsulRequest{
+	req := &catalog.CatalogCreateConsulRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1569,7 +1564,7 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogConsulOptions{
+		Options: &catalog.CatalogConsulOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1626,11 +1621,9 @@ func createConsulService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println(time.Now().UTC(), "The consul service created, Consul server ips", serverips)
 	fmt.Println(time.Now().UTC(), "Wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createESService(ctx context.Context, cli *client.ManageClient) {
+func createESService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1643,7 +1636,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The ElasticSearch heap size equals to or less than %d. Please increase it for production system\n", escatalog.DefaultHeapMB)
 	}
 
-	req := &manage.CatalogCreateElasticSearchRequest{
+	req := &catalog.CatalogCreateElasticSearchRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1655,7 +1648,7 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogElasticSearchOptions{
+		Options: &catalog.CatalogElasticSearchOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1684,11 +1677,9 @@ func createESService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The service is created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createKibanaService(ctx context.Context, cli *client.ManageClient) {
+func createKibanaService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1708,7 +1699,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 		fmt.Printf("The reserved memory for Kibana service is less than %d. Please increase it for production system\n", kibanacatalog.DefaultReserveMemoryMB)
 	}
 
-	req := &manage.CatalogCreateKibanaRequest{
+	req := &catalog.CatalogCreateKibanaRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1720,7 +1711,7 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogKibanaOptions{
+		Options: &catalog.CatalogKibanaOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1765,11 +1756,9 @@ func createKibanaService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The kibana service created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createLogstashService(ctx context.Context, cli *client.ManageClient) {
+func createLogstashService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1794,7 +1783,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateLogstashRequest{
+	req := &catalog.CatalogCreateLogstashRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1806,7 +1795,7 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogLogstashOptions{
+		Options: &catalog.CatalogLogstashOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1839,11 +1828,9 @@ func createLogstashService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "The logstash service created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, journalVol *common.ServiceVolume) {
+func createPostgreSQLService(ctx context.Context, cli *catalogclient.CatalogServiceClient, journalVol *common.ServiceVolume) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1857,7 +1844,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreatePostgreSQLRequest{
+	req := &catalog.CatalogCreatePostgreSQLRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1869,7 +1856,7 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogPostgreSQLOptions{
+		Options: &catalog.CatalogPostgreSQLOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   *volType,
@@ -1898,11 +1885,9 @@ func createPostgreSQLService(ctx context.Context, cli *client.ManageClient, jour
 	}
 
 	fmt.Println(time.Now().UTC(), "The postgresql service is created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func createTelService(ctx context.Context, cli *client.ManageClient) {
+func createTelService(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -1912,7 +1897,7 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 		os.Exit(-1)
 	}
 
-	req := &manage.CatalogCreateTelegrafRequest{
+	req := &catalog.CatalogCreateTelegrafRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -1924,7 +1909,7 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 			MaxMemMB:        *maxMemMB,
 			ReserveMemMB:    *reserveMemMB,
 		},
-		Options: &manage.CatalogTelegrafOptions{
+		Options: &catalog.CatalogTelegrafOptions{
 			CollectIntervalSecs: *telCollectIntervalSecs,
 			MonitorServiceName:  *telMonitorServiceName,
 		},
@@ -1953,11 +1938,14 @@ func createTelService(ctx context.Context, cli *client.ManageClient) {
 	}
 
 	fmt.Println(time.Now().UTC(), "service is created, wait for all containers running")
-
-	waitServiceRunning(ctx, cli, req.Service)
 }
 
-func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage.ServiceCommonRequest) {
+func waitServiceRunning(ctx context.Context, cli *manageclient.ManageClient) {
+	r := &manage.ServiceCommonRequest{
+		Region:      *region,
+		Cluster:     *cluster,
+		ServiceName: *service,
+	}
 	// sometimes, the container orchestration framework returns NotFound when GetServiceStatus right
 	// after the service is created. sleep some time.
 	time.Sleep(retryWaitTime)
@@ -1987,12 +1975,12 @@ func waitServiceRunning(ctx context.Context, cli *client.ManageClient, r *manage
 	os.Exit(-1)
 }
 
-func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
+func checkServiceInit(ctx context.Context, cli *catalogclient.CatalogServiceClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
 	}
-	req := &manage.CatalogCheckServiceInitRequest{
+	req := &catalog.CatalogCheckServiceInitRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      *region,
 			Cluster:     *cluster,
@@ -2014,7 +2002,7 @@ func checkServiceInit(ctx context.Context, cli *client.ManageClient) {
 	}
 }
 
-func listServices(ctx context.Context, cli *client.ManageClient) {
+func listServices(ctx context.Context, cli *manageclient.ManageClient) {
 	req := &manage.ListServiceRequest{
 		Region:  *region,
 		Cluster: *cluster,
@@ -2033,7 +2021,7 @@ func listServices(ctx context.Context, cli *client.ManageClient) {
 	}
 }
 
-func getService(ctx context.Context, cli *client.ManageClient) {
+func getService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -2056,7 +2044,7 @@ func getService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println(cfgFile.Spec.Content)
 }
 
-func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common.ServiceMember {
+func listServiceMembers(ctx context.Context, cli *manageclient.ManageClient) []*common.ServiceMember {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -2081,7 +2069,7 @@ func listServiceMembers(ctx context.Context, cli *client.ManageClient) []*common
 	return members
 }
 
-func updateServiceResource(ctx context.Context, cli *client.ManageClient) {
+func updateServiceResource(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -2120,7 +2108,7 @@ func updateServiceResource(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("The service is updated")
 }
 
-func stopService(ctx context.Context, cli *client.ManageClient) {
+func stopService(ctx context.Context, cli *manageclient.ManageClient) {
 	// stop the service containers
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
@@ -2142,7 +2130,7 @@ func stopService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("Service stopped")
 }
 
-func startService(ctx context.Context, cli *client.ManageClient) {
+func startService(ctx context.Context, cli *manageclient.ManageClient) {
 	// start the service containers
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
@@ -2163,10 +2151,10 @@ func startService(ctx context.Context, cli *client.ManageClient) {
 
 	fmt.Println("Service started")
 
-	waitServiceRunning(ctx, cli, serviceReq)
+	waitServiceRunning(ctx, cli)
 }
 
-func upgradeService(ctx context.Context, cli *client.ManageClient) {
+func upgradeService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -2187,7 +2175,7 @@ func upgradeService(ctx context.Context, cli *client.ManageClient) {
 	fmt.Println("Service upgraded")
 }
 
-func rollingRestartService(ctx context.Context, cli *client.ManageClient) {
+func rollingRestartService(ctx context.Context, cli *manageclient.ManageClient) {
 	// start the service containers
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
@@ -2224,7 +2212,7 @@ func rollingRestartService(ctx context.Context, cli *client.ManageClient) {
 	}
 }
 
-func deleteService(ctx context.Context, cli *client.ManageClient) {
+func deleteService(ctx context.Context, cli *manageclient.ManageClient) {
 	if *service == "" {
 		fmt.Println("please specify the valid service name")
 		os.Exit(-1)
@@ -2252,7 +2240,7 @@ func deleteService(ctx context.Context, cli *client.ManageClient) {
 	}
 }
 
-func getConfig(ctx context.Context, cli *client.ManageClient) {
+func getConfig(ctx context.Context, cli *manageclient.ManageClient) {
 	if *serviceUUID == "" || *fileID == "" {
 		fmt.Println("Please specify the service uuid and config file id")
 		os.Exit(-1)

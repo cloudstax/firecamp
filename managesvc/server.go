@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -14,14 +14,14 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/containersvc/k8s"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/manage/service"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -64,7 +64,7 @@ type ManageHTTPServer struct {
 	serverInfo      server.Info
 	logIns          cloudlog.CloudLog
 	containersvcIns containersvc.ContainerSvc
-	svc             *manageservice.ManageService
+	svc             *ManageService
 	catalogSvcInit  *catalogServiceInit
 	taskSvc         *manageTaskService
 }
@@ -73,7 +73,7 @@ type ManageHTTPServer struct {
 func NewManageHTTPServer(platform string, cluster string, azs []string, managedns string,
 	dbIns db.DB, dnsIns dns.DNS, logIns cloudlog.CloudLog, serverIns server.Server,
 	serverInfo server.Info, containersvcIns containersvc.ContainerSvc) *ManageHTTPServer {
-	svc := manageservice.NewManageService(dbIns, serverInfo, serverIns, dnsIns, containersvcIns)
+	svc := NewManageService(dbIns, serverInfo, serverIns, dnsIns, containersvcIns)
 	s := &ManageHTTPServer{
 		platform:        platform,
 		region:          serverInfo.GetLocalRegion(),
@@ -153,7 +153,7 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //   PUT /?SetServiceInitialized, mark a service initialized.
 func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
-	if strings.HasPrefix(trimURL, manage.CatalogOpPrefix) {
+	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
 		return s.putCatalogServiceOp(ctx, w, r, trimURL, requuid)
 	}
 
@@ -213,7 +213,7 @@ func (s *ManageHTTPServer) setServiceInitialized(ctx context.Context, service st
 	err := s.svc.SetServiceInitialized(ctx, s.cluster, service)
 	if err != nil {
 		glog.Errorln("setServiceInitialized error", err, "service", service, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("set service", service, "initialized, requuid", requuid)
@@ -266,13 +266,13 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	res := db.CopyResources(&attr.Spec.Resource)
@@ -292,7 +292,7 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	err = utils.CheckResource(res)
 	if err != nil {
 		glog.Errorln("invalid resource", err, res, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// update container service to use the new resource
@@ -308,7 +308,7 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	err = s.containersvcIns.UpdateService(ctx, opts)
 	if err != nil {
 		glog.Errorln("update container service error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// update service attr
@@ -316,7 +316,7 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
 	if err != nil {
 		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("updated container service", req.Service, "requuid", requuid)
@@ -342,7 +342,7 @@ func (s *ManageHTTPServer) stopService(ctx context.Context, w http.ResponseWrite
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("Stop container service error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("stopped container service", req, "requuid", requuid)
@@ -368,19 +368,19 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("start container service error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("started container service", req, "requuid", requuid)
@@ -406,7 +406,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// check whether the rolling restart task is running
@@ -419,7 +419,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// simply rolling restart the service members in the backward order.
@@ -434,7 +434,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 		members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
 		if err != nil {
 			glog.Errorln("ListServiceMembers error", err, "requuid", requuid, req)
-			return manage.ConvertToHTTPError(err)
+			return convertToHTTPError(err)
 		}
 
 		serviceTasks = make([]string, attr.Spec.Replicas)
@@ -456,7 +456,7 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	err = s.taskSvc.addTask(attr.ServiceUUID, task, requuid)
 	if err != nil {
 		glog.Errorln("add rolling restart task error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("rolling restarted service", req, "requuid", requuid)
@@ -482,7 +482,7 @@ func (s *ManageHTTPServer) getServiceTaskStatus(ctx context.Context, w http.Resp
 	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// check whether the management task is running
@@ -530,7 +530,7 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 
 	_, err = s.createCommonService(ctx, req, requuid)
 	if err != nil {
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 	return "", http.StatusOK
 }
@@ -600,13 +600,13 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	for i, cfg := range attr.Spec.ServiceConfigs {
@@ -615,13 +615,13 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 			currCfgFile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
 			if err != nil {
 				glog.Errorln("GetConfigFile error", err, "requuid", requuid, cfg)
-				return manage.ConvertToHTTPError(err)
+				return convertToHTTPError(err)
 			}
 
 			err = s.updateServiceConfigFile(ctx, attr, i, currCfgFile, req.ConfigFileContent, requuid)
 			if err != nil {
 				glog.Errorln("updateServiceConfigFile error", err, "requuid", requuid, req.Service)
-				return manage.ConvertToHTTPError(err)
+				return convertToHTTPError(err)
 			}
 
 			glog.Infoln("updated service config, requuid", requuid, req.Service)
@@ -646,7 +646,7 @@ func (s *ManageHTTPServer) updateServiceConfigFile(ctx context.Context, attr *co
 
 	newFileID := utils.GenConfigFileID(attr.Meta.ServiceName, oldCfg.Meta.FileName, version+1)
 	newcfgfile := db.CreateNewConfigFile(oldCfg, newFileID, newContent)
-	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	newcfgfile, err = createConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
 		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile))
 		return err
@@ -746,7 +746,7 @@ func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequ
 func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
-	if strings.HasPrefix(trimURL, manage.CatalogOpPrefix) {
+	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
 		return s.getCatalogServiceOp(ctx, w, r, requuid)
 	}
 
@@ -814,26 +814,26 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	err = s.containersvcIns.DeleteService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("delete service from container platform error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// delete the service cloud log
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	err = s.logIns.DeleteServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("DeleteServiceLogConfig error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// delete the service on the control plane
@@ -841,7 +841,7 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 	volIDs, err := s.svc.DeleteService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("DeleteService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("deleted service", req.Service.ServiceName, "requuid", requuid, "volumes", volIDs)
@@ -896,7 +896,7 @@ func (s *ManageHTTPServer) generalUpgradeService(ctx context.Context, attr *comm
 	err := s.containersvcIns.UpdateService(ctx, opts)
 	if err != nil {
 		glog.Errorln("upgrade service release error", err, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("upgraded service to release", common.Version, "requuid", requuid, req)
@@ -925,7 +925,7 @@ func (s *ManageHTTPServer) listServices(ctx context.Context, w http.ResponseWrit
 	services, err := s.dbIns.ListServices(ctx, s.cluster)
 	if err != nil {
 		glog.Errorln("ListServices error", err, "prefix", req.Prefix, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	var serviceAttrs []*common.ServiceAttr
@@ -935,7 +935,7 @@ func (s *ManageHTTPServer) listServices(ctx context.Context, w http.ResponseWrit
 			attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 			if err != nil {
 				glog.Errorln("GetServiceAttr error", err, service, "requuid", requuid)
-				return manage.ConvertToHTTPError(err)
+				return convertToHTTPError(err)
 			}
 
 			glog.Infoln("GetServiceAttr", attr, "requuid", requuid)
@@ -980,13 +980,13 @@ func (s *ManageHTTPServer) listServiceMembers(ctx context.Context, w http.Respon
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("db GetService error", err, req.Service.ServiceName, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
 	if err != nil {
 		glog.Errorln("db ListServiceMembers error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("list", len(members), "serviceMembers, requuid", requuid, req.Service)
@@ -1024,13 +1024,13 @@ func (s *ManageHTTPServer) getServiceAttr(ctx context.Context, w http.ResponseWr
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, service, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	resp := &manage.GetServiceAttributesResponse{Service: attr}
@@ -1064,7 +1064,7 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 	status, err := s.containersvcIns.GetServiceStatus(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetServiceStatus error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	resp := &common.ServiceStatus{
@@ -1103,7 +1103,7 @@ func (s *ManageHTTPServer) getConfigFile(ctx context.Context,
 	cfg, err := s.dbIns.GetConfigFile(ctx, req.ServiceUUID, req.FileID)
 	if err != nil {
 		glog.Errorln("GetConfigFile error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	resp := &manage.GetConfigFileResponse{
@@ -1148,7 +1148,7 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	logConfig := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID, req.TaskType)
@@ -1171,7 +1171,7 @@ func (s *ManageHTTPServer) runTask(ctx context.Context, w http.ResponseWriter, r
 	taskID, err := s.containersvcIns.RunTask(ctx, opts)
 	if err != nil {
 		glog.Errorln("RunTask error", err, "requuid", requuid, req.Service, svc)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("run task", taskID, "requuid", requuid, req.Service, svc)
@@ -1210,7 +1210,7 @@ func (s *ManageHTTPServer) getTaskStatus(ctx context.Context, w http.ResponseWri
 	taskStatus, err := s.containersvcIns.GetTaskStatus(ctx, s.cluster, req.TaskID)
 	if err != nil {
 		glog.Errorln("GetTaskStatus error", err, "requuid", requuid, "taskID", req.TaskID, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get task", req.TaskID, "status", taskStatus, "requuid", requuid, req.Service)
@@ -1250,7 +1250,7 @@ func (s *ManageHTTPServer) deleteTask(ctx context.Context, w http.ResponseWriter
 	err = s.containersvcIns.DeleteTask(ctx, s.cluster, req.Service.ServiceName, req.TaskType)
 	if err != nil {
 		glog.Errorln("DeleteTask error", err, "requuid", requuid, "TaskType", req.TaskType, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("deleted task, requuid", requuid, "TaskType", req.TaskType, req.Service)

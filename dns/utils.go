@@ -121,6 +121,17 @@ func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	return surl
 }
 
+// GetDefaultCatalogServiceURL returns the default catalog service address.
+// example: https://firecamp-catalogserver.cluster-firecamp.com:27041/
+func GetDefaultCatalogServiceURL(cluster string, tlsEnabled bool) string {
+	domain := GenDefaultDomainName(cluster)
+	dnsname := GenDNSName(common.CatalogServiceName, domain)
+	if tlsEnabled {
+		return "https://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
+	}
+	return "http://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
+}
+
 // LookupHost looks up the given host using the local resolver.
 func LookupHost(host string) (addr string, err error) {
 	addrs, err := net.LookupHost(host)

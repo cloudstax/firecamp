@@ -12,7 +12,7 @@ import (
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log/jsonfile"
-	"github.com/cloudstax/firecamp/manage/server"
+	"github.com/cloudstax/firecamp/managesvc"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -31,7 +31,7 @@ func TestTLSMgrOperationsWithMemDB(t *testing.T) {
 	serverInfo := server.NewMockServerInfo()
 	containersvcIns := containersvc.NewMemContainerSvc()
 
-	mgtsvc := manageserver.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
+	mgtsvc := managesvc.NewManageHTTPServer(common.ContainerPlatformECS, cluster, azs,
 		manageurl, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 	// listen on a different port. not sure why, but when simply go test to run both client_test and tls_test,
 	// tls_test failed with like "server gave HTTP response to HTTPS client".

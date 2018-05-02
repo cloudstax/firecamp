@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -9,7 +9,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/consul"
 	"github.com/cloudstax/firecamp/catalog/couchdb"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
@@ -21,46 +22,45 @@ import (
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	switch trimURL {
-	case manage.CatalogCreateMongoDBOp:
+	case catalog.CatalogCreateMongoDBOp:
 		return s.createMongoDBService(ctx, w, r, requuid)
-	case manage.CatalogCreatePostgreSQLOp:
+	case catalog.CatalogCreatePostgreSQLOp:
 		return s.createPGService(ctx, r, requuid)
-	case manage.CatalogCreateCassandraOp:
+	case catalog.CatalogCreateCassandraOp:
 		return s.createCasService(ctx, w, r, requuid)
-	case manage.CatalogCreateZooKeeperOp:
+	case catalog.CatalogCreateZooKeeperOp:
 		return s.createZkService(ctx, w, r, requuid)
-	case manage.CatalogCreateKafkaOp:
+	case catalog.CatalogCreateKafkaOp:
 		return s.createKafkaService(ctx, w, r, requuid)
-	case manage.CatalogCreateKafkaSinkESOp:
+	case catalog.CatalogCreateKafkaSinkESOp:
 		return s.createKafkaSinkESService(ctx, w, r, requuid)
-	case manage.CatalogCreateKafkaManagerOp:
+	case catalog.CatalogCreateKafkaManagerOp:
 		return s.createKafkaManagerService(ctx, r, requuid)
-	case manage.CatalogCreateRedisOp:
+	case catalog.CatalogCreateRedisOp:
 		return s.createRedisService(ctx, r, requuid)
-	case manage.CatalogCreateCouchDBOp:
+	case catalog.CatalogCreateCouchDBOp:
 		return s.createCouchDBService(ctx, r, requuid)
-	case manage.CatalogCreateConsulOp:
+	case catalog.CatalogCreateConsulOp:
 		return s.createConsulService(ctx, w, r, requuid)
-	case manage.CatalogCreateElasticSearchOp:
+	case catalog.CatalogCreateElasticSearchOp:
 		return s.createElasticSearchService(ctx, r, requuid)
-	case manage.CatalogCreateKibanaOp:
+	case catalog.CatalogCreateKibanaOp:
 		return s.createKibanaService(ctx, r, requuid)
-	case manage.CatalogCreateLogstashOp:
+	case catalog.CatalogCreateLogstashOp:
 		return s.createLogstashService(ctx, r, requuid)
-	case manage.CatalogCreateTelegrafOp:
+	case catalog.CatalogCreateTelegrafOp:
 		return s.createTelegrafService(ctx, r, requuid)
-	case manage.CatalogSetServiceInitOp:
+	case catalog.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
-	case manage.CatalogSetRedisInitOp:
+	case catalog.CatalogSetRedisInitOp:
 		return s.setRedisInit(ctx, r, requuid)
-	case manage.CatalogScaleCassandraOp:
+	case catalog.CatalogScaleCassandraOp:
 		return s.scaleCasService(ctx, r, requuid)
 	default:
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -70,7 +70,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCheckServiceInitRequest{}
+	req := &catalog.CatalogCheckServiceInitRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCheckServiceInitRequest decode request error", err, "requuid", requuid)
@@ -88,7 +88,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService", req.Service.ServiceName, req.CatalogServiceType, "error", err, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// check if the init task is running
@@ -104,7 +104,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 		if err != nil {
 			glog.Errorln("GetServiceAttr error", err, service, "requuid", requuid)
-			return manage.ConvertToHTTPError(err)
+			return convertToHTTPError(err)
 		}
 
 		glog.Infoln("service attribute", attr, "requuid", requuid)
@@ -126,13 +126,13 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
 				if err != nil {
 					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
@@ -168,33 +168,33 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				s.restartKafkaSinkESInitTask(ctx, req.Service, attr, requuid)
 				if err != nil {
 					glog.Errorln("restartKafkaSinkESInitTask error", err, "requuid", requuid, req.Service)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 			case common.CatalogService_Redis:
 				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
 				if err != nil {
 					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, opts.Shards, opts.ReplicasPerShard, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 			case common.CatalogService_CouchDB:
 				cfgfile, err := s.getServiceConfigFile(ctx, attr)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return manage.ConvertToHTTPError(err)
+					return convertToHTTPError(err)
 				}
 
 				admin, adminPass := couchdbcatalog.GetAdminFromServiceConfigs(cfgfile.Spec.Content)
@@ -211,7 +211,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		}
 	}
 
-	resp := &manage.CatalogCheckServiceInitResponse{
+	resp := &catalog.CatalogCheckServiceInitResponse{
 		Initialized:   initialized,
 		StatusMessage: statusMsg,
 	}
@@ -230,7 +230,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreatePostgreSQLRequest{}
+	req := &catalog.CatalogCreatePostgreSQLRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreatePostgreSQLRequest decode request error", err, "requuid", requuid)
@@ -256,7 +256,7 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created postgresql service", serviceUUID, "requuid", requuid, req.Service)
@@ -267,7 +267,7 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 
 func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateCouchDBRequest{}
+	req := &catalog.CatalogCreateCouchDBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateCouchDBRequest decode request error", err, "requuid", requuid)
@@ -294,7 +294,7 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// add the init task
@@ -324,7 +324,7 @@ func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.S
 
 func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateConsulRequest{}
+	req := &catalog.CatalogCreateConsulRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateConsulRequest decode request error", err, "requuid", requuid)
@@ -352,7 +352,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
@@ -360,13 +360,13 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	serverips, err := s.updateConsulConfigs(ctx, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("updateConsulConfigs error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created Consul service", serviceUUID, "server ips", serverips, "requuid", requuid, req.Service, req.Options)
@@ -378,7 +378,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 		return errmsg, errcode
 	}
 
-	resp := &manage.CatalogCreateConsulResponse{ConsulServerIPs: serverips}
+	resp := &catalog.CatalogCreateConsulResponse{ConsulServerIPs: serverips}
 	b, err := json.Marshal(resp)
 	if err != nil {
 		glog.Errorln("Marshal CatalogCreateConsulResponse error", err, "requuid", requuid, req.Service, req.Options)
@@ -393,7 +393,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 
 func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateElasticSearchRequest{}
+	req := &catalog.CatalogCreateElasticSearchRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateElasticSearchRequest decode request error", err, "requuid", requuid)
@@ -420,7 +420,7 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created elasticsearch service", serviceUUID, "requuid", requuid, req.Service)
@@ -431,7 +431,7 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 
 func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateKibanaRequest{}
+	req := &catalog.CatalogCreateKibanaRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKibanaRequest decode request error", err, "requuid", requuid)
@@ -456,14 +456,14 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ESServiceName)
 	if err != nil {
 		glog.Errorln("get the elasticsearch service", req.Options.ESServiceName, "error", err, "requuid", requuid, req.Options)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// get the elasticsearch service attr
 	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	esNodeURI := escatalog.GetFirstMemberURI(attr.Spec.DomainName, attr.Meta.ServiceName)
@@ -475,7 +475,7 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created kibana service", serviceUUID, "requuid", requuid, req.Service)
@@ -486,7 +486,7 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 
 func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateLogstashRequest{}
+	req := &catalog.CatalogCreateLogstashRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateLogstashRequest decode request error", err, "requuid", requuid)
@@ -513,7 +513,7 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created logstash service", serviceUUID, "requuid", requuid, req.Service)
@@ -524,7 +524,7 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 
 func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateTelegrafRequest{}
+	req := &catalog.CatalogCreateTelegrafRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateTelegrafRequest decode request error", err, "requuid", requuid)
@@ -548,7 +548,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.MonitorServiceName)
 	if err != nil {
 		glog.Errorln("get service", req.Options.MonitorServiceName, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get service", svc, "requuid", requuid)
@@ -556,13 +556,13 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("ListServiceMembers error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// create the service in the control plane and the container platform
@@ -572,7 +572,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created telegraf service", serviceUUID, "to monitor service", req.Options, "requuid", requuid, req.Service)
@@ -583,7 +583,7 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 
 func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogSetServiceInitRequest{}
+	req := &catalog.CatalogSetServiceInitRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogSetServiceInitRequest decode request error", err, "requuid", requuid)
@@ -717,7 +717,7 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *commo
 	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.Meta.FileName, version+1)
 	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
 
-	newcfgfile, err = manage.CreateConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	newcfgfile, err = createConfigFile(ctx, s.dbIns, newcfgfile, requuid)
 	if err != nil {
 		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
 		return nil, err

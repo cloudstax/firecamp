@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -8,15 +8,15 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateRedisRequest{}
+	req := &catalog.CatalogCreateRedisRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest decode request error", err, "requuid", requuid)
@@ -46,7 +46,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
@@ -55,13 +55,13 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 	err = s.updateRedisConfigs(ctx, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("updateRedisConfigs error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created Redis service", serviceUUID, "requuid", requuid, req.Service, req.Options)
@@ -73,7 +73,7 @@ func (s *ManageHTTPServer) createRedisService(ctx context.Context, r *http.Reque
 		err = s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
 		if err != nil {
 			glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
-			return manage.ConvertToHTTPError(err)
+			return convertToHTTPError(err)
 		}
 
 		return "", http.StatusOK
@@ -156,7 +156,7 @@ func (s *ManageHTTPServer) updateRedisConfigs(ctx context.Context, serviceUUID s
 
 func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogSetRedisInitRequest{}
+	req := &catalog.CatalogSetRedisInitRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
@@ -175,14 +175,14 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService", req, "error", err, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// get service attr
 	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// enable redis auth
@@ -191,7 +191,7 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	err = s.enableRedisAuth(ctx, attr, requuid)
 	if err != nil {
 		glog.Errorln("enableRedisAuth error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// the config file is updated, restart all containers
@@ -205,12 +205,12 @@ func (s *ManageHTTPServer) setRedisInit(ctx context.Context, r *http.Request, re
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("ScaleService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// set service initialized

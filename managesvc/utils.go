@@ -1,8 +1,6 @@
-package manage
+package managesvc
 
 import (
-	"errors"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -12,7 +10,7 @@ import (
 	"github.com/cloudstax/firecamp/db"
 )
 
-func ConvertToHTTPError(err error) (errmsg string, errcode int) {
+func convertToHTTPError(err error) (errmsg string, errcode int) {
 	switch err {
 	case common.ErrServiceExist:
 		return err.Error(), http.StatusConflict
@@ -30,31 +28,7 @@ func ConvertToHTTPError(err error) (errmsg string, errcode int) {
 	return err.Error(), http.StatusInternalServerError
 }
 
-func ConvertHTTPError(resp *http.Response) error {
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
-
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	switch resp.StatusCode {
-	case http.StatusConflict:
-		return errors.New("ServiceExist: " + string(body))
-	case http.StatusRequestTimeout:
-		return errors.New("Timeout: " + string(body))
-	case http.StatusBadRequest:
-		return errors.New("InvalidArgs: " + string(body))
-	case http.StatusNotFound:
-		return errors.New("NotFound: " + string(body))
-	case http.StatusPreconditionFailed:
-		return errors.New("ConditionalCheckFailed: " + string(body))
-	default:
-		return errors.New("InternalError: " + string(body))
-	}
-}
-
-func CreateConfigFile(ctx context.Context, dbIns db.DB, cfgfile *common.ConfigFile, requuid string) (*common.ConfigFile, error) {
+func createConfigFile(ctx context.Context, dbIns db.DB, cfgfile *common.ConfigFile, requuid string) (*common.ConfigFile, error) {
 	err := dbIns.CreateConfigFile(ctx, cfgfile)
 	if err == nil {
 		glog.Infoln("created config file", db.PrintConfigFile(cfgfile), "requuid", requuid)

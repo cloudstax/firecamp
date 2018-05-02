@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 )
 
 func (s *ManageHTTPServer) internalGetOp(ctx context.Context, w http.ResponseWriter,
@@ -40,7 +40,7 @@ func (s *ManageHTTPServer) internalGetServiceTask(ctx context.Context, w http.Re
 	taskID, err := s.containersvcIns.GetServiceTask(ctx, req.Cluster, req.ServiceName, req.ContainerInstanceID)
 	if err != nil {
 		glog.Errorln("GetServiceTask error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("GetServiceTask", taskID, "requuid", requuid, req)
@@ -78,7 +78,7 @@ func (s *ManageHTTPServer) internalListActiveServiceTasks(ctx context.Context, w
 	taskIDs, err := s.containersvcIns.ListActiveServiceTasks(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("ListActiveServiceTasks error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("ListActiveServiceTasks", len(taskIDs), "requuid", requuid, req)

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func TestMongoDBReplicaConfig(t *testing.T) {
@@ -54,7 +54,7 @@ func TestMongoDBReplicaConfig(t *testing.T) {
 	}
 
 	// test service configs
-	opts := &manage.CatalogMongoDBOptions{
+	opts := &catalog.CatalogMongoDBOptions{
 		Shards:           1,
 		ReplicasPerShard: 1,
 		ReplicaSetOnly:   true,

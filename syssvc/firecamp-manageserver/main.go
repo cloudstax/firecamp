@@ -23,7 +23,7 @@ import (
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/dns/awsroute53"
 	"github.com/cloudstax/firecamp/log/awscloudwatch"
-	"github.com/cloudstax/firecamp/manage/server"
+	"github.com/cloudstax/firecamp/managesvc"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -194,7 +194,7 @@ func main() {
 		glog.Fatalln("unknown db type", *dbtype)
 	}
 
-	err = manageserver.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
+	err = managesvc.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln("StartServer error", err)

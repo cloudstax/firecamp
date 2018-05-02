@@ -3,10 +3,10 @@ package zkcatalog
 import (
 	"fmt"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -35,7 +35,7 @@ const (
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogZooKeeperOptions,
+	cluster string, service string, opts *catalog.CatalogZooKeeperOptions,
 	res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// check and set the jmx remote user and password
 	if len(opts.JmxRemoteUser) == 0 {
@@ -92,7 +92,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	return req, opts.JmxRemoteUser, opts.JmxRemotePasswd
 }
 
-func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogZooKeeperOptions) []*manage.ConfigFileContent {
 	domain := dns.GenDefaultDomainName(cluster)
 	serverList := genServerList(service, domain, opts.Replicas)
 
@@ -122,7 +122,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogZooKeeperOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, region string, cluster string, service string, azs []string, opts *catalog.CatalogZooKeeperOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)

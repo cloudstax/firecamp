@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"fmt"

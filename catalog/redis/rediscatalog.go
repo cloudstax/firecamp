@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/utils"
 	"github.com/golang/glog"
 )
@@ -66,7 +66,7 @@ type RedisOptions struct {
 // 2) Listen on the standard ports, 6379 and 16379.
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateRedisRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateRedisRequest) error {
 	if r.Options.ReplicasPerShard < 1 {
 		return errors.New("The replicas pershard should not be less than 1")
 	}
@@ -124,7 +124,7 @@ func ValidateUpdateOptions(r *RedisOptions) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogRedisOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogRedisOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, opts)
 
@@ -173,7 +173,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	return req
 }
 
-func genServiceConfigs(platform string, opts *manage.CatalogRedisOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *catalog.CatalogRedisOptions) []*manage.ConfigFileContent {
 	// create service.conf file
 
 	// for redis cluster, disable auth first as Redis cluster setup tool, redis-trib.rb, does not
@@ -205,7 +205,7 @@ func genServiceConfigs(platform string, opts *manage.CatalogRedisOptions) []*man
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogRedisOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogRedisOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := []*manage.ReplicaConfig{}
@@ -308,7 +308,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_Redis}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetRedisInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetRedisInitOp}
 
 	domain := dns.GenDefaultDomainName(cluster)
 
@@ -393,8 +393,8 @@ func UpdateServiceConfigs(oldContent string, opts *RedisOptions) string {
 	return content
 }
 
-func ParseServiceConfigs(content string) (*manage.CatalogRedisOptions, error) {
-	opts := &manage.CatalogRedisOptions{}
+func ParseServiceConfigs(content string) (*catalog.CatalogRedisOptions, error) {
+	opts := &catalog.CatalogRedisOptions{}
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {

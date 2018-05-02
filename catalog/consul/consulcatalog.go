@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -34,7 +34,7 @@ const (
 )
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateConsulRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateConsulRequest) error {
 	if (r.Options.Replicas % 2) == 0 {
 		return errors.New("Invalid replicas, please create the odd number replicas")
 	}
@@ -54,7 +54,7 @@ func ValidateRequest(r *manage.CatalogCreateConsulRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogConsulOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogConsulOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, region, cluster, service, opts)
 
@@ -102,7 +102,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, region string, cluster string, service string, opts *manage.CatalogConsulOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, region string, cluster string, service string, opts *catalog.CatalogConsulOptions) []*manage.ConfigFileContent {
 
 	// create the service.conf file
 	dc := region
@@ -168,7 +168,7 @@ func genServiceConfigs(platform string, region string, cluster string, service s
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogConsulOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogConsulOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)

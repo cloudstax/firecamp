@@ -1,4 +1,4 @@
-package manageservice
+package managesvc
 
 import (
 	"errors"
@@ -12,11 +12,11 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -994,7 +994,7 @@ func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, pr
 	cfg *manage.ConfigFileContent, version int64, requuid string) (*common.ConfigID, error) {
 	fileID := utils.GenConfigFileID(prefix, cfg.FileName, version)
 	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
-	cfgfile, err := manage.CreateConfigFile(ctx, s.dbIns, initcfgfile, requuid)
+	cfgfile, err := createConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 	if err != nil {
 		glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
 		return nil, err
@@ -1073,7 +1073,7 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 		},
 	}
 
-	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
+	// TODO managesvc may be restarted at any time. check whether there are newly created available volumes.
 	volID, err = s.serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
 		glog.Errorln("create the volume error", err, "member", memberName, "az", az, "requuid", requuid, sattr)

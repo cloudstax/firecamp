@@ -1,4 +1,4 @@
-package manageservice
+package managesvc
 
 import (
 	"net"

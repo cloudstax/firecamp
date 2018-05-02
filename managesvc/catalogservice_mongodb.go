@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -8,17 +8,17 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
 func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateMongoDBRequest{}
+	req := &catalog.CatalogCreateMongoDBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateMongoDBRequest decode request error", err, "requuid", requuid)
@@ -45,7 +45,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 	keyfileContent, err := s.getMongoDBExistingKeyfile(ctx, req.Service, requuid)
 	if err != nil {
 		glog.Errorln("getMongoDBExistingKeyfile error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	if len(keyfileContent) == 0 {
@@ -53,7 +53,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 		keyfileContent, err = mongodbcatalog.GenKeyfileContent()
 		if err != nil {
 			glog.Errorln("GenKeyfileContent error", err, "requuid", requuid, req.Service)
-			return manage.ConvertToHTTPError(err)
+			return convertToHTTPError(err)
 		}
 	}
 
@@ -64,7 +64,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Options.Admin)
@@ -73,7 +73,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options, requuid)
 
 	// send back the keyfile content
-	resp := &manage.CatalogCreateMongoDBResponse{KeyFileContent: keyfileContent}
+	resp := &catalog.CatalogCreateMongoDBResponse{KeyFileContent: keyfileContent}
 	b, err := json.Marshal(resp)
 	if err != nil {
 		glog.Errorln("Marshal CatalogCreateMongoDBResponse error", err, "requuid", requuid, req.Service, req.Options)
@@ -87,7 +87,7 @@ func (s *ManageHTTPServer) createMongoDBService(ctx context.Context, w http.Resp
 }
 
 func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, opts *manage.CatalogMongoDBOptions, requuid string) {
+	serviceUUID string, opts *catalog.CatalogMongoDBOptions, requuid string) {
 	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
 	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl, opts)
 
@@ -103,21 +103,21 @@ func (s *ManageHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.S
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.CatalogSetServiceInitRequest, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.CatalogSetServiceInitRequest, requuid string) (errmsg string, errcode int) {
 	glog.Infoln("setMongoDBInit", req.ServiceName, "requuid", requuid)
 
 	// get service uuid
 	service, err := s.dbIns.GetService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService", req.ServiceName, req.ServiceType, "error", err, "requuid", requuid)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// get service attr
 	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// enable mongodb auth
@@ -126,7 +126,7 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 	err = s.enableMongoDBAuth(ctx, attr, requuid)
 	if err != nil {
 		glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// the config file is updated, restart all containers
@@ -140,12 +140,12 @@ func (s *ManageHTTPServer) setMongoDBInit(ctx context.Context, req *manage.Catal
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
 	if err != nil {
 		glog.Errorln("ScaleService error", err, "requuid", requuid, req)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// set service initialized

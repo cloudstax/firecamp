@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -7,15 +7,16 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateCassandraRequest{}
+	req := &catalog.CatalogCreateCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateCassandraRequest decode request error", err, "requuid", requuid)
@@ -42,7 +43,7 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
@@ -60,7 +61,7 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	}
 
 	// send back the jmx remote user & passwd
-	resp := &manage.CatalogCreateCassandraResponse{
+	resp := &catalog.CatalogCreateCassandraResponse{
 		JmxRemoteUser:   jmxUser,
 		JmxRemotePasswd: jmxPasswd,
 	}
@@ -95,7 +96,7 @@ func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 
 func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogScaleCassandraRequest{}
+	req := &catalog.CatalogScaleCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogScaleCassandraRequest decode request error", err, "requuid", requuid)
@@ -112,13 +113,13 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	if req.Replicas == attr.Spec.Replicas {
@@ -151,7 +152,7 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	err = s.svc.CheckAndCreateServiceMembers(ctx, req.Replicas, newAttr, replicaConfigs)
 	if err != nil {
 		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service, req.Replicas)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// scale the container service
@@ -160,7 +161,7 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.Service.ServiceName, req.Replicas)
 	if err != nil {
 		glog.Errorln("ScaleService new service members error", err, "requuid", requuid, req.Service, req.Replicas)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// update service attr
@@ -169,7 +170,7 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
 	if err != nil {
 		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service, req.Replicas)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("service scaled to", req.Replicas, "requuid", requuid, newAttr)

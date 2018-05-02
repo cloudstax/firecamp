@@ -18,11 +18,11 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/cloudstax/firecamp/api/manage"
+	managecli "github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	managecli "github.com/cloudstax/firecamp/manage/client"
 )
 
 const (

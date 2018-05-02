@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"net/http"
@@ -60,7 +60,7 @@ func StartServer(platform string, cluster string, azs []string, manageDNSName st
 	// create the management http server
 	serv := NewManageHTTPServer(platform, cluster, azs, dnsname, dbIns, dnsIns, logIns, serverIns, serverInfo, containersvcIns)
 
-	// listen on all ips, as manageserver runs inside the container
+	// listen on all ips, as managesvc runs inside the container
 	addr := ":" + strconv.Itoa(managePort)
 	s := &http.Server{
 		Addr:    addr,

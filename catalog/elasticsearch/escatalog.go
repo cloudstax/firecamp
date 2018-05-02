@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -45,7 +45,7 @@ const (
 )
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateElasticSearchRequest) error {
 	if r.Options.HeapSizeMB <= 0 {
 		return errors.New("heap size should be larger than 0")
 	}
@@ -68,7 +68,7 @@ func ValidateRequest(r *manage.CatalogCreateElasticSearchRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogElasticSearchOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogElasticSearchOptions) *manage.CreateServiceRequest {
 	domain := dns.GenDefaultDomainName(cluster)
 	unicastHosts, masterNodes, dedicateMasterNodes := getUnicastHostsAndMasterNodes(domain, service, opts)
 	minMasterNodes := masterNodes/2 + 1
@@ -124,7 +124,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 func genServiceConfigs(platform string, service string, azs []string, unicastHosts string,
-	minMasterNodes int64, opts *manage.CatalogElasticSearchOptions) []*manage.ConfigFileContent {
+	minMasterNodes int64, opts *catalog.CatalogElasticSearchOptions) []*manage.ConfigFileContent {
 	// create the service.conf file
 	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB,
 		opts.DedicatedMasters, strconv.FormatBool(opts.DisableDedicatedMaster),
@@ -163,7 +163,7 @@ func genServiceConfigs(platform string, service string, azs []string, unicastHos
 // GenReplicaConfigs generates the replica configs.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string,
 	unicastHosts string, minMasterNodes int64, dedicateMasterNodes int64,
-	opts *manage.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
+	opts *catalog.CatalogElasticSearchOptions) []*manage.ReplicaConfig {
 
 	domain := dns.GenDefaultDomainName(cluster)
 
@@ -227,7 +227,7 @@ func GenReplicaConfigs(platform string, cluster string, service string, azs []st
 }
 
 // getUnicastHostsAndMasterNodes returns the unicast hosts, the targe master node number and how many master nodes will be added.
-func getUnicastHostsAndMasterNodes(domain string, service string, opts *manage.CatalogElasticSearchOptions) (unicastHosts string, masterNodes int64, dedicateMasterNodes int64) {
+func getUnicastHostsAndMasterNodes(domain string, service string, opts *catalog.CatalogElasticSearchOptions) (unicastHosts string, masterNodes int64, dedicateMasterNodes int64) {
 	// check whether adds the dedicate master nodes.
 	// if only has 1 node, no need to add the dedicate master nodes. Assume 1 node is for test only.
 	// if the number of nodes is within threshold, add the dedicate master nodes by default, while, allow to disable it.

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func TestRedisConfigs(t *testing.T) {
@@ -15,7 +15,7 @@ func TestRedisConfigs(t *testing.T) {
 	cluster := "c1"
 	service := "service1"
 	azs := []string{"az1", "az2", "az3"}
-	opts := &manage.CatalogRedisOptions{
+	opts := &catalog.CatalogRedisOptions{
 		Shards:            int64(3),
 		ReplicasPerShard:  int64(2),
 		MemoryCacheSizeMB: 256,

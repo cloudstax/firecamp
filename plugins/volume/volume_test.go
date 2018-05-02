@@ -13,12 +13,12 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/manage/service"
+	"github.com/cloudstax/firecamp/managesvc"
 	"github.com/cloudstax/firecamp/server"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -77,7 +77,7 @@ func TestVolumeFunctions(t *testing.T) {
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
 	csvcIns := containersvc.NewMemContainerSvc()
 
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
+	mgsvc := managesvc.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
@@ -178,7 +178,7 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
 	csvcIns := containersvc.NewMemContainerSvc()
 
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
+	mgsvc := managesvc.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	driver := NewVolumeDriver(dbIns, mockDNS, serverIns, mockServerInfo, contSvcIns, mockContInfo)
 	driver.netSvc.SetIfname("lo")
@@ -463,7 +463,7 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	mockContInfo := containersvc.NewMockContainerSvcInfo()
 	csvcIns := containersvc.NewMemContainerSvc()
 
-	mgsvc := manageservice.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
+	mgsvc := managesvc.NewManageService(dbIns, mockServerInfo, serverIns, mockDNS, csvcIns)
 
 	requuid := utils.GenRequestUUID()
 	ctx := context.Background()

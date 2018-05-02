@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -9,19 +9,19 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateKafkaRequest{}
+	req := &catalog.CatalogCreateKafkaRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaRequest decode request error", err, "requuid", requuid)
@@ -39,7 +39,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ZkServiceName)
 	if err != nil {
 		glog.Errorln("get zk service", req.Options.ZkServiceName, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get zk service", zksvc, "requuid", requuid)
@@ -47,7 +47,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 	zkattr, err := s.dbIns.GetServiceAttr(ctx, zksvc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("get zk service attr", zksvc.ServiceUUID, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
@@ -59,7 +59,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
@@ -70,7 +70,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 		return errmsg, errcode
 	}
 
-	resp := &manage.CatalogCreateKafkaResponse{
+	resp := &catalog.CatalogCreateKafkaResponse{
 		JmxRemoteUser:   jmxUser,
 		JmxRemotePasswd: jmxPasswd,
 	}
@@ -88,7 +88,7 @@ func (s *ManageHTTPServer) createKafkaService(ctx context.Context, w http.Respon
 
 func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateKafkaSinkESRequest{}
+	req := &catalog.CatalogCreateKafkaSinkESRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaSinkESRequest decode request error", err, "requuid", requuid)
@@ -112,7 +112,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.KafkaServiceName)
 	if err != nil {
 		glog.Errorln("get kafka service", req.Options.KafkaServiceName, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get kafka service", svc, "requuid", requuid)
@@ -120,14 +120,14 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	kafkaAttr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("get kafka service attr", svc, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// get the elasticsearch service
 	svc, err = s.dbIns.GetService(ctx, s.cluster, req.Options.ESServiceName)
 	if err != nil {
 		glog.Errorln("get elasticsearch service", req.Options.ESServiceName, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get elasticsearch service", svc, "requuid", requuid)
@@ -135,7 +135,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	esAttr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("get elasticsearch service attr", svc, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	dataNodes := 0
@@ -145,12 +145,12 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 			cfgfile, err := s.dbIns.GetConfigFile(ctx, esAttr.ServiceUUID, cfg.FileID)
 			if err != nil {
 				glog.Errorln("get elasticsearch service config file error", err, svc, "requuid", requuid, req.Service)
-				return manage.ConvertToHTTPError(err)
+				return convertToHTTPError(err)
 			}
 			dataNodes, err = escatalog.GetDataNodes(cfgfile.Spec.Content)
 			if err != nil {
 				glog.Errorln("get elasticsearch data nodes error", err, svc, "requuid", requuid, req.Service)
-				return manage.ConvertToHTTPError(err)
+				return convertToHTTPError(err)
 			}
 			break
 		}
@@ -158,7 +158,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	if dataNodes == 0 {
 		err = fmt.Errorf("elasticsearch service %s has no data node, requuid %s, %s", svc.ServiceName, requuid, req.Service)
 		glog.Errorln(err)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	// create elasticsearch data node uris
@@ -174,7 +174,7 @@ func (s *ManageHTTPServer) createKafkaSinkESService(ctx context.Context, w http.
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created kafka connector service", serviceUUID, "requuid", requuid, req.Service)
@@ -227,7 +227,7 @@ func (s *ManageHTTPServer) restartKafkaSinkESInitTask(ctx context.Context, req *
 
 func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateKafkaManagerRequest{}
+	req := &catalog.CatalogCreateKafkaManagerRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest decode request error", err, "requuid", requuid)
@@ -251,7 +251,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 	zksvc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ZkServiceName)
 	if err != nil {
 		glog.Errorln("get zk service", req.Options.ZkServiceName, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("get zk service", zksvc, "requuid", requuid)
@@ -259,7 +259,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 	zkattr, err := s.dbIns.GetServiceAttr(ctx, zksvc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("get zk service attr", zksvc.ServiceUUID, "error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
@@ -271,7 +271,7 @@ func (s *ManageHTTPServer) createKafkaManagerService(ctx context.Context, r *htt
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created kafka manager service", serviceUUID, "requuid", requuid, req.Service)

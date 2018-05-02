@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -22,7 +22,7 @@ func TestESCatalog(t *testing.T) {
 
 	// 1 replica
 	replicas := int64(1)
-	opts := &manage.CatalogElasticSearchOptions{
+	opts := &catalog.CatalogElasticSearchOptions{
 		Replicas: replicas,
 		Volume: &common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,

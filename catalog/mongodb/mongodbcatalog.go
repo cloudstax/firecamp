@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/utils"
 	"github.com/golang/glog"
 )
@@ -53,7 +53,7 @@ const (
 // 3) The ReplicaSetName is the service name.
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
+func ValidateRequest(req *catalog.CatalogCreateMongoDBRequest) error {
 	if req.Options.JournalVolume == nil {
 		return errors.New("mongodb should have separate volume for journal")
 	}
@@ -72,7 +72,7 @@ func ValidateRequest(req *manage.CatalogCreateMongoDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default MongoDB ReplicaSet creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, keyfileContent string, opts *manage.CatalogMongoDBOptions, res *common.Resources) *manage.CreateServiceRequest {
+	service string, keyfileContent string, opts *catalog.CatalogMongoDBOptions, res *common.Resources) *manage.CreateServiceRequest {
 
 	serviceCfgs := genServiceConfigs(platform, res.MaxMemMB, opts, keyfileContent)
 
@@ -121,7 +121,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
 func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	serviceUUID string, manageurl string, opts *manage.CatalogMongoDBOptions) *containersvc.RunTaskOptions {
+	serviceUUID string, manageurl string, opts *catalog.CatalogMongoDBOptions) *containersvc.RunTaskOptions {
 
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, manageurl, opts)
 
@@ -147,7 +147,7 @@ func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *clou
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMongoDBOptions, keyfileContent string) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, maxMemMB int64, opts *catalog.CatalogMongoDBOptions, keyfileContent string) []*manage.ConfigFileContent {
 	// create the service.conf file
 	content := fmt.Sprintf(servicefileContent, platform, opts.Shards, opts.ReplicasPerShard,
 		strconv.FormatBool(opts.ReplicaSetOnly), opts.ConfigServers, opts.Admin, opts.AdminPasswd)
@@ -173,8 +173,8 @@ func genServiceConfigs(platform string, maxMemMB int64, opts *manage.CatalogMong
 }
 
 // ParseServiceConfigs parses the service configs and generates MongoDBOptions
-func ParseServiceConfigs(content string) (*manage.CatalogMongoDBOptions, error) {
-	opts := &manage.CatalogMongoDBOptions{}
+func ParseServiceConfigs(content string) (*catalog.CatalogMongoDBOptions, error) {
+	opts := &catalog.CatalogMongoDBOptions{}
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
@@ -255,7 +255,7 @@ func createMongodConf(maxMemMB int64) *manage.ConfigFileContent {
 
 // genReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
-func genReplicaConfigs(platform string, azs []string, cluster string, service string, maxMemMB int64, opts *manage.CatalogMongoDBOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, azs []string, cluster string, service string, maxMemMB int64, opts *catalog.CatalogMongoDBOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 	replicaCfgs := []*manage.ReplicaConfig{}
 
@@ -345,14 +345,14 @@ func EnableMongoDBAuth(content string) string {
 }
 
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.
-func GenInitTaskEnvKVPairs(region string, cluster string, service string, manageurl string, opts *manage.CatalogMongoDBOptions) []*common.EnvKeyValuePair {
+func GenInitTaskEnvKVPairs(region string, cluster string, service string, manageurl string, opts *catalog.CatalogMongoDBOptions) []*common.EnvKeyValuePair {
 
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_MongoDB}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetServiceInitOp}
 
 	kvadminuser := &common.EnvKeyValuePair{Name: common.ENV_ADMIN, Value: opts.Admin}
 	// TODO simply pass the password as env variable. The init task should fetch from the manage server.

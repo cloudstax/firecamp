@@ -12,11 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/manage/client"
 	"github.com/cloudstax/firecamp/server/awsec2"
 	"github.com/cloudstax/firecamp/utils"
 )
@@ -111,7 +112,7 @@ func main() {
 	switch strings.ToLower(*serviceType) {
 	case serviceCassandra:
 		// 1. generate the service creation request
-		opts := &manage.CatalogCassandraOptions{
+		opts := &catalog.CatalogCassandraOptions{
 			Replicas: *replicas,
 			Volume: &common.ServiceVolume{
 				VolumeType:   common.VolumeTypeGPSSD,

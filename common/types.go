@@ -1,8 +1,9 @@
 package common
 
 const (
-	Version    = "latest"
-	Version095 = "0.9.5"
+	Version        = "latest"
+	CatalogVersion = "latest"
+	Version095     = "0.9.5"
 
 	CloudPlatformAWS = "aws"
 
@@ -80,6 +81,11 @@ const (
 	DBTypeCloudDB = "clouddb" // such as AWS DynamoDB
 	DBTypeK8sDB   = "k8sdb"   // db on top of k8s ConfigMap
 	DBTypeMemDB   = "memdb"   // in-memory db, for test only
+
+	CatalogServerHTTPPort = 27041
+	CatalogServerName     = "catalogserver"
+	CatalogServiceName    = SystemName + NameSeparator + CatalogServerName
+	CatalogContainerImage = OrgName + CatalogServiceName + ":" + CatalogVersion
 
 	ManageHTTPServerPort  = 27040
 	ManageName            = "manageserver"

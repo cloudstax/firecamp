@@ -3,8 +3,8 @@ package consulcatalog
 import (
 	"testing"
 
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func TestConsulCatalog(t *testing.T) {
@@ -12,7 +12,7 @@ func TestConsulCatalog(t *testing.T) {
 	cluster := "t1"
 	service := "consul1"
 	azs := []string{"us-east-1a", "us-east-1b", "us-east-1c"}
-	opts := &manage.CatalogConsulOptions{
+	opts := &catalog.CatalogConsulOptions{
 		Replicas: 1,
 		Volume: &common.ServiceVolume{
 			VolumeType:   common.VolumeTypeGPSSD,

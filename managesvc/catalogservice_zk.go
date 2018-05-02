@@ -1,4 +1,4 @@
-package manageserver
+package managesvc
 
 import (
 	"encoding/json"
@@ -7,13 +7,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/manage"
 )
 
 func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.CatalogCreateZooKeeperRequest{}
+	req := &catalog.CatalogCreateZooKeeperRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateZooKeeperRequest decode request error", err, "requuid", requuid)
@@ -34,7 +34,7 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseW
 	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return manage.ConvertToHTTPError(err)
+		return convertToHTTPError(err)
 	}
 
 	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
@@ -45,7 +45,7 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseW
 		return errmsg, errcode
 	}
 
-	resp := &manage.CatalogCreateZooKeeperResponse{
+	resp := &catalog.CatalogCreateZooKeeperResponse{
 		JmxRemoteUser:   jmxUser,
 		JmxRemotePasswd: jmxPasswd,
 	}
