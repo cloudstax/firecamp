@@ -347,7 +347,7 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	glog.Infoln("deleting the config files from DB, service attr, requuid", requuid, sattr)
 	for _, m := range members {
 		// delete the member's dns record
-		dnsname := dns.GenDNSName(m.Meta.MemberName, sattr.Spec.DomainName)
+		dnsname := dns.GenDNSName(m.MemberName, sattr.Spec.DomainName)
 		s.deleteDNSRecord(ctx, dnsname, sattr.Spec.HostedZoneID, requuid)
 
 		// delete the member's static ip
@@ -386,13 +386,13 @@ func (s *ManageService) DeleteService(ctx context.Context, cluster string, servi
 	for _, m := range members {
 		// delete the container service volume, the possible error is skipped
 		if len(m.Spec.Volumes.PrimaryVolumeID) != 0 {
-			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberIndex, false)
+			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberName, false)
 		}
 		if len(m.Spec.Volumes.JournalVolumeID) != 0 {
-			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberIndex, true)
+			s.containersvcIns.DeleteServiceVolume(ctx, sattr.Meta.ServiceName, m.MemberName, true)
 		}
 
-		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberIndex)
+		err := s.dbIns.DeleteServiceMember(ctx, m.ServiceUUID, m.MemberName)
 		if err != nil && err != db.ErrDBRecordNotFound {
 			glog.Errorln("DeleteServiceMember error", err, "requuid", requuid, m)
 			return volIDs, err
@@ -483,7 +483,7 @@ func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMemb
 			return err
 		}
 
-		glog.Infoln("detached journal volume", m.Spec.Volumes.JournalVolumeID, "requuid", requuid, m.Meta.MemberName)
+		glog.Infoln("detached journal volume", m.Spec.Volumes.JournalVolumeID, "requuid", requuid, m.MemberName)
 	}
 
 	// detach the primary volume
@@ -494,7 +494,7 @@ func (s *ManageService) detachVolumes(ctx context.Context, m *common.ServiceMemb
 			return err
 		}
 
-		glog.Infoln("detached volume", m.Spec.Volumes.PrimaryVolumeID, "requuid", requuid, m.Meta.MemberName)
+		glog.Infoln("detached volume", m.Spec.Volumes.PrimaryVolumeID, "requuid", requuid, m.MemberName)
 	}
 
 	return nil
@@ -932,7 +932,7 @@ func (s *ManageService) CheckAndCreateServiceMembers(ctx context.Context, replic
 			return err
 		}
 
-		member, err := s.createServiceMember(ctx, sattr, replicaCfg.Zone, int64(i), replicaCfg.MemberName, hostIP, cfgs)
+		member, err := s.createServiceMember(ctx, sattr, replicaCfg.Zone, replicaCfg.MemberName, hostIP, cfgs)
 		if err != nil {
 			glog.Errorln("create serviceMember failed, serviceUUID", sattr.ServiceUUID, "member", replicaCfg.MemberName,
 				"az", replicaCfg.Zone, "error", err, "requuid", requuid)
@@ -1004,28 +1004,28 @@ func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, pr
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
-	az string, memberIndex int64, memberName string, staticIP string, cfgs []common.ConfigID) (member *common.ServiceMember, err error) {
+	az string, memberName string, staticIP string, cfgs []common.ConfigID) (member *common.ServiceMember, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	mvols := common.MemberVolumes{}
 
 	if len(sattr.Spec.Volumes.PrimaryDeviceName) != 0 {
-		volID, err := s.createVolume(ctx, sattr, az, memberIndex, memberName, false)
+		volID, err := s.createVolume(ctx, sattr, az, memberName, false)
 		if err != nil {
-			glog.Errorln("create primary volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
+			glog.Errorln("create primary volume error", err, "member", memberName, "az", az, "requuid", requuid, sattr)
 			return nil, err
 		}
 
 		mvols.PrimaryVolumeID = volID
 		mvols.PrimaryDeviceName = sattr.Spec.Volumes.PrimaryDeviceName
 
-		glog.Infoln("created primary volume", volID, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
+		glog.Infoln("created primary volume", volID, "member", memberName, "az", az, "requuid", requuid, sattr)
 	}
 
 	if len(sattr.Spec.Volumes.JournalDeviceName) != 0 {
-		volID, err := s.createVolume(ctx, sattr, az, memberIndex, memberName, true)
+		volID, err := s.createVolume(ctx, sattr, az, memberName, true)
 		if err != nil {
-			glog.Errorln("create journal volume error", err, "member index", memberIndex, "az", az, "requuid", requuid, sattr)
+			glog.Errorln("create journal volume error", err, "member", memberName, "az", az, "requuid", requuid, sattr)
 			return nil, err
 		}
 
@@ -1035,9 +1035,9 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 		glog.Infoln("created journal volume", volID, "az", az, "requuid", requuid, sattr)
 	}
 
-	meta := db.CreateMemberMeta(memberName, time.Now().UnixNano(), common.ServiceMemberStatusActive)
+	meta := db.CreateMemberMeta(time.Now().UnixNano(), common.ServiceMemberStatusActive)
 	spec := db.CreateInitialMemberSpec(az, &mvols, staticIP, cfgs)
-	member = db.CreateServiceMember(sattr.ServiceUUID, memberIndex, 0, meta, spec)
+	member = db.CreateServiceMember(sattr.ServiceUUID, memberName, 0, meta, spec)
 	err = s.dbIns.CreateServiceMember(ctx, member)
 	if err != nil {
 		glog.Errorln("CreateServiceMember in DB failed", member, "error", err, "requuid", requuid)
@@ -1049,13 +1049,13 @@ func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.S
 }
 
 func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceAttr,
-	az string, memberIndex int64, memberName string, journal bool) (volID string, err error) {
+	az string, memberName string, journal bool) (volID string, err error) {
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	nameTag := sattr.Meta.ClusterName + common.NameSeparator + memberName
 	vol := &sattr.Spec.Volumes.PrimaryVolume
 	if journal {
-		nameTag += common.NameSeparator + common.JournalVolumeNamePrefix
+		nameTag += common.NameSeparator + containersvc.JournalVolumeNamePrefix
 		vol = &sattr.Spec.Volumes.JournalVolume
 	}
 
@@ -1076,21 +1076,21 @@ func (s *ManageService) createVolume(ctx context.Context, sattr *common.ServiceA
 	// TODO manageserver may be restarted at any time. check whether there are newly created available volumes.
 	volID, err = s.serverIns.CreateVolume(ctx, volOpts)
 	if err != nil {
-		glog.Errorln("create the volume error", err, "member", memberIndex, "az", az, "requuid", requuid, sattr)
+		glog.Errorln("create the volume error", err, "member", memberName, "az", az, "requuid", requuid, sattr)
 		return "", err
 	}
 
-	glog.Infoln("created volume", volID, "member", memberIndex, "az", az, "requuid", requuid, sattr)
+	glog.Infoln("created volume", volID, "member", memberName, "az", az, "requuid", requuid, sattr)
 
-	existingVolID, err := s.containersvcIns.CreateServiceVolume(ctx, sattr.Meta.ServiceName, memberIndex, volID, vol.VolumeSizeGB, journal)
+	existingVolID, err := s.containersvcIns.CreateServiceVolume(ctx, sattr.Meta.ServiceName, memberName, volID, vol.VolumeSizeGB, journal)
 	if err != nil {
 		if err != containersvc.ErrVolumeExist {
-			glog.Errorln("create the container service volume error", err, "volume", volID, "member index", memberIndex, "requuid", requuid, sattr)
+			glog.Errorln("create the container service volume error", err, "volume", volID, "member", memberName, "requuid", requuid, sattr)
 			// not safe to delete the EBS volume here, as CreateServiceVolume may time out and k8s PV is actually created.
 			return "", err
 		}
 
-		glog.Infoln("the container service volume exists", existingVolID, "member index", memberIndex, "requuid", requuid, sattr)
+		glog.Infoln("the container service volume exists", existingVolID, "member", memberName, "requuid", requuid, sattr)
 
 		if volID != existingVolID {
 			// try to delete the newly created volume, ignore the possible error
@@ -1126,7 +1126,7 @@ func (s *ManageService) createStaticIPs(ctx context.Context, sattr *common.Servi
 	// get the assigned static ips
 	assignedIPs := make(map[string]string)
 	for _, m := range members {
-		assignedIPs[m.Spec.StaticIP] = m.Meta.MemberName
+		assignedIPs[m.Spec.StaticIP] = m.MemberName
 
 		replicas, ok := pendingReplicas[m.Spec.AvailableZone]
 		if !ok {

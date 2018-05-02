@@ -42,6 +42,56 @@ if [ "$1" = 'kibana' -a "$(id -u)" = '0' ]; then
   fi
   chown -R "$USER" "$confdir"
 
+  # /usr/share/kibana/config/kibana.yml file is owned by root. update it under root user.
+  if [ -f $servicecfgfile ]; then
+    # after release 0.9.5
+    . $servicecfgfile
+    . $membercfgfile
+
+    # overwrite kibana.yml file
+    # https://www.elastic.co/guide/en/kibana/5.6/production.html
+    # https://github.com/elastic/kibana-docker/tree/5.6/build/kibana/config
+    echo "server.name: $MEMBER_NAME" > $cfgdir/kibana.yml
+    echo "server.host: $BIND_IP" >> $cfgdir/kibana.yml
+    echo "elasticsearch.url: $ES_URL" >> $cfgdir/kibana.yml
+    echo "path.data: /data/kibana" >> $cfgdir/kibana.yml
+
+    if [ "$ENABLE_SSL" = "true" ]; then
+      echo "server.ssl.enabled: true" >> $cfgdir/kibana.yml
+      echo "server.ssl.key: /data/conf/server.key" >> $cfgdir/kibana.yml
+      echo "server.ssl.certificate: /data/conf/server.cert" >> $cfgdir/kibana.yml
+    fi
+
+    if [ -n "$PROXY_BASE_PATH" ]; then
+      echo "server.basePath: $PROXY_BASE_PATH" >> $cfgdir/kibana.yml
+    fi
+
+    # disable xpack
+    echo "xpack.security.enabled: false" >> $cfgdir/kibana.yml
+    echo "xpack.monitoring.ui.container.elasticsearch.enabled: false" >> $cfgdir/kibana.yml
+
+    # set "cpu.cgroup.path.override=/" and "cpuacct.cgroup.path.override=/".
+    # Below are explanations copied from Kibana 5.6.3 docker start cmd, /usr/local/bin/kibana-docker.
+    # The virtual file /proc/self/cgroup should list the current cgroup
+    # membership. For each hierarchy, you can follow the cgroup path from
+    # this file to the cgroup filesystem (usually /sys/fs/cgroup/) and
+    # introspect the statistics for the cgroup for the given
+    # hierarchy. Alas, Docker breaks this by mounting the container
+    # statistics at the root while leaving the cgroup paths as the actual
+    # paths. Therefore, Kibana provides a mechanism to override
+    # reading the cgroup path from /proc/self/cgroup and instead uses the
+    # cgroup path defined the configuration properties
+    # cpu.cgroup.path.override and cpuacct.cgroup.path.override.
+    # Therefore, we set this value here so that cgroup statistics are
+    # available for the container this process will run in.
+    echo "cpu.cgroup.path.override: /" >> $cfgdir/kibana.yml
+    echo "cpuacct.cgroup.path.override: /" >> $cfgdir/kibana.yml
+
+  else
+    # replace kibana.yml
+    cp $cfgfile $cfgdir
+  fi
+
   exec gosu "$USER" "$BASH_SOURCE" "$@"
 fi
 
@@ -49,50 +99,8 @@ if [ -f $servicecfgfile ]; then
   # after release 0.9.5
   . $servicecfgfile
   . $membercfgfile
-
-  # overwrite kibana.yml file
-  # https://www.elastic.co/guide/en/kibana/5.6/production.html
-  # https://github.com/elastic/kibana-docker/tree/5.6/build/kibana/config
-  echo "server.name: $MEMBER_NAME" > $cfgdir/kibana.yml
-  echo "server.host: $BIND_IP" >> $cfgdir/kibana.yml
-  echo "elasticsearch.url: $ES_URL" >> $cfgdir/kibana.yml
-  echo "path.data: /data/kibana" >> $cfgdir/kibana.yml
-
-  if [ "$ENABLE_SSL" = "true" ]; then
-    echo "server.ssl.enabled: true" >> $cfgdir/kibana.yml
-    echo "server.ssl.key: /data/conf/server.key" >> $cfgdir/kibana.yml
-    echo "server.ssl.certificate: /data/conf/server.cert" >> $cfgdir/kibana.yml
-  fi
-
-  if [ -n "$PROXY_BASE_PATH" ]; then
-    echo "server.basePath: $PROXY_BASE_PATH" >> $cfgdir/kibana.yml
-  fi
-
-  # disable xpack
-  echo "xpack.security.enabled: false" >> $cfgdir/kibana.yml
-  echo "xpack.monitoring.ui.container.elasticsearch.enabled: false" >> $cfgdir/kibana.yml
-
-  # set "cpu.cgroup.path.override=/" and "cpuacct.cgroup.path.override=/".
-  # Below are explanations copied from Kibana 5.6.3 docker start cmd, /usr/local/bin/kibana-docker.
-  # The virtual file /proc/self/cgroup should list the current cgroup
-  # membership. For each hierarchy, you can follow the cgroup path from
-  # this file to the cgroup filesystem (usually /sys/fs/cgroup/) and
-  # introspect the statistics for the cgroup for the given
-  # hierarchy. Alas, Docker breaks this by mounting the container
-  # statistics at the root while leaving the cgroup paths as the actual
-  # paths. Therefore, Kibana provides a mechanism to override
-  # reading the cgroup path from /proc/self/cgroup and instead uses the
-  # cgroup path defined the configuration properties
-  # cpu.cgroup.path.override and cpuacct.cgroup.path.override.
-  # Therefore, we set this value here so that cgroup statistics are
-  # available for the container this process will run in.
-  echo "cpu.cgroup.path.override: /" >> $cfgdir/kibana.yml
-  echo "cpuacct.cgroup.path.override: /" >> $cfgdir/kibana.yml
-
 else
-  # replace kibana.yml
-  cp $cfgfile $cfgdir
-  # load the sys config file
+  # before release 0.9.6, load the sys config file
   . $syscfgfile
 fi
 

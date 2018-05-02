@@ -149,26 +149,28 @@ func createVolume(ctx context.Context, svc *k8ssvc.K8sSvc, service string, volID
 		panic("please specify the volume id and size")
 	}
 
-	existingVolID, err := svc.CreateServiceVolume(ctx, service, 0, volID, volSizeGB, journal)
+	memberName := utils.GenServiceMemberName(service, 0)
+	existingVolID, err := svc.CreateServiceVolume(ctx, service, memberName, volID, volSizeGB, journal)
 	if err != nil || existingVolID != volID {
 		glog.Fatalln("CreateServiceVolume error", err, "volID", volID, "existingVolID", existingVolID)
 	}
 
 	// create again
-	existingVolID, err = svc.CreateServiceVolume(ctx, service, 0, volID, volSizeGB, journal)
+	existingVolID, err = svc.CreateServiceVolume(ctx, service, memberName, volID, volSizeGB, journal)
 	if err != nil || existingVolID != volID {
 		glog.Fatalln("CreateServiceVolume again error", err, "volID", volID, "existingVolID", existingVolID)
 	}
 }
 
 func deleteVolume(ctx context.Context, svc *k8ssvc.K8sSvc, service string, journal bool) {
-	err := svc.DeleteServiceVolume(ctx, service, 0, journal)
+	memberName := utils.GenServiceMemberName(service, 0)
+	err := svc.DeleteServiceVolume(ctx, service, memberName, journal)
 	if err != nil {
 		glog.Fatalln("DeleteServiceVolume error", err)
 	}
 
 	// delete again
-	err = svc.DeleteServiceVolume(ctx, service, 0, journal)
+	err = svc.DeleteServiceVolume(ctx, service, memberName, journal)
 	if err != nil {
 		glog.Fatalln("DeleteServiceVolume error", err)
 	}

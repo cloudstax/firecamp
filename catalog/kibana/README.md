@@ -22,7 +22,7 @@ The Kibana service inherits the FireCamp general security. The Kibana cluster wi
 
 **Proxy**
 
-FireCamp Kibana and Kibana are not exposed to the internet. Currently FireCamp ElasticSearch does not support security. It would be better to run Kibana inside the internal service group. For the Kibana client outside AWS such as your local laptop, you need to set up a proxy service in the application security group. The proxy service will forward the requests to Kibana. The Kibana client should connect to the proxy service.
+It is best to run Kibana inside the internal service group. For the Kibana client outside AWS such as your local laptop, you need to set up a proxy service in the application security group. The proxy service will forward the requests to Kibana. The Kibana client should connect to the proxy service.
 
 The proxy service should set up the basic authentication to protect the access to Kibana. For example, Nginx should use the htpasswd.users file.
 
@@ -41,3 +41,21 @@ Refs:
 
 1. [Using Kibana in a Production Environment](https://www.elastic.co/guide/en/kibana/5.6/production.html)
 
+
+# Tutorials
+
+This is a simple tutorial about how to create a Kibana service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Kibana service name is "mykb".
+
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
+
+1. Create an ElasticSearch service:
+```
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048
+```
+
+2. Create a Kibana service:
+```
+firecamp-service-cli -op=create-service -service-type=kibana -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=mykb -kb-es-service=myes -reserve-memory=2048
+```
+
+3. Then you could ingest some data to ElasticSearch and explore it from Kibana console.

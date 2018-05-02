@@ -121,6 +121,8 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// from the context will be canceled.
 	defer cancel()
 
+	// TODO currently the catalog service operations are included in the same management
+	//      container. would be better to separate the catalog services into another container.
 	errmsg := ""
 	errcode := http.StatusOK
 	switch r.Method {

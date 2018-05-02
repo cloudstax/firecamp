@@ -52,6 +52,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	envkvs := []*common.EnvKeyValuePair{
 		&common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster},
 		&common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service},
+		&common.EnvKeyValuePair{Name: common.ENV_CONTAINER_PLATFORM, Value: platform},
 		&common.EnvKeyValuePair{Name: ENV_ZKHOSTS, Value: zkServers},
 		&common.EnvKeyValuePair{Name: ENV_JAVA_OPTS, Value: fmt.Sprintf("-Xms%dm -Xmx%dm", opts.HeapSizeMB, opts.HeapSizeMB)},
 		// TODO it is not best to put user & password directly in container environment.
@@ -73,6 +74,18 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 	replicaCfgs := catalog.GenStatelessServiceReplicaConfigs(cluster, service, 1)
 
+	// kafkamanager docker-entrypoint script includes the firecamp-selectmember tool to select
+	// the member and update dns. the firecamp-selectmember tool is different for different releases.
+	// Every release has to use its own docker image.
+	// TODO this is not good. we should consider to drop Docker Swarm. For AWS ECS, could use the
+	// 			init container to do the work.
+	// Note: scripts/builddocker.sh also builds the kafka manager image with the release version,
+	// 			 the release upgrade needs to update the version as well.
+	containerImage := ContainerImage
+	if platform != common.ContainerPlatformK8s {
+		containerImage = ContainerImage + common.NameSeparator + common.Version
+	}
+
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
 			Region:      region,
@@ -90,7 +103,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 		ServiceType:        common.ServiceTypeStateless,
 		CatalogServiceType: common.CatalogService_KafkaManager,
 
-		ContainerImage: ContainerImage,
+		ContainerImage: containerImage,
 		// Kafka Manager only needs 1 container.
 		Replicas:       1,
 		PortMappings:   portMappings,

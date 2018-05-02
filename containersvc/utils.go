@@ -1,8 +1,6 @@
 package containersvc
 
 import (
-	"strconv"
-
 	"github.com/cloudstax/firecamp/common"
 )
 
@@ -14,10 +12,15 @@ const (
 // https://docs.docker.com/docker-for-aws/persistent-data-volumes/#use-a-unique-volume-per-task-using-ebs.
 // so the volume driver could directly know which volume to mount.
 func GenVolumeSourceForSwarm(source string) string {
-	return source + common.NameSeparator + taskSlot
+	return source + common.VolumeNameSeparator + taskSlot
 }
 
 // GenVolumeSourceName creates the volume source name.
-func GenVolumeSourceName(source string, index int64) string {
-	return source + common.NameSeparator + strconv.FormatInt(index, 10)
+func GenVolumeSourceName(source string, memberName string) string {
+	return source + common.VolumeNameSeparator + memberName
+}
+
+// GetServiceJournalVolumeName adds the volume name prefix
+func GetServiceJournalVolumeName(serviceUUID string) string {
+	return JournalVolumeNamePrefix + common.VolumeNameSeparator + serviceUUID
 }

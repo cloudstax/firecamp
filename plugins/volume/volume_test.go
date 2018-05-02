@@ -37,31 +37,31 @@ func TestParseRequestName(t *testing.T) {
 
 	serviceuuid := "uuid"
 	name := serviceuuid
-	uuid, mpath, mindex, err := d.parseRequestName(name)
-	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mindex != -1 {
-		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	uuid, mpath, mname, err := d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mname != "" {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mname %d, err %s", serviceuuid, uuid, mpath, mname, err)
 	}
 
-	name = serviceuuid + "-1"
-	uuid, mpath, mindex, err = d.parseRequestName(name)
-	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mindex != 0 {
-		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	name = serviceuuid + common.VolumeNameSeparator + "service-1"
+	uuid, mpath, mname, err = d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != serviceuuid || mname != "service-1" {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mname %d, err %s", serviceuuid, uuid, mpath, mname, err)
 	}
 
-	name = utils.GetServiceJournalVolumeName(serviceuuid + "-2")
-	uuid, mpath, mindex, err = d.parseRequestName(name)
-	if err != nil || uuid != serviceuuid || mpath != utils.GetServiceJournalVolumeName(serviceuuid) || mindex != 1 {
-		t.Fatalf("expect uuid %s get %s, mpath %s, mindex %d, err %s", serviceuuid, uuid, mpath, mindex, err)
+	name = containersvc.GetServiceJournalVolumeName(serviceuuid) + common.VolumeNameSeparator + "service-2"
+	uuid, mpath, mname, err = d.parseRequestName(name)
+	if err != nil || uuid != serviceuuid || mpath != containersvc.GetServiceJournalVolumeName(serviceuuid) || mname != "service-2" {
+		t.Fatalf("expect uuid %s get %s, mpath %s, mname %d, err %s", serviceuuid, uuid, mpath, mname, err)
 	}
 
 	// negative case
-	name = serviceuuid + "-aaa-1"
-	uuid, mpath, mindex, err = d.parseRequestName(name)
+	name = serviceuuid + common.VolumeNameSeparator + "aaa" + common.VolumeNameSeparator + "1"
+	uuid, mpath, mname, err = d.parseRequestName(name)
 	if err != common.ErrInvalidArgs {
 		t.Fatalf("expect err, but get uuid %s, err %s", uuid, err)
 	}
-	name = serviceuuid + "-aaa-1-1"
-	uuid, mpath, mindex, err = d.parseRequestName(name)
+	name = serviceuuid + common.VolumeNameSeparator + "aaa" + common.VolumeNameSeparator + "1" + common.VolumeNameSeparator + "1"
+	uuid, mpath, mname, err = d.parseRequestName(name)
 	if err != common.ErrInvalidArgs {
 		t.Fatalf("expect err, but get uuid %s, err %s", uuid, err)
 	}
@@ -132,7 +132,7 @@ func TestVolumeFunctions(t *testing.T) {
 		t.Fatalf("CreateService error", err)
 	}
 
-	volumeFuncTest(t, driver, uuid1)
+	volumeFuncTest(t, driver, uuid1, service1)
 
 	// create the 2nd service
 	service2 := "service2"
@@ -149,7 +149,7 @@ func TestVolumeFunctions(t *testing.T) {
 		t.Fatalf("CreateService error", err)
 	}
 
-	volumeFuncTest(t, driver, utils.GetServiceJournalVolumeName(uuid2))
+	volumeFuncTest(t, driver, containersvc.GetServiceJournalVolumeName(uuid2), service2)
 }
 
 func TestVolumeDriver(t *testing.T) {
@@ -251,10 +251,10 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 		t.Fatalf("AddServiceTask error", err)
 	}
 
-	volumeFuncTest(t, driver, uuid1)
+	volumeFuncTest(t, driver, uuid1, service1)
 
-	addSlot := false
-	volumeMountTest(t, driver, uuid1, addSlot, requireJournalVolume)
+	memberName := ""
+	volumeMountTest(t, driver, uuid1, memberName, requireJournalVolume)
 
 	// check the device is umounted.
 	mountpath := driver.mountpoint(uuid1)
@@ -264,9 +264,9 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 		t.Fatalf("device is still mounted to %s", mountpath)
 	}
 
-	// test again with volume name as uuid+index
-	addSlot = true
-	volumeMountTest(t, driver, uuid1, addSlot, requireJournalVolume)
+	// test again with volume name as uuid_memberName
+	memberName = utils.GenServiceMemberName(service1, 0)
+	volumeMountTest(t, driver, uuid1, memberName, requireJournalVolume)
 
 	// create the 2nd service
 	service2 := "service2"
@@ -370,10 +370,10 @@ func TestFindIdleVolume(t *testing.T) {
 		}
 
 		memberName := utils.GenServiceMemberName(service, int64(i))
-		memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+		memberMeta := db.CreateMemberMeta(mtime, common.ServiceMemberStatusActive)
 		memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
 			taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
-		m := db.CreateServiceMember(serviceUUID, int64(i), 0, memberMeta, memberSpec)
+		m := db.CreateServiceMember(serviceUUID, memberName, 0, memberMeta, memberSpec)
 
 		err := dbIns.CreateServiceMember(ctx, m)
 		if err != nil {
@@ -389,10 +389,10 @@ func TestFindIdleVolume(t *testing.T) {
 	}
 
 	memberName := utils.GenServiceMemberName(service, int64(memNumber+1))
-	memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+	memberMeta := db.CreateMemberMeta(mtime, common.ServiceMemberStatusActive)
 	memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
 		taskPrefix+str, mockContInfo.GetLocalContainerInstanceID(), serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
-	m := db.CreateServiceMember(serviceUUID, int64(memNumber+1), 0, memberMeta, memberSpec)
+	m := db.CreateServiceMember(serviceUUID, memberName, 0, memberMeta, memberSpec)
 
 	err := dbIns.CreateServiceMember(ctx, m)
 	if err != nil {
@@ -406,7 +406,7 @@ func TestFindIdleVolume(t *testing.T) {
 		t.Fatal("expect member %s, get %s", m, m1)
 	}
 
-	err = dbIns.DeleteServiceMember(ctx, serviceUUID, int64(memNumber+1))
+	err = dbIns.DeleteServiceMember(ctx, serviceUUID, memberName)
 	if err != nil {
 		t.Fatalf("DeleteServiceMember error %s", err)
 	}
@@ -427,10 +427,10 @@ func TestFindIdleVolume(t *testing.T) {
 			}
 
 			memberName := utils.GenServiceMemberName(service, int64(i))
-			memberMeta := db.CreateMemberMeta(memberName, mtime, common.ServiceMemberStatusActive)
+			memberMeta := db.CreateMemberMeta(mtime, common.ServiceMemberStatusActive)
 			memberSpec := db.CreateMemberSpec(mockServerInfo.GetLocalAvailabilityZone(),
 				taskPrefix+str, contInsPrefix+str, serverInsPrefix+str, &mvols, common.DefaultHostIP, cfgids)
-			m := db.CreateServiceMember(serviceUUID, int64(i), 0, memberMeta, memberSpec)
+			m := db.CreateServiceMember(serviceUUID, memberName, 0, memberMeta, memberSpec)
 
 			if db.EqualServiceMember(m, m1, false) {
 				fmt.Println("select member", i)
@@ -534,7 +534,7 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 	}
 }
 
-func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) {
+func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string, serviceName string) {
 	path := filepath.Join(defaultRoot, svcuuid)
 
 	r := volume.Request{Name: svcuuid}
@@ -575,8 +575,8 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 		t.Fatalf("Remove expect success, get error %s", p.Err)
 	}
 
-	// test serviceuuid-index
-	svcslot := svcuuid + "-1"
+	// test serviceuuid_membername
+	svcslot := svcuuid + common.VolumeNameSeparator + utils.GenServiceMemberName(serviceName, int64(0))
 	r = volume.Request{Name: svcslot}
 	p = driver.Get(r)
 	if len(p.Err) != 0 || p.Volume == nil || p.Volume.Name != svcslot {
@@ -589,15 +589,14 @@ func volumeFuncTest(t *testing.T, driver *FireCampVolumeDriver, svcuuid string) 
 	}
 }
 
-func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string, addSlot bool, requireJournalVolume bool) {
+func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string, memberName string, requireJournalVolume bool) {
 	name := svcUUID
-	journalVolumeName := utils.GetServiceJournalVolumeName(svcUUID)
-	if addSlot {
-		name += "-0"
-		journalVolumeName += "-0"
+	journalVolumeName := containersvc.GetServiceJournalVolumeName(svcUUID)
+	if len(memberName) != 0 {
+		journalVolumeName += common.VolumeNameSeparator + memberName
 	}
 	mountpath := driver.mountpoint(svcUUID)
-	logmountpath := driver.mountpoint(utils.GetServiceJournalVolumeName(svcUUID))
+	logmountpath := driver.mountpoint(containersvc.GetServiceJournalVolumeName(svcUUID))
 
 	// mount the volume
 	mreq := volume.MountRequest{Name: name}
@@ -700,7 +699,7 @@ func volumeMountTest(t *testing.T, driver *FireCampVolumeDriver, svcUUID string,
 func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver *FireCampVolumeDriver,
 	driver2 *FireCampVolumeDriver, svcUUID string, serverIns server.Server, member *common.ServiceMember, requireJournalVolume bool) {
 	name := svcUUID
-	journalVolumeName := utils.GetServiceJournalVolumeName(svcUUID)
+	journalVolumeName := containersvc.GetServiceJournalVolumeName(svcUUID)
 
 	// mount the volume
 	mreq := volume.MountRequest{Name: name}
@@ -761,7 +760,7 @@ func volumeMountTestWithDriverRestart(ctx context.Context, t *testing.T, driver 
 
 func unmount(svcUUID string, driver *FireCampVolumeDriver, t *testing.T, expecterr bool, requireJournalVolume bool) {
 	if requireJournalVolume {
-		ureq := volume.UnmountRequest{Name: utils.GetServiceJournalVolumeName(svcUUID)}
+		ureq := volume.UnmountRequest{Name: containersvc.GetServiceJournalVolumeName(svcUUID)}
 		uresp := driver.Unmount(ureq)
 		if expecterr {
 			if len(uresp.Err) == 0 {

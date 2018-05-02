@@ -30,7 +30,7 @@ import (
 var (
 	cluster     = flag.String("cluster", "", "The cluster name")
 	serviceName = flag.String("service-name", "", "The service name")
-	memberIndex = flag.Int64("member-index", -1, "The service member index")
+	memberName  = flag.String("member-name", "", "The service member name")
 	dbtype      = flag.String("dbtype", common.DBTypeK8sDB, "The db type, such as k8sdb or dynamodb")
 )
 
@@ -42,12 +42,12 @@ func main() {
 
 	testmode := os.Getenv("TESTMODE")
 	if ok, _ := strconv.ParseBool(testmode); ok {
-		glog.Infoln("test op, cluster", *cluster, "service", *serviceName, "member index", *memberIndex)
+		glog.Infoln("test op, cluster", *cluster, "service", *serviceName, "member", *memberName)
 		return
 	}
 
-	if len(*cluster) == 0 || len(*serviceName) == 0 || *memberIndex == -1 {
-		panic("please specify the cluster name, service name and member index")
+	if len(*cluster) == 0 || len(*serviceName) == 0 || len(*memberName) == 0 {
+		panic("please specify the cluster name, service name and member name")
 	}
 
 	region, err := awsec2.GetLocalEc2Region()
@@ -90,25 +90,24 @@ func main() {
 	netIns := dockernetwork.NewServiceNetwork(dbIns, dnsIns, ec2Ins, ec2Info)
 
 	tmstr := strconv.FormatInt(time.Now().Unix(), 10)
-	mindexstr := strconv.FormatInt(*memberIndex, 10)
-	requuid := *serviceName + common.NameSeparator + mindexstr + common.NameSeparator + tmstr
+	requuid := *serviceName + common.NameSeparator + *memberName + common.NameSeparator + tmstr
 
 	ctx := context.Background()
 	ctx = utils.NewRequestContext(ctx, requuid)
 
 	svc, err := dbIns.GetService(ctx, *cluster, *serviceName)
 	if err != nil {
-		glog.Fatalln("GetService error", err, *serviceName, *memberIndex, "requuid", requuid)
+		glog.Fatalln("GetService error", err, *serviceName, *memberName, "requuid", requuid)
 	}
 
 	attr, err := dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
-		glog.Fatalln("GetServiceAttr error", err, *memberIndex, "requuid", requuid, svc)
+		glog.Fatalln("GetServiceAttr error", err, svc, "member", *memberName, "requuid", requuid)
 	}
 
-	member, err := dbIns.GetServiceMember(ctx, svc.ServiceUUID, *memberIndex)
+	member, err := dbIns.GetServiceMember(ctx, svc.ServiceUUID, *memberName)
 	if err != nil {
-		glog.Fatalln("GetServiceMember error", err, *memberIndex, "requuid", requuid, attr)
+		glog.Fatalln("GetServiceMember error", err, *memberName, "requuid", requuid, attr)
 	}
 
 	// create the config files if necessary
@@ -119,7 +118,7 @@ func main() {
 
 	// update DNS if required
 	if attr.Spec.RegisterDNS && !attr.Spec.RequireStaticIP {
-		err = netIns.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member)
+		_, err = netIns.UpdateDNS(ctx, attr.Spec.DomainName, attr.Spec.HostedZoneID, member.MemberName)
 		if err != nil {
 			glog.Fatalln("UpdateDNS error", err, "requuid", requuid, member)
 		}
@@ -145,7 +144,7 @@ func main() {
 	}
 
 	glog.Infoln("successfully updated dns record or static ip, and created config file for service",
-		*serviceName, "cluster", *cluster, "memberIndex", *memberIndex)
+		*serviceName, "cluster", *cluster, "member", *memberName)
 
 	glog.Flush()
 }

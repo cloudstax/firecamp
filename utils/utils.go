@@ -97,10 +97,6 @@ func BoolPtr(bl bool) *bool {
 	return &bl
 }
 
-func GetServiceJournalVolumeName(serviceUUID string) string {
-	return common.JournalVolumeNamePrefix + common.NameSeparator + serviceUUID
-}
-
 func GenServiceMemberName(serviceName string, index int64) string {
 	return serviceName + common.NameSeparator + strconv.FormatInt(index, 10)
 }

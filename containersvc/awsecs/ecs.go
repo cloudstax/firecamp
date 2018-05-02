@@ -16,7 +16,6 @@ import (
 
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/utils"
 )
 
 const (
@@ -615,7 +614,7 @@ func (s *AWSEcs) createEcsTaskDefinitionForService(ctx context.Context, taskDefF
 
 	if opts.JournalVolume != nil {
 		// create the journal volume for service journal
-		journalVolumeName := utils.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
+		journalVolumeName := containersvc.GetServiceJournalVolumeName(opts.Common.ServiceUUID)
 		journalVolume := &ecs.Volume{
 			Host: &ecs.HostVolumeProperties{
 				SourcePath: aws.String(journalVolumeName),
@@ -1394,11 +1393,11 @@ func (s *AWSEcs) isServiceNotFoundError(err error) bool {
 }
 
 // CreateServiceVolume is a non-op for ecs.
-func (s *AWSEcs) CreateServiceVolume(ctx context.Context, service string, memberIndex int64, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
+func (s *AWSEcs) CreateServiceVolume(ctx context.Context, service string, memberName string, volumeID string, volumeSizeGB int64, journal bool) (existingVolumeID string, err error) {
 	return "", nil
 }
 
 // DeleteServiceVolume is a non-op for ecs.
-func (s *AWSEcs) DeleteServiceVolume(ctx context.Context, service string, memberIndex int64, journal bool) error {
+func (s *AWSEcs) DeleteServiceVolume(ctx context.Context, service string, memberName string, journal bool) error {
 	return nil
 }

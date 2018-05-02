@@ -45,7 +45,8 @@ const (
 
 	DefaultLogDir = "/var/log/" + SystemName
 
-	NameSeparator = "-"
+	NameSeparator       = "-"
+	VolumeNameSeparator = "_"
 
 	ServiceMemberDomainNameTTLSeconds = 5
 
