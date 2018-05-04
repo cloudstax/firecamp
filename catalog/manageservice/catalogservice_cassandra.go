@@ -1,4 +1,4 @@
-package managesvc
+package catalogsvc
 
 import (
 	"encoding/json"
@@ -11,10 +11,9 @@ import (
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
 )
 
-func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -40,10 +39,10 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	crReq, jmxUser, jmxPasswd := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, req.Options, req.Resource)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
@@ -54,7 +53,7 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	} else {
 		glog.Infoln("single node Cassandra, skip the init task, requuid", requuid, req.Service, req.Options)
 
-		errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+		errmsg, errcode := s.managecli.SetServiceInitialized(ctx, req.Service)
 		if errcode != http.StatusOK {
 			return errmsg, errcode
 		}
@@ -77,15 +76,13 @@ func (s *ManageHTTPServer) createCasService(ctx context.Context, w http.Response
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
+func (s *CatalogHTTPServer) addCasInitTask(ctx context.Context,
 	req *manage.ServiceCommonRequest, serviceUUID string, requuid string) {
 	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := cascatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.manageurl)
+	taskOpts := cascatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.serverurl)
 
 	task := &serviceTask{
-		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: common.CatalogService_Cassandra,
 		opts:        taskOpts,
 	}
 
@@ -94,7 +91,7 @@ func (s *ManageHTTPServer) addCasInitTask(ctx context.Context,
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogScaleCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -110,16 +107,10 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 		return err.Error(), http.StatusBadRequest
 	}
 
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
-	}
-
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	attr, err := s.managecli.GetServiceAttr(ctx, req.Service)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	if req.Replicas == attr.Spec.Replicas {
@@ -146,34 +137,19 @@ func (s *ManageHTTPServer) scaleCasService(ctx context.Context, r *http.Request,
 
 	// TODO for now, simply create the specs for all members, same for CheckAndCreateServiceMembers.
 	// 			optimize to bypass the existing members in the future.
-	newAttr := db.UpdateServiceReplicas(attr, req.Replicas)
 	replicaConfigs := cascatalog.GenReplicaConfigs(s.platform, s.cluster, req.Service.ServiceName, s.azs, req.Replicas)
 
-	err = s.svc.CheckAndCreateServiceMembers(ctx, req.Replicas, newAttr, replicaConfigs)
+	scaleReq := &manage.ScaleServiceRequest{
+		Service:        req.Service,
+		ReplicaConfigs: replicaConfigs,
+	}
+	err = s.managecli.ScaleService(ctx, scaleReq)
 	if err != nil {
-		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service, req.Replicas)
-		return convertToHTTPError(err)
+		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
-	// scale the container service
-	glog.Infoln("scale container servie to", req.Replicas, "requuid", requuid, attr)
-
-	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.Service.ServiceName, req.Replicas)
-	if err != nil {
-		glog.Errorln("ScaleService new service members error", err, "requuid", requuid, req.Service, req.Replicas)
-		return convertToHTTPError(err)
-	}
-
-	// update service attr
-	glog.Infoln("update service attr to", req.Replicas, "requuid", requuid, attr)
-
-	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
-	if err != nil {
-		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service, req.Replicas)
-		return convertToHTTPError(err)
-	}
-
-	glog.Infoln("service scaled to", req.Replicas, "requuid", requuid, newAttr)
+	glog.Infoln("scale servie to", req.Replicas, "requuid", requuid, req.Service)
 
 	return "", http.StatusOK
 }

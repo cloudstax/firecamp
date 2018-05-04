@@ -27,7 +27,7 @@ const (
 
 	defaultDomain = "consul."
 
-	basicConfFileName = "basic_config.json"
+	BasicConfFileName = "basic_config.json"
 	tlsKeyFileName    = "key.pem"
 	tlsCertFileName   = "cert.pem"
 	tlsCAFileName     = "ca.crt"
@@ -137,7 +137,7 @@ func genServiceConfigs(platform string, region string, cluster string, service s
 
 	content = fmt.Sprintf(basicConfigs, opts.Replicas, retryJoinNodes)
 	basicCfg := &manage.ConfigFileContent{
-		FileName: basicConfFileName,
+		FileName: BasicConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  content,
 	}
@@ -211,11 +211,6 @@ func SetMemberStaticIP(oldContent string, memberHost string, staticip string) st
 	substr := fmt.Sprintf("BIND_IP=%s", memberHost)
 	newstr = fmt.Sprintf("BIND_IP=%s", staticip)
 	return strings.Replace(content, substr, newstr, 1)
-}
-
-// IsBasicConfigFile checks if the file is the basic_config.json
-func IsBasicConfigFile(filename string) bool {
-	return filename == basicConfFileName
 }
 
 // UpdateBasicConfigsWithIPs replace the retry_join with members' ips.

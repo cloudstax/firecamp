@@ -1,4 +1,4 @@
-package managesvc
+package catalogsvc
 
 import (
 	"fmt"
@@ -8,9 +8,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/manage"
+	manageclient "github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/utils"
 )
 
@@ -26,11 +27,7 @@ const (
 )
 
 type serviceTask struct {
-	// The uuid of the service
-	serviceUUID string
 	serviceName string
-	// The catalog service type, defined in common/service.go
-	serviceType string
 	// The task detail
 	opts *containersvc.RunTaskOptions
 	// The task status message
@@ -42,32 +39,32 @@ type serviceTask struct {
 // Currently only the init task is supported. Revisit if different/multiple
 // tasks of one service are allowed in the future.
 type catalogServiceInit struct {
-	cluster         string
-	containersvcIns containersvc.ContainerSvc
-	dbIns           db.DB
+	region    string
+	cluster   string
+	managecli *manageclient.ManageClient
 
-	// The task map to track whether the service has task running. key: serviceUUID, value: not used.
+	// The task map to track whether the service has task running. key: serviceName
 	tasks map[string]*serviceTask
 	tlock *sync.Mutex
 }
 
-func newCatalogServiceInit(cluster string, containersvcIns containersvc.ContainerSvc, dbIns db.DB) *catalogServiceInit {
+func newCatalogServiceInit(region string, cluster string, managecli *manageclient.ManageClient) *catalogServiceInit {
 	c := &catalogServiceInit{
-		cluster:         cluster,
-		containersvcIns: containersvcIns,
-		dbIns:           dbIns,
-		tasks:           make(map[string]*serviceTask),
-		tlock:           &sync.Mutex{},
+		region:    region,
+		cluster:   cluster,
+		managecli: managecli,
+		tasks:     make(map[string]*serviceTask),
+		tlock:     &sync.Mutex{},
 	}
 
 	return c
 }
 
-func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceUUID string) (hasTask bool, statusMsg string) {
+func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceName string) (hasTask bool, statusMsg string) {
 	c.tlock.Lock()
 	defer c.tlock.Unlock()
 
-	task, ok := c.tasks[serviceUUID]
+	task, ok := c.tasks[serviceName]
 	if ok {
 		statusMsg = task.statusMessage
 	}
@@ -85,7 +82,7 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 	defer c.tlock.Unlock()
 
 	// check if service has the same task running
-	_, ok := c.tasks[task.serviceUUID]
+	_, ok := c.tasks[task.serviceName]
 	if ok {
 		glog.Infoln("service task is already running", task, "requuid", requuid)
 		return nil
@@ -98,7 +95,7 @@ func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask)
 
 	// service does not have running task, run it
 	task.statusMessage = waitServiceRunningInitialMsg
-	c.tasks[task.serviceUUID] = task
+	c.tasks[task.serviceName] = task
 	go c.runInitTask(initCtx, task, requuid)
 
 	glog.Infoln("add init task", task, "requuid", requuid)
@@ -130,9 +127,21 @@ func (c *catalogServiceInit) runInitTask(ctx context.Context, task *serviceTask,
 
 	task.statusMessage = startInitTaskMsg
 
+	req := &manage.RunTaskRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      c.region,
+			Cluster:     c.cluster,
+			ServiceName: task.serviceName,
+		},
+		Resource:       task.opts.Common.Resource,
+		ContainerImage: task.opts.Common.ContainerImage,
+		TaskType:       task.opts.TaskType,
+		Envkvs:         task.opts.Envkvs,
+	}
+
 	for i := 0; i < common.DefaultTaskRetryCounts; i++ {
 		// run task
-		taskID, err := c.containersvcIns.RunTask(ctx, task.opts)
+		taskID, err := c.managecli.RunTask(ctx, req)
 		if err != nil {
 			glog.Errorln("RunTask error", err, "requuid", requuid, task)
 			return
@@ -153,7 +162,15 @@ func (c *catalogServiceInit) runInitTask(ctx context.Context, task *serviceTask,
 
 func (c *catalogServiceInit) taskDone(ctx context.Context, task *serviceTask, requuid string) {
 	// delete the task from the container platform
-	err := c.containersvcIns.DeleteTask(ctx, c.cluster, task.opts.Common.ServiceName, task.opts.TaskType)
+	req := &manage.DeleteTaskRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      c.region,
+			Cluster:     c.cluster,
+			ServiceName: task.serviceName,
+		},
+		TaskType: task.opts.TaskType,
+	}
+	err := c.managecli.DeleteTask(ctx, req)
 	if err != nil {
 		glog.Errorln("DeleteTask error", err, "requuid", requuid, task)
 	}
@@ -161,11 +178,16 @@ func (c *catalogServiceInit) taskDone(ctx context.Context, task *serviceTask, re
 	// task done, remove it from map
 	c.tlock.Lock()
 	defer c.tlock.Unlock()
-	delete(c.tasks, task.serviceUUID)
+	delete(c.tasks, task.serviceName)
 }
 
 func (c *catalogServiceInit) isServiceInitialized(ctx context.Context, task *serviceTask, requuid string) (bool, error) {
-	attr, err := c.dbIns.GetServiceAttr(ctx, task.serviceUUID)
+	req := &manage.ServiceCommonRequest{
+		Region:      c.region,
+		Cluster:     c.cluster,
+		ServiceName: task.serviceName,
+	}
+	attr, err := c.managecli.GetServiceAttr(ctx, req)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, task)
 		return false, err
@@ -175,9 +197,15 @@ func (c *catalogServiceInit) isServiceInitialized(ctx context.Context, task *ser
 }
 
 func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *serviceTask, requuid string) error {
+	req := &manage.ServiceCommonRequest{
+		Region:      c.region,
+		Cluster:     c.cluster,
+		ServiceName: task.serviceName,
+	}
+
 	sleepTime := time.Duration(common.DefaultRetryWaitSeconds) * time.Second
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
-		status, err := c.containersvcIns.GetServiceStatus(ctx, c.cluster, task.serviceName)
+		status, err := c.managecli.GetServiceStatus(ctx, req)
 		if err != nil {
 			// The service is successfully created. It may be possible there are some
 			// temporary error, such as network error. For example, ECS may return MISSING
@@ -203,12 +231,21 @@ func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *servi
 }
 
 func (c *catalogServiceInit) waitTask(ctx context.Context, taskID string, task *serviceTask, requuid string) error {
+	req := &manage.GetTaskStatusRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      c.region,
+			Cluster:     c.cluster,
+			ServiceName: task.serviceName,
+		},
+		TaskID: taskID,
+	}
+
 	sleepTime := time.Duration(common.DefaultRetryWaitSeconds) * time.Second
 	for sec := int64(0); sec < common.DefaultTaskWaitSeconds; sec += common.DefaultRetryWaitSeconds {
 		// wait some time for the task to run
 		time.Sleep(sleepTime)
 
-		taskStatus, err := c.containersvcIns.GetTaskStatus(ctx, c.cluster, taskID)
+		taskStatus, err := c.managecli.GetTaskStatus(ctx, req)
 		if err != nil {
 			glog.Errorln("GetTaskStatus error", err, "requuid", requuid, "taskID", taskID, task)
 		} else {
@@ -223,16 +260,16 @@ func (c *catalogServiceInit) waitTask(ctx context.Context, taskID string, task *
 	return common.ErrTimeout
 }
 
-func (c *catalogServiceInit) UpdateTaskStatusMsg(serviceUUID string, statusMsg string) {
+func (c *catalogServiceInit) UpdateTaskStatusMsg(serviceName string, statusMsg string) {
 	c.tlock.Lock()
 	defer c.tlock.Unlock()
 
 	// check if service has the task running
-	task, ok := c.tasks[serviceUUID]
+	task, ok := c.tasks[serviceName]
 	if ok {
 		glog.Infoln("service task is running", task, "update status message", statusMsg)
 		task.statusMessage = statusMsg
 	} else {
-		glog.Infoln("service does not have running task", serviceUUID, "for status message", statusMsg)
+		glog.Infoln("service does not have running task", serviceName, "for status message", statusMsg)
 	}
 }

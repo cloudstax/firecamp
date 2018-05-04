@@ -201,8 +201,8 @@ var (
 	telMetricsFile         = flag.String("tel-metrics-file", "", "This is an advanced config if you want to customize the metrics to collect. Please follow Telegraf's usage to specify your custom metrics. It is your responsibility to ensure the format and metrics are correct.")
 
 	// the parameters for getting the config file
-	serviceUUID = flag.String("service-uuid", "", "The service uuid for getting the service's config file")
-	fileID      = flag.String("fileid", "", "The service config file id")
+	memberName  = flag.String("member-name", "", "The service member name for getting the member's config file")
+	cfgFileName = flag.String("config-filename", "", "The config file name")
 )
 
 const (
@@ -535,8 +535,9 @@ func usage() {
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opGetConfig)
 			printFlag(flag.Lookup("region"))
 			printFlag(flag.Lookup("cluster"))
-			printFlag(flag.Lookup("service-uuid"))
-			printFlag(flag.Lookup("fileid"))
+			printFlag(flag.Lookup("service-name"))
+			printFlag(flag.Lookup("member-name"))
+			printFlag(flag.Lookup("config-filename"))
 		case opList:
 			fmt.Printf("Usage: firecamp-service-cli -op=%s\n", opList)
 			printFlag(flag.Lookup("region"))
@@ -731,7 +732,7 @@ func main() {
 		}
 
 	case opGetConfig:
-		getConfig(ctx, cli)
+		getConfigFile(ctx, cli)
 
 	default:
 		fmt.Printf("Invalid operation, please specify %s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
@@ -922,7 +923,7 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	cfgFile := getServiceConfigFile(ctx, cli)
 
 	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
 
@@ -942,43 +943,19 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient
 	}
 }
 
-func getConfigFile(ctx context.Context, cli *manageclient.ManageClient, cfgFileName string) *common.ConfigFile {
-	// get service attributes
-	commonReq := &manage.ServiceCommonRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceName: *service,
+func getServiceConfigFile(ctx context.Context, cli *manageclient.ManageClient) *common.ConfigFile {
+	req := &manage.GetServiceConfigFileRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      *region,
+			Cluster:     *cluster,
+			ServiceName: *service,
+		},
+		ConfigFileName: catalog.SERVICE_FILE_NAME,
 	}
 
-	attr, err := cli.GetServiceAttr(ctx, commonReq)
+	cfgFile, err := cli.GetServiceConfigFile(ctx, req)
 	if err != nil {
-		glog.Fatalln("get service error", err)
-	}
-
-	// get the current service configs
-	var serviceCfg *common.ConfigID
-	for _, cfg := range attr.Spec.ServiceConfigs {
-		if cfg.FileName == cfgFileName {
-			serviceCfg = &cfg
-			break
-		}
-	}
-
-	if serviceCfg == nil {
-		glog.Fatalln("service config not found")
-	}
-
-	// get the config file content
-	getReq := &manage.GetConfigFileRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceUUID: attr.ServiceUUID,
-		FileID:      serviceCfg.FileID,
-	}
-
-	cfgFile, err := cli.GetConfigFile(ctx, getReq)
-	if err != nil {
-		glog.Fatalln("GetConfigFile error", err, serviceCfg)
+		glog.Fatalln("GetConfigFile error", err)
 	}
 
 	return cfgFile
@@ -1251,7 +1228,7 @@ func updateKafkaService(ctx context.Context, cli *manageclient.ManageClient) {
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	cfgFile := getServiceConfigFile(ctx, cli)
 
 	newContent := kafkacatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
 
@@ -1432,7 +1409,7 @@ func updateRedisService(ctx context.Context, cli *manageclient.ManageClient) {
 		glog.Fatalln("invalid parameters", err)
 	}
 
-	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	cfgFile := getServiceConfigFile(ctx, cli)
 
 	newContent := rediscatalog.UpdateServiceConfigs(cfgFile.Spec.Content, opts)
 
@@ -2040,7 +2017,7 @@ func getService(ctx context.Context, cli *manageclient.ManageClient) {
 
 	fmt.Printf("%+v\n", *attr)
 
-	cfgFile := getConfigFile(ctx, cli, catalog.SERVICE_FILE_NAME)
+	cfgFile := getServiceConfigFile(ctx, cli)
 	fmt.Println(cfgFile.Spec.Content)
 }
 
@@ -2240,24 +2217,48 @@ func deleteService(ctx context.Context, cli *manageclient.ManageClient) {
 	}
 }
 
-func getConfig(ctx context.Context, cli *manageclient.ManageClient) {
-	if *serviceUUID == "" || *fileID == "" {
-		fmt.Println("Please specify the service uuid and config file id")
+func getConfigFile(ctx context.Context, cli *manageclient.ManageClient) {
+	if *service == "" || *cfgFileName == "" {
+		fmt.Println("Please specify the service name and config file name")
 		os.Exit(-1)
 	}
 
-	req := &manage.GetConfigFileRequest{
-		Region:      *region,
-		Cluster:     *cluster,
-		ServiceUUID: *serviceUUID,
-		FileID:      *fileID,
-	}
+	if *memberName == "" {
+		// get service config file
+		req := &manage.GetServiceConfigFileRequest{
+			Service: &manage.ServiceCommonRequest{
+				Region:      *region,
+				Cluster:     *cluster,
+				ServiceName: *service,
+			},
+			ConfigFileName: *cfgFileName,
+		}
 
-	cfg, err := cli.GetConfigFile(ctx, req)
-	if err != nil {
-		fmt.Println(time.Now().UTC(), "GetConfigFile error", err)
-		os.Exit(-1)
-	}
+		cfg, err := cli.GetServiceConfigFile(ctx, req)
+		if err != nil {
+			fmt.Println(time.Now().UTC(), "GetServiceConfigFile error", err)
+			os.Exit(-1)
+		}
 
-	fmt.Printf("%+v\n", *cfg)
+		fmt.Printf("%+v\n", *cfg)
+	} else {
+		// get service config file
+		req := &manage.GetMemberConfigFileRequest{
+			Service: &manage.ServiceCommonRequest{
+				Region:      *region,
+				Cluster:     *cluster,
+				ServiceName: *service,
+			},
+			MemberName:     *memberName,
+			ConfigFileName: *cfgFileName,
+		}
+
+		cfg, err := cli.GetMemberConfigFile(ctx, req)
+		if err != nil {
+			fmt.Println(time.Now().UTC(), "GetMemberConfigFile error", err)
+			os.Exit(-1)
+		}
+
+		fmt.Printf("%+v\n", *cfg)
+	}
 }

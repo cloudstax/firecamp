@@ -130,7 +130,7 @@ func main() {
 		createReq, _, _ := cascatalog.GenDefaultCreateServiceRequest(*platform, *region, zones, *cluster, *service, opts, res)
 
 		// 2. create the service
-		err := cli.CreateService(ctx, createReq)
+		_, err := cli.CreateService(ctx, createReq)
 		if err != nil {
 			fmt.Println("CreateService error", err)
 			os.Exit(-1)

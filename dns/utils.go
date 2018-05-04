@@ -98,10 +98,7 @@ func GetManageServiceURL(dnsname string, tlsEnabled bool) string {
 func GetDefaultManageServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.ManageServiceName, domain)
-	if tlsEnabled {
-		return "https://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
-	}
-	return "http://" + dnsname + ":" + strconv.Itoa(common.ManageHTTPServerPort) + "/"
+	return GetManageServiceURL(dnsname, tlsEnabled)
 }
 
 // FormatManageServiceURL formats the url to like https://firecamp-manageserver.cluster-firecamp.com:27040/
@@ -121,15 +118,21 @@ func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	return surl
 }
 
+// GetCatalogServiceURL returns the default catalog service address.
+// example: https://firecamp-catalogserver.cluster-firecamp.com:27041/
+func GetCatalogServiceURL(dnsname string, tlsEnabled bool) string {
+	if tlsEnabled {
+		return "https://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
+	}
+	return "http://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
+}
+
 // GetDefaultCatalogServiceURL returns the default catalog service address.
 // example: https://firecamp-catalogserver.cluster-firecamp.com:27041/
 func GetDefaultCatalogServiceURL(cluster string, tlsEnabled bool) string {
 	domain := GenDefaultDomainName(cluster)
 	dnsname := GenDNSName(common.CatalogServiceName, domain)
-	if tlsEnabled {
-		return "https://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
-	}
-	return "http://" + dnsname + ":" + strconv.Itoa(common.CatalogServerHTTPPort) + "/"
+	return GetCatalogServiceURL(dnsname, tlsEnabled)
 }
 
 // LookupHost looks up the given host using the local resolver.

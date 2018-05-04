@@ -172,7 +172,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			ReplicaConfigs: replicaCfgs,
 		}
 
-		err := cli.CreateService(context.Background(), r)
+		_, err := cli.CreateService(context.Background(), r)
 		if err != nil {
 			t.Fatalf("create service error %s", err)
 		}
@@ -210,9 +210,9 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			ServiceName: s1,
 		}
 
-		err = cli.SetServiceInitialized(context.Background(), r)
-		if err != nil {
-			t.Fatalf("SetServiceInitialized error %s %s", err, s1)
+		errmsg, errcode := cli.SetServiceInitialized(context.Background(), r)
+		if errcode != http.StatusOK {
+			t.Fatalf("SetServiceInitialized error %d %s %s", errcode, errmsg, s1)
 		}
 	}
 

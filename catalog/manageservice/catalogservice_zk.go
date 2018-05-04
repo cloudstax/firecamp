@@ -1,4 +1,4 @@
-package managesvc
+package catalogsvc
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
 )
 
-func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createZkService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateZooKeeperRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -31,16 +31,16 @@ func (s *ManageHTTPServer) createZkService(ctx context.Context, w http.ResponseW
 	crReq, jmxUser, jmxPasswd := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
 
 	// zookeeper does not require additional init work. set service initialized
-	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	errmsg, errcode = s.managecli.SetServiceInitialized(ctx, req.Service)
 	if errcode != http.StatusOK {
 		return errmsg, errcode
 	}

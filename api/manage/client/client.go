@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
 	"golang.org/x/net/context"
@@ -41,13 +42,58 @@ func (c *ManageClient) closeRespBody(resp *http.Response) {
 }
 
 // CreateService creates a new service
-func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServiceRequest) error {
+func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+	urlStr := c.serverURL + manage.CreateServiceOp
+	return c.createService(ctx, r, urlStr)
+}
+
+// CreateManageService creates the service at the control plane.
+func (c *ManageClient) CreateManageService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+	urlStr := c.serverURL + manage.CreateManageServiceOp
+	return c.createService(ctx, r, urlStr)
+}
+
+// CreateContainerService creates the service at the corresponding container platform.
+func (c *ManageClient) CreateContainerService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+	urlStr := c.serverURL + manage.CreateContainerServiceOp
+	return c.createService(ctx, r, urlStr)
+}
+
+func (c *ManageClient) createService(ctx context.Context, r *manage.CreateServiceRequest, url string) (serviceUUID string, err error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.CreateServiceResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ServiceUUID, err
+}
+
+// ScaleService scales the service.
+// TODO only support scale out now.
+func (c *ManageClient) ScaleService(ctx context.Context, r *manage.ScaleServiceRequest) error {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return err
 	}
 
-	urlStr := c.serverURL + manage.CreateServiceOp
+	urlStr := c.serverURL + manage.ScaleServiceOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err
@@ -88,6 +134,26 @@ func (c *ManageClient) UpdateServiceResource(ctx context.Context, r *manage.Upda
 	}
 
 	urlStr := c.serverURL + manage.UpdateServiceResourceOp
+	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return err
+	}
+	return manage.ConvertHTTPError(resp)
+}
+
+// UpdateMemberConfig updates the service member config
+func (c *ManageClient) UpdateMemberConfig(ctx context.Context, r *manage.UpdateMemberConfigRequest) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	urlStr := c.serverURL + manage.UpdateMemberConfigOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return err
@@ -231,26 +297,26 @@ func (c *ManageClient) IsServiceInitialized(ctx context.Context, r *manage.Servi
 }
 
 // SetServiceInitialized updates the service status to active
-func (c *ManageClient) SetServiceInitialized(ctx context.Context, r *manage.ServiceCommonRequest) error {
+func (c *ManageClient) SetServiceInitialized(ctx context.Context, r *manage.ServiceCommonRequest) (errmsg string, errcode int) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	urlStr := c.serverURL + manage.ServiceInitializedOp
 	req, err := http.NewRequest(http.MethodPut, urlStr, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return err.Error(), http.StatusInternalServerError
 	}
 	if resp.StatusCode != http.StatusOK {
-		return manage.ConvertHTTPError(resp)
+		return c.readErrorMessage(resp), resp.StatusCode
 	}
-	return nil
+	return "", http.StatusOK
 }
 
 // ListServiceMember lists all serviceMembers of the service.
@@ -337,14 +403,42 @@ func (c *ManageClient) DeleteService(ctx context.Context, r *manage.DeleteServic
 	return res.VolumeIDs, err
 }
 
-// GetConfigFile gets the config file.
-func (c *ManageClient) GetConfigFile(ctx context.Context, r *manage.GetConfigFileRequest) (*common.ConfigFile, error) {
+// GetServiceConfigFile gets the service config file.
+func (c *ManageClient) GetServiceConfigFile(ctx context.Context, r *manage.GetServiceConfigFileRequest) (*common.ConfigFile, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return nil, err
 	}
 
-	urlStr := c.serverURL + manage.GetConfigFileOp
+	urlStr := c.serverURL + manage.GetServiceConfigFileOp
+	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, manage.ConvertHTTPError(resp)
+	}
+
+	defer c.closeRespBody(resp)
+
+	res := &manage.GetConfigFileResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	return res.ConfigFile, err
+}
+
+// GetMemberConfigFile gets the config file of one service member.
+func (c *ManageClient) GetMemberConfigFile(ctx context.Context, r *manage.GetMemberConfigFileRequest) (*common.ConfigFile, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := c.serverURL + manage.GetMemberConfigFileOp
 	req, err := http.NewRequest(http.MethodGet, urlStr, bytes.NewReader(b))
 	if err != nil {
 		return nil, err
@@ -550,4 +644,13 @@ func (c *ManageClient) InternalListActiveServiceTasks(ctx context.Context, r *ma
 	res := &manage.InternalListActiveServiceTasksResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.ServiceTaskIDs, err
+}
+
+func (c *ManageClient) readErrorMessage(resp *http.Response) string {
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err.Error()
+	}
+	return string(body)
 }

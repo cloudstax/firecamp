@@ -1,9 +1,7 @@
-package managesvc
+package catalogsvc
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -20,12 +18,10 @@ import (
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/db"
 	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/utils"
 )
 
-func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,
+func (s *CatalogHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	switch trimURL {
 	case catalog.CatalogCreateMongoDBOp:
@@ -67,7 +63,7 @@ func (s *ManageHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Respo
 	}
 }
 
-func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
+func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context,
 	w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCheckServiceInitRequest{}
@@ -77,23 +73,9 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req.Service)
-	if err != nil {
-		glog.Errorln("CatalogCheckServiceInitRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
-	}
-
-	// get service uuid
-	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService", req.Service.ServiceName, req.CatalogServiceType, "error", err, "requuid", requuid)
-		return convertToHTTPError(err)
-	}
-
 	// check if the init task is running
 	initialized := false
-	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, service.ServiceUUID)
+	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, req.Service.ServiceName)
 	if hasTask {
 		glog.Infoln("The service", req.Service.ServiceName, req.CatalogServiceType,
 			"is under initialization, requuid", requuid)
@@ -101,13 +83,18 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 		// no init task is running, check if the service is initialized
 		glog.Infoln("No init task for service", req.Service.ServiceName, req.CatalogServiceType, "requuid", requuid)
 
-		attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
+		attr, err := s.managecli.GetServiceAttr(ctx, req.Service)
 		if err != nil {
-			glog.Errorln("GetServiceAttr error", err, service, "requuid", requuid)
-			return convertToHTTPError(err)
+			glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+			return err.Error(), http.StatusInternalServerError
 		}
 
 		glog.Infoln("service attribute", attr, "requuid", requuid)
+
+		getReq := &manage.GetServiceConfigFileRequest{
+			Service:        req.Service,
+			ConfigFileName: catalog.SERVICE_FILE_NAME,
+		}
 
 		switch attr.Meta.ServiceStatus {
 		case common.ServiceStatusActive:
@@ -123,23 +110,23 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 			// trigger the init task.
 			switch req.CatalogServiceType {
 			case common.CatalogService_MongoDB:
-				cfgfile, err := s.getServiceConfigFile(ctx, attr)
+				cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
 				if err != nil {
 					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
 
 			case common.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
-				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+				errmsg, errcode := s.managecli.SetServiceInitialized(ctx, req.Service)
 				if errcode != http.StatusOK {
 					return errmsg, errcode
 				}
@@ -150,7 +137,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 			case common.CatalogService_ZooKeeper:
 				// zookeeper does not require additional init work. set initialized
-				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+				errmsg, errcode := s.managecli.SetServiceInitialized(ctx, req.Service)
 				if errcode != http.StatusOK {
 					return errmsg, errcode
 				}
@@ -158,7 +145,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 
 			case common.CatalogService_Kafka:
 				// Kafka does not require additional init work. set initialized
-				errmsg, errcode := s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+				errmsg, errcode := s.managecli.SetServiceInitialized(ctx, req.Service)
 				if errcode != http.StatusOK {
 					return errmsg, errcode
 				}
@@ -168,33 +155,33 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 				s.restartKafkaSinkESInitTask(ctx, req.Service, attr, requuid)
 				if err != nil {
 					glog.Errorln("restartKafkaSinkESInitTask error", err, "requuid", requuid, req.Service)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 			case common.CatalogService_Redis:
-				cfgfile, err := s.getServiceConfigFile(ctx, attr)
+				cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 				opts, err := mongodbcatalog.ParseServiceConfigs(cfgfile.Spec.Content)
 				if err != nil {
 					glog.Errorln("ParseServiceConfigs error", err, "requuid", requuid, cfgfile)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, opts.Shards, opts.ReplicasPerShard, requuid)
 				if err != nil {
 					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 			case common.CatalogService_CouchDB:
-				cfgfile, err := s.getServiceConfigFile(ctx, attr)
+				cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 				if err != nil {
 					glog.Errorln("getServiceConfigFile error", err, "requuid", requuid, attr)
-					return convertToHTTPError(err)
+					return err.Error(), http.StatusInternalServerError
 				}
 
 				admin, adminPass := couchdbcatalog.GetAdminFromServiceConfigs(cfgfile.Spec.Content)
@@ -228,7 +215,7 @@ func (s *ManageHTTPServer) getCatalogServiceOp(ctx context.Context,
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createPGService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreatePostgreSQLRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -253,19 +240,19 @@ func (s *ManageHTTPServer) createPGService(ctx context.Context, r *http.Request,
 	// create the service in the control plane and the container platform
 	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created postgresql service", serviceUUID, "requuid", requuid, req.Service)
 
 	// PG does not require additional init work. set PG initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	return s.managecli.SetServiceInitialized(ctx, req.Service)
 }
 
-func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createCouchDBService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateCouchDBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -291,10 +278,10 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	// add the init task
@@ -305,15 +292,13 @@ func (s *ManageHTTPServer) createCouchDBService(ctx context.Context, r *http.Req
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
+func (s *CatalogHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
 	serviceUUID string, replicas int64, admin string, adminPass string, requuid string) {
 	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := couchdbcatalog.GenDefaultInitTaskRequest(req, logCfg, s.azs, serviceUUID, replicas, s.manageurl, admin, adminPass)
+	taskOpts := couchdbcatalog.GenDefaultInitTaskRequest(req, logCfg, s.azs, serviceUUID, replicas, s.serverurl, admin, adminPass)
 
 	task := &serviceTask{
-		serviceUUID: serviceUUID,
 		serviceName: req.ServiceName,
-		serviceType: common.CatalogService_CouchDB,
 		opts:        taskOpts,
 	}
 
@@ -322,7 +307,7 @@ func (s *ManageHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.S
 	glog.Infoln("add init task for CouchDB service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createConsulService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateConsulRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -349,32 +334,32 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 		req.Service.ServiceName, req.Resource, req.Options)
 
 	// create the service in the control plane
-	serviceUUID, err := s.svc.CreateService(ctx, crReq, s.domain, s.vpcID)
+	serviceUUID, err := s.managecli.CreateManageService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
-	serverips, err := s.updateConsulConfigs(ctx, serviceUUID, requuid)
+	serverips, err := s.updateConsulConfigs(ctx, crReq.Service, requuid)
 	if err != nil {
 		glog.Errorln("updateConsulConfigs error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		return err.Error(), http.StatusInternalServerError
 	}
 
-	err = s.createContainerService(ctx, crReq, serviceUUID, requuid)
+	_, err = s.managecli.CreateContainerService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created Consul service", serviceUUID, "server ips", serverips, "requuid", requuid, req.Service, req.Options)
 
 	// consul does not require additional init work. set service initialized
-	errmsg, errcode = s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	errmsg, errcode = s.managecli.SetServiceInitialized(ctx, req.Service)
 	if len(errmsg) != 0 {
-		glog.Errorln("setServiceInitialized error", errcode, errmsg, "requuid", requuid, req.Service, req.Options)
+		glog.Errorln("SetServiceInitialized error", errcode, errmsg, "requuid", requuid, req.Service, req.Options)
 		return errmsg, errcode
 	}
 
@@ -391,7 +376,7 @@ func (s *ManageHTTPServer) createConsulService(ctx context.Context, w http.Respo
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createElasticSearchService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateElasticSearchRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -417,19 +402,19 @@ func (s *ManageHTTPServer) createElasticSearchService(ctx context.Context, r *ht
 	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created elasticsearch service", serviceUUID, "requuid", requuid, req.Service)
 
 	// elasticsearch does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	return s.managecli.SetServiceInitialized(ctx, req.Service)
 }
 
-func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createKibanaService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateKibanaRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -453,17 +438,15 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 
 	// get the dedicated master nodes of the elasticsearch service
 	// get the elasticsearch service uuid
-	service, err := s.dbIns.GetService(ctx, s.cluster, req.Options.ESServiceName)
-	if err != nil {
-		glog.Errorln("get the elasticsearch service", req.Options.ESServiceName, "error", err, "requuid", requuid, req.Options)
-		return convertToHTTPError(err)
+	getESReq := &manage.ServiceCommonRequest{
+		Region:      req.Service.Region,
+		Cluster:     req.Service.Cluster,
+		ServiceName: req.Options.ESServiceName,
 	}
-
-	// get the elasticsearch service attr
-	attr, err := s.dbIns.GetServiceAttr(ctx, service.ServiceUUID)
+	attr, err := s.managecli.GetServiceAttr(ctx, getESReq)
 	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, service)
-		return convertToHTTPError(err)
+		glog.Errorln("get elasticsearch service error", err, req.Options.ESServiceName, "requuid", requuid)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	esNodeURI := escatalog.GetFirstMemberURI(attr.Spec.DomainName, attr.Meta.ServiceName)
@@ -472,19 +455,19 @@ func (s *ManageHTTPServer) createKibanaService(ctx context.Context, r *http.Requ
 	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options, esNodeURI)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created kibana service", serviceUUID, "requuid", requuid, req.Service)
 
 	// kibana does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
 }
 
-func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createLogstashService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateLogstashRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -510,19 +493,19 @@ func (s *ManageHTTPServer) createLogstashService(ctx context.Context, r *http.Re
 	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created logstash service", serviceUUID, "requuid", requuid, req.Service)
 
 	// logstash does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
 }
 
-func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createTelegrafService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogCreateTelegrafRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -545,43 +528,47 @@ func (s *ManageHTTPServer) createTelegrafService(ctx context.Context, r *http.Re
 	}
 
 	// get the monitor service
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Options.MonitorServiceName)
+	getReq := &manage.ServiceCommonRequest{
+		Region:      req.Service.Region,
+		Cluster:     req.Service.Cluster,
+		ServiceName: req.Options.MonitorServiceName,
+	}
+	attr, err := s.managecli.GetServiceAttr(ctx, getReq)
 	if err != nil {
-		glog.Errorln("get service", req.Options.MonitorServiceName, "error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("get monitor target service error", err, req.Options.MonitorServiceName, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
-	glog.Infoln("get service", svc, "requuid", requuid)
-
-	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
-	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+	listReq := &manage.ListServiceMemberRequest{
+		Service: &manage.ServiceCommonRequest{
+			Region:      req.Service.Region,
+			Cluster:     req.Service.Cluster,
+			ServiceName: req.Options.MonitorServiceName,
+		},
 	}
-
-	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
+	members, err := s.managecli.ListServiceMember(ctx, listReq)
 	if err != nil {
-		glog.Errorln("ListServiceMembers error", err, svc.ServiceUUID, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("ListServiceMembers error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	// create the service in the control plane and the container platform
 	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, attr, members, req.Options, req.Resource)
 
-	serviceUUID, err := s.createCommonService(ctx, crReq, requuid)
+	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
-		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
+		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusInternalServerError
 	}
 
 	glog.Infoln("created telegraf service", serviceUUID, "to monitor service", req.Options, "requuid", requuid, req.Service)
 
 	// telegraf does not require additional init work. set service initialized
-	return s.setServiceInitialized(ctx, req.Service.ServiceName, requuid)
+	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
 }
 
-func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &catalog.CatalogSetServiceInitRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -596,21 +583,27 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	initReq := &manage.ServiceCommonRequest{
+		Region:      req.Region,
+		Cluster:     req.Cluster,
+		ServiceName: req.ServiceName,
+	}
+
 	switch req.ServiceType {
 	case common.CatalogService_MongoDB:
 		return s.setMongoDBInit(ctx, req, requuid)
 
 	case common.CatalogService_Cassandra:
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
-		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+		return s.managecli.SetServiceInitialized(ctx, initReq)
 
 	case common.CatalogService_CouchDB:
 		glog.Infoln("set couchdb service initialized, requuid", requuid, req)
-		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+		return s.managecli.SetServiceInitialized(ctx, initReq)
 
 	case common.CatalogService_KafkaSinkES:
 		glog.Infoln("set kafka sink elasticsearch service initialized, requuid", requuid, req)
-		return s.setServiceInitialized(ctx, req.ServiceName, requuid)
+		return s.managecli.SetServiceInitialized(ctx, initReq)
 
 	// other services do not require the init task.
 	default:
@@ -619,137 +612,78 @@ func (s *ManageHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.Re
 	}
 }
 
-func (s *ManageHTTPServer) updateConsulConfigs(ctx context.Context, serviceUUID string, requuid string) (serverips []string, err error) {
-	attr, err := s.dbIns.GetServiceAttr(ctx, serviceUUID)
+func (s *CatalogHTTPServer) updateConsulConfigs(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (serverips []string, err error) {
+	// update the member config with member static ip
+	listReq := &manage.ListServiceMemberRequest{
+		Service: req,
+	}
+	members, err := s.managecli.ListServiceMember(ctx, listReq)
 	if err != nil {
-		glog.Errorln("GetServiceAttr error", err, "serviceUUID", serviceUUID, "requuid", requuid)
+		glog.Errorln("ListServiceMembers failed", err, "requuid", requuid, req)
 		return nil, err
 	}
 
-	// update the consul member address to the assigned static ip in the basic_config.json file
-	members, err := s.dbIns.ListServiceMembers(ctx, serviceUUID)
-	if err != nil {
-		glog.Errorln("ListServiceMembers failed", err, "serviceUUID", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
+	domain := dns.GenDefaultDomainName(req.Cluster)
 
 	serverips = make([]string, len(members))
 	memberips := make(map[string]string)
 	for i, m := range members {
-		memberdns := dns.GenDNSName(m.MemberName, attr.Spec.DomainName)
+		memberdns := dns.GenDNSName(m.MemberName, domain)
 		memberips[memberdns] = m.Spec.StaticIP
 		serverips[i] = m.Spec.StaticIP
 
-		// update member config with static ip
-		find := false
-		for cfgIndex, cfg := range m.Spec.Configs {
-			if catalog.IsMemberConfigFile(cfg.FileName) {
-				cfgfile, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
-				if err != nil {
-					glog.Errorln("get member config file error", err, cfg, "requuid", requuid, m)
-					return nil, err
-				}
-
-				newContent := consulcatalog.SetMemberStaticIP(cfgfile.Spec.Content, memberdns, m.Spec.StaticIP)
-
-				_, err = s.updateMemberConfig(ctx, m, cfgfile, cfgIndex, newContent, requuid)
-				if err != nil {
-					glog.Errorln("updateMemberConfig error", err, cfg, "requuid", requuid, m)
-					return nil, err
-				}
-
-				find = true
-				break
-			}
+		getReq := &manage.GetMemberConfigFileRequest{
+			Service:        req,
+			MemberName:     m.MemberName,
+			ConfigFileName: catalog.MEMBER_FILE_NAME,
 		}
-		if !find {
-			glog.Errorln("member config file not found, requuid", requuid, m)
-			return nil, errors.New("member config file not found")
+		cfgfile, err := s.managecli.GetMemberConfigFile(ctx, getReq)
+		if err != nil {
+			glog.Errorln("get member config file error", err, "requuid", requuid, getReq)
+			return nil, err
 		}
+
+		newContent := consulcatalog.SetMemberStaticIP(cfgfile.Spec.Content, memberdns, m.Spec.StaticIP)
+
+		updateReq := &manage.UpdateMemberConfigRequest{
+			Service:           req,
+			MemberName:        m.MemberName,
+			ConfigFileName:    catalog.MEMBER_FILE_NAME,
+			ConfigFileContent: newContent,
+		}
+		err = s.managecli.UpdateMemberConfig(ctx, updateReq)
+		if err != nil {
+			glog.Errorln("updateMemberConfig error", err, "requuid", requuid, getReq)
+			return nil, err
+		}
+
+		glog.Infoln("update member", m.MemberName, "config with ip", m.Spec.StaticIP, "requuid", requuid)
 	}
 
-	// update basic_config.json with static ips
-	for i, cfg := range attr.Spec.ServiceConfigs {
-		if consulcatalog.IsBasicConfigFile(cfg.FileName) {
-			// get the detail content
-			cfgfile, err := s.dbIns.GetConfigFile(ctx, serviceUUID, cfg.FileID)
-			if err != nil {
-				glog.Errorln("GetConfigFile error", err, serviceUUID, "requuid", requuid, cfg)
-				return nil, err
-			}
-
-			newContent := consulcatalog.UpdateBasicConfigsWithIPs(cfgfile.Spec.Content, memberips)
-
-			err = s.updateServiceConfigFile(ctx, attr, i, cfgfile, newContent, requuid)
-			if err != nil {
-				glog.Errorln("updateServiceConfigFile error", err, cfgfile, "requuid", requuid, attr.Meta)
-				return nil, err
-			}
-
-			glog.Infoln("updated basic config, requuid", requuid, attr.Meta)
-			return serverips, nil
-		}
+	// update the consul member address to the assigned static ip in the basic_config.json file
+	getReq := &manage.GetServiceConfigFileRequest{
+		Service:        req,
+		ConfigFileName: consulcatalog.BasicConfFileName,
 	}
-
-	errmsg := fmt.Sprintf("consul basic config file not found, requuid %s", requuid)
-	glog.Errorln(errmsg, attr)
-	return nil, errors.New(errmsg)
-}
-
-func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context, attr *common.ServiceAttr) (*common.ConfigFile, error) {
-	for _, cfg := range attr.Spec.ServiceConfigs {
-		if catalog.IsServiceConfigFile(cfg.FileName) {
-			return s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
-		}
-	}
-	return nil, common.ErrNotFound
-}
-
-func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, member *common.ServiceMember,
-	cfgfile *common.ConfigFile, cfgIndex int, newContent string, requuid string) (newMember *common.ServiceMember, err error) {
-	// create a new config file
-	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
+	cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 	if err != nil {
-		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
+		glog.Errorln("GetConfigFile error", err, "requuid", requuid, getReq)
 		return nil, err
 	}
 
-	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.Meta.FileName, version+1)
-	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
+	newContent := consulcatalog.UpdateBasicConfigsWithIPs(cfgfile.Spec.Content, memberips)
 
-	newcfgfile, err = createConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	updateReq := &manage.UpdateServiceConfigRequest{
+		Service:           req,
+		ConfigFileName:    consulcatalog.BasicConfFileName,
+		ConfigFileContent: newContent,
+	}
+	err = s.managecli.UpdateServiceConfig(ctx, updateReq)
 	if err != nil {
-		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		glog.Errorln("updateServiceConfigFile error", err, "requuid", requuid, getReq)
 		return nil, err
 	}
 
-	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
-
-	// update serviceMember to point to the new config file
-	newConfigs := db.CopyConfigs(member.Spec.Configs)
-	newConfigs[cfgIndex].FileID = newcfgfile.FileID
-	newConfigs[cfgIndex].FileMD5 = newcfgfile.Spec.FileMD5
-
-	newMember = db.UpdateServiceMemberConfigs(member, newConfigs)
-	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
-	if err != nil {
-		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
-		return nil, err
-	}
-
-	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
-
-	// delete the old config file.
-	// TODO add the background gc mechanism to delete the garbage.
-	//      the old config file may not be deleted at some conditions.
-	//			for example, node crashes right before deleting the config file.
-	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
-	if err != nil {
-		// simply log an error as this only leaves a garbage
-		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
-	} else {
-		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
-	}
-
-	return newMember, nil
+	glog.Infoln("updated basic config, requuid", requuid, req)
+	return serverips, nil
 }

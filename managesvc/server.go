@@ -65,7 +65,6 @@ type ManageHTTPServer struct {
 	logIns          cloudlog.CloudLog
 	containersvcIns containersvc.ContainerSvc
 	svc             *ManageService
-	catalogSvcInit  *catalogServiceInit
 	taskSvc         *manageTaskService
 }
 
@@ -88,7 +87,6 @@ func NewManageHTTPServer(platform string, cluster string, azs []string, managedn
 		serverInfo:      serverInfo,
 		containersvcIns: containersvcIns,
 		svc:             svc,
-		catalogSvcInit:  newCatalogServiceInit(cluster, containersvcIns, dbIns),
 		taskSvc:         newManageTaskService(cluster, containersvcIns),
 	}
 	return s
@@ -154,16 +152,25 @@ func (s *ManageHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *ManageHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
 	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
-		return s.putCatalogServiceOp(ctx, w, r, trimURL, requuid)
+		// TODO forward request to catalog service.
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
 	// check if the request is other special request.
 	if strings.HasPrefix(trimURL, manage.SpecialOpPrefix) {
 		switch trimURL {
 		case manage.CreateServiceOp:
-			return s.createService(ctx, w, r, requuid)
+			return s.createService(ctx, w, r, true, true, requuid)
+		case manage.CreateManageServiceOp:
+			return s.createService(ctx, w, r, true, false, requuid)
+		case manage.CreateContainerServiceOp:
+			return s.createService(ctx, w, r, false, true, requuid)
+		case manage.ScaleServiceOp:
+			return s.scaleService(ctx, w, r, requuid)
 		case manage.UpdateServiceConfigOp:
 			return s.updateServiceConfig(ctx, w, r, requuid)
+		case manage.UpdateMemberConfigOp:
+			return s.updateMemberConfig(ctx, w, r, requuid)
 		case manage.ServiceInitializedOp:
 			return s.putServiceInitialized(ctx, w, r, requuid)
 		case manage.RunTaskOp:
@@ -320,6 +327,78 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 	}
 
 	glog.Infoln("updated container service", req.Service, "requuid", requuid)
+	return "", http.StatusOK
+}
+
+func (s *ManageHTTPServer) scaleService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.ScaleServiceRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("scaleService decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	replicas := int64(len(req.ReplicaConfigs))
+
+	if replicas == attr.Spec.Replicas {
+		glog.Infoln("service already has", replicas, "replicas, requuid", requuid, req.Service)
+		return "", http.StatusOK
+	}
+
+	// Not allow scaling down. The service members may be peers, such as Cassandra.
+	// When one node goes down, Cassandra will automatically recover the failed
+	// replica on another node.
+	if replicas < attr.Spec.Replicas {
+		errmsg := "scale down service is not supported"
+		glog.Errorln(errmsg, "requuid", requuid, req.Service)
+		return errmsg, http.StatusBadRequest
+	}
+
+	glog.Infoln("scale service from", attr.Spec.Replicas, "to", replicas, "requuid", requuid, req.Service)
+
+	newAttr := db.UpdateServiceReplicas(attr, replicas)
+	err = s.svc.CheckAndCreateServiceMembers(ctx, replicas, newAttr, req.ReplicaConfigs)
+	if err != nil {
+		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.Service.ServiceName, replicas)
+	if err != nil {
+		glog.Errorln("start container service error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	// update service attr
+	glog.Infoln("update service attr, requuid", requuid, req.Service)
+
+	err = s.dbIns.UpdateServiceAttr(ctx, attr, newAttr)
+	if err != nil {
+		glog.Errorln("UpdateServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	glog.Infoln("service scaled to", replicas, "requuid", requuid, req.Service)
+
 	return "", http.StatusOK
 }
 
@@ -512,7 +591,8 @@ func (s *ManageHTTPServer) getServiceTaskStatus(ctx context.Context, w http.Resp
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWriter, r *http.Request,
+	createManageService bool, createContainerService bool, requuid string) (errmsg string, errcode int) {
 	// parse the request
 	req := &manage.CreateServiceRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -528,23 +608,48 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 		return err.Error(), http.StatusBadRequest
 	}
 
-	_, err = s.createCommonService(ctx, req, requuid)
-	if err != nil {
-		return convertToHTTPError(err)
+	serviceUUID := ""
+
+	if createManageService {
+		// create the manage service
+		serviceUUID, err = s.svc.CreateService(ctx, req, s.domain, s.vpcID)
+		if err != nil {
+			glog.Errorln("create service error", err, "requuid", requuid, req.Service)
+			return convertToHTTPError(err)
+		}
 	}
+
+	if createContainerService {
+		if serviceUUID == "" {
+			// fetch service uuid
+			svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+			if err != nil {
+				glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+				return convertToHTTPError(err)
+			}
+			serviceUUID = svc.ServiceUUID
+		}
+		// create the container service
+		err = s.createContainerService(ctx, req, serviceUUID, requuid)
+		if err != nil {
+			return convertToHTTPError(err)
+		}
+	}
+
+	resp := &manage.CreateServiceResponse{
+		ServiceUUID: serviceUUID,
+	}
+
+	b, err := json.Marshal(resp)
+	if err != nil {
+		glog.Errorln("Marshal error", err, "requuid", requuid, req)
+		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
 	return "", http.StatusOK
-}
-
-func (s *ManageHTTPServer) createCommonService(ctx context.Context,
-	req *manage.CreateServiceRequest, requuid string) (serviceUUID string, err error) {
-	// create the service in the control plane
-	serviceUUID, err = s.svc.CreateService(ctx, req, s.domain, s.vpcID)
-	if err != nil {
-		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return "", err
-	}
-
-	return serviceUUID, s.createContainerService(ctx, req, serviceUUID, requuid)
 }
 
 func (s *ManageHTTPServer) createContainerService(ctx context.Context,
@@ -572,12 +677,12 @@ func (s *ManageHTTPServer) createContainerService(ctx context.Context,
 		opts := s.genCreateServiceOptions(req, serviceUUID, logConfig)
 		err = s.containersvcIns.CreateService(ctx, opts)
 		if err != nil {
-			glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
+			glog.Errorln("create container service error", err, "requuid", requuid, req.Service)
 			return err
 		}
 	}
 
-	glog.Infoln("create service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("create container service done, serviceUUID", serviceUUID, "requuid", requuid, req.Service)
 	return nil
 }
 
@@ -677,6 +782,168 @@ func (s *ManageHTTPServer) updateServiceConfigFile(ctx context.Context, attr *co
 	return nil
 }
 
+func (s *ManageHTTPServer) getMemberConfigFile(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.GetMemberConfigFileRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("getMemberConfigFile decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	m, err := s.dbIns.GetServiceMember(ctx, svc.ServiceUUID, req.MemberName)
+	if err != nil {
+		glog.Errorln("GetServiceMember error", err, req.MemberName, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	for _, cfg := range m.Spec.Configs {
+		if req.ConfigFileName == cfg.FileName {
+			cfgfile, err := s.dbIns.GetConfigFile(ctx, svc.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, cfg, "requuid", requuid, req.Service)
+				return convertToHTTPError(err)
+			}
+
+			resp := &manage.GetConfigFileResponse{
+				ConfigFile: cfgfile,
+			}
+
+			b, err := json.Marshal(resp)
+			if err != nil {
+				glog.Errorln("Marshal error", err, "requuid", requuid, req.Service)
+				return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(b)
+
+			glog.Infoln("get config file", cfg, "requuid", requuid, req.Service)
+
+			return "", http.StatusOK
+		}
+	}
+
+	errmsg = fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
+	glog.Errorln(errmsg)
+	return errmsg, http.StatusNotFound
+}
+
+func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+	// parse the request
+	req := &manage.UpdateMemberConfigRequest{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		glog.Errorln("updateMemberConfig decode request error", err, "requuid", requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	err = s.checkCommonRequest(req.Service)
+	if err != nil {
+		glog.Errorln("updateMemberConfig invalid request, local cluster", s.cluster, "region",
+			s.region, "requuid", requuid, req.Service, "error", err)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	m, err := s.dbIns.GetServiceMember(ctx, svc.ServiceUUID, req.MemberName)
+	if err != nil {
+		glog.Errorln("GetServiceMember error", err, req.MemberName, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	for i, cfg := range m.Spec.Configs {
+		if req.ConfigFileName == cfg.FileName {
+			// get the current config file
+			currCfgFile, err := s.dbIns.GetConfigFile(ctx, svc.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, cfg, "requuid", requuid, req.Service)
+				return convertToHTTPError(err)
+			}
+
+			err = s.updateMemberConfigFile(ctx, m, currCfgFile, i, req.ConfigFileContent, requuid)
+			if err != nil {
+				glog.Errorln("updateMemberConfigFile error", err, cfg, "requuid", requuid, req.Service)
+				return convertToHTTPError(err)
+			}
+
+			glog.Infoln("updated service config, requuid", requuid, req.Service)
+
+			return "", http.StatusOK
+		}
+	}
+
+	errmsg = fmt.Sprintf("config file not exist %s requuid %s %s", req.ConfigFileName, requuid, req.Service)
+	glog.Errorln(errmsg)
+	return errmsg, http.StatusNotFound
+}
+
+func (s *ManageHTTPServer) updateMemberConfigFile(ctx context.Context, member *common.ServiceMember,
+	cfgfile *common.ConfigFile, cfgIndex int, newContent string, requuid string) error {
+	// create a new config file
+	version, err := utils.GetConfigFileVersion(cfgfile.FileID)
+	if err != nil {
+		glog.Errorln("GetConfigFileVersion error", err, "requuid", requuid, cfgfile)
+		return err
+	}
+
+	newFileID := utils.GenConfigFileID(member.MemberName, cfgfile.Meta.FileName, version+1)
+	newcfgfile := db.CreateNewConfigFile(cfgfile, newFileID, newContent)
+
+	newcfgfile, err = createConfigFile(ctx, s.dbIns, newcfgfile, requuid)
+	if err != nil {
+		glog.Errorln("CreateConfigFile error", err, "requuid", requuid, db.PrintConfigFile(newcfgfile), member)
+		return err
+	}
+
+	glog.Infoln("created new config file, requuid", requuid, db.PrintConfigFile(newcfgfile))
+
+	// update serviceMember to point to the new config file
+	newConfigs := db.CopyConfigs(member.Spec.Configs)
+	newConfigs[cfgIndex].FileID = newcfgfile.FileID
+	newConfigs[cfgIndex].FileMD5 = newcfgfile.Spec.FileMD5
+
+	newMember := db.UpdateServiceMemberConfigs(member, newConfigs)
+	err = s.dbIns.UpdateServiceMember(ctx, member, newMember)
+	if err != nil {
+		glog.Errorln("UpdateServiceMember error", err, "requuid", requuid, member)
+		return err
+	}
+
+	glog.Infoln("updated member configs in the serviceMember, requuid", requuid, newMember)
+
+	// delete the old config file.
+	// TODO add the background gc mechanism to delete the garbage.
+	//      the old config file may not be deleted at some conditions.
+	//			for example, node crashes right before deleting the config file.
+	err = s.dbIns.DeleteConfigFile(ctx, cfgfile.ServiceUUID, cfgfile.FileID)
+	if err != nil {
+		// simply log an error as this only leaves a garbage
+		glog.Errorln("DeleteConfigFile error", err, "requuid", requuid, db.PrintConfigFile(cfgfile))
+	} else {
+		glog.Infoln("deleted the old config file, requuid", requuid, db.PrintConfigFile(cfgfile))
+	}
+
+	return nil
+}
+
 func (s *ManageHTTPServer) genCreateServiceOptions(req *manage.CreateServiceRequest,
 	serviceUUID string, logConfig *cloudlog.LogConfig) *containersvc.CreateServiceOptions {
 	commonOpts := &containersvc.CommonOptions{
@@ -747,7 +1014,9 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
 	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
-		return s.getCatalogServiceOp(ctx, w, r, requuid)
+		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		// TODO forward request to catalog service
+		//return s.getCatalogServiceOp(ctx, w, r, requuid)
 	}
 
 	// check if the request is the internal service request.
@@ -766,8 +1035,11 @@ func (s *ManageHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 		case manage.GetServiceStatusOp:
 			return s.getServiceStatus(ctx, w, r, requuid)
 
-		case manage.GetConfigFileOp:
-			return s.getConfigFile(ctx, w, r, requuid)
+		case manage.GetServiceConfigFileOp:
+			return s.getServiceConfigFile(ctx, w, r, requuid)
+
+		case manage.GetMemberConfigFileOp:
+			return s.getMemberConfigFile(ctx, w, r, requuid)
 
 		case manage.GetTaskStatusOp:
 			return s.getTaskStatus(ctx, w, r, requuid)
@@ -1086,42 +1358,63 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 	return "", http.StatusOK
 }
 
-func (s *ManageHTTPServer) getConfigFile(ctx context.Context,
+func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context,
 	w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
-	req := &manage.GetConfigFileRequest{}
+	req := &manage.GetServiceConfigFileRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		glog.Errorln("getConfigFile decode request error", err, "requuid", requuid)
+		glog.Errorln("getServiceConfigFile decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	if req.Cluster != s.cluster || req.Region != s.region {
-		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
-	cfg, err := s.dbIns.GetConfigFile(ctx, req.ServiceUUID, req.FileID)
+	err = s.checkCommonRequest(req.Service)
 	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, req)
+		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req.Service)
+		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
 	}
 
-	resp := &manage.GetConfigFileResponse{
-		ConfigFile: cfg,
-	}
-
-	b, err := json.Marshal(resp)
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
 	if err != nil {
-		glog.Errorln("Marshal error", err, "requuid", requuid, req)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(b)
+	for _, cfg := range attr.Spec.ServiceConfigs {
+		if cfg.FileName == req.ConfigFileName {
+			cfg, err := s.dbIns.GetConfigFile(ctx, attr.ServiceUUID, cfg.FileID)
+			if err != nil {
+				glog.Errorln("GetConfigFile error", err, cfg, "requuid", requuid, req.Service)
+				return convertToHTTPError(err)
+			}
 
-	glog.Infoln("get config file", db.PrintConfigFile(cfg), "requuid", requuid, req)
+			resp := &manage.GetConfigFileResponse{
+				ConfigFile: cfg,
+			}
 
-	return "", http.StatusOK
+			b, err := json.Marshal(resp)
+			if err != nil {
+				glog.Errorln("Marshal error", err, "requuid", requuid, req.Service)
+				return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(b)
+
+			glog.Infoln("get config file", cfg, "requuid", requuid, req.Service)
+
+			return "", http.StatusOK
+		}
+	}
+
+	errmsg = fmt.Sprintf("config file not found, requuid %s, %s", requuid, req.Service)
+	glog.Errorln(errmsg)
+	return errmsg, http.StatusNotFound
 }
 
 func (s *ManageHTTPServer) closeBody(r *http.Request) {

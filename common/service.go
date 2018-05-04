@@ -77,7 +77,7 @@ type PortMapping struct {
 	IsServicePort bool
 }
 
-// ServiceStatus represents the service's running status.
+// ServiceStatus represents the service's status.
 // TODO add more status. For example, the members are running on which nodes.
 type ServiceStatus struct {
 	RunningCount int64

@@ -6,23 +6,28 @@ import (
 
 const (
 	// special service operations
-	SpecialOpPrefix      = "?"
-	ListServiceOp        = SpecialOpPrefix + "List-Service"
-	ListServiceMemberOp  = SpecialOpPrefix + "List-ServiceMember"
-	GetConfigFileOp      = SpecialOpPrefix + "Get-Config-File"
-	GetServiceStatusOp   = SpecialOpPrefix + "Get-Service-Status"
-	ServiceInitializedOp = SpecialOpPrefix + "Set-Service-Initialized"
+	SpecialOpPrefix        = "?"
+	ListServiceOp          = SpecialOpPrefix + "List-Service"
+	ListServiceMemberOp    = SpecialOpPrefix + "List-ServiceMember"
+	GetServiceConfigFileOp = SpecialOpPrefix + "Get-Service-ConfigFile"
+	GetMemberConfigFileOp  = SpecialOpPrefix + "Get-Member-ConfigFile"
+	GetServiceStatusOp     = SpecialOpPrefix + "Get-Service-Status"
+	ServiceInitializedOp   = SpecialOpPrefix + "Set-Service-Initialized"
 
-	CreateServiceOp         = SpecialOpPrefix + "Create-Service"
-	UpdateServiceConfigOp   = SpecialOpPrefix + "Update-Service-Config"
-	UpdateServiceResourceOp = SpecialOpPrefix + "Update-Service-Resource"
-	StopServiceOp           = SpecialOpPrefix + "Stop-Service"
-	StartServiceOp          = SpecialOpPrefix + "Start-Service"
-	DeleteServiceOp         = SpecialOpPrefix + "Delete-Service"
-	UpgradeServiceOp        = SpecialOpPrefix + "Upgrade-Service"
-	RunTaskOp               = SpecialOpPrefix + "Run-Task"
-	GetTaskStatusOp         = SpecialOpPrefix + "Get-Task-Status"
-	DeleteTaskOp            = SpecialOpPrefix + "Delete-Task"
+	CreateServiceOp          = SpecialOpPrefix + "Create-Service"
+	CreateManageServiceOp    = SpecialOpPrefix + "Create-Manage-Service"
+	CreateContainerServiceOp = SpecialOpPrefix + "Create-Container-Service"
+	UpdateServiceConfigOp    = SpecialOpPrefix + "Update-Service-Config"
+	UpdateServiceResourceOp  = SpecialOpPrefix + "Update-Service-Resource"
+	UpdateMemberConfigOp     = SpecialOpPrefix + "Update-Member-Config"
+	StopServiceOp            = SpecialOpPrefix + "Stop-Service"
+	StartServiceOp           = SpecialOpPrefix + "Start-Service"
+	DeleteServiceOp          = SpecialOpPrefix + "Delete-Service"
+	ScaleServiceOp           = SpecialOpPrefix + "Scale-Service"
+	UpgradeServiceOp         = SpecialOpPrefix + "Upgrade-Service"
+	RunTaskOp                = SpecialOpPrefix + "Run-Task"
+	GetTaskStatusOp          = SpecialOpPrefix + "Get-Task-Status"
+	DeleteTaskOp             = SpecialOpPrefix + "Delete-Task"
 	// The service related management task
 	RollingRestartServiceOp = SpecialOpPrefix + "RollingRestart-Service"
 	GetServiceTaskStatusOp  = SpecialOpPrefix + "Get-ServiceTask-Status"
@@ -73,7 +78,6 @@ type CreateServiceRequest struct {
 	Resource *common.Resources
 
 	// ServiceType: stateful or stateless. default: stateful.
-	// The empty string means stateful as this field is added after 0.9.3.
 	ServiceType string
 
 	// Catalog Service, such as Cassandra, Kafka, etc.
@@ -87,6 +91,9 @@ type CreateServiceRequest struct {
 	// whether need to register DNS
 	RegisterDNS bool
 
+	// Whether the service requires static ip
+	RequireStaticIP bool
+
 	ServiceConfigs []*ConfigFileContent
 
 	// Below fields are used by the stateful service only.
@@ -99,11 +106,13 @@ type CreateServiceRequest struct {
 	ContainerPath        string // The mount path inside container for the primary volume
 	JournalContainerPath string // The mount path inside container for the journal volume
 
-	// Whether the service requires static ip
-	RequireStaticIP bool
-
 	// The detail configs for each replica
 	ReplicaConfigs []*ReplicaConfig
+}
+
+// CreateServiceResponse returns the service uuid
+type CreateServiceResponse struct {
+	ServiceUUID string
 }
 
 // UpdateServiceConfigRequest updates the config file of the service
@@ -113,6 +122,15 @@ type UpdateServiceConfigRequest struct {
 	ConfigFileContent string
 }
 
+// ScaleServiceRequest scales the service.
+// TODO only support scale out now.
+type ScaleServiceRequest struct {
+	Service *ServiceCommonRequest
+	// The detail configs for each service member. Note: currently ReplicaConfigs
+	// have the configs of all service members, including the existing members.
+	ReplicaConfigs []*ReplicaConfig
+}
+
 // UpdateServiceResourceRequest updates the service resource.
 type UpdateServiceResourceRequest struct {
 	Service         *ServiceCommonRequest
@@ -120,6 +138,14 @@ type UpdateServiceResourceRequest struct {
 	ReserveCPUUnits *int64
 	MaxMemMB        *int64
 	ReserveMemMB    *int64
+}
+
+// UpdateMemberConfigRequest updates the config file of the service member
+type UpdateMemberConfigRequest struct {
+	Service           *ServiceCommonRequest
+	MemberName        string
+	ConfigFileName    string
+	ConfigFileContent string
 }
 
 // GetServiceAttributesResponse returns the service's attributes.
@@ -171,15 +197,20 @@ type DeleteServiceResponse struct {
 	VolumeIDs []string
 }
 
-// GetConfigFileRequest gets one config file.
-type GetConfigFileRequest struct {
-	Region      string
-	Cluster     string
-	ServiceUUID string
-	FileID      string
+// GetServiceConfigFileRequest gets one service config file.
+type GetServiceConfigFileRequest struct {
+	Service        *ServiceCommonRequest
+	ConfigFileName string
 }
 
-// GetConfigFileResponse rturns the config file.
+// GetMemberConfigFileRequest gets the config file of one service member.
+type GetMemberConfigFileRequest struct {
+	Service        *ServiceCommonRequest
+	MemberName     string
+	ConfigFileName string
+}
+
+// GetConfigFileResponse returns the config file.
 type GetConfigFileResponse struct {
 	ConfigFile *common.ConfigFile
 }

@@ -6,10 +6,10 @@ import (
 	"strconv"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/api/manage"
 )
 
 const (
@@ -65,7 +65,7 @@ const (
 
 	ENV_ELASTICSEARCH_CONFIGS = "ELASTICSEARCH_CONFIGS"
 
-	sinkESConfFileName = "sinkes.conf"
+	SinkESConfFileName = "sinkes.conf"
 )
 
 // The Kafka Connect catalog service
@@ -238,7 +238,7 @@ func genServiceConfigs(platform string, cluster string, service string, esURIs s
 		opts.Topic, typeName, bufferedRecords, batchSize, esURIs)
 
 	esCfg := &manage.ConfigFileContent{
-		FileName: sinkESConfFileName,
+		FileName: SinkESConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  sinkESConfigs,
 	}
@@ -292,10 +292,6 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 
 func genConnectorName(cluster string, service string) string {
 	return fmt.Sprintf("%s-%s", cluster, service)
-}
-
-func IsSinkESConfFile(filename string) bool {
-	return filename == sinkESConfFileName
 }
 
 const (
