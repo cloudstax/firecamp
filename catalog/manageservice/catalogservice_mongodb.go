@@ -9,30 +9,31 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/common"
 )
 
-func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateMongoDBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateMongoDBRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateMongoDBRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	err = mongodbcatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.Options)
-		return err.Error(), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	// The service config file is created before service attribute. The service creation may
@@ -42,7 +43,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	keyfileContent, err := s.getMongoDBExistingKeyfile(ctx, req.Service, requuid)
 	if err != nil {
 		glog.Errorln("getMongoDBExistingKeyfile error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	if len(keyfileContent) == 0 {
@@ -50,7 +51,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 		keyfileContent, err = mongodbcatalog.GenKeyfileContent()
 		if err != nil {
 			glog.Errorln("GenKeyfileContent error", err, "requuid", requuid, req.Service)
-			return err.Error(), http.StatusInternalServerError
+			return clienterr.New(http.StatusInternalServerError, err.Error())
 		}
 	}
 
@@ -61,7 +62,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Options.Admin)
@@ -74,13 +75,13 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	b, err := json.Marshal(resp)
 	if err != nil {
 		glog.Errorln("Marshal CatalogCreateMongoDBResponse error", err, "requuid", requuid, req.Service, req.Options)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
-	return "", http.StatusOK
+	return nil
 }
 
 func (s *CatalogHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
@@ -98,7 +99,7 @@ func (s *CatalogHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.CatalogSetServiceInitRequest, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.CatalogSetServiceInitRequest, requuid string) error {
 	glog.Infoln("setMongoDBInit", req.ServiceName, "requuid", requuid)
 
 	commonReq := &manage.ServiceCommonRequest{
@@ -113,7 +114,7 @@ func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.Cat
 	err := s.enableMongoDBAuth(ctx, commonReq, requuid)
 	if err != nil {
 		glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	// the config file is updated, restart all containers
@@ -127,13 +128,13 @@ func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.Cat
 	err = s.managecli.StopService(ctx, commonReq)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	err = s.managecli.StartService(ctx, commonReq)
 	if err != nil {
 		glog.Errorln("StartService error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	// set service initialized

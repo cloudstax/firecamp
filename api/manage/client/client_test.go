@@ -196,8 +196,8 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 		ServiceName: "xxxx",
 	}
 	_, err := cli.GetServiceAttr(context.Background(), r1)
-	if !strings.Contains(err.Error(), "NotFound") {
-		t.Fatalf("get non-exist service, expect NotFound, got %s, %s", err, r1)
+	if !strings.Contains(err.Error(), "Not Found") {
+		t.Fatalf("get non-exist service, expect Not Found, got %s, %s", err, r1)
 	}
 
 	// set service initialized
@@ -210,9 +210,9 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			ServiceName: s1,
 		}
 
-		errmsg, errcode := cli.SetServiceInitialized(context.Background(), r)
-		if errcode != http.StatusOK {
-			t.Fatalf("SetServiceInitialized error %d %s %s", errcode, errmsg, s1)
+		err = cli.SetServiceInitialized(context.Background(), r)
+		if err != nil {
+			t.Fatalf("SetServiceInitialized error %s %s", err, s1)
 		}
 	}
 
@@ -253,7 +253,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	}
 
 	_, err = cli.DeleteService(context.Background(), r2)
-	if !strings.Contains(err.Error(), "NotFound") {
+	if !strings.Contains(err.Error(), "Not Found") {
 		t.Fatalf("delete service error %s, %s", err, r2)
 	}
 }

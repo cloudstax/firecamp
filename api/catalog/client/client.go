@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"io/ioutil"
 	"net/http"
 
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/manage"
 )
 
 // CatalogServiceClient is the client to talk with the catalog management service.
@@ -60,7 +61,7 @@ func (c *CatalogServiceClient) CatalogCreateMongoDBService(ctx context.Context, 
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", manage.ConvertHTTPError(resp)
+		return "", c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -88,7 +89,7 @@ func (c *CatalogServiceClient) CatalogCreatePostgreSQLService(ctx context.Contex
 		return err
 	}
 
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateCassandraService creates a new catalog Cassandra service.
@@ -109,7 +110,7 @@ func (c *CatalogServiceClient) CatalogCreateCassandraService(ctx context.Context
 		return "", "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", "", manage.ConvertHTTPError(resp)
+		return "", "", c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -136,7 +137,7 @@ func (c *CatalogServiceClient) CatalogScaleCassandraService(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateZooKeeperService creates a new catalog ZooKeeper service.
@@ -157,7 +158,7 @@ func (c *CatalogServiceClient) CatalogCreateZooKeeperService(ctx context.Context
 		return "", "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", "", manage.ConvertHTTPError(resp)
+		return "", "", c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -185,7 +186,7 @@ func (c *CatalogServiceClient) CatalogCreateKafkaService(ctx context.Context, r 
 		return "", "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", "", manage.ConvertHTTPError(resp)
+		return "", "", c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -212,7 +213,7 @@ func (c *CatalogServiceClient) CatalogCreateKafkaSinkESService(ctx context.Conte
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateKafkaManagerService creates a new catalog Kafka Manager service.
@@ -232,7 +233,7 @@ func (c *CatalogServiceClient) CatalogCreateKafkaManagerService(ctx context.Cont
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateRedisService creates a new catalog Redis service.
@@ -252,7 +253,7 @@ func (c *CatalogServiceClient) CatalogCreateRedisService(ctx context.Context, r 
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateCouchDBService creates a new catalog CouchDB service.
@@ -272,7 +273,7 @@ func (c *CatalogServiceClient) CatalogCreateCouchDBService(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateConsulService creates a new catalog Consul service.
@@ -294,7 +295,7 @@ func (c *CatalogServiceClient) CatalogCreateConsulService(ctx context.Context, r
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, manage.ConvertHTTPError(resp)
+		return nil, c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -321,7 +322,7 @@ func (c *CatalogServiceClient) CatalogCreateElasticSearchService(ctx context.Con
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateKibanaService creates a new catalog Kibana service.
@@ -341,7 +342,7 @@ func (c *CatalogServiceClient) CatalogCreateKibanaService(ctx context.Context, r
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateLogstashService creates a new catalog Logstash service.
@@ -361,7 +362,7 @@ func (c *CatalogServiceClient) CatalogCreateLogstashService(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCreateTelegrafService creates a new catalog Telegraf service.
@@ -381,7 +382,7 @@ func (c *CatalogServiceClient) CatalogCreateTelegrafService(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	return manage.ConvertHTTPError(resp)
+	return c.convertHTTPError(resp)
 }
 
 // CatalogCheckServiceInit checks if a catalog service is initialized.
@@ -402,7 +403,7 @@ func (c *CatalogServiceClient) CatalogCheckServiceInit(ctx context.Context, r *c
 		return false, "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return false, "", manage.ConvertHTTPError(resp)
+		return false, "", c.convertHTTPError(resp)
 	}
 
 	defer c.closeRespBody(resp)
@@ -410,4 +411,17 @@ func (c *CatalogServiceClient) CatalogCheckServiceInit(ctx context.Context, r *c
 	res := &catalog.CatalogCheckServiceInitResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	return res.Initialized, res.StatusMessage, err
+}
+
+func (c *CatalogServiceClient) convertHTTPError(resp *http.Response) error {
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return errors.New(string(body))
 }

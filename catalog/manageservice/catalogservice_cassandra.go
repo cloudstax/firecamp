@@ -9,30 +9,31 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
 	"github.com/cloudstax/firecamp/common"
 )
 
-func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateCassandraRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateCassandraRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	err = cascatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("invalid request", err, "requuid", requuid, req.Service, req.Options)
-		return err.Error(), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	// create the service in the control plane and the container platform
@@ -42,7 +43,7 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("Cassandra is created, add the init task, requuid", requuid, req.Service)
@@ -53,9 +54,9 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 	} else {
 		glog.Infoln("single node Cassandra, skip the init task, requuid", requuid, req.Service, req.Options)
 
-		errmsg, errcode := s.managecli.SetServiceInitialized(ctx, req.Service)
-		if errcode != http.StatusOK {
-			return errmsg, errcode
+		err = s.managecli.SetServiceInitialized(ctx, req.Service)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -67,13 +68,13 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 	b, err := json.Marshal(resp)
 	if err != nil {
 		glog.Errorln("Marshal CatalogCreateCassandraResponse error", err, "requuid", requuid, req.Service, req.Options)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
-	return "", http.StatusOK
+	return nil
 }
 
 func (s *CatalogHTTPServer) addCasInitTask(ctx context.Context,
@@ -91,31 +92,31 @@ func (s *CatalogHTTPServer) addCasInitTask(ctx context.Context,
 	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
 }
 
-func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogScaleCassandraRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogScaleCassandraRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkCommonRequest(req.Service)
 	if err != nil {
 		glog.Errorln("CatalogScaleCassandraRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	attr, err := s.managecli.GetServiceAttr(ctx, req.Service)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	if req.Replicas == attr.Spec.Replicas {
 		glog.Infoln("service already has", req.Replicas, "replicas, requuid", requuid, attr)
-		return "", http.StatusOK
+		return nil
 	}
 
 	// not allow scaling down, as Cassandra nodes are peers. When one node goes down,
@@ -123,14 +124,14 @@ func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request
 	if req.Replicas < attr.Spec.Replicas {
 		errmsg := "scale down Cassandra service is not supported"
 		glog.Errorln(errmsg, "requuid", requuid, req.Service)
-		return errmsg, http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, errmsg)
 	}
 
 	// TODO scaling from 1 node requires to add new seed nodes.
 	if attr.Spec.Replicas == 1 {
 		errmsg := "not support to scale from 1 node, please have at least 3 nodes"
 		glog.Errorln(errmsg, "requuid", requuid, req.Service)
-		return errmsg, http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, errmsg)
 	}
 
 	glog.Infoln("scale cassandra service from", attr.Spec.Replicas, "to", req.Replicas, "requuid", requuid, attr)
@@ -146,10 +147,10 @@ func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request
 	err = s.managecli.ScaleService(ctx, scaleReq)
 	if err != nil {
 		glog.Errorln("create new service members error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("scale servie to", req.Replicas, "requuid", requuid, req.Service)
 
-	return "", http.StatusOK
+	return nil
 }

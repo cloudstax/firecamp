@@ -26,6 +26,7 @@ const (
 	startInitTaskMsg             = "the init task is running"
 )
 
+// TODO merge to the task framework in the manage service
 type serviceTask struct {
 	serviceName string
 	// The task detail

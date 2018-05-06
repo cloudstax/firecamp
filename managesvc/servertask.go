@@ -14,6 +14,7 @@ import (
 	"github.com/cloudstax/firecamp/utils"
 )
 
+// TODO currently only has restart task. merge with the catalog init task.
 type manageTask struct {
 	serviceUUID string
 	serviceName string

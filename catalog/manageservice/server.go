@@ -1,7 +1,6 @@
 package catalogsvc
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
 	manageclient "github.com/cloudstax/firecamp/api/manage/client"
+	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
@@ -139,7 +139,16 @@ func (s *CatalogHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *CatalogHTTPServer) putOp(ctx context.Context, w http.ResponseWriter, r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
 	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
-		return s.putCatalogServiceOp(ctx, w, r, trimURL, requuid)
+		err := s.putCatalogServiceOp(ctx, w, r, trimURL, requuid)
+		if err != nil {
+			_, ok := err.(clienterr.Error)
+			if ok {
+				return err.(clienterr.Error).Error(), err.(clienterr.Error).Code()
+			}
+			glog.Errorln("putCatalogServiceOp returns non clienterr", err, "requuid", requuid, trimURL, r)
+			return err.Error(), http.StatusInternalServerError
+		}
+		return "", http.StatusOK
 	}
 
 	return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -149,7 +158,16 @@ func (s *CatalogHTTPServer) getOp(ctx context.Context, w http.ResponseWriter,
 	r *http.Request, trimURL string, requuid string) (errmsg string, errcode int) {
 	// check if the request is the catalog service request.
 	if strings.HasPrefix(trimURL, catalog.CatalogOpPrefix) {
-		return s.getCatalogServiceOp(ctx, w, r, requuid)
+		err := s.getCatalogServiceOp(ctx, w, r, requuid)
+		if err != nil {
+			_, ok := err.(clienterr.Error)
+			if ok {
+				return err.(clienterr.Error).Error(), err.(clienterr.Error).Code()
+			}
+			glog.Errorln("getCatalogServiceOp returns non clienterr", err, "requuid", requuid, trimURL, r)
+			return err.Error(), http.StatusInternalServerError
+		}
+		return "", http.StatusOK
 	}
 
 	return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
@@ -163,11 +181,11 @@ func (s *CatalogHTTPServer) closeBody(r *http.Request) {
 
 func (s *CatalogHTTPServer) checkRequest(service *manage.ServiceCommonRequest, res *common.Resources) error {
 	if res.MaxMemMB != common.DefaultMaxMemoryMB && res.MaxMemMB < res.ReserveMemMB {
-		return errors.New("Invalid request, max-memory should be larger than reserve-memory")
+		return clienterr.New(http.StatusBadRequest, "Invalid request, max-memory should be larger than reserve-memory")
 	}
 
 	if res.MaxCPUUnits != common.DefaultMaxCPUUnits && res.MaxCPUUnits < res.ReserveCPUUnits {
-		return errors.New("Invalid request, max-cpuunits should be larger than reserve-cpuunits")
+		return clienterr.New(http.StatusBadRequest, "Invalid request, max-cpuunits should be larger than reserve-cpuunits")
 	}
 
 	return s.checkCommonRequest(service)
@@ -175,15 +193,15 @@ func (s *CatalogHTTPServer) checkRequest(service *manage.ServiceCommonRequest, r
 
 func (s *CatalogHTTPServer) checkCommonRequest(service *manage.ServiceCommonRequest) error {
 	if !s.validName.MatchString(service.ServiceName) {
-		return errors.New("Invalid request, service name is not valid")
+		return clienterr.New(http.StatusBadRequest, "Invalid request, service name is not valid")
 	}
 
 	if len(service.ServiceName) > common.MaxServiceNameLength {
-		return fmt.Errorf("Invalid Request, service name max length is %d", common.MaxServiceNameLength)
+		return clienterr.New(http.StatusBadRequest, fmt.Sprintf("Invalid Request, service name max length is %d", common.MaxServiceNameLength))
 	}
 
 	if service.Cluster != s.cluster || service.Region != s.region {
-		return errors.New("Invalid request, cluster or region not match")
+		return clienterr.New(http.StatusBadRequest, "Invalid request, cluster or region not match")
 	}
 
 	return nil

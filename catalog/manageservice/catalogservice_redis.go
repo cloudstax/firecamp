@@ -9,24 +9,25 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/common"
 )
 
-func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateRedisRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	glog.Infoln("create redis service", req.Service, req.Options, req.Resource)
@@ -34,7 +35,7 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 	err = rediscatalog.ValidateRequest(req)
 	if err != nil {
 		glog.Errorln("CatalogCreateRedisRequest parameters are not valid, requuid", requuid, req.Service, req.Options)
-		return err.Error(), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	// create the service in the control plane and the container platform
@@ -45,7 +46,7 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 	serviceUUID, err := s.managecli.CreateManageService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
@@ -54,13 +55,13 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 	err = s.updateRedisConfigs(ctx, req.Service, requuid)
 	if err != nil {
 		glog.Errorln("updateRedisConfigs error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	_, err = s.managecli.CreateContainerService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("created Redis service", serviceUUID, "requuid", requuid, req.Service, req.Options)
@@ -72,10 +73,10 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 		err = s.addRedisInitTask(ctx, crReq.Service, serviceUUID, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
 		if err != nil {
 			glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
-			return err.Error(), http.StatusInternalServerError
+			return err
 		}
 
-		return "", http.StatusOK
+		return nil
 	}
 
 	// redis single instance or master-slave mode does not require additional init work. set service initialized
@@ -90,7 +91,7 @@ func (s *CatalogHTTPServer) addRedisInitTask(ctx context.Context, req *manage.Se
 
 	taskOpts, err := rediscatalog.GenDefaultInitTaskRequest(req, logCfg, shards, replicasPerShard, serviceUUID, s.serverurl)
 	if err != nil {
-		return err
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	task := &serviceTask{
@@ -147,19 +148,19 @@ func (s *CatalogHTTPServer) updateRedisConfigs(ctx context.Context, req *manage.
 	return nil
 }
 
-func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogSetRedisInitRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	if req.Cluster != s.cluster || req.Region != s.region {
 		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, "invalid region or cluster")
 	}
 
 	glog.Infoln("setRedisInit", req.ServiceName, "requuid", requuid)
@@ -176,7 +177,7 @@ func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, r
 	err = s.enableRedisAuth(ctx, commonReq, requuid)
 	if err != nil {
 		glog.Errorln("enableRedisAuth error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	// the config file is updated, restart all containers
@@ -190,13 +191,13 @@ func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, r
 	err = s.managecli.StopService(ctx, commonReq)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	err = s.managecli.StartService(ctx, commonReq)
 	if err != nil {
 		glog.Errorln("StartService error", err, "requuid", requuid, req)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	// set service initialized

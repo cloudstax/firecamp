@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/elasticsearch"
 	"github.com/cloudstax/firecamp/catalog/kafka"
 	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
@@ -17,20 +18,20 @@ import (
 	"github.com/cloudstax/firecamp/common"
 )
 
-func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateKafkaRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	// get the zk service
@@ -42,7 +43,7 @@ func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.Respo
 	zkattr, err := s.managecli.GetServiceAttr(ctx, getReq)
 	if err != nil {
 		glog.Errorln("get zk service attr error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
@@ -54,15 +55,15 @@ func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.Respo
 	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
 
 	// kafka does not require additional init work. set service initialized
-	errmsg, errcode = s.managecli.SetServiceInitialized(ctx, req.Service)
-	if errcode != http.StatusOK {
-		return errmsg, errcode
+	err = s.managecli.SetServiceInitialized(ctx, req.Service)
+	if err != nil {
+		return err
 	}
 
 	resp := &catalog.CatalogCreateKafkaResponse{
@@ -72,35 +73,35 @@ func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.Respo
 	b, err := json.Marshal(resp)
 	if err != nil {
 		glog.Errorln("Marshal CatalogCreateKafkaResponse error", err, "requuid", requuid, req.Service, req.Options)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
-	return "", http.StatusOK
+	return nil
 }
 
-func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateKafkaSinkESRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaSinkESRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaSinkESRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	err = kccatalog.ValidateSinkESRequest(req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaSinkESRequest invalid request", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	// get the kafka service
@@ -112,7 +113,7 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	kafkaAttr, err := s.managecli.GetServiceAttr(ctx, commonReq)
 	if err != nil {
 		glog.Errorln("get kafka service attr error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	// get the elasticsearch service config
@@ -127,13 +128,13 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 	if err != nil {
 		glog.Errorln("get elasticsearch service config file error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	dataNodes, err := escatalog.GetDataNodes(cfgfile.Spec.Content)
 	if err != nil {
 		glog.Errorln("get elasticsearch data nodes error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	// create elasticsearch data node uris
@@ -149,7 +150,7 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("created kafka connector service", serviceUUID, "requuid", requuid, req.Service)
@@ -157,7 +158,7 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	// add the init task to actually create the elasticsearch sink task in kafka connectors
 	s.addKafkaSinkESInitTask(ctx, req.Service, serviceUUID, req.Options.Replicas, sinkESConfigs, requuid)
 
-	return "", http.StatusOK
+	return nil
 }
 
 func (s *CatalogHTTPServer) addKafkaSinkESInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
@@ -195,26 +196,26 @@ func (s *CatalogHTTPServer) restartKafkaSinkESInitTask(ctx context.Context, req 
 	return nil
 }
 
-func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
+func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *http.Request, requuid string) error {
 	// parse the request
 	req := &catalog.CatalogCreateKafkaManagerRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest decode request error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = kmcatalog.ValidateRequest(req.Options)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest parameters are not valid, requuid", requuid, req)
-		return err.Error(), http.StatusBadRequest
+		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
 	err = s.checkRequest(req.Service, req.Resource)
 	if err != nil {
 		glog.Errorln("CatalogCreateKafkaManagerRequest invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req.Service, "error", err)
-		return err.Error(), http.StatusBadRequest
+		return err
 	}
 
 	// get the zk service
@@ -226,7 +227,7 @@ func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *ht
 	zkattr, err := s.managecli.GetServiceAttr(ctx, getReq)
 	if err != nil {
 		glog.Errorln("get zk service attr error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	zkservers := catalog.GenServiceMemberHostsWithPort(s.cluster, zkattr.Meta.ServiceName, zkattr.Spec.Replicas, zkcatalog.ClientPort)
@@ -238,7 +239,7 @@ func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *ht
 	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
-		return err.Error(), http.StatusInternalServerError
+		return err
 	}
 
 	glog.Infoln("created kafka manager service", serviceUUID, "requuid", requuid, req.Service)
