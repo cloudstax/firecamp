@@ -23,7 +23,6 @@ const (
 	CatalogCreateTelegrafOp      = CatalogOpPrefix + "Create-Telegraf"
 	CatalogCheckServiceInitOp    = CatalogOpPrefix + "Check-Service-Init"
 	CatalogSetServiceInitOp      = CatalogOpPrefix + "Set-Service-Init"
-	CatalogSetRedisInitOp        = CatalogOpPrefix + "Set-Redis-Init"
 	CatalogScaleCassandraOp      = CatalogOpPrefix + "Scale-Cassandra"
 
 	// The service configurable variables and some service specific variables

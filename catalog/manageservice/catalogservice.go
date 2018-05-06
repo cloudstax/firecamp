@@ -56,8 +56,6 @@ func (s *CatalogHTTPServer) putCatalogServiceOp(ctx context.Context, w http.Resp
 		return s.createTelegrafService(ctx, r, requuid)
 	case catalog.CatalogSetServiceInitOp:
 		return s.catalogSetServiceInit(ctx, r, requuid)
-	case catalog.CatalogSetRedisInitOp:
-		return s.setRedisInit(ctx, r, requuid)
 	case catalog.CatalogScaleCassandraOp:
 		return s.scaleCasService(ctx, r, requuid)
 	default:
@@ -252,6 +250,9 @@ func (s *CatalogHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.R
 	case common.CatalogService_KafkaSinkES:
 		glog.Infoln("set kafka sink elasticsearch service initialized, requuid", requuid, req)
 		return s.managecli.SetServiceInitialized(ctx, initReq)
+
+	case common.CatalogService_Redis:
+		return s.setRedisInit(ctx, r, requuid)
 
 	// other services do not require the init task.
 	default:

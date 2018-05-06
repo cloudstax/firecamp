@@ -21,7 +21,7 @@
 #export SERVICE_NAME="myredis"
 #export SERVICE_TYPE="redis"
 #export SERVICE_PORT="6379"
-#export OP="Catalog-Set-Redis-Init"
+#export OP="?Catalog-Set-Service-Init"
 
 #export SHARDS="3"
 #export REPLICAS_PERSHARD="2"
@@ -183,15 +183,14 @@ fi
 AddSlaveNodes
 
 # set service initialized
-curl -X PUT "$MANAGE_SERVER_URL/$OP" \
-  -H "Content-Type: application/json" \
-  -d @- <<EOF
-{
-  "Region": "$REGION",
-  "Cluster": "$CLUSTER",
-  "ServiceName": "$SERVICE_NAME"
-}
-EOF
+if [ "$OP" = "?Catalog-Set-Redis-Init" ]; then
+  # the old special redis init request
+  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\"}"
+  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
+else
+  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"ServiceType\":\"$SERVICE_TYPE\"}"
+  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
+fi
 
 # sleep some time for the server to restart all containers
 sleep 20

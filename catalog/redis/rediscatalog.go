@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/common"
 	"github.com/cloudstax/firecamp/containersvc"
 	"github.com/cloudstax/firecamp/dns"
 	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/utils"
 	"github.com/golang/glog"
 )
@@ -308,7 +308,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string,
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_Redis}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(listenPort)}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetRedisInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetServiceInitOp}
 
 	domain := dns.GenDefaultDomainName(cluster)
 
