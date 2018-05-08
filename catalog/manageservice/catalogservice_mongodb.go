@@ -36,23 +36,11 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 		return clienterr.New(http.StatusBadRequest, err.Error())
 	}
 
-	// The service config file is created before service attribute. The service creation may
-	// get interrupted at any time, for example, node goes down. The creation could be retried.
-	// The service config file creation will return error as keyfileContent mismatch.
-	// Get the possible existing keyfileContent first.
-	keyfileContent, err := s.getMongoDBExistingKeyfile(ctx, req.Service, requuid)
+	// create a new keyfile
+	keyfileContent, err := mongodbcatalog.GenKeyfileContent()
 	if err != nil {
-		glog.Errorln("getMongoDBExistingKeyfile error", err, "requuid", requuid, req.Service)
-		return err
-	}
-
-	if len(keyfileContent) == 0 {
-		// create a new keyfile
-		keyfileContent, err = mongodbcatalog.GenKeyfileContent()
-		if err != nil {
-			glog.Errorln("GenKeyfileContent error", err, "requuid", requuid, req.Service)
-			return clienterr.New(http.StatusInternalServerError, err.Error())
-		}
+		glog.Errorln("GenKeyfileContent error", err, "requuid", requuid, req.Service)
+		return clienterr.New(http.StatusInternalServerError, err.Error())
 	}
 
 	// create the service in the control plane and the container platform
@@ -176,19 +164,4 @@ func (s *CatalogHTTPServer) enableMongoDBAuth(ctx context.Context, req *manage.S
 
 	glog.Infoln("enabled mongodb auth, requuid", requuid, req)
 	return nil
-}
-
-func (s *CatalogHTTPServer) getMongoDBExistingKeyfile(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) (string, error) {
-	getReq := &manage.GetServiceConfigFileRequest{
-		Service:        req,
-		ConfigFileName: mongodbcatalog.KeyfileName,
-	}
-	cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
-	if err != nil {
-		glog.Errorln("GetConfigFile error", err, "requuid", requuid, getReq)
-		return "", err
-	}
-
-	glog.Infoln("get mongodb existing keyfile, requuid", requuid, req)
-	return cfgfile.Spec.Content, nil
 }

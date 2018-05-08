@@ -979,28 +979,34 @@ func (s *ManageService) checkAndCreateConfigFile(ctx context.Context, serviceUUI
 	// the first version of the config file
 	version := int64(0)
 	for _, cfg := range cfgs {
-		config, err := s.CreateConfig(ctx, serviceUUID, prefix, cfg, version, requuid)
+		fileID := utils.GenConfigFileID(prefix, cfg.FileName, version)
+		initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
+		cfgfile, err := createConfigFile(ctx, s.dbIns, initcfgfile, requuid)
 		if err != nil {
-			glog.Errorln("createConfigFile error", err, "service", serviceUUID, "prefix", prefix, "requuid", requuid)
-			return nil, err
+			if err != common.ErrConfigMismatch {
+				glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
+				return nil, err
+			}
+
+			// allow overwritting the service config at service creation
+			err = s.dbIns.DeleteConfigFile(ctx, serviceUUID, fileID)
+			if err != nil {
+				glog.Errorln("delete existing config file error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
+				return nil, err
+			}
+
+			// create the config file again
+			cfgfile, err = createConfigFile(ctx, s.dbIns, initcfgfile, requuid)
+			if err != nil {
+				glog.Errorln("recreate config file error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
+				return nil, err
+			}
 		}
-		configs = append(configs, *config)
+
+		config := common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.Spec.FileMD5}
+		configs = append(configs, config)
 	}
 	return configs, nil
-}
-
-// CreateConfig creates the config file
-func (s *ManageService) CreateConfig(ctx context.Context, serviceUUID string, prefix string,
-	cfg *manage.ConfigFileContent, version int64, requuid string) (*common.ConfigID, error) {
-	fileID := utils.GenConfigFileID(prefix, cfg.FileName, version)
-	initcfgfile := db.CreateInitialConfigFile(serviceUUID, fileID, cfg.FileName, cfg.FileMode, cfg.Content)
-	cfgfile, err := createConfigFile(ctx, s.dbIns, initcfgfile, requuid)
-	if err != nil {
-		glog.Errorln("createConfigFile error", err, "fileID", fileID, "service", serviceUUID, "requuid", requuid)
-		return nil, err
-	}
-	config := &common.ConfigID{FileName: cfg.FileName, FileID: fileID, FileMD5: cfgfile.Spec.FileMD5}
-	return config, nil
 }
 
 func (s *ManageService) createServiceMember(ctx context.Context, sattr *common.ServiceAttr,
