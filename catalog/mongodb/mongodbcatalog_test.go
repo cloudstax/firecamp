@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
 )
 
 func TestMongoDBReplicaConfig(t *testing.T) {

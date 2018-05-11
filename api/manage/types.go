@@ -1,7 +1,7 @@
 package manage
 
 import (
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 const (

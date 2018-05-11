@@ -19,8 +19,8 @@ import (
 	"github.com/cloudstax/firecamp/catalog/postgres"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
 )
 
 func (s *CatalogHTTPServer) putCatalogServiceOp(ctx context.Context, w http.ResponseWriter,

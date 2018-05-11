@@ -11,7 +11,7 @@ import (
 
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 // ManageClient is the client to talk with the management service.

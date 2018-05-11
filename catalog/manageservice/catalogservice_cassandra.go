@@ -11,7 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {

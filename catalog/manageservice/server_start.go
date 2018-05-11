@@ -11,11 +11,11 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/server"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/cloudstax/firecamp/pkg/server"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 // StartServer creates the catalog http server and listen for requests.

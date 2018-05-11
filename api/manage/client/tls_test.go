@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log/jsonfile"
-	"github.com/cloudstax/firecamp/managesvc"
-	"github.com/cloudstax/firecamp/server"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/db"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log/jsonfile"
+	"github.com/cloudstax/firecamp/pkg/managesvc"
+	"github.com/cloudstax/firecamp/pkg/server"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 func TestTLSMgrOperationsWithMemDB(t *testing.T) {

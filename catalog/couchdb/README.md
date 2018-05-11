@@ -1,5 +1,5 @@
-* [FireCamp CouchDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#firecamp-couchdb-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb#tutorials)
+* [FireCamp CouchDB Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/couchdb#firecamp-couchdb-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/couchdb#tutorials)
 
 # FireCamp CouchDB Internals
 
@@ -31,7 +31,7 @@ The logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 This is a simple tutorial about how to create a CouchDB service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the CouchDB service name is "mycouch".
 
 ## Create a CouchDB service
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a CouchDB cluster:
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a CouchDB cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=couchdb -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=100 -service-name=mycouch -admin=admin -password=changeme
 ```

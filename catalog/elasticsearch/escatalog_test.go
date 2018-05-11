@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 func TestESCatalog(t *testing.T) {

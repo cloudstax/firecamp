@@ -6,11 +6,11 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (

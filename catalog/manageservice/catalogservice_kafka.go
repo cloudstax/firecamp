@@ -15,7 +15,7 @@ import (
 	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
 	"github.com/cloudstax/firecamp/catalog/kafkamanager"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {

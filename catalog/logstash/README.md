@@ -1,5 +1,5 @@
-* [FireCamp Logstash Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#firecamp-logstash-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash#tutorials)
+* [FireCamp Logstash Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/logstash#firecamp-logstash-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/logstash#tutorials)
 
 # FireCamp Logstash Internals
 
@@ -59,7 +59,7 @@ This is a simple tutorial about how to create a Logstash service and how to use 
 
 ## Create CouchDB, ElasticSearch and Logstash services
 
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
 
 1. Create a CouchDB service and create "fruits" DB.
 ```

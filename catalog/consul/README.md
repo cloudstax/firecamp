@@ -1,5 +1,5 @@
-* [FireCamp Consul Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/consul#firecamp-consul-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/consul#tutorials)
+* [FireCamp Consul Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/consul#firecamp-consul-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/consul#tutorials)
 
 # FireCamp Consul Internals
 
@@ -35,7 +35,7 @@ The Consul logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 This is a simple tutorial about how to create a Consul service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Consul service name is "myconsul".
 
 ## Create a Consul service
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Consul cluster:
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Consul cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=consul -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myconsul
 ```

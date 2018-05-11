@@ -15,15 +15,15 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log/jsonfile"
-	"github.com/cloudstax/firecamp/managesvc"
-	"github.com/cloudstax/firecamp/server"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/db"
+	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log/jsonfile"
+	"github.com/cloudstax/firecamp/pkg/managesvc"
+	"github.com/cloudstax/firecamp/pkg/server"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 var region = flag.String("region", "us-west-1", "The target AWS region for DynamoDB")

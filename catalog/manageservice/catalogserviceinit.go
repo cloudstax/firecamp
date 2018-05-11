@@ -10,9 +10,9 @@ import (
 
 	"github.com/cloudstax/firecamp/api/manage"
 	manageclient "github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (

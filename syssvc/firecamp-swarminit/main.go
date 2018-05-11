@@ -15,13 +15,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/containersvc/swarm"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/log/awscloudwatch"
-	"github.com/cloudstax/firecamp/server/awsec2"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/containersvc/swarm"
+	"github.com/cloudstax/firecamp/pkg/db"
+	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
+	"github.com/cloudstax/firecamp/pkg/log/awscloudwatch"
+	"github.com/cloudstax/firecamp/pkg/server/awsec2"
 )
 
 var (

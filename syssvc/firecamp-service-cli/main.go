@@ -31,10 +31,10 @@ import (
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/server/awsec2"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/server/awsec2"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 // The catalog service command tool to create/query the catalog service.

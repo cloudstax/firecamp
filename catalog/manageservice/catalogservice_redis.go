@@ -11,7 +11,7 @@ import (
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/redis"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Request, requuid string) error {

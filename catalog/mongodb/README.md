@@ -1,5 +1,5 @@
-* [FireCamp MongoDB Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra#firecamp-mongodb-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb#tutorials)
+* [FireCamp MongoDB Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/cassandra#firecamp-mongodb-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/mongodb#tutorials)
 
 # FireCamp MongoDB Internals
 
@@ -47,7 +47,7 @@ By default, the MongoDB instance inside the container assumes the whole node's m
 This is a simple tutorial about how to create a MongoDB service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the MongoDB service name is "mymongo".
 
 ## Create a MongoDB service
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 9 nodes cluster across 3 availability zones. Create a 2 shards MongoDB cluster:
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 9 nodes cluster across 3 availability zones. Create a 2 shards MongoDB cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=mongodb -region=us-east-1 -cluster=t1 -service-name=mymongo -mongo-shards=2 -mongo-replicas-pershard=3 -mongo-replicaset-only=false -mongo-configservers=3 -volume-size=100 -journal-volume-size=10 -admin=admin -password=changeme
 ```

@@ -77,7 +77,7 @@ BuildManageImages() {
   echo "build test busybox image for ecs and swarm unit test"
   target="${system}-busybox"
   image="${org}${target}:${version}"
-  path="${TOPWD}/containersvc/busybox-test-dockerfile/"
+  path="${TOPWD}/pkg/containersvc/busybox-test-dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -97,7 +97,7 @@ BuildManageImages() {
   target=$system"-initcontainer"
   image="${org}${target}:${version}"
   binfile=$target
-  path="${TOPWD}/containersvc/k8s/firecamp-initcontainer/"
+  path="${TOPWD}/pkg/containersvc/k8s/firecamp-initcontainer/"
   cp $GOPATH/bin/$binfile $path
   docker build -q -t $image $path
   rm -f $path$binfile
@@ -108,7 +108,7 @@ BuildManageImages() {
   target=$system"-stopcontainer"
   image="${org}${target}:${version}"
   binfile=$system"-stopcontainer"
-  path="${TOPWD}/containersvc/k8s/firecamp-stopcontainer/"
+  path="${TOPWD}/pkg/containersvc/k8s/firecamp-stopcontainer/"
   cp $GOPATH/bin/$binfile $path
   docker build -q -t $image $path
   rm -f $path$binfile

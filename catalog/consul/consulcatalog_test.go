@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func TestConsulCatalog(t *testing.T) {

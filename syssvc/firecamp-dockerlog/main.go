@@ -8,10 +8,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-plugins-helpers/sdk"
 
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/plugins/log"
-	"github.com/cloudstax/firecamp/server/awsec2"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/plugins/log"
+	"github.com/cloudstax/firecamp/pkg/server/awsec2"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const socketAddress = "/run/docker/plugins/" + common.SystemName + "log.sock"

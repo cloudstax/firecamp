@@ -2,7 +2,7 @@ package catalog
 
 import (
 	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/common"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 const (

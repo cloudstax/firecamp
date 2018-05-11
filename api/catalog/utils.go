@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 // IsServiceConfigFile checks if the file is the service.conf file
