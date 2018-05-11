@@ -169,7 +169,7 @@
     "Release": {
       "Type": "String",
       "Default": "latest",
-      "AllowedValues": [ "latest", "0.9.5", "0.9.4" ],
+      "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
       "Description": "The FireCamp release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
     },
     "QSS3BucketName": {

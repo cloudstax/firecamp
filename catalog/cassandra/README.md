@@ -190,3 +190,16 @@ use test;
 insert into users (userid, first_name, last_name) values('user1', 'a1', 'b1');
 select * from users;
 ```
+
+## Monitor Cassandra with AWS CloudWatch
+Create a Telegraf service to collect Cassandra metrics and send to AWS CloudWatch. By default, the metrics is collected every 60s. If you want different collect interval, such as 90 seconds, could set "-tel-collect-interval=90s".
+```
+firecamp-service-cli -op=create-service -service-type=telegraf -region=us-east-1 -cluster=t1 -service-name=tel-mycas -tel-monitor-service-name=mycas
+```
+
+You could put all the custom metrics in one file, and pass the file "-tel-metrics-file=pathtofile" when creating the service. For example, you could create the file with a few metrics for Cassandra:
+```
+  "/org.apache.cassandra.metrics:type=ClientRequest,scope=Read,name=Latency",
+  "/org.apache.cassandra.metrics:type=ClientRequest,scope=Write,name=Latency",
+  "/org.apache.cassandra.metrics:type=Storage,name=Load"
+```

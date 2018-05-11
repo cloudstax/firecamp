@@ -20,16 +20,14 @@ The plan will be adjusted by the requirements. If you prefer to have some other 
 
 # 0.9.6
 
+* Code refactoring to decouple the catalog services from the core platform.
+
+# 1.0
+
 ## Must-have features
 
-* Security: add SSL/TLS for FireCamp management service
-* Monitor more services
-* Further enhance upgrade
-
-## Other features
-
-* Connect Kafka to ElasticSearch
-* Further enhance Kubernetes support
+* Separate the catalog service from the management service.
+* Bug fix and enhancements.
 
 
 # Further works
@@ -38,8 +36,12 @@ The near term features will be included in the coming releases. The detail plan 
 
 ## Near term features
 
+* Further enhance upgrade.
+* Monitor more services
+* Security: add SSL/TLS for FireCamp management service
 * Service Scale: Kafka, ZooKeeper, etc
 * Fully support Kubernetes on AWS
+* Enhance Kafka auto-connector to ElasticSearch
 * Data Management: data snapshot, backup, recovery
 * Automatic Data Pipelines
 * Support Microsoft Azure, Google Cloud Platform

@@ -68,7 +68,7 @@ curl -X PUT admin:changeme@mycouch-0.t1-firecamp.com:5984/fruits
 ```
 2. Create an ElasticSearch service:
 ```
-firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048
+firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048 -es-disable-dedicated-master=true
 ```
 3. Create a Logstash service:
 ```
