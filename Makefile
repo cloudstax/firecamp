@@ -3,6 +3,7 @@
 
 org="cloudstax/"
 version="latest"
+catalogversion="lastest"
 
 all: install
 
@@ -14,16 +15,16 @@ install:
 	./scripts/install.sh
 
 docker: install
-	./scripts/builddocker.sh $(org) $(version) all
+	./scripts/builddocker.sh $(org) $(version) $(catalogversion) all
 
 pluginimages:
-	./scripts/builddocker.sh $(org) $(version) pluginimages
+	./scripts/builddocker.sh $(org) $(version) $(catalogversion) pluginimages
 
 manageimages:
-	./scripts/builddocker.sh $(org) $(version) manageimages
+	./scripts/builddocker.sh $(org) $(version) $(catalogversion) manageimages
 
 catalogimages:
-	./scripts/builddocker.sh $(org) $(version) catalogimages
+	./scripts/builddocker.sh $(org) $(version) $(catalogversion) catalogimages
 
 test:
 	./scripts/gotest.sh

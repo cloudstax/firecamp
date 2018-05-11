@@ -5,7 +5,8 @@ export TOPWD="$(pwd)"
 
 org=$1
 version=$2
-buildtarget=$3
+catalogversion=$3
+buildtarget=$4
 
 system="firecamp"
 
@@ -87,6 +88,17 @@ BuildManageImages() {
   image="${org}${target}:${version}"
   binfile=$target
   path="${TOPWD}/syssvc/firecamp-manageserver/dockerfile/"
+  cp $GOPATH/bin/$binfile $path
+  docker build -q -t $image $path
+  rm -f $path$binfile
+  docker push $image
+
+  # build catalog manage service docker image
+  echo
+  target=$system"-catalogservice"
+  image="${org}${target}:${catalogversion}"
+  binfile=$target
+  path="${TOPWD}/syssvc/firecamp-catalogservice/dockerfile/"
   cp $GOPATH/bin/$binfile $path
   docker build -q -t $image $path
   rm -f $path$binfile

@@ -172,6 +172,12 @@
                 "Value": "ecs"
               },
               {
+                "Name": "CLUSTER",
+                "Value": {
+                  "Ref": "ClusterName"
+                }
+              },
+              {
                 "Name": "DB_TYPE",
                 "Value": {
                   "Ref": "DBType"
