@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 // 2) Listen on the standard port, 5432.
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
+func ValidateRequest(req *catalog.CatalogCreatePostgreSQLRequest) error {
 	// for now, limit the container image to postgres and postgres-postgis only.
 	// after we get more requirements and finalize the design for the custom image, we may remove this check.
 	if len(req.Options.ContainerImage) != 0 && req.Options.ContainerImage != ContainerImage && req.Options.ContainerImage != PostGISContainerImage {
@@ -62,7 +62,7 @@ func ValidateRequest(req *manage.CatalogCreatePostgreSQLRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default PostgreSQL creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, res *common.Resources, opts *manage.CatalogPostgreSQLOptions) *manage.CreateServiceRequest {
+	cluster string, service string, res *common.Resources, opts *catalog.CatalogPostgreSQLOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, defaultPort, opts)
 
@@ -110,7 +110,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 func genServiceConfigs(platform string, cluster string, service string, azs []string,
-	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ConfigFileContent {
+	port int64, opts *catalog.CatalogPostgreSQLOptions) []*manage.ConfigFileContent {
 	domain := dns.GenDefaultDomainName(cluster)
 	primaryMember := utils.GenServiceMemberName(service, 0)
 	primaryHost := dns.GenDNSName(primaryMember, domain)
@@ -166,7 +166,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 // GenReplicaConfigs generates the replica configs.
 // Note: if the number of availability zones is less than replicas, 2 or more replicas will run on the same zone.
 func GenReplicaConfigs(platform string, cluster string, service string, azs []string,
-	port int64, opts *manage.CatalogPostgreSQLOptions) []*manage.ReplicaConfig {
+	port int64, opts *catalog.CatalogPostgreSQLOptions) []*manage.ReplicaConfig {
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
 
 	// generate the primary configs

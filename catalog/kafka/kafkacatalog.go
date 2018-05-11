@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -67,7 +67,7 @@ func ValidateUpdateOptions(opts *KafkaOptions) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogKafkaOptions, res *common.Resources,
+	cluster string, service string, opts *catalog.CatalogKafkaOptions, res *common.Resources,
 	zkServers string) (crReq *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// check and set the jmx remote user and password
 	if len(opts.JmxRemoteUser) == 0 {
@@ -126,7 +126,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, opts *manage.CatalogKafkaOptions, zkServers string) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *catalog.CatalogKafkaOptions, zkServers string) []*manage.ConfigFileContent {
 	// adjust the default configs by the number of members(replicas)
 	replFactor := defaultReplFactor
 	if int(opts.Replicas) < defaultReplFactor {
@@ -171,7 +171,7 @@ func genServiceConfigs(platform string, opts *manage.CatalogKafkaOptions, zkServ
 }
 
 // genMemberConfigs generates the configs for each member.
-func genMemberConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKafkaOptions) []*manage.ReplicaConfig {
+func genMemberConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogKafkaOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)

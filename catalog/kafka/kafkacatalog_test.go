@@ -3,10 +3,9 @@ package kafkacatalog
 import (
 	"testing"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func TestKafkaCatalog(t *testing.T) {
@@ -34,7 +33,7 @@ func TestKafkaCatalog(t *testing.T) {
 		t.Fatalf("expect zk servers %s, get %s", expectZkServers, zkservers)
 	}
 
-	opts := &manage.CatalogKafkaOptions{
+	opts := &catalog.CatalogKafkaOptions{
 		Replicas:        replicas,
 		Volume:          &vols.PrimaryVolume,
 		HeapSizeMB:      maxMemMB,

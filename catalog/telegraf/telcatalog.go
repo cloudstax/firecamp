@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/api/manage"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 // The InfluxData Telegraf catalog service, https://github.com/influxdata/telegraf
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(req *manage.CatalogCreateTelegrafRequest) error {
+func ValidateRequest(req *catalog.CatalogCreateTelegrafRequest) error {
 	if req.Options.CollectIntervalSecs <= 0 {
 		return errors.New("Please specify the valid collect interval")
 	}
@@ -47,7 +47,7 @@ func ValidateRequest(req *manage.CatalogCreateTelegrafRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, cluster string, service string,
 	attr *common.ServiceAttr, monitorServiceMembers []*common.ServiceMember,
-	opts *manage.CatalogTelegrafOptions, res *common.Resources) *manage.CreateServiceRequest {
+	opts *catalog.CatalogTelegrafOptions, res *common.Resources) *manage.CreateServiceRequest {
 
 	members := ""
 	for i, m := range monitorServiceMembers {
@@ -112,7 +112,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	return req
 }
 
-func genServiceConfigs(opts *manage.CatalogTelegrafOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(opts *catalog.CatalogTelegrafOptions) []*manage.ConfigFileContent {
 	// create service.conf file
 	content := fmt.Sprintf(servicefileContent, opts.CollectIntervalSecs, opts.MonitorServiceName)
 	serviceCfg := &manage.ConfigFileContent{

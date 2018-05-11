@@ -1,5 +1,5 @@
-* [FireCamp PostgreSQL Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#firecamp-postgresql-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres#tutorials)
+* [FireCamp PostgreSQL Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/postgres#firecamp-postgresql-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/postgres#tutorials)
 
 # FireCamp PostgreSQL Internals
 
@@ -51,7 +51,7 @@ The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI
 This is a simple tutorial about how to create a PostgreSQL service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the PostgreSQL service name is "mypg".
 
 ## Create a PostgreSQL service
-Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a PostgreSQL cluster:
+Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a PostgreSQL cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -volume-size=100 -journal-volume-size=10 -password=changeme -pg-image=cloudstax/firecamp-postgres:9.6 -pg-repluser=repluser -pg-replpasswd=replpassword
 ```

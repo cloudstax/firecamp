@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 )
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateLogstashRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateLogstashRequest) error {
 	if r.Options.ContainerImage != ContainerImage && r.Options.ContainerImage != InputCouchDBContainerImage {
 		return errors.New("Not supported container image")
 	}
@@ -51,7 +51,7 @@ func ValidateRequest(r *manage.CatalogCreateLogstashRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogLogstashOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogLogstashOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, opts)
 
@@ -101,7 +101,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, opts *manage.CatalogLogstashOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *catalog.CatalogLogstashOptions) []*manage.ConfigFileContent {
 	// create the service.conf file
 	content := fmt.Sprintf(servicefileContent, platform, opts.HeapSizeMB, opts.ContainerImage,
 		opts.QueueType, strconv.FormatBool(opts.EnableDeadLetterQueue), opts.PipelineWorkers,
@@ -123,7 +123,7 @@ func genServiceConfigs(platform string, opts *manage.CatalogLogstashOptions) []*
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogLogstashOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogLogstashOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)

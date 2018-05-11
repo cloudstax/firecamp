@@ -1,5 +1,5 @@
-* [FireCamp Telegraf Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf#firecamp-telegraf-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf#tutorials)
+* [FireCamp Telegraf Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf#firecamp-telegraf-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf#tutorials)
 
 # FireCamp Telegraf Internals
 
@@ -18,7 +18,7 @@ You will pay for CloudWatch usage. If the service generates lots of metrics, the
     "/org.apache.cassandra.metrics:type=Storage,name=Load"
 ```
 
-Customizing the metrics is the advanced configuration. Currently FireCamp does not check the format in the custom file. It is your responsibility to ensure the format and metrics are correct. For example, refer to "metrics" part in [Cassandra configs](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf/1.5/dockerfile/input_cas.conf) for the detail metrics format. FireCamp will simply replace the "metrics" part with the custom metrics in the file.
+Customizing the metrics is the advanced configuration. Currently FireCamp does not check the format in the custom file. It is your responsibility to ensure the format and metrics are correct. For example, refer to "metrics" part in [Cassandra configs](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf/1.5/dockerfile/input_cas.conf) for the detail metrics format. FireCamp will simply replace the "metrics" part with the custom metrics in the file.
 
 Currently not every service in Telegraf supports to customize the metrics. For example, Telegraf Redis gathers the results of the [INFO](https://redis.io/commands/info) redis command.
 

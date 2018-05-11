@@ -1,5 +1,5 @@
-* [FireCamp ZooKeeper Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#firecamp-zookeeper-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper#tutorials)
+* [FireCamp ZooKeeper Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/zookeeper#firecamp-zookeeper-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/zookeeper#tutorials)
 
 # FireCamp ZooKeeper Internals
 
@@ -27,7 +27,7 @@ In the future, [SASL](https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooK
 
 ## Monitoring
 
-FireCamp uses Telegraf to monitor ZooKeeper and send metrics to AWS CloudWatch. You could create a Telegraf service for the ZooKeeper Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf).
+FireCamp uses Telegraf to monitor ZooKeeper and send metrics to AWS CloudWatch. You could create a Telegraf service for the ZooKeeper Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf).
 
 ## JVM Configs
 
@@ -60,7 +60,7 @@ The ZooKeeper logs are sent to the Cloud Logs, such as AWS CloudWatch logs.
 This is a simple tutorial about how to create a ZooKeeper service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the ZooKeeper service name is "myzoo".
 
 ## Create a ZooKeeper service
-Follow the [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
+Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
 ```
 firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20 -zk-heap-size=4096
 ```

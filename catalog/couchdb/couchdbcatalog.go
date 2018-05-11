@@ -10,13 +10,13 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -59,7 +59,7 @@ const (
 )
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateCouchDBRequest) error {
 	if r.Options.Replicas == 2 {
 		return errors.New("invalid replicas, please create 1, 3 or more replicas")
 	}
@@ -81,7 +81,7 @@ func ValidateRequest(r *manage.CatalogCreateCouchDBRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogCouchDBOptions) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogCouchDBOptions) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, cluster, service, azs, opts)
 
@@ -132,7 +132,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogCouchDBOptions) []*manage.ConfigFileContent {
 	uuid := utils.GenUUID()
 
 	// encrypt password
@@ -216,7 +216,7 @@ func genServiceConfigs(platform string, cluster string, service string, azs []st
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogCouchDBOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogCouchDBOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)
@@ -293,7 +293,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string, serv
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_CouchDB}
 	kvport := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_PORT, Value: strconv.Itoa(httpPort)}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetServiceInitOp}
 
 	zones := ""
 	for i, zone := range azs {
@@ -320,6 +320,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, manageurl string, serv
 	return envkvs
 }
 
+// GetAdminFromServiceConfigs gets the admin config from the service configs
 func GetAdminFromServiceConfigs(content string) (admin string, adminPass string) {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {

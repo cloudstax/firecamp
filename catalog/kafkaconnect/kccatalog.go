@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/log"
 )
 
 const (
@@ -65,13 +65,13 @@ const (
 
 	ENV_ELASTICSEARCH_CONFIGS = "ELASTICSEARCH_CONFIGS"
 
-	sinkESConfFileName = "sinkes.conf"
+	SinkESConfFileName = "sinkes.conf"
 )
 
 // The Kafka Connect catalog service
 
 // ValidateSinkESRequest checks if the request is valid
-func ValidateSinkESRequest(req *manage.CatalogCreateKafkaSinkESRequest) error {
+func ValidateSinkESRequest(req *catalog.CatalogCreateKafkaSinkESRequest) error {
 	opts := req.Options
 	if opts.Replicas <= 0 {
 		return errors.New("Please specify the valid replicas")
@@ -95,7 +95,7 @@ func ValidateSinkESRequest(req *manage.CatalogCreateKafkaSinkESRequest) error {
 
 // GenCreateESSinkServiceRequest returns the creation request for the kafka elasticsearch sink service.
 func GenCreateESSinkServiceRequest(platform string, region string, cluster string, service string,
-	kafkaServers string, esURIs string, req *manage.CatalogCreateKafkaSinkESRequest) (crReq *manage.CreateServiceRequest, sinkESConfigs string) {
+	kafkaServers string, esURIs string, req *catalog.CatalogCreateKafkaSinkESRequest) (crReq *manage.CreateServiceRequest, sinkESConfigs string) {
 	// generate the container env variables
 	envkvs := genEnvs(platform, region, cluster, service, kafkaServers, req.Options)
 
@@ -155,7 +155,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 }
 
 func genEnvs(platform string, region string, cluster string, service string,
-	kafkaServers string, opts *manage.CatalogKafkaSinkESOptions) []*common.EnvKeyValuePair {
+	kafkaServers string, opts *catalog.CatalogKafkaSinkESOptions) []*common.EnvKeyValuePair {
 
 	replFactor := DEFAULT_REPLICATION_FACTOR
 	if opts.ReplFactor > 0 {
@@ -201,7 +201,7 @@ func genEnvs(platform string, region string, cluster string, service string,
 }
 
 func genServiceConfigs(platform string, cluster string, service string, esURIs string,
-	opts *manage.CatalogKafkaSinkESOptions) (configs []*manage.ConfigFileContent, sinkESConfigs string) {
+	opts *catalog.CatalogKafkaSinkESOptions) (configs []*manage.ConfigFileContent, sinkESConfigs string) {
 
 	replFactor := DEFAULT_REPLICATION_FACTOR
 	if opts.ReplFactor > 0 {
@@ -238,7 +238,7 @@ func genServiceConfigs(platform string, cluster string, service string, esURIs s
 		opts.Topic, typeName, bufferedRecords, batchSize, esURIs)
 
 	esCfg := &manage.ConfigFileContent{
-		FileName: sinkESConfFileName,
+		FileName: SinkESConfFileName,
 		FileMode: common.DefaultConfigFileMode,
 		Content:  sinkESConfigs,
 	}
@@ -254,7 +254,7 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: req.Region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: req.Cluster}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetServiceInitOp}
 
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: req.ServiceName}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_KafkaSinkES}
@@ -292,10 +292,6 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 
 func genConnectorName(cluster string, service string) string {
 	return fmt.Sprintf("%s-%s", cluster, service)
-}
-
-func IsSinkESConfFile(filename string) bool {
-	return filename == sinkESConfFileName
 }
 
 const (

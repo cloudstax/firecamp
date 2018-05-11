@@ -1,5 +1,5 @@
-* [FireCamp ElasticSearch Internals](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#firecamp-elasticsearch-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch#tutorials)
+* [FireCamp ElasticSearch Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/elasticsearch#firecamp-elasticsearch-internals)
+* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/elasticsearch#tutorials)
 
 # FireCamp ElasticSearch Internals
 
@@ -74,7 +74,7 @@ Refs:
 This is a simple tutorial about how to create a ElasticSearch service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the ElasticSearch service name is "myes".
 
 ## Create an ElasticSearch service
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a ElasticSearch cluster:
+Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a ElasticSearch cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=2048 -es-disable-dedicated-master=false -es-dedicated-masters=3
 ```

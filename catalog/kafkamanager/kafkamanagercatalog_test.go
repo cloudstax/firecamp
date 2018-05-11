@@ -3,10 +3,9 @@ package kmcatalog
 import (
 	"testing"
 
-	"github.com/cloudstax/firecamp/catalog"
+	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/manage"
+	"github.com/cloudstax/firecamp/api/common"
 )
 
 func TestKafkaManagerCatalog(t *testing.T) {
@@ -27,7 +26,7 @@ func TestKafkaManagerCatalog(t *testing.T) {
 	}
 
 	res := &common.Resources{}
-	opts := &manage.CatalogKafkaManagerOptions{
+	opts := &catalog.CatalogKafkaManagerOptions{
 		HeapSizeMB:    maxMemMB,
 		ZkServiceName: zkservice,
 		User:          kmuser,

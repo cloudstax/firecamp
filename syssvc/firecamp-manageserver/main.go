@@ -12,20 +12,20 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/containersvc/awsecs"
-	"github.com/cloudstax/firecamp/containersvc/k8s"
-	"github.com/cloudstax/firecamp/containersvc/swarm"
-	"github.com/cloudstax/firecamp/db"
-	"github.com/cloudstax/firecamp/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/db/k8sconfigdb"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/dns/awsroute53"
-	"github.com/cloudstax/firecamp/log/awscloudwatch"
-	"github.com/cloudstax/firecamp/manage/server"
-	"github.com/cloudstax/firecamp/server/awsec2"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/containersvc/awsecs"
+	"github.com/cloudstax/firecamp/pkg/containersvc/k8s"
+	"github.com/cloudstax/firecamp/pkg/containersvc/swarm"
+	"github.com/cloudstax/firecamp/pkg/db"
+	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
+	"github.com/cloudstax/firecamp/pkg/db/k8sconfigdb"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/dns/awsroute53"
+	"github.com/cloudstax/firecamp/pkg/log/awscloudwatch"
+	"github.com/cloudstax/firecamp/pkg/managesvc"
+	"github.com/cloudstax/firecamp/pkg/server/awsec2"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 var (
@@ -194,7 +194,7 @@ func main() {
 		glog.Fatalln("unknown db type", *dbtype)
 	}
 
-	err = manageserver.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
+	err = managesvc.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln("StartServer error", err)

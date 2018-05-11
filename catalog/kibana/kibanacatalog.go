@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 )
 
 // ValidateRequest checks if the request is valid
-func ValidateRequest(r *manage.CatalogCreateKibanaRequest) error {
+func ValidateRequest(r *catalog.CatalogCreateKibanaRequest) error {
 	if len(r.Options.ESServiceName) == 0 {
 		return errors.New("please specify the elasticsearch service name")
 	}
@@ -45,7 +45,7 @@ func ValidateRequest(r *manage.CatalogCreateKibanaRequest) error {
 // GenDefaultCreateServiceRequest returns the default service creation request.
 // kibana simply connects to the first elasticsearch node. TODO create a local coordinating elasticsearch instance.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string, cluster string,
-	service string, res *common.Resources, opts *manage.CatalogKibanaOptions, esNodeURL string) *manage.CreateServiceRequest {
+	service string, res *common.Resources, opts *catalog.CatalogKibanaOptions, esNodeURL string) *manage.CreateServiceRequest {
 	// generate service configs
 	serviceCfgs := genServiceConfigs(platform, opts, esNodeURL)
 
@@ -84,7 +84,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, opts *manage.CatalogKibanaOptions, esNodeURL string) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, opts *catalog.CatalogKibanaOptions, esNodeURL string) []*manage.ConfigFileContent {
 	// create the service.conf file
 	content := fmt.Sprintf(servicefileContent, platform, opts.ESServiceName, esNodeURL, opts.ProxyBasePath, strconv.FormatBool(opts.EnableSSL))
 	serviceCfg := &manage.ConfigFileContent{
@@ -113,7 +113,7 @@ func genServiceConfigs(platform string, opts *manage.CatalogKibanaOptions, esNod
 }
 
 // genReplicaConfigs generates the replica configs.
-func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *manage.CatalogKibanaOptions) []*manage.ReplicaConfig {
+func genReplicaConfigs(platform string, cluster string, service string, azs []string, opts *catalog.CatalogKibanaOptions) []*manage.ReplicaConfig {
 	domain := dns.GenDefaultDomainName(cluster)
 
 	replicaCfgs := make([]*manage.ReplicaConfig, opts.Replicas)

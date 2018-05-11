@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/catalog"
-	"github.com/cloudstax/firecamp/common"
-	"github.com/cloudstax/firecamp/containersvc"
-	"github.com/cloudstax/firecamp/dns"
-	"github.com/cloudstax/firecamp/log"
-	"github.com/cloudstax/firecamp/manage"
-	"github.com/cloudstax/firecamp/utils"
+	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/pkg/dns"
+	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 const (
@@ -44,7 +44,7 @@ const (
 // 2) Listen on the standard ports, 7000 7001 7199 9042 9160.
 
 // ValidateRequest checks if the create request is valid
-func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
+func ValidateRequest(req *catalog.CatalogCreateCassandraRequest) error {
 	if req.Options.HeapSizeMB <= 0 {
 		return errors.New("heap size should be larger than 0")
 	}
@@ -63,7 +63,7 @@ func ValidateRequest(req *manage.CatalogCreateCassandraRequest) error {
 
 // GenDefaultCreateServiceRequest returns the default service creation request.
 func GenDefaultCreateServiceRequest(platform string, region string, azs []string,
-	cluster string, service string, opts *manage.CatalogCassandraOptions, res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
+	cluster string, service string, opts *catalog.CatalogCassandraOptions, res *common.Resources) (req *manage.CreateServiceRequest, jmxUser string, jmxPasswd string) {
 	// generate service ReplicaConfigs
 	if len(opts.JmxRemoteUser) == 0 {
 		opts.JmxRemoteUser = catalog.JmxDefaultRemoteUser
@@ -125,7 +125,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // genServiceConfigs generates the service configs.
-func genServiceConfigs(platform string, region string, cluster string, service string, azs []string, opts *manage.CatalogCassandraOptions) []*manage.ConfigFileContent {
+func genServiceConfigs(platform string, region string, cluster string, service string, azs []string, opts *catalog.CatalogCassandraOptions) []*manage.ConfigFileContent {
 	// create the service.conf file
 	domain := dns.GenDefaultDomainName(cluster)
 	seeds := genSeedHosts(int64(len(azs)), opts.Replicas, service, domain)
@@ -227,7 +227,7 @@ func GenInitTaskEnvKVPairs(region string, cluster string, service string, manage
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: cluster}
 	kvmgtserver := &common.EnvKeyValuePair{Name: common.ENV_MANAGE_SERVER_URL, Value: manageurl}
-	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: manage.CatalogSetServiceInitOp}
+	kvop := &common.EnvKeyValuePair{Name: common.ENV_OP, Value: catalog.CatalogSetServiceInitOp}
 
 	kvservice := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_NAME, Value: service}
 	kvsvctype := &common.EnvKeyValuePair{Name: common.ENV_SERVICE_TYPE, Value: common.CatalogService_Cassandra}
