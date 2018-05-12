@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	catalogclient "github.com/cloudstax/firecamp/api/catalog/client"
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	manageclient "github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
@@ -31,7 +32,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/server/awsec2"
 	"github.com/cloudstax/firecamp/pkg/utils"
@@ -600,10 +600,9 @@ func main() {
 	}
 
 	cli := manageclient.NewManageClient(*serverURL, tlsConf)
-	ctx := context.Background()
+	catalogcli := catalogclient.NewCatalogServiceClient(*serverURL, tlsConf)
 
-	catalogServerURL := dns.GetDefaultCatalogServiceURL(*cluster, *tlsEnabled)
-	catalogcli := catalogclient.NewCatalogServiceClient(catalogServerURL, tlsConf)
+	ctx := context.Background()
 
 	*serviceType = strings.ToLower(*serviceType)
 	switch *op {
