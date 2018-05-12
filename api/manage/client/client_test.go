@@ -14,8 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/db"
 	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
@@ -172,7 +172,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 			ReplicaConfigs: replicaCfgs,
 		}
 
-		_, err := cli.CreateService(context.Background(), r)
+		err := cli.CreateService(context.Background(), r)
 		if err != nil {
 			t.Fatalf("create service error %s", err)
 		}

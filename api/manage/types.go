@@ -110,11 +110,6 @@ type CreateServiceRequest struct {
 	ReplicaConfigs []*ReplicaConfig
 }
 
-// CreateServiceResponse returns the service uuid
-type CreateServiceResponse struct {
-	ServiceUUID string
-}
-
 // UpdateServiceConfigRequest updates the config file of the service
 type UpdateServiceConfigRequest struct {
 	Service           *ServiceCommonRequest

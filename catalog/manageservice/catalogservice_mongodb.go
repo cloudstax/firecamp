@@ -46,7 +46,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, keyfileContent, req.Options, req.Resource)
 
-	_, err = s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err

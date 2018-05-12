@@ -292,13 +292,13 @@ func (s *CatalogHTTPServer) createPGService(ctx context.Context, r *http.Request
 	// create the service in the control plane and the container platform
 	crReq := pgcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created postgresql service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created postgresql service", req.Service, "requuid", requuid)
 
 	// PG does not require additional init work. set PG initialized
 	return s.managecli.SetServiceInitialized(ctx, req.Service)
@@ -324,13 +324,13 @@ func (s *CatalogHTTPServer) createZkService(ctx context.Context, w http.Response
 	crReq, jmxUser, jmxPasswd := zkcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Options, req.Resource)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created zookeeper service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created zookeeper service", req.Service, "requuid", requuid)
 
 	// zookeeper does not require additional init work. set service initialized
 	err = s.managecli.SetServiceInitialized(ctx, req.Service)
@@ -380,13 +380,13 @@ func (s *CatalogHTTPServer) createElasticSearchService(ctx context.Context, r *h
 	crReq := escatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created elasticsearch service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created elasticsearch service", req.Service, "requuid", requuid)
 
 	// elasticsearch does not require additional init work. set service initialized
 	return s.managecli.SetServiceInitialized(ctx, req.Service)
@@ -433,13 +433,13 @@ func (s *CatalogHTTPServer) createKibanaService(ctx context.Context, r *http.Req
 	crReq := kibanacatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options, esNodeURI)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created kibana service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created kibana service", req.Service, "requuid", requuid)
 
 	// kibana does not require additional init work. set service initialized
 	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
@@ -471,13 +471,13 @@ func (s *CatalogHTTPServer) createLogstashService(ctx context.Context, r *http.R
 	crReq := logstashcatalog.GenDefaultCreateServiceRequest(s.platform, s.region,
 		s.azs, s.cluster, req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created logstash service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created logstash service", req.Service, "requuid", requuid)
 
 	// logstash does not require additional init work. set service initialized
 	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
@@ -534,13 +534,13 @@ func (s *CatalogHTTPServer) createTelegrafService(ctx context.Context, r *http.R
 	crReq := telcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, attr, members, req.Options, req.Resource)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created telegraf service", serviceUUID, "to monitor service", req.Options, "requuid", requuid, req.Service)
+	glog.Infoln("created telegraf service", req.Service, "to monitor service", req.Options, "requuid", requuid)
 
 	// telegraf does not require additional init work. set service initialized
 	return s.managecli.SetServiceInitialized(ctx, crReq.Service)
@@ -572,7 +572,7 @@ func (s *CatalogHTTPServer) createCouchDBService(ctx context.Context, r *http.Re
 	crReq := couchdbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs, s.cluster,
 		req.Service.ServiceName, req.Resource, req.Options)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
@@ -581,7 +581,7 @@ func (s *CatalogHTTPServer) createCouchDBService(ctx context.Context, r *http.Re
 	// add the init task
 	s.addCouchDBInitTask(ctx, crReq.Service, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
 
-	glog.Infoln("created CouchDB service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created CouchDB service", req.Service, "requuid", requuid)
 
 	return err
 }
@@ -622,13 +622,13 @@ func (s *CatalogHTTPServer) createConsulService(ctx context.Context, w http.Resp
 		req.Service.ServiceName, req.Resource, req.Options)
 
 	// create the service in the control plane
-	serviceUUID, err := s.managecli.CreateManageService(ctx, crReq)
+	err = s.managecli.CreateManageService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("create consul service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("create consul service in the control plane", req.Service, "requuid", requuid, req.Options)
 
 	serverips, err := s.updateConsulConfigs(ctx, crReq.Service, requuid)
 	if err != nil {
@@ -636,13 +636,13 @@ func (s *CatalogHTTPServer) createConsulService(ctx context.Context, w http.Resp
 		return err
 	}
 
-	_, err = s.managecli.CreateContainerService(ctx, crReq)
+	err = s.managecli.CreateContainerService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created Consul service", serviceUUID, "server ips", serverips, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created Consul service", req.Service, "server ips", serverips, "requuid", requuid, req.Options)
 
 	// consul does not require additional init work. set service initialized
 	err = s.managecli.SetServiceInitialized(ctx, req.Service)

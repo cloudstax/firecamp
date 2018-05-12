@@ -52,13 +52,13 @@ func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.Respo
 	crReq, jmxUser, jmxPasswd := kafkacatalog.GenDefaultCreateServiceRequest(s.platform,
 		s.region, s.azs, s.cluster, req.Service.ServiceName, req.Options, req.Resource, zkservers)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created kafka service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created kafka service", req.Service, "requuid", requuid)
 
 	// kafka does not require additional init work. set service initialized
 	err = s.managecli.SetServiceInitialized(ctx, req.Service)
@@ -147,13 +147,13 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	crReq, sinkESConfigs := kccatalog.GenCreateESSinkServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, kafkaServers, esURIs, req)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created kafka connector service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created kafka connector service", req.Service, "requuid", requuid)
 
 	// add the init task to actually create the elasticsearch sink task in kafka connectors
 	s.addKafkaSinkESInitTask(ctx, req.Service, req.Options.Replicas, sinkESConfigs, requuid)
@@ -230,13 +230,13 @@ func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *ht
 	crReq := kmcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.cluster,
 		req.Service.ServiceName, zkservers, req.Options, req.Resource)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created kafka manager service", serviceUUID, "requuid", requuid, req.Service)
+	glog.Infoln("created kafka manager service", req.Service, "requuid", requuid)
 
 	// kafka manager does not require additional init work. set service initialized
 	return s.managecli.SetServiceInitialized(ctx, req.Service)

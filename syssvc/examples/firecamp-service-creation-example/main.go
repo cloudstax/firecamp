@@ -13,10 +13,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/server/awsec2"
 	"github.com/cloudstax/firecamp/pkg/utils"
@@ -130,7 +130,7 @@ func main() {
 		createReq, _, _ := cascatalog.GenDefaultCreateServiceRequest(*platform, *region, zones, *cluster, *service, opts, res)
 
 		// 2. create the service
-		_, err := cli.CreateService(ctx, createReq)
+		err = cli.CreateService(ctx, createReq)
 		if err != nil {
 			fmt.Println("CreateService error", err)
 			os.Exit(-1)

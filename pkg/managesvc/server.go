@@ -683,19 +683,6 @@ func (s *ManageHTTPServer) createService(ctx context.Context, w http.ResponseWri
 		}
 	}
 
-	resp := &manage.CreateServiceResponse{
-		ServiceUUID: serviceUUID,
-	}
-
-	b, err := json.Marshal(resp)
-	if err != nil {
-		glog.Errorln("Marshal error", err, "requuid", requuid, req)
-		return http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(b)
-
 	return "", http.StatusOK
 }
 

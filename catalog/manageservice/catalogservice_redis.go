@@ -42,13 +42,13 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 		req.Service.ServiceName, req.Resource, req.Options)
 
 	// create the service in the control plane
-	serviceUUID, err := s.managecli.CreateManageService(ctx, crReq)
+	err = s.managecli.CreateManageService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("create service error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created Redis service in the control plane", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created Redis service in the control plane", req.Service, "requuid", requuid)
 
 	// update static ip in member config file
 	err = s.updateRedisConfigs(ctx, req.Service, requuid)
@@ -57,16 +57,16 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 		return err
 	}
 
-	_, err = s.managecli.CreateContainerService(ctx, crReq)
+	err = s.managecli.CreateContainerService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createContainerService error", err, "requuid", requuid, req.Service)
 		return err
 	}
 
-	glog.Infoln("created Redis service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created Redis service", req.Service, "requuid", requuid)
 
 	if rediscatalog.IsClusterMode(req.Options.Shards) {
-		glog.Infoln("The cluster mode Redis is created, add the init task, requuid", requuid, req.Service, req.Options)
+		glog.Infoln("The cluster mode Redis is created, add the init task, requuid", requuid, req.Service)
 
 		// for Redis cluster mode, run the init task in the background
 		s.addRedisInitTask(ctx, crReq.Service, req.Options.Shards, req.Options.ReplicasPerShard, requuid)
@@ -74,7 +74,7 @@ func (s *CatalogHTTPServer) createRedisService(ctx context.Context, r *http.Requ
 	}
 
 	// redis single instance or master-slave mode does not require additional init work. set service initialized
-	glog.Infoln("created Redis service", serviceUUID, "requuid", requuid, req.Service, req.Options)
+	glog.Infoln("created Redis service", req.Service, "requuid", requuid)
 
 	return s.managecli.SetServiceInitialized(ctx, req.Service)
 }
