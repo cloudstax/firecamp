@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/log"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -197,28 +195,20 @@ func genSeedHosts(azCount int64, replicas int64, service string, domain string) 
 }
 
 // GenDefaultInitTaskRequest returns the default Cassandra init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	serviceUUID string, manageurl string) *containersvc.RunTaskOptions {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, manageurl string) *manage.RunTaskRequest {
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, manageurl)
 
-	commonOpts := &containersvc.CommonOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
-		ServiceUUID:    serviceUUID,
-		ContainerImage: InitContainerImage,
+	return &manage.RunTaskRequest{
+		Service: req,
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: common.DefaultReserveCPUUnits,
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		LogConfig: logConfig,
-	}
-
-	return &containersvc.RunTaskOptions{
-		Common:   commonOpts,
-		TaskType: common.TaskTypeInit,
-		Envkvs:   envkvs,
+		ContainerImage: InitContainerImage,
+		TaskType:       common.TaskTypeInit,
+		Envkvs:         envkvs,
 	}
 }
 

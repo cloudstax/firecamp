@@ -14,7 +14,6 @@ import (
 	"github.com/cloudstax/firecamp/catalog/manageservice"
 	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/dns/awsroute53"
-	"github.com/cloudstax/firecamp/pkg/log/awscloudwatch"
 	"github.com/cloudstax/firecamp/pkg/server/awsec2"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
@@ -100,10 +99,9 @@ func main() {
 	glog.Infoln("create catalog service, container platform", *platform, ", availability zones", azs, ", k8snamespace", k8snamespace)
 
 	dnsIns := awsroute53.NewAWSRoute53(sess)
-	logIns := awscloudwatch.NewLog(sess, region, *platform, k8snamespace)
 
 	err = catalogsvc.StartServer(*platform, *cluster, azs, *serverDNSName, *serverPort,
-		dnsIns, logIns, serverInfo, *tlsEnabled, *caFile, *certFile, *keyFile)
+		dnsIns, serverInfo, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln("StartServer error", err)
 	}

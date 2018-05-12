@@ -11,12 +11,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	manageclient "github.com/cloudstax/firecamp/api/manage/client"
 	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/log"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -56,13 +55,11 @@ type CatalogHTTPServer struct {
 
 	managecli      *manageclient.ManageClient
 	catalogSvcInit *catalogServiceInit
-
-	logIns cloudlog.CloudLog
 }
 
 // NewCatalogHTTPServer creates a CatalogHTTPServer instance
 func NewCatalogHTTPServer(region string, vpcID string, platform string, cluster string,
-	azs []string, serverdns string, logIns cloudlog.CloudLog) *CatalogHTTPServer {
+	azs []string, serverdns string) *CatalogHTTPServer {
 	manageurl := dns.GetDefaultManageServiceURL(cluster, false)
 	cli := manageclient.NewManageClient(manageurl, nil)
 	s := &CatalogHTTPServer{
@@ -76,7 +73,6 @@ func NewCatalogHTTPServer(region string, vpcID string, platform string, cluster 
 		validName:      regexp.MustCompile(common.ServiceNamePattern),
 		managecli:      cli,
 		catalogSvcInit: newCatalogServiceInit(region, cluster, cli),
-		logIns:         logIns,
 	}
 	return s
 }

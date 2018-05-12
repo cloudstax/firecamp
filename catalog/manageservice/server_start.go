@@ -13,15 +13,13 @@ import (
 
 	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/log"
 	"github.com/cloudstax/firecamp/pkg/server"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
 // StartServer creates the catalog http server and listen for requests.
 func StartServer(platform string, cluster string, azs []string, serverDNSName string, listenPort int,
-	dnsIns dns.DNS, logIns cloudlog.CloudLog, serverInfo server.Info,
-	tlsEnabled bool, caFile, certFile, keyFile string) error {
+	dnsIns dns.DNS, serverInfo server.Info, tlsEnabled bool, caFile, certFile, keyFile string) error {
 	// register the management service dnsname
 	dnsname := serverDNSName
 	domain := dns.GenDefaultDomainName(cluster)
@@ -56,7 +54,7 @@ func StartServer(platform string, cluster string, azs []string, serverDNSName st
 	}
 
 	// create the management http server
-	serv := NewCatalogHTTPServer(region, vpcID, platform, cluster, azs, dnsname, logIns)
+	serv := NewCatalogHTTPServer(region, vpcID, platform, cluster, azs, dnsname)
 
 	// listen on all ips, as managesvc runs inside the container
 	addr := ":" + strconv.Itoa(listenPort)

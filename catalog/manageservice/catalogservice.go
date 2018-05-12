@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/consul"
@@ -17,9 +18,9 @@ import (
 	"github.com/cloudstax/firecamp/catalog/logstash"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
 	"github.com/cloudstax/firecamp/catalog/postgres"
+	"github.com/cloudstax/firecamp/catalog/redis"
 	"github.com/cloudstax/firecamp/catalog/telegraf"
 	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/dns"
 )
 
@@ -121,7 +122,7 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 					return clienterr.New(http.StatusInternalServerError, err.Error())
 				}
 
-				s.addMongoDBInitTask(ctx, req.Service, attr.ServiceUUID, opts, requuid)
+				s.addMongoDBInitTask(ctx, req.Service, opts, requuid)
 
 			case common.CatalogService_PostgreSQL:
 				// PG does not require additional init work. set PG initialized
@@ -132,7 +133,7 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 				initialized = true
 
 			case common.CatalogService_Cassandra:
-				s.addCasInitTask(ctx, req.Service, attr.ServiceUUID, requuid)
+				s.addCasInitTask(ctx, req.Service, requuid)
 
 			case common.CatalogService_ZooKeeper:
 				// zookeeper does not require additional init work. set initialized
@@ -170,10 +171,15 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 					return clienterr.New(http.StatusInternalServerError, err.Error())
 				}
 
-				err = s.addRedisInitTask(ctx, req.Service, attr.ServiceUUID, opts.Shards, opts.ReplicasPerShard, requuid)
-				if err != nil {
-					glog.Errorln("addRedisInitTask error", err, "requuid", requuid, req.Service)
-					return err
+				if rediscatalog.IsClusterMode(opts.Shards) {
+					s.addRedisInitTask(ctx, req.Service, opts.Shards, opts.ReplicasPerShard, requuid)
+				} else {
+					// not cluster mode, set redis service initialized
+					err = s.managecli.SetServiceInitialized(ctx, req.Service)
+					if err != nil {
+						return err
+					}
+					initialized = true
 				}
 
 			case common.CatalogService_CouchDB:
@@ -185,7 +191,7 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 
 				admin, adminPass := couchdbcatalog.GetAdminFromServiceConfigs(cfgfile.Spec.Content)
 
-				s.addCouchDBInitTask(ctx, req.Service, attr.ServiceUUID, attr.Spec.Replicas, admin, adminPass, requuid)
+				s.addCouchDBInitTask(ctx, req.Service, attr.Spec.Replicas, admin, adminPass, requuid)
 
 			default:
 				return clienterr.New(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
@@ -573,7 +579,7 @@ func (s *CatalogHTTPServer) createCouchDBService(ctx context.Context, r *http.Re
 	}
 
 	// add the init task
-	s.addCouchDBInitTask(ctx, crReq.Service, serviceUUID, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
+	s.addCouchDBInitTask(ctx, crReq.Service, req.Options.Replicas, req.Options.Admin, req.Options.AdminPasswd, requuid)
 
 	glog.Infoln("created CouchDB service", serviceUUID, "requuid", requuid, req.Service, req.Options)
 
@@ -581,18 +587,12 @@ func (s *CatalogHTTPServer) createCouchDBService(ctx context.Context, r *http.Re
 }
 
 func (s *CatalogHTTPServer) addCouchDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, replicas int64, admin string, adminPass string, requuid string) {
-	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := couchdbcatalog.GenDefaultInitTaskRequest(req, logCfg, s.azs, serviceUUID, replicas, s.serverurl, admin, adminPass)
+	replicas int64, admin string, adminPass string, requuid string) {
+	taskReq := couchdbcatalog.GenDefaultInitTaskRequest(req, s.azs, replicas, s.serverurl, admin, adminPass)
 
-	task := &serviceTask{
-		serviceName: req.ServiceName,
-		opts:        taskOpts,
-	}
+	s.catalogSvcInit.addInitTask(ctx, taskReq)
 
-	s.catalogSvcInit.addInitTask(ctx, task)
-
-	glog.Infoln("add init task for CouchDB service", serviceUUID, "requuid", requuid, req)
+	glog.Infoln("add init task for CouchDB service", req, "requuid", requuid)
 }
 
 func (s *CatalogHTTPServer) createConsulService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {

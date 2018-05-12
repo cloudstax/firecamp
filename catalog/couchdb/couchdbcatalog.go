@@ -11,11 +11,9 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/log"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -255,32 +253,23 @@ func encryptPasswd(passwd string) string {
 }
 
 // GenDefaultInitTaskRequest returns the default service init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig, azs []string,
-	serviceUUID string, replicas int64, manageurl string, admin string, adminPass string) *containersvc.RunTaskOptions {
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, azs []string,
+	replicas int64, manageurl string, admin string, adminPass string) *manage.RunTaskRequest {
 
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, manageurl, req.ServiceName, azs, replicas, admin, adminPass)
 
-	commonOpts := &containersvc.CommonOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
-		ServiceUUID:    serviceUUID,
-		ContainerImage: InitContainerImage,
+	return &manage.RunTaskRequest{
+		Service: req,
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: common.DefaultReserveCPUUnits,
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		LogConfig: logConfig,
+		ContainerImage: InitContainerImage,
+		TaskType:       common.TaskTypeInit,
+		Envkvs:         envkvs,
 	}
-
-	taskOpts := &containersvc.RunTaskOptions{
-		Common:   commonOpts,
-		TaskType: common.TaskTypeInit,
-		Envkvs:   envkvs,
-	}
-
-	return taskOpts
 }
 
 // GenInitTaskEnvKVPairs generates the environment key-values for the init task.

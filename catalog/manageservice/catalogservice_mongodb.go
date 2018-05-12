@@ -11,7 +11,6 @@ import (
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/mongodb"
-	"github.com/cloudstax/firecamp/api/common"
 )
 
 func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
@@ -47,7 +46,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	crReq := mongodbcatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, keyfileContent, req.Options, req.Resource)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	_, err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("CreateService error", err, "requuid", requuid, req.Service)
 		return err
@@ -56,7 +55,7 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 	glog.Infoln("MongoDBService is created, add the init task, requuid", requuid, req.Service, req.Options.Admin)
 
 	// run the init task in the background
-	s.addMongoDBInitTask(ctx, crReq.Service, serviceUUID, req.Options, requuid)
+	s.addMongoDBInitTask(ctx, crReq.Service, req.Options, requuid)
 
 	// send back the keyfile content
 	resp := &catalog.CatalogCreateMongoDBResponse{KeyFileContent: keyfileContent}
@@ -73,18 +72,12 @@ func (s *CatalogHTTPServer) createMongoDBService(ctx context.Context, w http.Res
 }
 
 func (s *CatalogHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.ServiceCommonRequest,
-	serviceUUID string, opts *catalog.CatalogMongoDBOptions, requuid string) {
-	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := mongodbcatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.serverurl, opts)
+	opts *catalog.CatalogMongoDBOptions, requuid string) {
+	taskReq := mongodbcatalog.GenDefaultInitTaskRequest(req, s.serverurl, opts)
 
-	task := &serviceTask{
-		serviceName: req.ServiceName,
-		opts:        taskOpts,
-	}
+	s.catalogSvcInit.addInitTask(ctx, taskReq)
 
-	s.catalogSvcInit.addInitTask(ctx, task)
-
-	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
+	glog.Infoln("add init task for service", req, "requuid", requuid)
 }
 
 func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.CatalogSetServiceInitRequest, requuid string) error {

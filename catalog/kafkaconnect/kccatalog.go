@@ -6,10 +6,8 @@ import (
 	"strconv"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/cloudstax/firecamp/api/manage"
 )
 
 const (
@@ -248,8 +246,8 @@ func genServiceConfigs(platform string, cluster string, service string, esURIs s
 }
 
 // GenSinkESServiceInitRequest creates the init request for elasticsearch sink connector.
-func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	serviceUUID string, replicas int64, manageurl string, sinkESConfigs string) *containersvc.RunTaskOptions {
+func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest,
+	replicas int64, manageurl string, sinkESConfigs string) *manage.RunTaskRequest {
 
 	kvregion := &common.EnvKeyValuePair{Name: common.ENV_REGION, Value: req.Region}
 	kvcluster := &common.EnvKeyValuePair{Name: common.ENV_CLUSTER, Value: req.Cluster}
@@ -269,24 +267,17 @@ func GenSinkESServiceInitRequest(req *manage.ServiceCommonRequest, logConfig *cl
 
 	envkvs := []*common.EnvKeyValuePair{kvregion, kvcluster, kvmgtserver, kvop, kvservice, kvsvctype, kvhosts, kvport, kvconfigs, kvname}
 
-	commonOpts := &containersvc.CommonOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
-		ServiceUUID:    serviceUUID,
-		ContainerImage: SinkESInitContainerImage,
+	return &manage.RunTaskRequest{
+		Service: req,
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: common.DefaultReserveCPUUnits,
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		LogConfig: logConfig,
-	}
-
-	return &containersvc.RunTaskOptions{
-		Common:   commonOpts,
-		TaskType: common.TaskTypeInit,
-		Envkvs:   envkvs,
+		ContainerImage: SinkESInitContainerImage,
+		TaskType:       common.TaskTypeInit,
+		Envkvs:         envkvs,
 	}
 }
 
