@@ -68,7 +68,12 @@
     "Release": {
       "Type": "String",
       "Default": "latest",
-      "Description": "The FireCamp release version"
+      "Description": "The FireCamp System Services release version"
+    },
+    "CatalogRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "Description": "The FireCamp Catalog Service release version"
     },
     "NodeAMIOS": {
       "Default": "Amazon-Linux-HVM",
@@ -110,6 +115,24 @@
         "RetentionInDays": "120"
       }
     },
+    "CatalogServiceLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join":[
+            "-",
+            [
+              {
+                "Ref": "ClusterName"
+              },
+              "catalogservice-firecamp"
+            ]
+          ]
+        },
+        "RetentionInDays": "120"
+      }
+    },
+
     "ManagerAutoScalingGroup": {
       "Type": "AWS::CloudFormation::Stack",
       "DependsOn": "ManageServerLogGroup",

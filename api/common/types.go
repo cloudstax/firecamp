@@ -91,9 +91,9 @@ const (
 	ManageName            = "manageserver"
 	ManageServiceName     = SystemName + NameSeparator + ManageName
 	ManageContainerImage  = OrgName + ManageServiceName + ":" + Version
-	ManageReserveCPUUnits = 256
-	ManageMaxMemMB        = 4096
-	ManageReserveMemMB    = 256
+	ManageReserveCPUUnits = 128
+	ManageMaxMemMB        = 2048
+	ManageReserveMemMB    = 128
 
 	ServiceTypeStateful  = "stateful"
 	ServiceTypeStateless = "stateless"
