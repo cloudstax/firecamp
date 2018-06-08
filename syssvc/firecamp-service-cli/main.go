@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
@@ -891,7 +890,8 @@ func updateCassandraService(ctx context.Context, cli *manageclient.ManageClient,
 			fmt.Printf("the heap size is lessn than %d, Cassandra JVM may stall long time at GC\n", cascatalog.MinHeapMB)
 		}
 		if heapSizeMB > cascatalog.MaxHeapMB {
-			glog.Fatalln("invalid parameters - max cassandra heap size is", cascatalog.MaxHeapMB)
+			fmt.Errorf("invalid parameters - max cassandra heap size is %d", cascatalog.MaxHeapMB)
+			os.Exit(-1)
 		}
 	}
 	user := ""
@@ -909,7 +909,8 @@ func updateCassandraService(ctx context.Context, cli *manageclient.ManageClient,
 func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient, commonReq *manage.ServiceCommonRequest, heapSizeMB int64, jmxUser string, jmxPasswd string) {
 	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
 	if err != nil {
-		glog.Fatalln("invalid parameters", err)
+		fmt.Errorf("invalid parameters - %s", err)
+		os.Exit(-1)
 	}
 
 	cfgFile := getServiceConfigFile(ctx, cli, commonReq)
@@ -924,7 +925,8 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient
 	}
 	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		glog.Fatalln("update service error", err)
+		fmt.Errorf("update service error %s", err)
+		os.Exit(-2)
 	}
 }
 
@@ -936,7 +938,8 @@ func getServiceConfigFile(ctx context.Context, cli *manageclient.ManageClient, c
 
 	cfgFile, err := cli.GetServiceConfigFile(ctx, req)
 	if err != nil {
-		glog.Fatalln("GetConfigFile error", err)
+		fmt.Errorf("GetConfigFile error %s", err)
+		os.Exit(-2)
 	}
 
 	return cfgFile
@@ -1162,7 +1165,8 @@ func updateKafkaService(ctx context.Context, cli *manageclient.ManageClient, com
 
 	err := kafkacatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		glog.Fatalln("invalid parameters", err)
+		fmt.Errorf("invalid parameters - %s", err)
+		os.Exit(-1)
 	}
 
 	cfgFile := getServiceConfigFile(ctx, cli, commonReq)
@@ -1177,7 +1181,8 @@ func updateKafkaService(ctx context.Context, cli *manageclient.ManageClient, com
 	}
 	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		glog.Fatalln("update service error", err)
+		fmt.Errorf("update service error %s", err)
+		os.Exit(-2)
 	}
 
 	fmt.Println("The catalog service is updated. Please restart the service to load the new configs")
@@ -1322,7 +1327,8 @@ func updateRedisService(ctx context.Context, cli *manageclient.ManageClient, com
 
 	err := rediscatalog.ValidateUpdateOptions(opts)
 	if err != nil {
-		glog.Fatalln("invalid parameters", err)
+		fmt.Errorf("invalid parameters - %s", err)
+		os.Exit(-1)
 	}
 
 	cfgFile := getServiceConfigFile(ctx, cli, commonReq)
@@ -1337,7 +1343,8 @@ func updateRedisService(ctx context.Context, cli *manageclient.ManageClient, com
 	}
 	err = cli.UpdateServiceConfig(ctx, r)
 	if err != nil {
-		glog.Fatalln("update service error", err)
+		fmt.Errorf("update service error %s", err)
+		os.Exit(-2)
 	}
 
 	fmt.Println("The catalog service is updated. Please stop and start the service to load the new configs")
