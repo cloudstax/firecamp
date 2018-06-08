@@ -8,8 +8,8 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -122,7 +122,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 		ReplicaConfigs: replicaCfgs,
 	}
-	return req, jmxUser, jmxPasswd
+	return req, opts.JmxRemoteUser, opts.JmxRemotePasswd
 }
 
 // genServiceConfigs generates the service configs.
