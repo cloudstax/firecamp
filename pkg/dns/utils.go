@@ -118,6 +118,13 @@ func FormatManageServiceURL(surl string, tlsEnabled bool) string {
 	return surl
 }
 
+// GetDefaultCatalogServiceDNSName returns the default catalog service dnsname.
+// example: firecamp-catalogserver.cluster-firecamp.com
+func GetDefaultCatalogServiceDNSName(cluster string) string {
+	domain := GenDefaultDomainName(cluster)
+	return GenDNSName(common.CatalogServiceName, domain)
+}
+
 // GetCatalogServiceURL returns the default catalog service address.
 // example: https://firecamp-catalogserver.cluster-firecamp.com:27041/
 func GetCatalogServiceURL(dnsname string, tlsEnabled bool) string {

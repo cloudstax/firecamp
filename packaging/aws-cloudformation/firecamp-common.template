@@ -43,7 +43,12 @@
     "Release": {
       "Type": "String",
       "Default": "latest",
-      "Description": "The FireCamp release version"
+      "Description": "The FireCamp System Services release version"
+    },
+    "CatalogRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "Description": "The FireCamp Catalog Service release version"
     },
     "VPCID": {
       "Type": "AWS::EC2::VPC::Id",
@@ -245,6 +250,9 @@
           "Release": {
             "Ref": "Release"
           },
+          "CatalogRelease": {
+            "Ref": "CatalogRelease"
+          },
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"
           },
@@ -323,6 +331,9 @@
           },
           "Release": {
             "Ref": "Release"
+          },
+          "CatalogRelease": {
+            "Ref": "CatalogRelease"
           },
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"

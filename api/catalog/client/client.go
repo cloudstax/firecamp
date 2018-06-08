@@ -20,7 +20,9 @@ type CatalogServiceClient struct {
 }
 
 // NewCatalogServiceClient creates a new CatalogManageClient instance.
-// Example serverURL: https://firecamp-catalogserver.cluster-firecamp.com:27041/
+// could be https://firecamp-catalogserver.cluster-firecamp.com:27041/ to directly talk with the catalog service.
+// or https://firecamp-manageserver.cluster-firecamp.com:27040/ to talk with FireCamp management service, which
+// will forward the catalog request to the catalog service.
 func NewCatalogServiceClient(serverURL string, tlsConf *tls.Config) *CatalogServiceClient {
 	cli := &http.Client{}
 	if tlsConf != nil {

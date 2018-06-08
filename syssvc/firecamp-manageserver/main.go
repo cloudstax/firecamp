@@ -30,6 +30,7 @@ import (
 
 var (
 	platform      = flag.String("container-platform", common.ContainerPlatformECS, "The underline container platform: ecs or swarm, default: ecs")
+	cluster       = flag.String("cluster", "", "The cluster name")
 	dbtype        = flag.String("dbtype", common.DBTypeCloudDB, "The db type")
 	zones         = flag.String("availability-zones", "", "The availability zones for the system, example: us-east-1a,us-east-1b,us-east-1c")
 	manageDNSName = flag.String("dnsname", "", "the dns name of the management service. Default: "+dns.GetDefaultManageServiceDNSName("cluster"))
@@ -61,8 +62,8 @@ func main() {
 		os.Exit(-1)
 	}
 
-	if *zones == "" {
-		fmt.Println("Invalid command, please specify the availability zones for the system")
+	if *cluster == "" || *zones == "" {
+		fmt.Println("Invalid command, please specify the cluster name and availability zones for the system")
 		os.Exit(-1)
 	}
 
@@ -112,49 +113,19 @@ func main() {
 	dnsIns := awsroute53.NewAWSRoute53(sess)
 	logIns := awscloudwatch.NewLog(sess, region, *platform, k8snamespace)
 
-	cluster := ""
 	var containersvcIns containersvc.ContainerSvc
 	switch *platform {
 	case common.ContainerPlatformECS:
-		info, err := awsecs.NewEcsInfo()
-		if err != nil {
-			glog.Fatalln("NewEcsInfo error", err)
-		}
-
-		cluster = info.GetContainerClusterID()
 		containersvcIns = awsecs.NewAWSEcs(sess)
 
 	case common.ContainerPlatformSwarm:
-		cluster = os.Getenv(common.ENV_CLUSTER)
-		if len(cluster) == 0 {
-			glog.Fatalln("Swarm cluster name is not set")
-		}
-
-		info, err := swarmsvc.NewSwarmInfo(cluster)
-		if err != nil {
-			glog.Fatalln("NewSwarmInfo error", err)
-		}
-
-		cluster = info.GetContainerClusterID()
 		containersvcIns, err = swarmsvc.NewSwarmSvcOnManagerNode(azs)
 		if err != nil {
 			glog.Fatalln("NewSwarmSvcOnManagerNode error", err)
 		}
 
 	case common.ContainerPlatformK8s:
-		cluster = os.Getenv(common.ENV_CLUSTER)
-		if len(cluster) == 0 {
-			glog.Fatalln("K8s cluster name is not set")
-		}
-
-		fullhostname, err := awsec2.GetLocalEc2Hostname()
-		if err != nil {
-			glog.Fatalln("get local ec2 hostname error", err)
-		}
-		info := k8ssvc.NewK8sInfo(cluster, fullhostname)
-		cluster = info.GetContainerClusterID()
-
-		containersvcIns, err = k8ssvc.NewK8sSvc(cluster, common.CloudPlatformAWS, *dbtype, k8snamespace)
+		containersvcIns, err = k8ssvc.NewK8sSvc(*cluster, common.CloudPlatformAWS, *dbtype, k8snamespace)
 		if err != nil {
 			glog.Fatalln("NewK8sSvc error", err)
 		}
@@ -167,7 +138,7 @@ func main() {
 	var dbIns db.DB
 	switch *dbtype {
 	case common.DBTypeCloudDB:
-		dbIns = awsdynamodb.NewDynamoDB(sess, cluster)
+		dbIns = awsdynamodb.NewDynamoDB(sess, *cluster)
 
 		tableStatus, ready, err := dbIns.SystemTablesReady(ctx)
 		if err != nil && err != db.ErrDBResourceNotFound {
@@ -194,7 +165,7 @@ func main() {
 		glog.Fatalln("unknown db type", *dbtype)
 	}
 
-	err = managesvc.StartServer(*platform, cluster, azs, *manageDNSName, *managePort, containersvcIns,
+	err = managesvc.StartServer(*platform, *cluster, azs, *manageDNSName, *managePort, containersvcIns,
 		dbIns, dnsIns, logIns, serverInfo, serverIns, *tlsEnabled, *caFile, *certFile, *keyFile)
 	if err != nil {
 		glog.Fatalln("StartServer error", err)

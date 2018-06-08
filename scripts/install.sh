@@ -5,6 +5,7 @@ cd syssvc/firecamp-dockervolume; go install; cd -
 cd syssvc/firecamp-dockerlog; go install; cd -
 
 cd syssvc/firecamp-manageserver; go install; cd -
+cd syssvc/firecamp-catalogservice; go install; cd -
 
 cd syssvc/firecamp-service-cli; go install; cd -
 

@@ -10,10 +10,8 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/log"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/utils"
 	"github.com/golang/glog"
 )
@@ -120,29 +118,20 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 }
 
 // GenDefaultInitTaskRequest returns the default MongoDB ReplicaSet init task request.
-func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, logConfig *cloudlog.LogConfig,
-	serviceUUID string, manageurl string, opts *catalog.CatalogMongoDBOptions) *containersvc.RunTaskOptions {
-
+func GenDefaultInitTaskRequest(req *manage.ServiceCommonRequest, manageurl string, opts *catalog.CatalogMongoDBOptions) *manage.RunTaskRequest {
 	envkvs := GenInitTaskEnvKVPairs(req.Region, req.Cluster, req.ServiceName, manageurl, opts)
 
-	commonOpts := &containersvc.CommonOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
-		ServiceUUID:    serviceUUID,
-		ContainerImage: InitContainerImage,
+	return &manage.RunTaskRequest{
+		Service: req,
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
 			ReserveCPUUnits: common.DefaultReserveCPUUnits,
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		LogConfig: logConfig,
-	}
-
-	return &containersvc.RunTaskOptions{
-		Common:   commonOpts,
-		TaskType: common.TaskTypeInit,
-		Envkvs:   envkvs,
+		ContainerImage: InitContainerImage,
+		TaskType:       common.TaskTypeInit,
+		Envkvs:         envkvs,
 	}
 }
 

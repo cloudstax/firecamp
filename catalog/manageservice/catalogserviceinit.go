@@ -8,10 +8,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	manageclient "github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -30,7 +29,7 @@ const (
 type serviceTask struct {
 	serviceName string
 	// The task detail
-	opts *containersvc.RunTaskOptions
+	req *manage.RunTaskRequest
 	// The task status message
 	statusMessage string
 }
@@ -72,7 +71,12 @@ func (c *catalogServiceInit) hasInitTask(ctx context.Context, serviceName string
 	return ok, statusMsg
 }
 
-func (c *catalogServiceInit) addInitTask(ctx context.Context, task *serviceTask) error {
+func (c *catalogServiceInit) addInitTask(ctx context.Context, req *manage.RunTaskRequest) error {
+	task := &serviceTask{
+		serviceName: req.Service.ServiceName,
+		req:         req,
+	}
+
 	requuid := utils.GetReqIDFromContext(ctx)
 
 	// the init task will be handled in the background. ctx cancel will be called
@@ -128,21 +132,9 @@ func (c *catalogServiceInit) runInitTask(ctx context.Context, task *serviceTask,
 
 	task.statusMessage = startInitTaskMsg
 
-	req := &manage.RunTaskRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      c.region,
-			Cluster:     c.cluster,
-			ServiceName: task.serviceName,
-		},
-		Resource:       task.opts.Common.Resource,
-		ContainerImage: task.opts.Common.ContainerImage,
-		TaskType:       task.opts.TaskType,
-		Envkvs:         task.opts.Envkvs,
-	}
-
 	for i := 0; i < common.DefaultTaskRetryCounts; i++ {
 		// run task
-		taskID, err := c.managecli.RunTask(ctx, req)
+		taskID, err := c.managecli.RunTask(ctx, task.req)
 		if err != nil {
 			glog.Errorln("RunTask error", err, "requuid", requuid, task)
 			return
@@ -169,7 +161,7 @@ func (c *catalogServiceInit) taskDone(ctx context.Context, task *serviceTask, re
 			Cluster:     c.cluster,
 			ServiceName: task.serviceName,
 		},
-		TaskType: task.opts.TaskType,
+		TaskType: task.req.TaskType,
 	}
 	err := c.managecli.DeleteTask(ctx, req)
 	if err != nil {

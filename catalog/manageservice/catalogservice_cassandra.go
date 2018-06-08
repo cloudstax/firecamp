@@ -11,7 +11,6 @@ import (
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/api/common"
 )
 
 func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {
@@ -40,7 +39,7 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 	crReq, jmxUser, jmxPasswd := cascatalog.GenDefaultCreateServiceRequest(s.platform, s.region, s.azs,
 		s.cluster, req.Service.ServiceName, req.Options, req.Resource)
 
-	serviceUUID, err := s.managecli.CreateService(ctx, crReq)
+	err = s.managecli.CreateService(ctx, crReq)
 	if err != nil {
 		glog.Errorln("createCommonService error", err, "requuid", requuid, req.Service)
 		return err
@@ -50,7 +49,7 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 
 	if req.Options.Replicas != 1 {
 		// run the init task in the background
-		s.addCasInitTask(ctx, crReq.Service, serviceUUID, requuid)
+		s.addCasInitTask(ctx, crReq.Service, requuid)
 	} else {
 		glog.Infoln("single node Cassandra, skip the init task, requuid", requuid, req.Service, req.Options)
 
@@ -77,19 +76,12 @@ func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.Respons
 	return nil
 }
 
-func (s *CatalogHTTPServer) addCasInitTask(ctx context.Context,
-	req *manage.ServiceCommonRequest, serviceUUID string, requuid string) {
-	logCfg := s.logIns.CreateStreamLogConfig(ctx, s.cluster, req.ServiceName, serviceUUID, common.TaskTypeInit)
-	taskOpts := cascatalog.GenDefaultInitTaskRequest(req, logCfg, serviceUUID, s.serverurl)
+func (s *CatalogHTTPServer) addCasInitTask(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) {
+	taskReq := cascatalog.GenDefaultInitTaskRequest(req, s.serverurl)
 
-	task := &serviceTask{
-		serviceName: req.ServiceName,
-		opts:        taskOpts,
-	}
+	s.catalogSvcInit.addInitTask(ctx, taskReq)
 
-	s.catalogSvcInit.addInitTask(ctx, task)
-
-	glog.Infoln("add init task for service", serviceUUID, "requuid", requuid, req)
+	glog.Infoln("add init task for service", req, "requuid", requuid)
 }
 
 func (s *CatalogHTTPServer) scaleCasService(ctx context.Context, r *http.Request, requuid string) error {

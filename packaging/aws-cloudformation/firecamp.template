@@ -34,6 +34,7 @@
             "ContainerPlatform",
             "ClusterName",
             "Release",
+            "CatalogRelease",
             "NumberOfManagers",
             "NumberOfNodes",
             "NodeAMIOS",
@@ -84,7 +85,10 @@
           "default": "Cluster Name"
         },
         "Release": {
-          "default": "CloudStax FireCamp Release Version"
+          "default": "CloudStax FireCamp System Services Release Version"
+        },
+        "CatalogRelease": {
+          "default": "CloudStax FireCamp Catalog Service Release Version"
         },
         "QSS3BucketName": {
           "default": "Quick Start S3 Bucket Name"
@@ -170,7 +174,13 @@
       "Type": "String",
       "Default": "latest",
       "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
-      "Description": "The FireCamp release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+      "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+    },
+    "CatalogRelease": {
+      "Type": "String",
+      "Default": "latest",
+      "AllowedValues": [ "latest" ],
+      "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
     },
     "QSS3BucketName": {
       "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
@@ -519,6 +529,9 @@
           },
           "Release": {
             "Ref": "Release"
+          },
+          "CatalogRelease": {
+            "Ref": "CatalogRelease"
           },
           "QSS3BucketName": {
             "Ref": "QSS3BucketName"

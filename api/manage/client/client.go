@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/api/common"
 )
 
 // ManageClient is the client to talk with the management service.
@@ -45,50 +45,40 @@ func (c *ManageClient) closeRespBody(resp *http.Response) {
 }
 
 // CreateService creates a new service
-func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+func (c *ManageClient) CreateService(ctx context.Context, r *manage.CreateServiceRequest) error {
 	urlStr := c.serverURL + manage.CreateServiceOp
 	return c.createService(ctx, r, urlStr)
 }
 
 // CreateManageService creates the service at the control plane.
-func (c *ManageClient) CreateManageService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+func (c *ManageClient) CreateManageService(ctx context.Context, r *manage.CreateServiceRequest) error {
 	urlStr := c.serverURL + manage.CreateManageServiceOp
 	return c.createService(ctx, r, urlStr)
 }
 
 // CreateContainerService creates the service at the corresponding container platform.
-func (c *ManageClient) CreateContainerService(ctx context.Context, r *manage.CreateServiceRequest) (serviceUUID string, err error) {
+func (c *ManageClient) CreateContainerService(ctx context.Context, r *manage.CreateServiceRequest) error {
 	urlStr := c.serverURL + manage.CreateContainerServiceOp
 	return c.createService(ctx, r, urlStr)
 }
 
-func (c *ManageClient) createService(ctx context.Context, r *manage.CreateServiceRequest, url string) (serviceUUID string, err error) {
+func (c *ManageClient) createService(ctx context.Context, r *manage.CreateServiceRequest, url string) error {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return "", c.convertError(err)
+		return c.convertError(err)
 	}
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(b))
 	if err != nil {
-		return "", c.convertError(err)
+		return c.convertError(err)
 	}
 
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return "", c.convertError(err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", c.convertHTTPError(resp)
+		return c.convertError(err)
 	}
 
-	defer c.closeRespBody(resp)
-
-	res := &manage.CreateServiceResponse{}
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
-		return "", c.convertError(err)
-	}
-	return res.ServiceUUID, nil
+	return c.convertHTTPError(resp)
 }
 
 // ScaleService scales the service.

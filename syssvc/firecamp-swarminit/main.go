@@ -156,6 +156,9 @@ func initManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc,
 
 	// create the firecamp manage service
 	createManageService(ctx, swarmSvc, logIns, cluster)
+
+	// create the firecamp catalog service
+	createCatalogService(ctx, swarmSvc, logIns, cluster)
 }
 
 func joinAsManager(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, dbIns *awsdynamodb.DynamoDB, cluster string, addr string, initManagerAddr string) {
@@ -358,6 +361,64 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 	}
 
 	glog.Infoln("created the manage service", cluster)
+}
+
+// example catalog service creation:
+// docker service create --name mgt --replicas 1 \
+// --publish mode=host,target=27041,published=27041 \
+// -e CONTAINER_PLATFORM=swarm -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 \
+// cloudstax/firecamp-catalogservice
+func createCatalogService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIns *awscloudwatch.Log, cluster string) {
+	serviceUUID := common.SystemName
+
+	// create the log group
+	err := logIns.InitializeServiceLogConfig(ctx, cluster, common.CatalogServerName, serviceUUID)
+	if err != nil {
+		glog.Fatalln("create the catalog service log group error", err, common.CatalogServerName)
+	}
+
+	logConfig := logIns.CreateStreamLogConfig(ctx, cluster, common.CatalogServerName, serviceUUID, common.CatalogServerName)
+
+	commonOpts := &containersvc.CommonOptions{
+		Cluster:        cluster,
+		ServiceName:    common.CatalogServiceName,
+		ServiceUUID:    serviceUUID,
+		ContainerImage: common.CatalogContainerImage,
+		Resource: &common.Resources{
+			MaxCPUUnits:     common.DefaultMaxCPUUnits,
+			ReserveCPUUnits: common.ManageReserveCPUUnits,
+			MaxMemMB:        common.ManageMaxMemMB,
+			ReserveMemMB:    common.ManageReserveMemMB,
+		},
+		LogConfig: logConfig,
+	}
+
+	portMap := common.PortMapping{
+		ContainerPort: common.CatalogServerHTTPPort,
+		HostPort:      common.CatalogServerHTTPPort,
+	}
+
+	createOpts := &containersvc.CreateServiceOptions{
+		Common:       commonOpts,
+		PortMappings: []common.PortMapping{portMap},
+		Replicas:     1,
+	}
+
+	spec := swarmSvc.CreateServiceSpec(createOpts)
+
+	// set the environment variables
+	spec.TaskTemplate.ContainerSpec.Env = []string{
+		common.ENV_CONTAINER_PLATFORM + "=" + common.ContainerPlatformSwarm,
+		common.ENV_AVAILABILITY_ZONES + "=" + *azs,
+		common.ENV_CLUSTER + "=" + cluster,
+	}
+
+	err = swarmSvc.CreateSwarmService(ctx, spec, createOpts)
+	if err != nil {
+		glog.Fatalln("create the catalog service error", err, cluster)
+	}
+
+	glog.Infoln("created the catalog service", cluster)
 }
 
 func addrListToStrs(addrList []string) string {

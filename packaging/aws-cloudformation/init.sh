@@ -25,6 +25,22 @@ fi
 
 echo "init version $version, cluster $clusterName, container platform $containerPlatform, role $containerPlatformRole, azs $azs"
 
+# create the tag for EC2's root volume
+EC2_AVAIL_ZONE=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone`
+EC2_REGION="`echo \"$EC2_AVAIL_ZONE\" | sed 's/[a-z]$//'`"
+EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+ROOT_DISK_ID=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=${EC2_INSTANCE_ID} --query "Volumes[*].[VolumeId]" --region=${EC2_REGION} --out text)
+aws ec2 create-tags --resources ${ROOT_DISK_ID} --tags Key=Name,Value=${clusterName}-${containerPlatformRole} --region ${EC2_REGION}
+if [ "$?" != "0" ]; then
+  # retry tag root volume
+  aws ec2 create-tags --resources ${ROOT_DISK_ID} --tags Key=Name,Value=${clusterName}-${containerPlatformRole} --region ${EC2_REGION}
+  if [ "$?" != "0" ]; then
+    echo "tag ec2 root volume error"
+    exit 2
+  fi
+fi
+
+
 # 1. tune the system configs.
 # set madvise for THP (Transparent Huge Pages), as THP might impact the performance for some services
 # such as MongoDB and Redis. Set to madvise as Cassandra may benefit from THP.

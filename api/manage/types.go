@@ -64,9 +64,10 @@ type ConfigFileContent struct {
 // region and cluster are for the management service to verify
 // the request is sent to the correct server.
 type ServiceCommonRequest struct {
-	Region      string
-	Cluster     string
-	ServiceName string
+	Region             string
+	Cluster            string
+	ServiceName        string
+	CatalogServiceType string
 }
 
 // CreateServiceRequest contains the parameters for creating a service.
@@ -108,11 +109,6 @@ type CreateServiceRequest struct {
 
 	// The detail configs for each replica
 	ReplicaConfigs []*ReplicaConfig
-}
-
-// CreateServiceResponse returns the service uuid
-type CreateServiceResponse struct {
-	ServiceUUID string
 }
 
 // UpdateServiceConfigRequest updates the config file of the service
