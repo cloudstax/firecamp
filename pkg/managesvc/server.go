@@ -240,16 +240,11 @@ func (s *ManageHTTPServer) forwardCatalogRequest(ctx context.Context, w http.Res
 }
 
 func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) (errmsg string, errcode int) {
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		glog.Errorln("putServiceInitialized read body error", err, "requuid", requuid)
-		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
-	}
-
+	// parse the request
 	req := &manage.ServiceCommonRequest{}
-	err = json.Unmarshal(b, req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		glog.Errorln("putServiceInitialized decode request error", err, "requuid", requuid, string(b[:]))
+		glog.Errorln("updateMemberConfig decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
@@ -257,6 +252,25 @@ func (s *ManageHTTPServer) putServiceInitialized(ctx context.Context, w http.Res
 		glog.Errorln("putServiceInitialized invalid request, local cluster", s.cluster,
 			"region", s.region, "requuid", requuid, req)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	return s.setServiceInitialized(ctx, req.ServiceName, requuid)
@@ -328,6 +342,13 @@ func (s *ManageHTTPServer) updateServiceResource(ctx context.Context, w http.Res
 		return convertToHTTPError(err)
 	}
 
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	res := db.CopyResources(&attr.Spec.Resource)
 	if req.MaxCPUUnits != nil {
 		res.MaxCPUUnits = *req.MaxCPUUnits
@@ -387,7 +408,7 @@ func (s *ManageHTTPServer) scaleService(ctx context.Context, w http.ResponseWrit
 
 	err = s.checkCommonRequest(req.Service)
 	if err != nil {
-		glog.Errorln("invalid request, local cluster", s.cluster, "region", s.region, "requuid", requuid, req.Service, "error", err)
+		glog.Errorln("invalid request - local cluster", s.cluster, "region", s.region, "requuid", requuid, req.Service, "error", err)
 		return err.Error(), http.StatusBadRequest
 	}
 
@@ -401,6 +422,13 @@ func (s *ManageHTTPServer) scaleService(ctx context.Context, w http.ResponseWrit
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	replicas := int64(len(req.ReplicaConfigs))
@@ -464,6 +492,25 @@ func (s *ManageHTTPServer) stopService(ctx context.Context, w http.ResponseWrite
 		return err.Error(), http.StatusBadRequest
 	}
 
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("Stop container service error", err, "requuid", requuid, req)
@@ -500,6 +547,13 @@ func (s *ManageHTTPServer) startService(ctx context.Context, w http.ResponseWrit
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
 		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	err = s.containersvcIns.ScaleService(ctx, s.cluster, req.ServiceName, attr.Spec.Replicas)
@@ -545,6 +599,13 @@ func (s *ManageHTTPServer) rollingRestartService(ctx context.Context, w http.Res
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
 		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	// simply rolling restart the service members in the backward order.
@@ -608,6 +669,19 @@ func (s *ManageHTTPServer) getServiceTaskStatus(ctx context.Context, w http.Resp
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req)
 		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	// check whether the management task is running
@@ -748,6 +822,13 @@ func (s *ManageHTTPServer) updateServiceConfig(ctx context.Context, w http.Respo
 		return convertToHTTPError(err)
 	}
 
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	for i, cfg := range attr.Spec.ServiceConfigs {
 		if req.ConfigFileName == cfg.FileName {
 			// get the current config file
@@ -837,6 +918,19 @@ func (s *ManageHTTPServer) getMemberConfigFile(ctx context.Context, w http.Respo
 		return convertToHTTPError(err)
 	}
 
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	m, err := s.dbIns.GetServiceMember(ctx, svc.ServiceUUID, req.MemberName)
 	if err != nil {
 		glog.Errorln("GetServiceMember error", err, req.MemberName, "requuid", requuid, req.Service)
@@ -895,6 +989,19 @@ func (s *ManageHTTPServer) updateMemberConfig(ctx context.Context, w http.Respon
 	if err != nil {
 		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	m, err := s.dbIns.GetServiceMember(ctx, svc.ServiceUUID, req.MemberName)
@@ -1114,6 +1221,25 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 		return err.Error(), http.StatusBadRequest
 	}
 
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	// delete the service on the container platform
 	err = s.containersvcIns.StopService(ctx, s.cluster, req.Service.ServiceName)
 	if err != nil {
@@ -1128,12 +1254,6 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 	}
 
 	// delete the service cloud log
-	svc, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
-	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
-		return convertToHTTPError(err)
-	}
-
 	err = s.logIns.DeleteServiceLogConfig(ctx, s.cluster, req.Service.ServiceName, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("DeleteServiceLogConfig error", err, "requuid", requuid, req.Service)
@@ -1179,6 +1299,25 @@ func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, 
 		glog.Errorln("upgradeService invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, req, "error", err)
 		return err.Error(), http.StatusBadRequest
+	}
+
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, svc)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	// upgrade to 0.9.6 requires to recreate the service with the original volumes.
@@ -1281,13 +1420,26 @@ func (s *ManageHTTPServer) listServiceMembers(ctx context.Context, w http.Respon
 
 	glog.Infoln("listServiceMembers", req.Service, "requuid", requuid)
 
-	service, err := s.dbIns.GetService(ctx, s.cluster, req.Service.ServiceName)
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("db GetService error", err, req.Service.ServiceName, "requuid", requuid)
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
 	}
 
-	members, err := s.dbIns.ListServiceMembers(ctx, service.ServiceUUID)
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
+	members, err := s.dbIns.ListServiceMembers(ctx, svc.ServiceUUID)
 	if err != nil {
 		glog.Errorln("db ListServiceMembers error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
@@ -1365,6 +1517,25 @@ func (s *ManageHTTPServer) getServiceStatus(ctx context.Context,
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
+	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	if err != nil {
+		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	attr, err := s.dbIns.GetServiceAttr(ctx, svc.ServiceUUID)
+	if err != nil {
+		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req)
+		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
+	}
+
 	status, err := s.containersvcIns.GetServiceStatus(ctx, req.Cluster, req.ServiceName)
 	if err != nil {
 		glog.Errorln("GetServiceStatus error", err, "requuid", requuid, req)
@@ -1415,6 +1586,13 @@ func (s *ManageHTTPServer) getServiceConfigFile(ctx context.Context,
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
+	}
+
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
+		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
+		glog.Errorln(errmsg, "requuid", requuid)
+		return errmsg, http.StatusBadRequest
 	}
 
 	for _, cfg := range attr.Spec.ServiceConfigs {

@@ -77,11 +77,11 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 	initialized := false
 	hasTask, statusMsg := s.catalogSvcInit.hasInitTask(ctx, req.Service.ServiceName)
 	if hasTask {
-		glog.Infoln("The service", req.Service.ServiceName, req.CatalogServiceType,
+		glog.Infoln("The service", req.Service.ServiceName, req.Service.CatalogServiceType,
 			"is under initialization, requuid", requuid)
 	} else {
 		// no init task is running, check if the service is initialized
-		glog.Infoln("No init task for service", req.Service.ServiceName, req.CatalogServiceType, "requuid", requuid)
+		glog.Infoln("No init task for service", req.Service.ServiceName, req.Service.CatalogServiceType, "requuid", requuid)
 
 		attr, err := s.managecli.GetServiceAttr(ctx, req.Service)
 		if err != nil {
@@ -108,7 +108,7 @@ func (s *CatalogHTTPServer) getCatalogServiceOp(ctx context.Context, w http.Resp
 			// TODO scan the pending init catalog service at start.
 
 			// trigger the init task.
-			switch req.CatalogServiceType {
+			switch req.Service.CatalogServiceType {
 			case common.CatalogService_MongoDB:
 				cfgfile, err := s.managecli.GetServiceConfigFile(ctx, getReq)
 				if err != nil {

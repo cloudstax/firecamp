@@ -3,7 +3,7 @@
 
 org="cloudstax/"
 version="latest"
-catalogversion="lastest"
+catalogversion="latest"
 
 all: install
 

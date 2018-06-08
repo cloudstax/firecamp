@@ -64,9 +64,10 @@ type ConfigFileContent struct {
 // region and cluster are for the management service to verify
 // the request is sent to the correct server.
 type ServiceCommonRequest struct {
-	Region      string
-	Cluster     string
-	ServiceName string
+	Region             string
+	Cluster            string
+	ServiceName        string
+	CatalogServiceType string
 }
 
 // CreateServiceRequest contains the parameters for creating a service.

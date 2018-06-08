@@ -1,8 +1,8 @@
 package catalog
 
 import (
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 )
 
 const (
@@ -443,8 +443,7 @@ type CatalogCreateTelegrafRequest struct {
 
 // CatalogCheckServiceInitRequest checks whether one catalog service is initialized.
 type CatalogCheckServiceInitRequest struct {
-	Service            *manage.ServiceCommonRequest
-	CatalogServiceType string
+	Service *manage.ServiceCommonRequest
 }
 
 // CatalogCheckServiceInitResponse returns the service init status
@@ -460,6 +459,7 @@ type CatalogSetServiceInitRequest struct {
 	Region      string
 	Cluster     string
 	ServiceName string
+	// ServiceType is the CatalogServiceType
 	ServiceType string
 }
 
