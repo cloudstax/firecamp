@@ -1287,23 +1287,23 @@ func (s *ManageHTTPServer) deleteService(ctx context.Context, w http.ResponseWri
 // this is a common upgrade request for all services that do not require specific upgrade options.
 func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, requuid string) (errmsg string, errcode int) {
 	// parse the request
-	req := &manage.ServiceCommonRequest{}
+	req := &manage.UpgradeServiceRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		glog.Errorln("upgradeService decode request error", err, "requuid", requuid)
 		return http.StatusText(http.StatusBadRequest), http.StatusBadRequest
 	}
 
-	err = s.checkCommonRequest(req)
+	err = s.checkCommonRequest(req.Service)
 	if err != nil {
 		glog.Errorln("upgradeService invalid request, local cluster", s.cluster, "region",
 			s.region, "requuid", requuid, req, "error", err)
 		return err.Error(), http.StatusBadRequest
 	}
 
-	svc, err := s.dbIns.GetService(ctx, req.Cluster, req.ServiceName)
+	svc, err := s.dbIns.GetService(ctx, req.Service.Cluster, req.Service.ServiceName)
 	if err != nil {
-		glog.Errorln("GetService error", err, "requuid", requuid, req)
+		glog.Errorln("GetService error", err, "requuid", requuid, req.Service)
 		return convertToHTTPError(err)
 	}
 
@@ -1313,26 +1313,34 @@ func (s *ManageHTTPServer) upgradeService(ctx context.Context, r *http.Request, 
 		return convertToHTTPError(err)
 	}
 
-	if attr.Spec.CatalogServiceType != req.CatalogServiceType {
+	if attr.Spec.CatalogServiceType != req.Service.CatalogServiceType {
 		errmsg = fmt.Sprintf("invalid request - catalog service %s type mismatch, service type %s, request type %s",
-			req.ServiceName, attr.Spec.CatalogServiceType, req.CatalogServiceType)
+			req.Service.ServiceName, attr.Spec.CatalogServiceType, req.Service.CatalogServiceType)
 		glog.Errorln(errmsg, "requuid", requuid)
 		return errmsg, http.StatusBadRequest
 	}
 
-	// upgrade to 0.9.6 requires to recreate the service with the original volumes.
+	// upgrade to 1.0
+	if common.Version == common.Version1 {
+		return s.generalUpgradeService(ctx, attr, req, requuid)
+	}
 
 	errmsg = fmt.Sprintf("unsupported upgrade to version %s", common.Version)
-	glog.Errorln(errmsg, "requuid", requuid, req)
+	glog.Errorln(errmsg, "requuid", requuid, req.Service)
 	return errmsg, http.StatusBadRequest
 }
 
-func (s *ManageHTTPServer) generalUpgradeService(ctx context.Context, attr *common.ServiceAttr, req *manage.ServiceCommonRequest, requuid string) (errmsg string, errcode int) {
+func (s *ManageHTTPServer) generalUpgradeService(ctx context.Context, attr *common.ServiceAttr, req *manage.UpgradeServiceRequest, requuid string) (errmsg string, errcode int) {
 	// the default container service update request
 	opts := &containersvc.UpdateServiceOptions{
-		Cluster:        req.Cluster,
-		ServiceName:    req.ServiceName,
+		Cluster:        req.Service.Cluster,
+		ServiceName:    req.Service.ServiceName,
 		ReleaseVersion: common.Version,
+	}
+
+	// TODO upgrade does not work on k8s yet
+	if s.platform != common.ContainerPlatformK8s {
+		opts.ContainerImage = req.ContainerImage
 	}
 
 	// update the container service

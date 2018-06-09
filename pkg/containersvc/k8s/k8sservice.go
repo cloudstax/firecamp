@@ -710,6 +710,10 @@ func (s *K8sSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateSer
 		statefulset.Spec.Template.Spec.Containers[0].Ports = ports
 	}
 
+	if len(opts.ContainerImage) != 0 {
+		statefulset.Spec.Template.Spec.Containers[0].Image = opts.ContainerImage
+	}
+
 	_, err = s.cliset.AppsV1beta2().StatefulSets(s.namespace).Update(statefulset)
 	if err != nil {
 		glog.Errorln("update statefulset error", err, "requuid", requuid, "service", opts.ServiceName, "namespace", s.namespace)

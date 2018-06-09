@@ -779,6 +779,10 @@ func (s *AWSEcs) UpdateService(ctx context.Context, opts *containersvc.UpdateSer
 		}
 	}
 
+	if len(opts.ContainerImage) != 0 {
+		contDef.Image = aws.String(opts.ContainerImage)
+	}
+
 	// write the new task definition
 	regInput := &ecs.RegisterTaskDefinitionInput{
 		ContainerDefinitions: taskDef.TaskDefinition.ContainerDefinitions,

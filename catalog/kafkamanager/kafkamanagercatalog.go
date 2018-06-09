@@ -12,7 +12,8 @@ import (
 const (
 	defaultVersion = "1.3.3"
 	// ContainerImage is the main running container.
-	ContainerImage = common.ContainerNamePrefix + "kafka-manager:" + defaultVersion
+	ContainerImage        = common.ContainerNamePrefix + "kafka-manager:" + defaultVersion
+	ReleaseContainerImage = ContainerImage + common.NameSeparator + common.Version
 
 	listenPort = 9000
 
@@ -83,7 +84,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 	// 			 the release upgrade needs to update the version as well.
 	containerImage := ContainerImage
 	if platform != common.ContainerPlatformK8s {
-		containerImage = ContainerImage + common.NameSeparator + common.Version
+		containerImage = ReleaseContainerImage
 	}
 
 	req := &manage.CreateServiceRequest{

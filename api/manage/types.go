@@ -144,6 +144,14 @@ type UpdateMemberConfigRequest struct {
 	ConfigFileContent string
 }
 
+// UpgradeServiceRequest upgrades the service to the new release
+type UpgradeServiceRequest struct {
+	Service *ServiceCommonRequest
+	// This is currently for KafkaManager and KafkaConnect only,
+	// as they use the firecamp-selectmember tool. empty means no change.
+	ContainerImage string
+}
+
 // GetServiceAttributesResponse returns the service's attributes.
 // GetServiceAttributesRequest just sends a "GET" with ServiceCommonRequest.
 type GetServiceAttributesResponse struct {

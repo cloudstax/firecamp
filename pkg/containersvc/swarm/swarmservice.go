@@ -18,9 +18,9 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	managecli "github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/dns"
 )
@@ -683,6 +683,10 @@ func (s *SwarmSvc) UpdateService(ctx context.Context, opts *containersvc.UpdateS
 
 		// update the log driver version
 		svc.Spec.TaskTemplate.LogDriver.Name = common.LogDriverName
+	}
+
+	if len(opts.ContainerImage) != 0 {
+		svc.Spec.TaskTemplate.ContainerSpec.Image = opts.ContainerImage
 	}
 
 	// TODO control the service restart. Swarm UpdateService will automatically restart the service containers.

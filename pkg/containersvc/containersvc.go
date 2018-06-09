@@ -89,6 +89,9 @@ type UpdateServiceOptions struct {
 	ExternalDNS bool
 	// update the release version, such as 0.9.5. empty means no change.
 	ReleaseVersion string
+	// whether the container image is updated. This is currently for KafkaManager and KafkaConnect only,
+	// as they use the firecamp-selectmember tool. empty means no change.
+	ContainerImage string
 }
 
 type RollingRestartOptions struct {

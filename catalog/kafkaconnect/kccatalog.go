@@ -14,6 +14,7 @@ const (
 	defaultVersion = "4.0"
 	// ContainerImage is the main running container.
 	ContainerImage           = common.ContainerNamePrefix + "kafka-connect:" + defaultVersion
+	ReleaseContainerImage    = ContainerImage + common.NameSeparator + common.Version
 	SinkESInitContainerImage = common.ContainerNamePrefix + "kafka-sink-elasticsearch-init:" + defaultVersion
 
 	// connector listen port for managing the connector
@@ -119,7 +120,7 @@ func GenCreateESSinkServiceRequest(platform string, region string, cluster strin
 	// 			 the release upgrade needs to update the version as well.
 	containerImage := ContainerImage
 	if platform != common.ContainerPlatformK8s {
-		containerImage = ContainerImage + common.NameSeparator + common.Version
+		containerImage = ReleaseContainerImage
 	}
 
 	crReq = &manage.CreateServiceRequest{

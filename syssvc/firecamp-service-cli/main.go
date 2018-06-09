@@ -1929,6 +1929,16 @@ func startService(ctx context.Context, cli *manageclient.ManageClient, commonReq
 }
 
 func upgradeService(ctx context.Context, cli *manageclient.ManageClient, commonReq *manage.ServiceCommonRequest) {
+	req := &manage.UpgradeServiceRequest{
+		Service: commonReq,
+	}
+
+	if *serviceType == common.CatalogService_KafkaManager {
+		req.ContainerImage = kmcatalog.ReleaseContainerImage
+	} else if *serviceType == common.CatalogService_KafkaSinkES {
+		req.ContainerImage = kccatalog.ReleaseContainerImage
+	}
+
 	err := cli.UpgradeService(ctx, commonReq)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "UpgradeService error", err)
