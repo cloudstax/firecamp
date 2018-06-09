@@ -36,9 +36,10 @@ func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.Respo
 
 	// get the zk service
 	getReq := &manage.ServiceCommonRequest{
-		Region:      req.Service.Region,
-		Cluster:     req.Service.Cluster,
-		ServiceName: req.Options.ZkServiceName,
+		Region:             req.Service.Region,
+		Cluster:            req.Service.Cluster,
+		ServiceName:        req.Options.ZkServiceName,
+		CatalogServiceType: common.CatalogService_ZooKeeper,
 	}
 	zkattr, err := s.managecli.GetServiceAttr(ctx, getReq)
 	if err != nil {
@@ -106,9 +107,10 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 
 	// get the kafka service
 	commonReq := &manage.ServiceCommonRequest{
-		Region:      req.Service.Region,
-		Cluster:     req.Service.Cluster,
-		ServiceName: req.Options.KafkaServiceName,
+		Region:             req.Service.Region,
+		Cluster:            req.Service.Cluster,
+		ServiceName:        req.Options.KafkaServiceName,
+		CatalogServiceType: common.CatalogService_Kafka,
 	}
 	kafkaAttr, err := s.managecli.GetServiceAttr(ctx, commonReq)
 	if err != nil {
@@ -119,9 +121,10 @@ func (s *CatalogHTTPServer) createKafkaSinkESService(ctx context.Context, w http
 	// get the elasticsearch service config
 	getReq := &manage.GetServiceConfigFileRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      req.Service.Region,
-			Cluster:     req.Service.Cluster,
-			ServiceName: req.Options.ESServiceName,
+			Region:             req.Service.Region,
+			Cluster:            req.Service.Cluster,
+			ServiceName:        req.Options.ESServiceName,
+			CatalogServiceType: common.CatalogService_ElasticSearch,
 		},
 		ConfigFileName: catalog.SERVICE_FILE_NAME,
 	}
@@ -214,9 +217,10 @@ func (s *CatalogHTTPServer) createKafkaManagerService(ctx context.Context, r *ht
 
 	// get the zk service
 	getReq := &manage.ServiceCommonRequest{
-		Region:      req.Service.Region,
-		Cluster:     req.Service.Cluster,
-		ServiceName: req.Options.ZkServiceName,
+		Region:             req.Service.Region,
+		Cluster:            req.Service.Cluster,
+		ServiceName:        req.Options.ZkServiceName,
+		CatalogServiceType: common.CatalogService_ZooKeeper,
 	}
 	zkattr, err := s.managecli.GetServiceAttr(ctx, getReq)
 	if err != nil {

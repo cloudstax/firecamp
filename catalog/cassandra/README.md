@@ -194,7 +194,7 @@ select * from users;
 ## Monitor Cassandra with AWS CloudWatch
 Create a Telegraf service to collect Cassandra metrics and send to AWS CloudWatch. By default, the metrics is collected every 60s. If you want different collect interval, such as 90 seconds, could set "-tel-collect-interval=90s".
 ```
-firecamp-service-cli -op=create-service -service-type=telegraf -region=us-east-1 -cluster=t1 -service-name=tel-mycas -tel-monitor-service-name=mycas
+firecamp-service-cli -op=create-service -service-type=telegraf -region=us-east-1 -cluster=t1 -service-name=tel-mycas -tel-monitor-service-name=mycas -tel-monitor-service-type=cassandra
 ```
 
 You could put all the custom metrics in one file, and pass the file "-tel-metrics-file=pathtofile" when creating the service. For example, you could create the file with a few metrics for Cassandra:

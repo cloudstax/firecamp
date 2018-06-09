@@ -236,9 +236,10 @@ func (s *CatalogHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.R
 	}
 
 	initReq := &manage.ServiceCommonRequest{
-		Region:      req.Region,
-		Cluster:     req.Cluster,
-		ServiceName: req.ServiceName,
+		Region:             req.Region,
+		Cluster:            req.Cluster,
+		ServiceName:        req.ServiceName,
+		CatalogServiceType: req.ServiceType,
 	}
 
 	switch req.ServiceType {
@@ -417,9 +418,10 @@ func (s *CatalogHTTPServer) createKibanaService(ctx context.Context, r *http.Req
 	// get the dedicated master nodes of the elasticsearch service
 	// get the elasticsearch service uuid
 	getESReq := &manage.ServiceCommonRequest{
-		Region:      req.Service.Region,
-		Cluster:     req.Service.Cluster,
-		ServiceName: req.Options.ESServiceName,
+		Region:             req.Service.Region,
+		Cluster:            req.Service.Cluster,
+		ServiceName:        req.Options.ESServiceName,
+		CatalogServiceType: common.CatalogService_ElasticSearch,
 	}
 	attr, err := s.managecli.GetServiceAttr(ctx, getESReq)
 	if err != nil {
@@ -506,23 +508,20 @@ func (s *CatalogHTTPServer) createTelegrafService(ctx context.Context, r *http.R
 	}
 
 	// get the monitor service
-	getReq := &manage.ServiceCommonRequest{
-		Region:      req.Service.Region,
-		Cluster:     req.Service.Cluster,
-		ServiceName: req.Options.MonitorServiceName,
+	mCommonReq := &manage.ServiceCommonRequest{
+		Region:             req.Service.Region,
+		Cluster:            req.Service.Cluster,
+		ServiceName:        req.Options.MonitorServiceName,
+		CatalogServiceType: req.Options.MonitorServiceType,
 	}
-	attr, err := s.managecli.GetServiceAttr(ctx, getReq)
+	attr, err := s.managecli.GetServiceAttr(ctx, mCommonReq)
 	if err != nil {
 		glog.Errorln("get monitor target service error", err, req.Options.MonitorServiceName, "requuid", requuid, req.Service)
 		return err
 	}
 
 	listReq := &manage.ListServiceMemberRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      req.Service.Region,
-			Cluster:     req.Service.Cluster,
-			ServiceName: req.Options.MonitorServiceName,
-		},
+		Service: mCommonReq,
 	}
 	members, err := s.managecli.ListServiceMember(ctx, listReq)
 	if err != nil {

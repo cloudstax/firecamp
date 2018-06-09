@@ -430,6 +430,7 @@ type CatalogCreateLogstashRequest struct {
 type CatalogTelegrafOptions struct {
 	CollectIntervalSecs int
 	MonitorServiceName  string
+	MonitorServiceType  string
 	// The custom metrics to monitor. Leave it empty to use the default metrics for the service.
 	MonitorMetrics string
 }

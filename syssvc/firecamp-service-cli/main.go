@@ -196,7 +196,8 @@ var (
 
 	// The telegraf service creation specific parameters
 	telCollectIntervalSecs = flag.Int("tel-collect-interval", telcatalog.DefaultCollectIntervalSecs, "The service metrics collect interval, unit: seconds")
-	telMonitorServiceName  = flag.String("tel-monitor-service-name", "", "The stateful service to minotor")
+	telMonitorServiceName  = flag.String("tel-monitor-service-name", "", "The stateful service to monitor")
+	telMonitorServiceType  = flag.String("tel-monitor-service-type", "", "The type of stateful service to minotor")
 	telMetricsFile         = flag.String("tel-metrics-file", "", "This is an advanced config if you want to customize the metrics to collect. Please follow Telegraf's usage to specify your custom metrics. It is your responsibility to ensure the format and metrics are correct.")
 
 	// the parameters for getting the config file
@@ -314,6 +315,7 @@ func usage() {
 			case common.CatalogService_Telegraf:
 				printFlag(flag.Lookup("tel-collect-interval"))
 				printFlag(flag.Lookup("tel-monitor-service-name"))
+				printFlag(flag.Lookup("tel-monitor-service-type"))
 				printFlag(flag.Lookup("tel-metrics-file"))
 				return
 			case common.CatalogService_KafkaSinkES:
@@ -1735,8 +1737,8 @@ func createPostgreSQLService(ctx context.Context, cli *catalogclient.CatalogServ
 }
 
 func createTelService(ctx context.Context, cli *catalogclient.CatalogServiceClient, commonReq *manage.ServiceCommonRequest) {
-	if *telMonitorServiceName == "" {
-		fmt.Println("please specify the valid monitor service name")
+	if *telMonitorServiceName == "" || *telMonitorServiceType == "" {
+		fmt.Println("please specify the valid monitor service name and type")
 		os.Exit(-1)
 	}
 
@@ -1751,6 +1753,7 @@ func createTelService(ctx context.Context, cli *catalogclient.CatalogServiceClie
 		Options: &catalog.CatalogTelegrafOptions{
 			CollectIntervalSecs: *telCollectIntervalSecs,
 			MonitorServiceName:  *telMonitorServiceName,
+			MonitorServiceType:  *telMonitorServiceType,
 		},
 	}
 

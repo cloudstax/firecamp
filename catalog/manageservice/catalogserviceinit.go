@@ -156,11 +156,7 @@ func (c *catalogServiceInit) runInitTask(ctx context.Context, task *serviceTask,
 func (c *catalogServiceInit) taskDone(ctx context.Context, task *serviceTask, requuid string) {
 	// delete the task from the container platform
 	req := &manage.DeleteTaskRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      c.region,
-			Cluster:     c.cluster,
-			ServiceName: task.serviceName,
-		},
+		Service:  task.req.Service,
 		TaskType: task.req.TaskType,
 	}
 	err := c.managecli.DeleteTask(ctx, req)
@@ -175,12 +171,7 @@ func (c *catalogServiceInit) taskDone(ctx context.Context, task *serviceTask, re
 }
 
 func (c *catalogServiceInit) isServiceInitialized(ctx context.Context, task *serviceTask, requuid string) (bool, error) {
-	req := &manage.ServiceCommonRequest{
-		Region:      c.region,
-		Cluster:     c.cluster,
-		ServiceName: task.serviceName,
-	}
-	attr, err := c.managecli.GetServiceAttr(ctx, req)
+	attr, err := c.managecli.GetServiceAttr(ctx, task.req.Service)
 	if err != nil {
 		glog.Errorln("GetServiceAttr error", err, "requuid", requuid, task)
 		return false, err
@@ -190,15 +181,9 @@ func (c *catalogServiceInit) isServiceInitialized(ctx context.Context, task *ser
 }
 
 func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *serviceTask, requuid string) error {
-	req := &manage.ServiceCommonRequest{
-		Region:      c.region,
-		Cluster:     c.cluster,
-		ServiceName: task.serviceName,
-	}
-
 	sleepTime := time.Duration(common.DefaultRetryWaitSeconds) * time.Second
 	for sec := int64(0); sec < common.DefaultServiceWaitSeconds; sec += common.DefaultRetryWaitSeconds {
-		status, err := c.managecli.GetServiceStatus(ctx, req)
+		status, err := c.managecli.GetServiceStatus(ctx, task.req.Service)
 		if err != nil {
 			// The service is successfully created. It may be possible there are some
 			// temporary error, such as network error. For example, ECS may return MISSING
@@ -225,12 +210,8 @@ func (c *catalogServiceInit) waitServiceRunning(ctx context.Context, task *servi
 
 func (c *catalogServiceInit) waitTask(ctx context.Context, taskID string, task *serviceTask, requuid string) error {
 	req := &manage.GetTaskStatusRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      c.region,
-			Cluster:     c.cluster,
-			ServiceName: task.serviceName,
-		},
-		TaskID: taskID,
+		Service: task.req.Service,
+		TaskID:  taskID,
 	}
 
 	sleepTime := time.Duration(common.DefaultRetryWaitSeconds) * time.Second

@@ -50,7 +50,7 @@ firecamp-service-cli -op=create-service -service-type=redis -region=us-east-1 -c
 
 Create the Telegraf service:
 ```
-firecamp-service-cli -op=create-service -service-type=telegraf -region=us-east-1 -cluster=t1 -service-name=tel-myredis -tel-monitor-service-name=myredis
+firecamp-service-cli -op=create-service -service-type=telegraf -region=us-east-1 -cluster=t1 -service-name=tel-myredis -tel-monitor-service-name=myredis -tel-minotor-service-type=redis
 ```
 
 Then you could view the metrics on the [CloudWatch console](https://console.aws.amazon.com/cloudwatch), and create the dashboard.

@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/redis"
@@ -150,9 +151,10 @@ func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, r
 	glog.Infoln("setRedisInit", req.ServiceName, "requuid", requuid)
 
 	commonReq := &manage.ServiceCommonRequest{
-		Region:      req.Region,
-		Cluster:     req.Cluster,
-		ServiceName: req.ServiceName,
+		Region:             req.Region,
+		Cluster:            req.Cluster,
+		ServiceName:        req.ServiceName,
+		CatalogServiceType: common.CatalogService_Redis,
 	}
 
 	// enable redis auth
@@ -207,11 +209,7 @@ func (s *CatalogHTTPServer) enableRedisAuth(ctx context.Context, req *manage.Ser
 	newContent := rediscatalog.EnableRedisAuth(cfgfile.Spec.Content)
 
 	updateReq := &manage.UpdateServiceConfigRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      s.region,
-			Cluster:     s.cluster,
-			ServiceName: req.ServiceName,
-		},
+		Service:           req,
 		ConfigFileName:    catalog.SERVICE_FILE_NAME,
 		ConfigFileContent: newContent,
 	}

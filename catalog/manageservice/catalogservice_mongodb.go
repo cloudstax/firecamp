@@ -84,9 +84,10 @@ func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.Cat
 	glog.Infoln("setMongoDBInit", req.ServiceName, "requuid", requuid)
 
 	commonReq := &manage.ServiceCommonRequest{
-		Region:      req.Region,
-		Cluster:     req.Cluster,
-		ServiceName: req.ServiceName,
+		Region:             req.Region,
+		Cluster:            req.Cluster,
+		ServiceName:        req.ServiceName,
+		CatalogServiceType: req.ServiceType,
 	}
 
 	// enable mongodb auth
@@ -141,11 +142,7 @@ func (s *CatalogHTTPServer) enableMongoDBAuth(ctx context.Context, req *manage.S
 	newContent := mongodbcatalog.EnableMongoDBAuth(cfgfile.Spec.Content)
 
 	updateReq := &manage.UpdateServiceConfigRequest{
-		Service: &manage.ServiceCommonRequest{
-			Region:      s.region,
-			Cluster:     s.cluster,
-			ServiceName: req.ServiceName,
-		},
+		Service:           req,
 		ConfigFileName:    cfgfile.Meta.FileName,
 		ConfigFileContent: newContent,
 	}
