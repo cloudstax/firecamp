@@ -13,8 +13,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/db"
 	"github.com/cloudstax/firecamp/pkg/dns"
@@ -108,9 +108,10 @@ func TestVolumeFunctions(t *testing.T) {
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service1,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service1,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -211,9 +212,10 @@ func testVolumeDriver(t *testing.T, requireStaticIP bool, requireJournalVolume b
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service1,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service1,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -494,9 +496,10 @@ func testVolumeInDifferentZone(t *testing.T, requireStaticIP bool) {
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service1,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service1,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,

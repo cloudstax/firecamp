@@ -17,8 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/db"
 	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
@@ -317,9 +317,10 @@ func genCreateRequest(service string, taskCount int, mgtsvc *ManageHTTPServer, t
 
 func genGetServiceAttrRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
 	req := &manage.ServiceCommonRequest{
-		Region:      mgtsvc.region,
-		Cluster:     mgtsvc.cluster,
-		ServiceName: service,
+		Region:             mgtsvc.region,
+		Cluster:            mgtsvc.cluster,
+		ServiceName:        service,
+		CatalogServiceType: common.CatalogService_Kafka,
 	}
 
 	b, err := json.Marshal(req)
@@ -350,9 +351,10 @@ func genListServiceRequest(prefix string, mgtsvc *ManageHTTPServer, t *testing.T
 func genListServiceMemberRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
 	req := &manage.ListServiceMemberRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      mgtsvc.region,
-			Cluster:     mgtsvc.cluster,
-			ServiceName: service,
+			Region:             mgtsvc.region,
+			Cluster:            mgtsvc.cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 	}
 
@@ -367,9 +369,10 @@ func genListServiceMemberRequest(service string, mgtsvc *ManageHTTPServer, t *te
 
 func genSetInitRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
 	req := &manage.ServiceCommonRequest{
-		Region:      mgtsvc.region,
-		Cluster:     mgtsvc.cluster,
-		ServiceName: service,
+		Region:             mgtsvc.region,
+		Cluster:            mgtsvc.cluster,
+		ServiceName:        service,
+		CatalogServiceType: common.CatalogService_Kafka,
 	}
 
 	b, err := json.Marshal(req)
@@ -384,9 +387,10 @@ func genSetInitRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *
 func genDeleteRequest(service string, mgtsvc *ManageHTTPServer, t *testing.T) *http.Request {
 	req := &manage.DeleteServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      mgtsvc.region,
-			Cluster:     mgtsvc.cluster,
-			ServiceName: service,
+			Region:             mgtsvc.region,
+			Cluster:            mgtsvc.cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 	}
 

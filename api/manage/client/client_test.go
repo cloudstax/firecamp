@@ -149,9 +149,10 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 
 		r := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
-				Region:      serverInfo.GetLocalRegion(),
-				Cluster:     cluster,
-				ServiceName: service,
+				Region:             serverInfo.GetLocalRegion(),
+				Cluster:            cluster,
+				ServiceName:        service,
+				CatalogServiceType: common.CatalogService_Kafka,
 			},
 			Resource: &common.Resources{
 				MaxCPUUnits:     2,
@@ -159,6 +160,7 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 				MaxMemMB:        2,
 				ReserveMemMB:    2,
 			},
+			CatalogServiceType: common.CatalogService_Kafka,
 
 			ContainerImage: "image",
 			Replicas:       int64(repNum),
@@ -191,9 +193,10 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 
 	// negative case: get non-exist service
 	r1 := &manage.ServiceCommonRequest{
-		Region:      serverInfo.GetLocalRegion(),
-		Cluster:     cluster,
-		ServiceName: "xxxx",
+		Region:             serverInfo.GetLocalRegion(),
+		Cluster:            cluster,
+		ServiceName:        "xxxx",
+		CatalogServiceType: common.CatalogService_Kafka,
 	}
 	_, err := cli.GetServiceAttr(context.Background(), r1)
 	if !strings.Contains(err.Error(), "Not Found") {
@@ -205,9 +208,10 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 		s1 := servicePrefix + strconv.Itoa(i)
 
 		r := &manage.ServiceCommonRequest{
-			Region:      serverInfo.GetLocalRegion(),
-			Cluster:     cluster,
-			ServiceName: s1,
+			Region:             serverInfo.GetLocalRegion(),
+			Cluster:            cluster,
+			ServiceName:        s1,
+			CatalogServiceType: common.CatalogService_Kafka,
 		}
 
 		err = cli.SetServiceInitialized(context.Background(), r)
@@ -227,9 +231,10 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 		s1 := servicePrefix + strconv.Itoa(i)
 		r := &manage.DeleteServiceRequest{
 			Service: &manage.ServiceCommonRequest{
-				Region:      serverInfo.GetLocalRegion(),
-				Cluster:     cluster,
-				ServiceName: s1,
+				Region:             serverInfo.GetLocalRegion(),
+				Cluster:            cluster,
+				ServiceName:        s1,
+				CatalogServiceType: common.CatalogService_Kafka,
 			},
 		}
 
@@ -246,9 +251,10 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 	// negative case: delete non-exist service
 	r2 := &manage.DeleteServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      serverInfo.GetLocalRegion(),
-			Cluster:     cluster,
-			ServiceName: "xxxx",
+			Region:             serverInfo.GetLocalRegion(),
+			Cluster:            cluster,
+			ServiceName:        "xxxx",
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 	}
 
@@ -279,9 +285,10 @@ func queryServiceTest(t *testing.T, cli *ManageClient, cluster string, servicePr
 	s1 := servicePrefix + strconv.Itoa(i)
 
 	r := &manage.ServiceCommonRequest{
-		Region:      serverInfo.GetLocalRegion(),
-		Cluster:     cluster,
-		ServiceName: s1,
+		Region:             serverInfo.GetLocalRegion(),
+		Cluster:            cluster,
+		ServiceName:        s1,
+		CatalogServiceType: common.CatalogService_Kafka,
 	}
 
 	attr, err := cli.GetServiceAttr(context.Background(), r)
