@@ -52,8 +52,7 @@
     },
     "VPCID": {
       "Type": "AWS::EC2::VPC::Id",
-      "Description": "The Virtual Private Cloud (VPC) ID to deploy the cluster.",
-      "AllowedPattern": "vpc-[0-9a-z]{8}"
+      "Description": "The Virtual Private Cloud (VPC) ID to deploy the cluster."
     },
     "AvailabilityZones": {
       "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
@@ -61,8 +60,7 @@
     },
     "SubnetIDs": {
       "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s).",
-      "AllowedPattern": "subnet-[0-9a-z]{8}"
+      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s)."
     },
     "NumberOfManagers":{
       "Type":"Number",
