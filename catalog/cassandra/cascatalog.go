@@ -90,9 +90,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	req = &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_Cassandra,
 		},
 
 		Resource: &common.Resources{
@@ -102,8 +103,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    reserveMemMB,
 		},
 
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_Cassandra,
+		ServiceType: common.ServiceTypeStateful,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,

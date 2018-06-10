@@ -8,8 +8,8 @@ import (
 
 	"github.com/cloudstax/firecamp/api/catalog"
 	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/utils"
 )
 
@@ -93,9 +93,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_ElasticSearch,
 		},
 
 		Resource: &common.Resources{
@@ -105,8 +106,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    reserveMemMB,
 		},
 
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_ElasticSearch,
+		ServiceType: common.ServiceTypeStateful,
 
 		ContainerImage: ContainerImage,
 		Replicas:       replicas,

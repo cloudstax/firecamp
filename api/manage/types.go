@@ -64,9 +64,10 @@ type ConfigFileContent struct {
 // region and cluster are for the management service to verify
 // the request is sent to the correct server.
 type ServiceCommonRequest struct {
-	Region             string
-	Cluster            string
-	ServiceName        string
+	Region      string
+	Cluster     string
+	ServiceName string
+	// Catalog Service, such as Cassandra, Kafka, etc.
 	CatalogServiceType string
 }
 
@@ -80,9 +81,6 @@ type CreateServiceRequest struct {
 
 	// ServiceType: stateful or stateless. default: stateful.
 	ServiceType string
-
-	// Catalog Service, such as Cassandra, Kafka, etc.
-	CatalogServiceType string
 
 	ContainerImage string
 	Replicas       int64

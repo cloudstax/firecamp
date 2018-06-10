@@ -139,9 +139,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_Redis,
 		},
 
 		Resource: &common.Resources{
@@ -151,8 +152,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 			ReserveMemMB:    opts.MemoryCacheSizeMB,
 		},
 
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_Redis,
+		ServiceType: common.ServiceTypeStateful,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.ReplicasPerShard * opts.Shards,

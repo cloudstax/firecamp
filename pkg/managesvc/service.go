@@ -12,8 +12,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/containersvc"
 	"github.com/cloudstax/firecamp/pkg/db"
 	"github.com/cloudstax/firecamp/pkg/dns"
@@ -791,7 +791,7 @@ func (s *ManageService) checkAndCreateServiceAttr(ctx context.Context, serviceUU
 
 	// create service attr
 	meta := db.CreateServiceMeta(req.Service.Cluster, req.Service.ServiceName, time.Now().UnixNano(), req.ServiceType, common.ServiceStatusCreating)
-	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, req.CatalogServiceType, svols)
+	spec := db.CreateServiceSpec(req.Replicas, req.Resource, req.RegisterDNS, domainName, hostedZoneID, req.RequireStaticIP, cfgs, req.Service.CatalogServiceType, svols)
 	serviceAttr := db.CreateServiceAttr(serviceUUID, 0, meta, spec)
 	err = s.dbIns.CreateServiceAttr(ctx, serviceAttr)
 	if err == nil {

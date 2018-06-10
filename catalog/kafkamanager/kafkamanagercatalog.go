@@ -89,9 +89,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_KafkaManager,
 		},
 
 		Resource: &common.Resources{
@@ -101,8 +102,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 			ReserveMemMB:    reserveMemMB,
 		},
 
-		ServiceType:        common.ServiceTypeStateless,
-		CatalogServiceType: common.CatalogService_KafkaManager,
+		ServiceType: common.ServiceTypeStateless,
 
 		ContainerImage: containerImage,
 		// Kafka Manager only needs 1 container.

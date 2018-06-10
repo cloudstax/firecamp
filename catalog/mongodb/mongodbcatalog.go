@@ -90,15 +90,15 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_MongoDB,
 		},
 
 		Resource: res,
 
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_MongoDB,
+		ServiceType: common.ServiceTypeStateful,
 
 		ContainerImage: ContainerImage,
 		Replicas:       int64(len(replicaCfgs)),

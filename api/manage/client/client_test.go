@@ -160,7 +160,6 @@ func testMgrOps(t *testing.T, cli *ManageClient, cluster string, serverInfo serv
 				MaxMemMB:        2,
 				ReserveMemMB:    2,
 			},
-			CatalogServiceType: common.CatalogService_Kafka,
 
 			ContainerImage: "image",
 			Replicas:       int64(repNum),

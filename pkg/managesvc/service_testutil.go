@@ -10,8 +10,8 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/common"
+	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/pkg/db"
 	"github.com/cloudstax/firecamp/pkg/dns"
 	"github.com/cloudstax/firecamp/pkg/server"
@@ -76,9 +76,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
-				Region:      region,
-				Cluster:     cluster,
-				ServiceName: service,
+				Region:             region,
+				Cluster:            cluster,
+				ServiceName:        service,
+				CatalogServiceType: common.CatalogService_Kafka,
 			},
 			Resource: &common.Resources{
 				MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -86,15 +87,14 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			ServiceType:        common.ServiceTypeStateful,
-			CatalogServiceType: common.CatalogService_Kafka,
-			Replicas:           int64(taskCount1),
-			Volume:             servicevol,
-			JournalVolume:      journalVol,
-			RegisterDNS:        registerDNS,
-			RequireStaticIP:    requireStaticIP,
-			ServiceConfigs:     serviceCfgs,
-			ReplicaConfigs:     replicaCfgs,
+			ServiceType:     common.ServiceTypeStateful,
+			Replicas:        int64(taskCount1),
+			Volume:          servicevol,
+			JournalVolume:   journalVol,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -215,9 +215,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
-				Region:      region,
-				Cluster:     cluster,
-				ServiceName: service,
+				Region:             region,
+				Cluster:            cluster,
+				ServiceName:        service,
+				CatalogServiceType: common.CatalogService_Kafka,
 			},
 			Resource: &common.Resources{
 				MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -225,15 +226,14 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			ServiceType:        common.ServiceTypeStateful,
-			CatalogServiceType: common.CatalogService_Kafka,
-			Replicas:           int64(taskCount2),
-			Volume:             servicevol,
-			JournalVolume:      journalVol,
-			RegisterDNS:        registerDNS,
-			RequireStaticIP:    requireStaticIP,
-			ServiceConfigs:     serviceCfgs,
-			ReplicaConfigs:     replicaCfgs,
+			ServiceType:     common.ServiceTypeStateful,
+			Replicas:        int64(taskCount2),
+			Volume:          servicevol,
+			JournalVolume:   journalVol,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -362,9 +362,10 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 
 		req := &manage.CreateServiceRequest{
 			Service: &manage.ServiceCommonRequest{
-				Region:      region,
-				Cluster:     cluster,
-				ServiceName: service,
+				Region:             region,
+				Cluster:            cluster,
+				ServiceName:        service,
+				CatalogServiceType: common.CatalogService_Kafka,
 			},
 			Resource: &common.Resources{
 				MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -372,14 +373,13 @@ func TestUtil_ServiceCreation(t *testing.T, s *ManageService, dbIns db.DB, serve
 				MaxMemMB:        common.DefaultMaxMemoryMB,
 				ReserveMemMB:    common.DefaultReserveMemoryMB,
 			},
-			ServiceType:        common.ServiceTypeStateful,
-			CatalogServiceType: common.CatalogService_Kafka,
-			Replicas:           int64(taskCount3),
-			Volume:             servicevol,
-			RegisterDNS:        registerDNS,
-			RequireStaticIP:    requireStaticIP,
-			ServiceConfigs:     serviceCfgs,
-			ReplicaConfigs:     replicaCfgs,
+			ServiceType:     common.ServiceTypeStateful,
+			Replicas:        int64(taskCount3),
+			Volume:          servicevol,
+			RegisterDNS:     registerDNS,
+			RequireStaticIP: requireStaticIP,
+			ServiceConfigs:  serviceCfgs,
+			ReplicaConfigs:  replicaCfgs,
 		}
 
 		svcUUID, err := s.CreateService(ctx, req, domain, vpcID)
@@ -476,9 +476,10 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_Kafka,
 		},
 		Resource: &common.Resources{
 			MaxCPUUnits:     common.DefaultMaxCPUUnits,
@@ -486,14 +487,13 @@ func TestUtil_ServiceCreationRetry(t *testing.T, s *ManageService, dbIns db.DB, 
 			MaxMemMB:        common.DefaultMaxMemoryMB,
 			ReserveMemMB:    common.DefaultReserveMemoryMB,
 		},
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_Kafka,
-		Replicas:           int64(taskCount),
-		Volume:             servicevol,
-		RegisterDNS:        registerDNS,
-		RequireStaticIP:    requireStaticIP,
-		ServiceConfigs:     serviceCfgs,
-		ReplicaConfigs:     replicaCfgs,
+		ServiceType:     common.ServiceTypeStateful,
+		Replicas:        int64(taskCount),
+		Volume:          servicevol,
+		RegisterDNS:     registerDNS,
+		RequireStaticIP: requireStaticIP,
+		ServiceConfigs:  serviceCfgs,
+		ReplicaConfigs:  replicaCfgs,
 	}
 	if requireJournalVolume {
 		req.JournalVolume = &common.ServiceVolume{

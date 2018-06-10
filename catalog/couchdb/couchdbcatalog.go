@@ -104,15 +104,15 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	req := &manage.CreateServiceRequest{
 		Service: &manage.ServiceCommonRequest{
-			Region:      region,
-			Cluster:     cluster,
-			ServiceName: service,
+			Region:             region,
+			Cluster:            cluster,
+			ServiceName:        service,
+			CatalogServiceType: common.CatalogService_CouchDB,
 		},
 
 		Resource: res,
 
-		ServiceType:        common.ServiceTypeStateful,
-		CatalogServiceType: common.CatalogService_CouchDB,
+		ServiceType: common.ServiceTypeStateful,
 
 		ContainerImage: ContainerImage,
 		Replicas:       opts.Replicas,
