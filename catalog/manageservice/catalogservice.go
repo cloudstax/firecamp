@@ -244,7 +244,7 @@ func (s *CatalogHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.R
 
 	switch req.ServiceType {
 	case common.CatalogService_MongoDB:
-		return s.setMongoDBInit(ctx, req, requuid)
+		return s.setMongoDBInit(ctx, initReq, requuid)
 
 	case common.CatalogService_Cassandra:
 		glog.Infoln("set cassandra service initialized, requuid", requuid, req)
@@ -259,7 +259,7 @@ func (s *CatalogHTTPServer) catalogSetServiceInit(ctx context.Context, r *http.R
 		return s.managecli.SetServiceInitialized(ctx, initReq)
 
 	case common.CatalogService_Redis:
-		return s.setRedisInit(ctx, r, requuid)
+		return s.setRedisInit(ctx, initReq, requuid)
 
 	// other services do not require the init task.
 	default:

@@ -8,7 +8,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
 	"github.com/cloudstax/firecamp/api/manage"
 	"github.com/cloudstax/firecamp/api/manage/error"
 	"github.com/cloudstax/firecamp/catalog/redis"
@@ -133,34 +132,13 @@ func (s *CatalogHTTPServer) updateRedisConfigs(ctx context.Context, req *manage.
 	return nil
 }
 
-func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, requuid string) error {
-	// parse the request
-	req := &catalog.CatalogSetRedisInitRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		glog.Errorln("CatalogSetRedisInitRequest decode request error", err, "requuid", requuid)
-		return clienterr.New(http.StatusBadRequest, err.Error())
-	}
-
-	if req.Cluster != s.cluster || req.Region != s.region {
-		glog.Errorln("CatalogSetRedisInitRequest invalid request, local cluster", s.cluster,
-			"region", s.region, "requuid", requuid, req)
-		return clienterr.New(http.StatusBadRequest, "invalid region or cluster")
-	}
-
+func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) error {
 	glog.Infoln("setRedisInit", req.ServiceName, "requuid", requuid)
-
-	commonReq := &manage.ServiceCommonRequest{
-		Region:             req.Region,
-		Cluster:            req.Cluster,
-		ServiceName:        req.ServiceName,
-		CatalogServiceType: common.CatalogService_Redis,
-	}
 
 	// enable redis auth
 	statusMsg := "enable redis auth"
 	s.catalogSvcInit.UpdateTaskStatusMsg(req.ServiceName, statusMsg)
-	err = s.enableRedisAuth(ctx, commonReq, requuid)
+	err := s.enableRedisAuth(ctx, req, requuid)
 	if err != nil {
 		glog.Errorln("enableRedisAuth error", err, "requuid", requuid, req)
 		return err
@@ -174,13 +152,13 @@ func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, r
 	s.catalogSvcInit.UpdateTaskStatusMsg(req.ServiceName, statusMsg)
 
 	// restart service containers
-	err = s.managecli.StopService(ctx, commonReq)
+	err = s.managecli.StopService(ctx, req)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
 		return err
 	}
 
-	err = s.managecli.StartService(ctx, commonReq)
+	err = s.managecli.StartService(ctx, req)
 	if err != nil {
 		glog.Errorln("StartService error", err, "requuid", requuid, req)
 		return err
@@ -189,7 +167,7 @@ func (s *CatalogHTTPServer) setRedisInit(ctx context.Context, r *http.Request, r
 	// set service initialized
 	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
 
-	return s.managecli.SetServiceInitialized(ctx, commonReq)
+	return s.managecli.SetServiceInitialized(ctx, req)
 }
 
 func (s *CatalogHTTPServer) enableRedisAuth(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) error {

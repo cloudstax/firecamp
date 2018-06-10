@@ -80,20 +80,13 @@ func (s *CatalogHTTPServer) addMongoDBInitTask(ctx context.Context, req *manage.
 	glog.Infoln("add init task for service", req, "requuid", requuid)
 }
 
-func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.CatalogSetServiceInitRequest, requuid string) error {
+func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) error {
 	glog.Infoln("setMongoDBInit", req.ServiceName, "requuid", requuid)
-
-	commonReq := &manage.ServiceCommonRequest{
-		Region:             req.Region,
-		Cluster:            req.Cluster,
-		ServiceName:        req.ServiceName,
-		CatalogServiceType: req.ServiceType,
-	}
 
 	// enable mongodb auth
 	statusMsg := "enable mongodb auth"
 	s.catalogSvcInit.UpdateTaskStatusMsg(req.ServiceName, statusMsg)
-	err := s.enableMongoDBAuth(ctx, commonReq, requuid)
+	err := s.enableMongoDBAuth(ctx, req, requuid)
 	if err != nil {
 		glog.Errorln("enableMongoDBAuth error", err, "requuid", requuid, req)
 		return err
@@ -107,13 +100,13 @@ func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.Cat
 	s.catalogSvcInit.UpdateTaskStatusMsg(req.ServiceName, statusMsg)
 
 	// restart service containers
-	err = s.managecli.StopService(ctx, commonReq)
+	err = s.managecli.StopService(ctx, req)
 	if err != nil {
 		glog.Errorln("StopService error", err, "requuid", requuid, req)
 		return err
 	}
 
-	err = s.managecli.StartService(ctx, commonReq)
+	err = s.managecli.StartService(ctx, req)
 	if err != nil {
 		glog.Errorln("StartService error", err, "requuid", requuid, req)
 		return err
@@ -122,7 +115,7 @@ func (s *CatalogHTTPServer) setMongoDBInit(ctx context.Context, req *catalog.Cat
 	// set service initialized
 	glog.Infoln("all containers restarted, set service initialized, requuid", requuid, req)
 
-	return s.managecli.SetServiceInitialized(ctx, commonReq)
+	return s.managecli.SetServiceInitialized(ctx, req)
 }
 
 func (s *CatalogHTTPServer) enableMongoDBAuth(ctx context.Context, req *manage.ServiceCommonRequest, requuid string) error {
