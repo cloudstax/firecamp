@@ -124,6 +124,17 @@ AddSlaveNodes() {
   done
 }
 
+SetServiceInit() {
+  if [ "$OP" = "?Catalog-Set-Redis-Init" ]; then
+    # the old special redis init request
+    data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\"}"
+    curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
+  else
+    data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"ServiceType\":\"$SERVICE_TYPE\"}"
+    curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
+  fi
+}
+
 # wait till all nodes' DNS are ready
 masterips=""
 for m in "${masters[@]}"
@@ -183,14 +194,7 @@ fi
 AddSlaveNodes
 
 # set service initialized
-if [ "$OP" = "?Catalog-Set-Redis-Init" ]; then
-  # the old special redis init request
-  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\"}"
-  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
-else
-  data="{\"Region\":\"$REGION\",\"Cluster\":\"$CLUSTER\",\"ServiceName\":\"$SERVICE_NAME\",\"ServiceType\":\"$SERVICE_TYPE\"}"
-  curl -X PUT -H "Content-Type: application/json" -d $data "$MANAGE_SERVER_URL/$OP"
-fi
+SetServiceInit
 
 # sleep some time for the server to restart all containers
 sleep 20
