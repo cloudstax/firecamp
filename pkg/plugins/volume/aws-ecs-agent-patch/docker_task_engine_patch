@@ -9,7 +9,7 @@
 +
 +	hostConfig, vderr := AddVolumeDriver(hostConfig, engine.cfg.Cluster, task.Arn, task.Family)
 + if vderr != nil {
-+   return DockerContainerMetadata{Error: api.NamedError(vderr)}
++   return dockerapi.DockerContainerMetadata{Error: apierrors.NamedError(vderr)}
 + }
 +
 +	seelog.Infof("firecamp volume updated hostConfig Binds %s, VolumeDriver %s, LogConfig %s", hostConfig.Binds, hostConfig.VolumeDriver, hostConfig.LogConfig)
