@@ -1942,7 +1942,7 @@ func upgradeService(ctx context.Context, cli *manageclient.ManageClient, commonR
 		req.ContainerImage = kccatalog.ReleaseContainerImage
 	}
 
-	err := cli.UpgradeService(ctx, commonReq)
+	err := cli.UpgradeService(ctx, req)
 	if err != nil {
 		fmt.Println(time.Now().UTC(), "UpgradeService error", err)
 		os.Exit(-1)

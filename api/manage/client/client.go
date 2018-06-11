@@ -203,7 +203,7 @@ func (c *ManageClient) StartService(ctx context.Context, r *manage.ServiceCommon
 }
 
 // UpgradeService upgrades the service to the current release
-func (c *ManageClient) UpgradeService(ctx context.Context, r *manage.ServiceCommonRequest) error {
+func (c *ManageClient) UpgradeService(ctx context.Context, r *manage.UpgradeServiceRequest) error {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return c.convertError(err)
