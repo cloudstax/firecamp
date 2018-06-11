@@ -1,423 +1,420 @@
 {
-  "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates the ECS cluster and FireCamp TaskDefinition",
-  "Parameters":{
-    "ClusterName":{
-      "Type":"String",
-      "Description":"Name of the ECS cluster.",
-      "Default":"default",
-      "MinLength": "1",
-      "MaxLength": "255",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
-    },
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
-    },
-    "DBType": {
-      "AllowedValues": [
-        "clouddb"
-      ],
-      "Default": "clouddb",
-      "Type": "String"
-    },
-    "AvailabilityZones": {
-      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
-      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
-    },
-    "SubnetIDs": {
-      "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s)."
-    },
-    "NumberOfNodes":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of instances to launch."
-    },
-    "ServiceSecurityGroupID": {
-      "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The SecurityGroup to access the services in the cluster."
-    },
-    "InternalAccessSecurityGroupID": {
-      "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
-    },
-    "NodeInstanceProfileID": {
-      "Type": "String",
-      "Default": "",
-      "Description": "ID of the instance IAM Profile"
-    },
-    "QSS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Default": "quickstart-reference",
-      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Type": "String"
-    },
-    "QSS3KeyPrefix": {
-      "Default": "cloudstax/firecamp/latest/",
-      "Type": "String"
-    },
-    "Release": {
-      "Type": "String",
-      "Default": "latest",
-      "Description": "The FireCamp System Services release version"
-    },
-    "CatalogRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "Description": "The FireCamp Catalog Service release version"
-    },
-    "NodeAMIOS": {
-      "Default": "Amazon-Linux-HVM",
-      "Description": "The Linux distribution for the AMI to be used for the service instances",
-      "Type": "String"
-    },
-    "NodeInstanceType":{
-      "Description":"EC2 instance type",
-      "Type":"String",
-      "Default":"t2.micro",
-      "ConstraintDescription":"Please choose a valid instance type."
-    }
-  },
-  "Conditions": {
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
+    "AWSTemplateFormatVersion":"2010-09-09",
+    "Description": "This template creates the ECS cluster and FireCamp TaskDefinition",
+    "Parameters":{
+        "ClusterName":{
+            "Type":"String",
+            "Description":"Name of the ECS cluster.",
+            "Default":"default",
+            "MinLength": "1",
+            "MaxLength": "255",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+            "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
         },
-        "us-gov-west-1"
-      ]
-    }
-  },
-  "Resources":{
-    "ECSCluster":{
-      "Type":"AWS::ECS::Cluster",
-      "Properties" : {
-        "ClusterName" : {
-          "Ref": "ClusterName"
-        }
-      }
-    },
-
-    "ManageServerLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref": "ClusterName"
-              },
-              "manageserver-firecamp"
-            ]
-          ]
+        "KeyPairName":{
+            "Type":"AWS::EC2::KeyPair::KeyName",
+            "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
-        "RetentionInDays": "120"
-      }
-    },
-    "ManageServerTaskdefinition":{
-      "Type":"AWS::ECS::TaskDefinition",
-      "Properties":{
-        "Family":{
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref":"ClusterName"
-              },
-              "firecamp-manageserver"
-            ]
-          ]
-        },
-        "ContainerDefinitions":[
-          {
-            "Name":{
-              "Fn::Join":[
-                "-",
-                [
-                  {
-                    "Ref": "ClusterName"
-                  },
-                  "firecamp-manageserver-container"
-                ]
-              ]
-            },
-            "Cpu":"128",
-            "Essential":"true",
-            "Image": {
-              "Fn::Join": [
-                ":",
-                [
-                  "cloudstax/firecamp-manageserver",
-                  {
-                    "Ref": "Release"
-                  }
-                ]
-              ]
-            },
-            "Memory":"2048",
-            "MemoryReservation":"128",
-            "PortMappings":[
-              {
-                "ContainerPort": "27040",
-                "HostPort": "27040",
-                "Protocol": "tcp"
-              }
+        "DBType": {
+            "AllowedValues": [
+                "clouddb"
             ],
-            "LogConfiguration": {
-              "LogDriver": "awslogs",
-              "Options": {
-                "awslogs-region": {
-                  "Ref": "AWS::Region"
-                },
-                "awslogs-group": {
-                  "Ref": "ManageServerLogGroup"
-                },
-                "awslogs-stream-prefix": "manageserver"
-              }
-            },
-            "Environment":[
-              {
-                "Name": "CONTAINER_PLATFORM",
-                "Value": "ecs"
-              },
-              {
-                "Name": "CLUSTER",
-                "Value": {
-                  "Ref": "ClusterName"
-                }
-              },
-              {
-                "Name": "DB_TYPE",
-                "Value": {
-                  "Ref": "DBType"
-                }
-              },
-              {
-                "Name": "AVAILABILITY_ZONES",
-                "Value": {
-                  "Fn::Join": [
-                    ",",
-                    {
-                      "Ref": "AvailabilityZones"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    "ManageServerECSService":{
-      "Type":"AWS::ECS::Service",
-      "DependsOn": "ServiceAutoScalingGroup",
-      "Properties":{
-        "Cluster":{
-          "Ref": "ClusterName"
+            "Default": "clouddb",
+            "Type": "String"
         },
-        "DesiredCount":"1",
-        "ServiceName": "firecamp-manageserver",
-        "TaskDefinition":{
-          "Ref": "ManageServerTaskdefinition"
+        "AvailabilityZones": {
+            "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+            "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+        },
+        "SubnetIDs": {
+            "Type": "List<AWS::EC2::Subnet::Id>",
+            "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s)."
+        },
+        "NumberOfNodes":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of instances to launch."
+        },
+        "ServiceSecurityGroupID": {
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "The SecurityGroup to access the services in the cluster."
+        },
+        "InternalAccessSecurityGroupID": {
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+        },
+        "NodeInstanceProfileID": {
+            "Type": "String",
+            "Default": "",
+            "Description": "ID of the instance IAM Profile"
+        },
+        "QSS3BucketName": {
+            "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+            "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Default": "aws-quickstart",
+            "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Type": "String"
+        },
+        "QSS3KeyPrefix": {
+            "Default": "quickstart-cloudstax-firecamp/",
+            "Type": "String"
+        },
+        "Release": {
+            "Type": "String",
+            "Default": "latest",
+            "Description": "The FireCamp System Services release version"
+        },
+        "CatalogRelease": {
+            "Type": "String",
+            "Default": "latest",
+            "Description": "The FireCamp Catalog Service release version"
+        },
+        "NodeAMIOS": {
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the service instances",
+            "Type": "String"
+        },
+        "NodeInstanceType":{
+            "Description":"EC2 instance type",
+            "Type":"String",
+            "Default":"t2.micro",
+            "ConstraintDescription":"Please choose a valid instance type."
         }
-      }
     },
-
-    "CatalogServiceLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref": "ClusterName"
-              },
-              "catalogservice-firecamp"
+    "Conditions": {
+        "GovCloudCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AWS::Region"
+                },
+                "us-gov-west-1"
             ]
-          ]
-        },
-        "RetentionInDays": "120"
-      }
+        }
     },
-    "CatalogServiceTaskdefinition":{
-      "Type":"AWS::ECS::TaskDefinition",
-      "Properties":{
-        "Family":{
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref":"ClusterName"
-              },
-              "firecamp-catalogservice"
-            ]
-          ]
-        },
-        "ContainerDefinitions":[
-          {
-            "Name":{
-              "Fn::Join":[
-                "-",
-                [
-                  {
+    "Resources":{
+        "ECSCluster":{
+            "Type":"AWS::ECS::Cluster",
+            "Properties" : {
+                "ClusterName" : {
                     "Ref": "ClusterName"
-                  },
-                  "firecamp-catalogservice-container"
-                ]
-              ]
-            },
-            "Cpu":"128",
-            "Essential":"true",
-            "Image": {
-              "Fn::Join": [
-                ":",
-                [
-                  "cloudstax/firecamp-catalogservice",
-                  {
-                    "Ref": "CatalogRelease"
-                  }
-                ]
-              ]
-            },
-            "Memory":"2048",
-            "MemoryReservation":"128",
-            "PortMappings":[
-              {
-                "ContainerPort": "27041",
-                "HostPort": "27041",
-                "Protocol": "tcp"
-              }
-            ],
-            "LogConfiguration": {
-              "LogDriver": "awslogs",
-              "Options": {
-                "awslogs-region": {
-                  "Ref": "AWS::Region"
-                },
-                "awslogs-group": {
-                  "Ref": "CatalogServiceLogGroup"
-                },
-                "awslogs-stream-prefix": "catalogservice"
-              }
-            },
-            "Environment":[
-              {
-                "Name": "CONTAINER_PLATFORM",
-                "Value": "ecs"
-              },
-              {
-                "Name": "CLUSTER",
-                "Value": {
-                  "Ref": "ClusterName"
                 }
-              },
-              {
-                "Name": "AVAILABILITY_ZONES",
-                "Value": {
-                  "Fn::Join": [
-                    ",",
-                    {
-                      "Ref": "AvailabilityZones"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      }
-    },
-    "CatalogServiceECSService":{
-      "Type":"AWS::ECS::Service",
-      "DependsOn": "ServiceAutoScalingGroup",
-      "Properties":{
-        "Cluster":{
-          "Ref": "ClusterName"
-        },
-        "DesiredCount":"1",
-        "ServiceName": "firecamp-catalogservice",
-        "TaskDefinition":{
-          "Ref": "CatalogServiceTaskdefinition"
-        }
-      }
-    },
-
-    "ServiceAutoScalingGroup": {
-      "DependsOn": "ECSCluster",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
             }
-          ]
         },
-        "Parameters": {
-          "ContainerPlatform": "ecs",
-          "ClusterName": {
-            "Ref": "ClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "Release": {
-            "Ref": "Release"
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          },
-          "SubnetIDs": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "SubnetIDs"
-              }
-            ]
-          },
-          "NumberOfNodes": {
-            "Ref": "NumberOfNodes"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroupID"
-          },
-          "InternalAccessSecurityGroupID": {
-            "Ref": "InternalAccessSecurityGroupID"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfileID"
-          },
-          "NodeAMIOS": {
-            "Ref": "NodeAMIOS"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": {
-            "Ref": "QSS3KeyPrefix"
-          }
+        "ManageServerLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            "manageserver-firecamp"
+                        ]
+                    ]
+                },
+                "RetentionInDays": "120"
+            }
+        },
+        "ManageServerTaskdefinition":{
+            "Type":"AWS::ECS::TaskDefinition",
+            "Properties":{
+                "Family":{
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref":"ClusterName"
+                            },
+                            "firecamp-manageserver"
+                        ]
+                    ]
+                },
+                "ContainerDefinitions":[
+                    {
+                        "Name":{
+                            "Fn::Join":[
+                                "-",
+                                [
+                                    {
+                                        "Ref": "ClusterName"
+                                    },
+                                    "firecamp-manageserver-container"
+                                ]
+                            ]
+                        },
+                        "Cpu":"128",
+                        "Essential":"true",
+                        "Image": {
+                            "Fn::Join": [
+                                ":",
+                                [
+                                    "cloudstax/firecamp-manageserver",
+                                    {
+                                        "Ref": "Release"
+                                    }
+                                ]
+                            ]
+                        },
+                        "Memory":"2048",
+                        "MemoryReservation":"128",
+                        "PortMappings":[
+                            {
+                                "ContainerPort": "27040",
+                                "HostPort": "27040",
+                                "Protocol": "tcp"
+                            }
+                        ],
+                        "LogConfiguration": {
+                            "LogDriver": "awslogs",
+                            "Options": {
+                                "awslogs-region": {
+                                    "Ref": "AWS::Region"
+                                },
+                                "awslogs-group": {
+                                    "Ref": "ManageServerLogGroup"
+                                },
+                                "awslogs-stream-prefix": "manageserver"
+                            }
+                        },
+                        "Environment":[
+                            {
+                                "Name": "CONTAINER_PLATFORM",
+                                "Value": "ecs"
+                            },
+                            {
+                                "Name": "CLUSTER",
+                                "Value": {
+                                    "Ref": "ClusterName"
+                                }
+                            },
+                            {
+                                "Name": "DB_TYPE",
+                                "Value": {
+                                    "Ref": "DBType"
+                                }
+                            },
+                            {
+                                "Name": "AVAILABILITY_ZONES",
+                                "Value": {
+                                    "Fn::Join": [
+                                        ",",
+                                        {
+                                            "Ref": "AvailabilityZones"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "ManageServerECSService":{
+            "Type":"AWS::ECS::Service",
+            "DependsOn": "ServiceAutoScalingGroup",
+            "Properties":{
+                "Cluster":{
+                    "Ref": "ClusterName"
+                },
+                "DesiredCount":"1",
+                "ServiceName": "firecamp-manageserver",
+                "TaskDefinition":{
+                    "Ref": "ManageServerTaskdefinition"
+                }
+            }
+        },
+        "CatalogServiceLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            "catalogservice-firecamp"
+                        ]
+                    ]
+                },
+                "RetentionInDays": "120"
+            }
+        },
+        "CatalogServiceTaskdefinition":{
+            "Type":"AWS::ECS::TaskDefinition",
+            "Properties":{
+                "Family":{
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref":"ClusterName"
+                            },
+                            "firecamp-catalogservice"
+                        ]
+                    ]
+                },
+                "ContainerDefinitions":[
+                    {
+                        "Name":{
+                            "Fn::Join":[
+                                "-",
+                                [
+                                    {
+                                        "Ref": "ClusterName"
+                                    },
+                                    "firecamp-catalogservice-container"
+                                ]
+                            ]
+                        },
+                        "Cpu":"128",
+                        "Essential":"true",
+                        "Image": {
+                            "Fn::Join": [
+                                ":",
+                                [
+                                    "cloudstax/firecamp-catalogservice",
+                                    {
+                                        "Ref": "CatalogRelease"
+                                    }
+                                ]
+                            ]
+                        },
+                        "Memory":"2048",
+                        "MemoryReservation":"128",
+                        "PortMappings":[
+                            {
+                                "ContainerPort": "27041",
+                                "HostPort": "27041",
+                                "Protocol": "tcp"
+                            }
+                        ],
+                        "LogConfiguration": {
+                            "LogDriver": "awslogs",
+                            "Options": {
+                                "awslogs-region": {
+                                    "Ref": "AWS::Region"
+                                },
+                                "awslogs-group": {
+                                    "Ref": "CatalogServiceLogGroup"
+                                },
+                                "awslogs-stream-prefix": "catalogservice"
+                            }
+                        },
+                        "Environment":[
+                            {
+                                "Name": "CONTAINER_PLATFORM",
+                                "Value": "ecs"
+                            },
+                            {
+                                "Name": "CLUSTER",
+                                "Value": {
+                                    "Ref": "ClusterName"
+                                }
+                            },
+                            {
+                                "Name": "AVAILABILITY_ZONES",
+                                "Value": {
+                                    "Fn::Join": [
+                                        ",",
+                                        {
+                                            "Ref": "AvailabilityZones"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "CatalogServiceECSService":{
+            "Type":"AWS::ECS::Service",
+            "DependsOn": "ServiceAutoScalingGroup",
+            "Properties":{
+                "Cluster":{
+                    "Ref": "ClusterName"
+                },
+                "DesiredCount":"1",
+                "ServiceName": "firecamp-catalogservice",
+                "TaskDefinition":{
+                    "Ref": "CatalogServiceTaskdefinition"
+                }
+            }
+        },
+        "ServiceAutoScalingGroup": {
+            "DependsOn": "ECSCluster",
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "ContainerPlatform": "ecs",
+                    "ClusterName": {
+                        "Ref": "ClusterName"
+                    },
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "Release": {
+                        "Ref": "Release"
+                    },
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
+                    },
+                    "SubnetIDs": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "SubnetIDs"
+                            }
+                        ]
+                    },
+                    "NumberOfNodes": {
+                        "Ref": "NumberOfNodes"
+                    },
+                    "ServiceSecurityGroupID": {
+                        "Ref": "ServiceSecurityGroupID"
+                    },
+                    "InternalAccessSecurityGroupID": {
+                        "Ref": "InternalAccessSecurityGroupID"
+                    },
+                    "NodeInstanceProfileID": {
+                        "Ref": "NodeInstanceProfileID"
+                    },
+                    "NodeAMIOS": {
+                        "Ref": "NodeAMIOS"
+                    },
+                    "NodeInstanceType":{
+                        "Ref": "NodeInstanceType"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    }
+                }
+            }
         }
-      }
     }
-  }
 }

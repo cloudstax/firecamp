@@ -1,282 +1,281 @@
 {
-  "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates the Swarm cluster with the FireCamp manager service.",
-  "Parameters":{
-    "ClusterName":{
-      "Type":"String",
-      "Description":"Name of the cluster.",
-      "Default":"default",
-      "MinLength": "1",
-      "MaxLength": "255",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
-    },
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
-    },
-    "DBType": {
-      "AllowedValues": [
-        "clouddb"
-      ],
-      "Default": "clouddb",
-      "Type": "String"
-    },
-    "AvailabilityZones": {
-      "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
-      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
-    },
-    "SubnetIDs": {
-      "Type": "List<AWS::EC2::Subnet::Id>",
-      "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s)."
-    },
-    "NumberOfManagers":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of the Swarm manager instances to launch."
-    },
-    "NumberOfNodes":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of the Swarm worker instances to launch."
-    },
-    "ServiceSecurityGroupID": {
-      "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The SecurityGroup to access the services in the cluster."
-    },
-    "InternalAccessSecurityGroupID": {
-      "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The internal SecurityGroup for the cluster nodes to access each other."
-    },
-    "NodeInstanceProfileID": {
-      "Type": "String",
-      "Default": "",
-      "Description": "ID of the instance IAM Profile"
-    },
-    "QSS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Default": "quickstart-reference",
-      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Type": "String"
-    },
-    "QSS3KeyPrefix": {
-      "Default": "cloudstax/firecamp/latest/",
-      "Type": "String"
-    },
-    "Release": {
-      "Type": "String",
-      "Default": "latest",
-      "Description": "The FireCamp System Services release version"
-    },
-    "CatalogRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "Description": "The FireCamp Catalog Service release version"
-    },
-    "NodeAMIOS": {
-      "Default": "Amazon-Linux-HVM",
-      "Description": "The Linux distribution for the AMI to be used for the service instances",
-      "Type": "String"
-    },
-    "NodeInstanceType":{
-      "Description":"EC2 instance type",
-      "Type":"String",
-      "Default":"t2.micro",
-      "ConstraintDescription":"Please choose a valid instance type."
-    }
-  },
-  "Conditions": {
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
+    "AWSTemplateFormatVersion":"2010-09-09",
+    "Description": "This template creates the Swarm cluster with the FireCamp manager service.",
+    "Parameters":{
+        "ClusterName":{
+            "Type":"String",
+            "Description":"Name of the cluster.",
+            "Default":"default",
+            "MinLength": "1",
+            "MaxLength": "255",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+            "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
         },
-        "us-gov-west-1"
-      ]
-    }
-  },
-  "Resources":{
-    "ManageServerLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref": "ClusterName"
-              },
-              "manageserver-firecamp"
-            ]
-          ]
+        "KeyPairName":{
+            "Type":"AWS::EC2::KeyPair::KeyName",
+            "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
-        "RetentionInDays": "120"
-      }
-    },
-    "CatalogServiceLogGroup": {
-      "Type": "AWS::Logs::LogGroup",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join":[
-            "-",
-            [
-              {
-                "Ref": "ClusterName"
-              },
-              "catalogservice-firecamp"
-            ]
-          ]
+        "DBType": {
+            "AllowedValues": [
+                "clouddb"
+            ],
+            "Default": "clouddb",
+            "Type": "String"
         },
-        "RetentionInDays": "120"
-      }
-    },
-
-    "ManagerAutoScalingGroup": {
-      "Type": "AWS::CloudFormation::Stack",
-      "DependsOn": "ManageServerLogGroup",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
+        "AvailabilityZones": {
+            "Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+            "Type": "List<AWS::EC2::AvailabilityZone::Name>"
         },
-        "Parameters": {
-          "ContainerPlatform": "swarm",
-          "ContainerPlatformRole": "manager",
-          "ClusterName": {
-            "Ref": "ClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "Release": {
-            "Ref": "Release"
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          },
-          "SubnetIDs": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "SubnetIDs"
-              }
-            ]
-          },
-          "NumberOfNodes": {
-            "Ref": "NumberOfManagers"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroupID"
-          },
-          "InternalAccessSecurityGroupID": {
-            "Ref": "InternalAccessSecurityGroupID"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfileID"
-          },
-          "NodeAMIOS": {
-            "Ref": "NodeAMIOS"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": {
-            "Ref": "QSS3KeyPrefix"
-          }
+        "SubnetIDs": {
+            "Type": "List<AWS::EC2::Subnet::Id>",
+            "Description": "Subnet-ID the existing subnet in your VPC where you want to deploy node(s)."
+        },
+        "NumberOfManagers":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of the Swarm manager instances to launch."
+        },
+        "NumberOfNodes":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of the Swarm worker instances to launch."
+        },
+        "ServiceSecurityGroupID": {
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "The SecurityGroup to access the services in the cluster."
+        },
+        "InternalAccessSecurityGroupID": {
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "The internal SecurityGroup for the cluster nodes to access each other."
+        },
+        "NodeInstanceProfileID": {
+            "Type": "String",
+            "Default": "",
+            "Description": "ID of the instance IAM Profile"
+        },
+        "QSS3BucketName": {
+            "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+            "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Default": "aws-quickstart",
+            "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Type": "String"
+        },
+        "QSS3KeyPrefix": {
+            "Default": "quickstart-cloudstax-firecamp/",
+            "Type": "String"
+        },
+        "Release": {
+            "Type": "String",
+            "Default": "latest",
+            "Description": "The FireCamp System Services release version"
+        },
+        "CatalogRelease": {
+            "Type": "String",
+            "Default": "latest",
+            "Description": "The FireCamp Catalog Service release version"
+        },
+        "NodeAMIOS": {
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the service instances",
+            "Type": "String"
+        },
+        "NodeInstanceType":{
+            "Description":"EC2 instance type",
+            "Type":"String",
+            "Default":"t2.micro",
+            "ConstraintDescription":"Please choose a valid instance type."
         }
-      }
     },
-    "WorkerAutoScalingGroup": {
-      "DependsOn": "ManagerAutoScalingGroup",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ContainerPlatform": "swarm",
-          "ContainerPlatformRole": "worker",
-          "ClusterName": {
-            "Ref": "ClusterName"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "Release": {
-            "Ref": "Release"
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
+    "Conditions": {
+        "GovCloudCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AWS::Region"
+                },
+                "us-gov-west-1"
             ]
-          },
-          "SubnetIDs": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "SubnetIDs"
-              }
-            ]
-          },
-          "NumberOfNodes": {
-            "Ref": "NumberOfNodes"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroupID"
-          },
-          "InternalAccessSecurityGroupID": {
-            "Ref": "InternalAccessSecurityGroupID"
-          },
-          "NodeInstanceProfileID": {
-            "Ref": "NodeInstanceProfileID"
-          },
-          "NodeAMIOS": {
-            "Ref": "NodeAMIOS"
-          },
-          "NodeInstanceType":{
-            "Ref": "NodeInstanceType"
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": {
-            "Ref": "QSS3KeyPrefix"
-          }
         }
-      }
+    },
+    "Resources":{
+        "ManageServerLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            "manageserver-firecamp"
+                        ]
+                    ]
+                },
+                "RetentionInDays": "120"
+            }
+        },
+        "CatalogServiceLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join":[
+                        "-",
+                        [
+                            {
+                                "Ref": "ClusterName"
+                            },
+                            "catalogservice-firecamp"
+                        ]
+                    ]
+                },
+                "RetentionInDays": "120"
+            }
+        },
+        "ManagerAutoScalingGroup": {
+            "Type": "AWS::CloudFormation::Stack",
+            "DependsOn": "ManageServerLogGroup",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "ContainerPlatform": "swarm",
+                    "ContainerPlatformRole": "manager",
+                    "ClusterName": {
+                        "Ref": "ClusterName"
+                    },
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "Release": {
+                        "Ref": "Release"
+                    },
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
+                    },
+                    "SubnetIDs": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "SubnetIDs"
+                            }
+                        ]
+                    },
+                    "NumberOfNodes": {
+                        "Ref": "NumberOfManagers"
+                    },
+                    "ServiceSecurityGroupID": {
+                        "Ref": "ServiceSecurityGroupID"
+                    },
+                    "InternalAccessSecurityGroupID": {
+                        "Ref": "InternalAccessSecurityGroupID"
+                    },
+                    "NodeInstanceProfileID": {
+                        "Ref": "NodeInstanceProfileID"
+                    },
+                    "NodeAMIOS": {
+                        "Ref": "NodeAMIOS"
+                    },
+                    "NodeInstanceType":{
+                        "Ref": "NodeInstanceType"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    }
+                }
+            }
+        },
+        "WorkerAutoScalingGroup": {
+            "DependsOn": "ManagerAutoScalingGroup",
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-autoscalegroup.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "ContainerPlatform": "swarm",
+                    "ContainerPlatformRole": "worker",
+                    "ClusterName": {
+                        "Ref": "ClusterName"
+                    },
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "Release": {
+                        "Ref": "Release"
+                    },
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
+                    },
+                    "SubnetIDs": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "SubnetIDs"
+                            }
+                        ]
+                    },
+                    "NumberOfNodes": {
+                        "Ref": "NumberOfNodes"
+                    },
+                    "ServiceSecurityGroupID": {
+                        "Ref": "ServiceSecurityGroupID"
+                    },
+                    "InternalAccessSecurityGroupID": {
+                        "Ref": "InternalAccessSecurityGroupID"
+                    },
+                    "NodeInstanceProfileID": {
+                        "Ref": "NodeInstanceProfileID"
+                    },
+                    "NodeAMIOS": {
+                        "Ref": "NodeAMIOS"
+                    },
+                    "NodeInstanceType":{
+                        "Ref": "NodeInstanceType"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    }
+                }
+            }
+        }
     }
-  }
 }

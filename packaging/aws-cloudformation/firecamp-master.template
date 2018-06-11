@@ -1,875 +1,877 @@
 {
-  "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc54)",
-  "Metadata": {
-    "AWS::CloudFormation::Interface": {
-      "ParameterGroups": [
-        {
-          "Label": {
-            "default": "Network Configuration"
-          },
-          "Parameters": [
-            "AvailabilityZones",
-            "NumberOfAZs",
-            "VPCCIDR",
-            "PrivateSubnet1CIDR",
-            "PrivateSubnet2CIDR",
-            "PrivateSubnet3CIDR",
-            "PublicSubnet1CIDR",
-            "PublicSubnet2CIDR",
-            "PublicSubnet3CIDR",
-            "RemoteAccessCIDR"
-          ]
-        },
-        {
-          "Label": {
-            "default": "Security Configuration"
-          },
-          "Parameters": [
-            "KeyPairName"
-          ]
-        },
-        {
-          "Label": {
-            "default": "Linux Bastion Amazon EC2 Configuration"
-          },
-          "Parameters": [
-            "BastionAMIOS",
-            "BastionInstanceType",
-            "NumBastionHosts"
-          ]
-        },
-        {
-          "Label": {
-            "default": "FireCamp Cluster Configuration"
-          },
-          "Parameters": [
-            "ContainerPlatform",
-            "ClusterName",
-            "Release",
-            "CatalogRelease",
-            "NumberOfManagers",
-            "NumberOfNodes",
-            "NodeAMIOS",
-            "NodeInstanceType"
-          ]
-        },
-        {
-          "Label": {
-            "default": "AWS Quick Start Configuration"
-          },
-          "Parameters": [
-            "QSS3BucketName",
-            "QSS3KeyPrefix"
-          ]
+    "AWSTemplateFormatVersion":"2010-09-09",
+    "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc54)",
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "AvailabilityZones",
+                        "NumberOfAZs",
+                        "VPCCIDR",
+                        "PrivateSubnet1CIDR",
+                        "PrivateSubnet2CIDR",
+                        "PrivateSubnet3CIDR",
+                        "PublicSubnet1CIDR",
+                        "PublicSubnet2CIDR",
+                        "PublicSubnet3CIDR",
+                        "RemoteAccessCIDR"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Security Configuration"
+                    },
+                    "Parameters": [
+                        "KeyPairName"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Linux Bastion Amazon EC2 Configuration"
+                    },
+                    "Parameters": [
+                        "BastionAMIOS",
+                        "BastionInstanceType",
+                        "NumBastionHosts"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "FireCamp Cluster Configuration"
+                    },
+                    "Parameters": [
+                        "ContainerPlatform",
+                        "ClusterName",
+                        "Release",
+                        "CatalogRelease",
+                        "NumberOfManagers",
+                        "NumberOfNodes",
+                        "NodeAMIOS",
+                        "NodeInstanceType"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "AWS Quick Start Configuration"
+                    },
+                    "Parameters": [
+                        "QSS3BucketName",
+                        "QSS3KeyPrefix"
+                    ]
+                }
+            ],
+            "ParameterLabels": {
+                "AvailabilityZones": {
+                    "default": "Availability Zones"
+                },
+                "NumberOfAZs": {
+                    "default": "Number of Availability Zones"
+                },
+                "VPCCIDR": {
+                    "default": "VPC CIDR"
+                },
+                "PrivateSubnet1CIDR": {
+                    "default": "Private Subnet 1 CIDR"
+                },
+                "PrivateSubnet2CIDR": {
+                    "default": "Private Subnet 2 CIDR"
+                },
+                "PrivateSubnet3CIDR": {
+                    "default": "Private Subnet 3 CIDR"
+                },
+                "PublicSubnet1CIDR": {
+                    "default": "Public Subnet 1 CIDR"
+                },
+                "PublicSubnet2CIDR": {
+                    "default": "Public Subnet 2 CIDR"
+                },
+                "PublicSubnet3CIDR": {
+                    "default": "Public Subnet 3 CIDR"
+                },
+                "RemoteAccessCIDR": {
+                    "default": "Allowed Bastion External Access CIDR"
+                },
+
+                "KeyPairName": {
+                    "default": "Key Pair Name"
+                },
+
+                "BastionAMIOS": {
+                    "default": "Bastion AMI Operating System"
+                },
+                "BastionInstanceType": {
+                    "default": "Bastion Instance Type"
+                },
+                "NumBastionHosts": {
+                    "default": "Number of Bastion Hosts"
+                },
+
+                "ContainerPlatform": {
+                    "default": "Container Platform"
+                },
+                "ClusterName": {
+                    "default": "Cluster Name"
+                },
+                "Release": {
+                    "default": "CloudStax FireCamp System Services Release Version"
+                },
+                "CatalogRelease": {
+                    "default": "CloudStax FireCamp Catalog Service Release Version"
+                },
+                "NumberOfManagers": {
+                    "default": "Number of Docker Swarm Managers"
+                },
+                "NumberOfNodes": {
+                    "default": "Number of Container Worker Nodes"
+                },
+                "NodeAMIOS": {
+                    "default": "Node AMI Type"
+                },
+                "NodeInstanceType": {
+                    "default": "Node Instance Type"
+                },
+
+                "QSS3BucketName": {
+                    "default": "Quick Start S3 Bucket Name"
+                },
+                "QSS3KeyPrefix": {
+                    "default": "Quick Start S3 Key Prefix"
+                }
+            }
         }
-      ],
-      "ParameterLabels": {
+    },
+    "Parameters":{
         "AvailabilityZones": {
-          "default": "Availability Zones"
+            "Description": "List of Availability Zones to use for the subnets in the VPC. This MUST match the number of AvailabilityZones. Please use 3 AvailabilityZones for the production system.",
+            "Type": "List<AWS::EC2::AvailabilityZone::Name>"
         },
         "NumberOfAZs": {
-          "default": "Number of Availability Zones"
+            "AllowedValues": [
+                "2",
+                "3"
+            ],
+            "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
+            "Default": "3",
+            "Type": "String"
         },
         "VPCCIDR": {
-          "default": "VPC CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "Default": "10.0.0.0/16",
+            "Type": "String",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Description": "CIDR Block for the VPC"
         },
         "PrivateSubnet1CIDR": {
-          "default": "Private Subnet 1 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.0.0/19",
+            "Description": "CIDR block for private subnet located in Availability Zone 1.",
+            "Type": "String"
         },
         "PrivateSubnet2CIDR": {
-          "default": "Private Subnet 2 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.32.0/19",
+            "Description": "CIDR block for private subnet located in Availability Zone 2.",
+            "Type": "String"
         },
         "PrivateSubnet3CIDR": {
-          "default": "Private Subnet 3 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.64.0/19",
+            "Description": "CIDR block for private subnet located in Availability Zone 3.",
+            "Type": "String"
         },
         "PublicSubnet1CIDR": {
-          "default": "Public Subnet 1 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.128.0/20",
+            "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 1.",
+            "Type": "String"
         },
         "PublicSubnet2CIDR": {
-          "default": "Public Subnet 2 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.144.0/20",
+            "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 2.",
+            "Type": "String"
         },
         "PublicSubnet3CIDR": {
-          "default": "Public Subnet 3 CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+            "Default": "10.0.160.0/20",
+            "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 3.",
+            "Type": "String"
         },
         "RemoteAccessCIDR": {
-          "default": "Allowed Bastion External Access CIDR"
+            "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+            "Type": "String",
+            "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+            "Description": "Allowed CIDR block for external SSH access to the Bastion nodes. MUST be in the form x.x.x.x/x"
         },
 
-        "KeyPairName": {
-          "default": "Key Pair Name"
+        "KeyPairName":{
+            "Type":"AWS::EC2::KeyPair::KeyName",
+            "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
         },
 
         "BastionAMIOS": {
-          "default": "Bastion AMI Operating System"
+            "AllowedValues": [
+                "Amazon-Linux-HVM",
+                "CentOS-7-HVM",
+                "Ubuntu-Server-14.04-LTS-HVM",
+                "Ubuntu-Server-16.04-LTS-HVM"
+            ],
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the bastion instances",
+            "Type": "String"
         },
         "BastionInstanceType": {
-          "default": "Bastion Instance Type"
+            "Default": "t2.micro",
+            "Type": "String",
+            "Description": "Amazon EC2 instance type for the second bastion instance",
+            "AllowedValues": [
+                "t2.nano",
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge"
+            ]
         },
         "NumBastionHosts": {
-          "default": "Number of Bastion Hosts"
+            "AllowedValues": [
+                "1",
+                "2",
+                "3",
+                "4"
+            ],
+            "Default": "2",
+            "Description": "Enter the number of bastion hosts to create",
+            "Type": "String"
         },
 
-        "ContainerPlatform": {
-          "default": "Container Platform"
+        "ContainerPlatform":{
+            "Type": "String",
+            "Default": "ecs",
+            "AllowedValues" : [ "ecs", "swarm" ],
+            "Description":"The container orchestration platform."
         },
-        "ClusterName": {
-          "default": "Cluster Name"
+        "ClusterName":{
+            "Type":"String",
+            "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
+            "MinLength": "1",
+            "MaxLength": "54",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+            "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
         },
-        "Release": {
-          "default": "CloudStax FireCamp System Services Release Version"
+        "NumberOfManagers":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
         },
-        "CatalogRelease": {
-          "default": "CloudStax FireCamp Catalog Service Release Version"
-        },
-        "NumberOfManagers": {
-          "default": "Number of Docker Swarm Managers"
-        },
-        "NumberOfNodes": {
-          "default": "Number of Container Worker Nodes"
+        "NumberOfNodes":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of container instances to launch in the cluster."
         },
         "NodeAMIOS": {
-          "default": "Node AMI Type"
+            "AllowedValues": [
+                "Amazon-Linux-HVM"
+            ],
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the service instances",
+            "Type": "String"
         },
-        "NodeInstanceType": {
-          "default": "Node Instance Type"
+        "Release": {
+            "Type": "String",
+            "Default": "latest",
+            "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
+            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
         },
-
+        "CatalogRelease": {
+            "Type": "String",
+            "Default": "latest",
+            "AllowedValues": [ "latest" ],
+            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+        },
         "QSS3BucketName": {
-          "default": "Quick Start S3 Bucket Name"
+            "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+            "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Default": "cloudstax",
+            "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Type": "String"
         },
         "QSS3KeyPrefix": {
-          "default": "Quick Start S3 Key Prefix"
+            "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
+            "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+            "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+            "Default": "firecamp/releases/latest/",
+            "Type": "String"
+        },
+        "NodeInstanceType":{
+            "Description":"EC2 instance type",
+            "Type":"String",
+            "Default":"m4.xlarge",
+            "AllowedValues":[
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t2.xlarge",
+                "t2.2xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "r4.large",
+                "r4.xlarge",
+                "r4.2xlarge",
+                "r4.4xlarge",
+                "r4.8xlarge",
+                "r4.16xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "c5.large",
+                "c5.xlarge",
+                "c5.2xlarge",
+                "c5.4xlarge",
+                "c5.9xlarge",
+                "c5.18xlarge"
+            ],
+            "ConstraintDescription":"Please choose a valid instance type."
         }
-      }
-    }
-  },
-  "Parameters":{
-    "AvailabilityZones": {
-      "Description": "List of Availability Zones to use for the subnets in the VPC. This MUST match the number of AvailabilityZones. Please use 3 AvailabilityZones for the production system.",
-      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
-    "NumberOfAZs": {
-      "AllowedValues": [
-        "2",
-        "3"
-      ],
-      "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
-      "Default": "3",
-      "Type": "String"
-    },
-    "VPCCIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "Default": "10.0.0.0/16",
-      "Type": "String",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Description": "CIDR Block for the VPC"
-    },
-    "PrivateSubnet1CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.0.0/19",
-      "Description": "CIDR block for private subnet located in Availability Zone 1.",
-      "Type": "String"
-    },
-    "PrivateSubnet2CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.32.0/19",
-      "Description": "CIDR block for private subnet located in Availability Zone 2.",
-      "Type": "String"
-    },
-    "PrivateSubnet3CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.64.0/19",
-      "Description": "CIDR block for private subnet located in Availability Zone 3.",
-      "Type": "String"
-    },
-    "PublicSubnet1CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.128.0/20",
-      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 1.",
-      "Type": "String"
-    },
-    "PublicSubnet2CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.144.0/20",
-      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 2.",
-      "Type": "String"
-    },
-    "PublicSubnet3CIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
-      "Default": "10.0.160.0/20",
-      "Description": "CIDR Block for the public (DMZ) subnet located in Availability Zone 3.",
-      "Type": "String"
-    },
-    "RemoteAccessCIDR": {
-      "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-      "Type": "String",
-      "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
-      "Description": "Allowed CIDR block for external SSH access to the Bastion nodes. MUST be in the form x.x.x.x/x"
-    },
-
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
-    },
-
-    "BastionAMIOS": {
-      "AllowedValues": [
-        "Amazon-Linux-HVM",
-        "CentOS-7-HVM",
-        "Ubuntu-Server-14.04-LTS-HVM",
-        "Ubuntu-Server-16.04-LTS-HVM"
-      ],
-      "Default": "Amazon-Linux-HVM",
-      "Description": "The Linux distribution for the AMI to be used for the bastion instances",
-      "Type": "String"
-    },
-    "BastionInstanceType": {
-        "Default": "t2.micro",
-        "Type": "String",
-        "Description": "Amazon EC2 instance type for the second bastion instance",
-        "AllowedValues": [
-            "t2.nano",
-            "t2.micro",
-            "t2.small",
-            "t2.medium",
-            "t2.large",
-            "m3.large",
-            "m3.xlarge",
-            "m3.2xlarge",
-            "m4.large",
-            "m4.xlarge",
-            "m4.2xlarge",
-            "m4.4xlarge"
-        ]
-    },
-    "NumBastionHosts": {
-      "AllowedValues": [
-        "1",
-        "2",
-        "3",
-        "4"
-      ],
-      "Default": "2",
-      "Description": "Enter the number of bastion hosts to create",
-      "Type": "String"
-    },
-
-    "ContainerPlatform":{
-      "Type": "String",
-      "Default": "ecs",
-      "AllowedValues" : [ "ecs", "swarm" ],
-      "Description":"The container orchestration platform."
-    },
-    "ClusterName":{
-      "Type":"String",
-      "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
-      "MinLength": "1",
-      "MaxLength": "54",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
-    },
-    "NumberOfManagers":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
-    },
-    "NumberOfNodes":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of container instances to launch in the cluster."
-    },
-    "NodeAMIOS": {
-      "AllowedValues": [
-        "Amazon-Linux-HVM"
-      ],
-      "Default": "Amazon-Linux-HVM",
-      "Description": "The Linux distribution for the AMI to be used for the service instances",
-      "Type": "String"
-    },
-    "Release": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
-      "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
-    },
-    "CatalogRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest" ],
-      "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
-    },
-    "QSS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Default": "cloudstax",
-      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Type": "String"
-    },
-    "QSS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
-      "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Default": "firecamp/releases/latest/",
-      "Type": "String"
-    },
-    "NodeInstanceType":{
-      "Description":"EC2 instance type",
-      "Type":"String",
-      "Default":"m4.xlarge",
-      "AllowedValues":[
-        "t2.micro",
-        "t2.small",
-        "t2.medium",
-        "t2.large",
-        "t2.xlarge",
-        "t2.2xlarge",
-        "m3.medium",
-        "m3.large",
-        "m3.xlarge",
-        "m3.2xlarge",
-        "m4.large",
-        "m4.xlarge",
-        "m4.2xlarge",
-        "m4.4xlarge",
-        "m4.10xlarge",
-        "r3.large",
-        "r3.xlarge",
-        "r3.2xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.large",
-        "r4.xlarge",
-        "r4.2xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
-        "c4.large",
-        "c4.xlarge",
-        "c4.2xlarge",
-        "c4.4xlarge",
-        "c4.8xlarge",
-        "c5.large",
-        "c5.xlarge",
-        "c5.2xlarge",
-        "c5.4xlarge",
-        "c5.9xlarge",
-        "c5.18xlarge"
-      ],
-      "ConstraintDescription":"Please choose a valid instance type."
-    }
-  },
-  "Conditions": {
-    "2AZCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "NumberOfAZs"
-        },
-        2
-      ]
-    },
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
-        },
-        "us-gov-west-1"
-      ]
-    }
-  },
-  "Resources":{
-    "VPCStack": {
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/aws/vpc/latest/templates/aws-vpc.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                 "GovCloudCondition",
-                 "s3-us-gov-west-1",
-                 "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
+    "Conditions": {
+        "2AZCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "NumberOfAZs"
+                },
+                2
             ]
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "NumberOfAZs": {
-            "Ref": "NumberOfAZs"
-          },
-          "PrivateSubnet1ACIDR": {
-            "Ref": "PrivateSubnet1CIDR"
-          },
-          "PrivateSubnet2ACIDR": {
-            "Ref": "PrivateSubnet2CIDR"
-          },
-          "PrivateSubnet3ACIDR": {
-            "Ref": "PrivateSubnet3CIDR"
-          },
-          "PublicSubnet1CIDR": {
-            "Ref": "PublicSubnet1CIDR"
-          },
-          "PublicSubnet2CIDR": {
-            "Ref": "PublicSubnet2CIDR"
-          },
-          "PublicSubnet3CIDR": {
-            "Ref": "PublicSubnet3CIDR"
-          },
-          "VPCCIDR": {
-            "Ref": "VPCCIDR"
-          }
+        },
+        "GovCloudCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AWS::Region"
+                },
+                "us-gov-west-1"
+            ]
         }
-      }
     },
-    "BastionStack": {
-      "DependsOn": "VPCStack",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/linux/bastion/latest/templates/linux-bastion.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                 "GovCloudCondition",
-                 "s3-us-gov-west-1",
-                 "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "BastionInstanceType": {
-            "Ref": "BastionInstanceType"
-          },
-          "NumBastionHosts": {
-            "Ref": "NumBastionHosts"
-          },
-          "BastionAMIOS": {
-            "Ref": "BastionAMIOS"
-          },
-          "EnableTCPForwarding": "true",
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "PublicSubnet1ID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.PublicSubnet1ID"
-            ]
-          },
-          "PublicSubnet2ID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.PublicSubnet2ID"
-            ]
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": "linux/bastion/latest/",
-          "RemoteAccessCIDR": {
-            "Ref": "RemoteAccessCIDR"
-          },
-          "VPCID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.VPCID"
-            ]
-          }
-        }
-      }
-    },
-
-    "AppAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Fn::GetAtt": [
-            "VPCStack",
-            "Outputs.VPCID"
-          ]
-        },
-        "GroupDescription": "Application instances with access to the services in cluster"
-      }
-    },
-    "ServiceSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Fn::GetAtt": [
-            "VPCStack",
-            "Outputs.VPCID"
-          ]
-        },
-        "GroupDescription": "The access ports to the services in cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "SourceSecurityGroupId": {
-              "Fn::GetAtt": [
-                "BastionStack",
-                "Outputs.BastionSecurityGroupID"
-              ]
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27040",
-            "ToPort": "27040",
-            "SourceSecurityGroupId": {
-              "Fn::GetAtt": [
-                "BastionStack",
-                "Outputs.BastionSecurityGroupID"
-              ]
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27017",
-            "ToPort": "27017",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27018",
-            "ToPort": "27018",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27019",
-            "ToPort": "27019",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5432",
-            "ToPort": "5432",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9042",
-            "ToPort": "9042",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "7199",
-            "ToPort": "7199",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9160",
-            "ToPort": "9160",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2181",
-            "ToPort": "2181",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9092",
-            "ToPort": "9092",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8083",
-            "ToPort": "8083",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "6379",
-            "ToPort": "6379",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5984",
-            "ToPort": "5984",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "6984",
-            "ToPort": "6984",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8300",
-            "ToPort": "8300",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8301",
-            "ToPort": "8301",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9200",
-            "ToPort": "9200",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5601",
-            "ToPort": "5601",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9600",
-            "ToPort": "9600",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5044",
-            "ToPort": "5044",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9000",
-            "ToPort": "9000",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-    "InternalAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Fn::GetAtt": [
-            "VPCStack",
-            "Outputs.VPCID"
-          ]
-        },
-        "GroupDescription": "The inter-server access ports in cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2000",
-            "ToPort": "30000",
-            "SourceSecurityGroupId": {
-              "Ref": "ServiceSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-
-    "FireCampStack": {
-      "DependsOn": "BastionStack",
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-common.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ContainerPlatform": {
-            "Ref": "ContainerPlatform"
-          },
-          "ClusterName": {
-            "Ref": "ClusterName"
-          },
-          "Release": {
-            "Ref": "Release"
-          },
-          "CatalogRelease": {
-            "Ref": "CatalogRelease"
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": {
-            "Ref": "QSS3KeyPrefix"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroup"
-          },
-          "InternalAccessSecurityGroupID": {
-            "Ref": "InternalAccessSecurityGroup"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "VPCID": {
-            "Fn::GetAtt": [
-              "VPCStack",
-              "Outputs.VPCID"
-            ]
-          },
-          "SubnetIDs": {
-            "Fn::If": [
-              "2AZCondition",
-              {
-                "Fn::Join": [
-                  ",",
-                  [
-                    {
-                      "Fn::GetAtt": [
-                        "VPCStack",
-                        "Outputs.PrivateSubnet1AID"
-                      ]
+    "Resources":{
+        "VPCStack": {
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
                     },
-                    {
-                      "Fn::GetAtt": [
-                        "VPCStack",
-                        "Outputs.PrivateSubnet2AID"
-                      ]
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "NumberOfAZs": {
+                        "Ref": "NumberOfAZs"
+                    },
+                    "PrivateSubnet1ACIDR": {
+                        "Ref": "PrivateSubnet1CIDR"
+                    },
+                    "PrivateSubnet2ACIDR": {
+                        "Ref": "PrivateSubnet2CIDR"
+                    },
+                    "PrivateSubnet3ACIDR": {
+                        "Ref": "PrivateSubnet3CIDR"
+                    },
+                    "PublicSubnet1CIDR": {
+                        "Ref": "PublicSubnet1CIDR"
+                    },
+                    "PublicSubnet2CIDR": {
+                        "Ref": "PublicSubnet2CIDR"
+                    },
+                    "PublicSubnet3CIDR": {
+                        "Ref": "PublicSubnet3CIDR"
+                    },
+                    "VPCCIDR": {
+                        "Ref": "VPCCIDR"
                     }
-                  ]
-                ]
-              },
-              {
-                "Fn::Join": [
-                  ",",
-                  [
-                    {
-                      "Fn::GetAtt": [
-                        "VPCStack",
-                        "Outputs.PrivateSubnet1AID"
-                      ]
+                }
+            }
+        },
+        "BastionStack": {
+            "DependsOn": "VPCStack",
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "BastionInstanceType": {
+                        "Ref": "BastionInstanceType"
                     },
-                    {
-                      "Fn::GetAtt": [
-                        "VPCStack",
-                        "Outputs.PrivateSubnet2AID"
-                      ]
+                    "NumBastionHosts": {
+                        "Ref": "NumBastionHosts"
                     },
-                    {
-                      "Fn::GetAtt": [
-                        "VPCStack",
-                        "Outputs.PrivateSubnet3AID"
-                      ]
+                    "BastionAMIOS": {
+                        "Ref": "BastionAMIOS"
+                    },
+                    "EnableTCPForwarding": "true",
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "PublicSubnet1ID": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.PublicSubnet1ID"
+                        ]
+                    },
+                    "PublicSubnet2ID": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.PublicSubnet2ID"
+                        ]
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
+                    },
+                    "RemoteAccessCIDR": {
+                        "Ref": "RemoteAccessCIDR"
+                    },
+                    "VPCID": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.VPCID"
+                        ]
                     }
-                  ]
+                }
+            }
+        },
+
+        "AppAccessSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.VPCID"
+                    ]
+                },
+                "GroupDescription": "Application instances with access to the services in cluster"
+            }
+        },
+        "ServiceSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.VPCID"
+                    ]
+                },
+                "GroupDescription": "The access ports to the services in cluster",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "SourceSecurityGroupId": {
+                            "Fn::GetAtt": [
+                                "BastionStack",
+                                "Outputs.BastionSecurityGroupID"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27040",
+                        "ToPort": "27040",
+                        "SourceSecurityGroupId": {
+                            "Fn::GetAtt": [
+                                "BastionStack",
+                                "Outputs.BastionSecurityGroupID"
+                            ]
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27017",
+                        "ToPort": "27017",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27018",
+                        "ToPort": "27018",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27019",
+                        "ToPort": "27019",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5432",
+                        "ToPort": "5432",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9042",
+                        "ToPort": "9042",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "7199",
+                        "ToPort": "7199",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9160",
+                        "ToPort": "9160",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "2181",
+                        "ToPort": "2181",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9092",
+                        "ToPort": "9092",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8083",
+                        "ToPort": "8083",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "6379",
+                        "ToPort": "6379",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5984",
+                        "ToPort": "5984",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "6984",
+                        "ToPort": "6984",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8300",
+                        "ToPort": "8300",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8301",
+                        "ToPort": "8301",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9200",
+                        "ToPort": "9200",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5601",
+                        "ToPort": "5601",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9600",
+                        "ToPort": "9600",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5044",
+                        "ToPort": "5044",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9000",
+                        "ToPort": "9000",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    }
                 ]
-              }
-            ]
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
-            ]
-          },
-          "NumberOfManagers": {
-            "Ref": "NumberOfManagers"
-          },
-          "NumberOfNodes": {
-            "Ref": "NumberOfNodes"
-          },
-          "NodeAMIOS": {
-            "Ref": "NodeAMIOS"
-          },
-          "NodeInstanceType": {
-            "Ref": "NodeInstanceType"
-          }
+            }
+        },
+        "InternalAccessSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Fn::GetAtt": [
+                        "VPCStack",
+                        "Outputs.VPCID"
+                    ]
+                },
+                "GroupDescription": "The inter-server access ports in cluster",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "2000",
+                        "ToPort": "30000",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ServiceSecurityGroup"
+                        }
+                    }
+                ]
+            }
+        },
+
+        "FireCampStack": {
+            "DependsOn": "BastionStack",
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-common.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "ContainerPlatform": {
+                        "Ref": "ContainerPlatform"
+                    },
+                    "ClusterName": {
+                        "Ref": "ClusterName"
+                    },
+                    "Release": {
+                        "Ref": "Release"
+                    },
+                    "CatalogRelease": {
+                        "Ref": "CatalogRelease"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    },
+                    "ServiceSecurityGroupID": {
+                        "Ref": "ServiceSecurityGroup"
+                    },
+                    "InternalAccessSecurityGroupID": {
+                        "Ref": "InternalAccessSecurityGroup"
+                    },
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "VPCID": {
+                        "Fn::GetAtt": [
+                            "VPCStack",
+                            "Outputs.VPCID"
+                        ]
+                    },
+                    "SubnetIDs": {
+                        "Fn::If": [
+                            "2AZCondition",
+                            {
+                                "Fn::Join": [
+                                    ",",
+                                    [
+                                        {
+                                            "Fn::GetAtt": [
+                                                "VPCStack",
+                                                "Outputs.PrivateSubnet1AID"
+                                            ]
+                                        },
+                                        {
+                                            "Fn::GetAtt": [
+                                                "VPCStack",
+                                                "Outputs.PrivateSubnet2AID"
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            },
+                            {
+                                "Fn::Join": [
+                                    ",",
+                                    [
+                                        {
+                                            "Fn::GetAtt": [
+                                                "VPCStack",
+                                                "Outputs.PrivateSubnet1AID"
+                                            ]
+                                        },
+                                        {
+                                            "Fn::GetAtt": [
+                                                "VPCStack",
+                                                "Outputs.PrivateSubnet2AID"
+                                            ]
+                                        },
+                                        {
+                                            "Fn::GetAtt": [
+                                                "VPCStack",
+                                                "Outputs.PrivateSubnet3AID"
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            }
+                        ]
+                    },
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
+                    },
+                    "NumberOfManagers": {
+                        "Ref": "NumberOfManagers"
+                    },
+                    "NumberOfNodes": {
+                        "Ref": "NumberOfNodes"
+                    },
+                    "NodeAMIOS": {
+                        "Ref": "NodeAMIOS"
+                    },
+                    "NodeInstanceType": {
+                        "Ref": "NodeInstanceType"
+                    }
+                }
+            }
         }
-      }
-    }
-  },
-  "Outputs":{
-    "VPCID": {
-      "Value":{
-        "Fn::GetAtt": [
-          "VPCStack",
-          "Outputs.VPCID"
-        ]
-      }
     },
-    "AppAccessSecurityGroup":{
-      "Value":{
-        "Ref": "AppAccessSecurityGroup"
-      }
+    "Outputs":{
+        "VPCID": {
+            "Value":{
+                "Fn::GetAtt": [
+                    "VPCStack",
+                    "Outputs.VPCID"
+                ]
+            }
+        },
+        "AppAccessSecurityGroup":{
+            "Value":{
+                "Ref": "AppAccessSecurityGroup"
+            }
+        }
     }
-  }
 }

@@ -1,619 +1,619 @@
 {
-  "AWSTemplateFormatVersion":"2010-09-09",
-  "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc4p)",
-  "Metadata": {
-    "AWS::CloudFormation::Interface": {
-      "ParameterGroups": [
-        {
-          "Label": {
-            "default": "Network Configuration"
-          },
-          "Parameters": [
-            "AvailabilityZones",
-            "NumberOfAZs",
-            "VPCID",
-            "PrivateSubnet1ID",
-            "PrivateSubnet2ID",
-            "PrivateSubnet3ID",
-            "BastionSecurityGroupID"
-          ]
-        },
-        {
-          "Label": {
-            "default": "Security Configuration"
-          },
-          "Parameters": [
-            "KeyPairName"
-          ]
-        },
-        {
-          "Label": {
-            "default": "FireCamp Cluster Configuration"
-          },
-          "Parameters": [
-            "ContainerPlatform",
-            "ClusterName",
-            "Release",
-            "CatalogRelease",
-            "NumberOfManagers",
-            "NumberOfNodes",
-            "NodeAMIOS",
-            "NodeInstanceType"
-          ]
-        },
-        {
-          "Label": {
-            "default": "AWS Quick Start Configuration"
-          },
-          "Parameters": [
-            "QSS3BucketName",
-            "QSS3KeyPrefix"
-          ]
+    "AWSTemplateFormatVersion":"2010-09-09",
+    "Description": "This template will deploy an ECS or Swarm cluster with the firecamp software in an existing VPC. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc4p)",
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Network Configuration"
+                    },
+                    "Parameters": [
+                        "AvailabilityZones",
+                        "NumberOfAZs",
+                        "VPCID",
+                        "PrivateSubnet1ID",
+                        "PrivateSubnet2ID",
+                        "PrivateSubnet3ID",
+                        "BastionSecurityGroupID"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Security Configuration"
+                    },
+                    "Parameters": [
+                        "KeyPairName"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "FireCamp Cluster Configuration"
+                    },
+                    "Parameters": [
+                        "ContainerPlatform",
+                        "ClusterName",
+                        "Release",
+                        "CatalogRelease",
+                        "NumberOfManagers",
+                        "NumberOfNodes",
+                        "NodeAMIOS",
+                        "NodeInstanceType"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "AWS Quick Start Configuration"
+                    },
+                    "Parameters": [
+                        "QSS3BucketName",
+                        "QSS3KeyPrefix"
+                    ]
+                }
+            ],
+            "ParameterLabels": {
+                "AvailabilityZones": {
+                    "default": "Availability Zones"
+                },
+                "NumberOfAZs": {
+                    "default": "Number of Availability Zones"
+                },
+                "VPCID": {
+                    "default": "VPC ID"
+                },
+                "PrivateSubnet1ID": {
+                    "default": "Private Subnet 1 ID"
+                },
+                "PrivateSubnet2ID": {
+                    "default": "Private Subnet 2 ID"
+                },
+                "PrivateSubnet3ID": {
+                    "default": "Private Subnet 3 ID"
+                },
+                "BastionSecurityGroupID": {
+                    "default": "Bastion Security Group ID"
+                },
+
+                "KeyPairName": {
+                    "default": "Key Pair Name"
+                },
+
+                "ContainerPlatform": {
+                    "default": "Container Platform"
+                },
+                "ClusterName": {
+                    "default": "Cluster Name"
+                },
+                "Release": {
+                    "default": "CloudStax FireCamp System Services Release Version"
+                },
+                "CatalogRelease": {
+                    "default": "CloudStax FireCamp Catalog Service Release Version"
+                },
+                "QSS3BucketName": {
+                    "default": "Quick Start S3 Bucket Name"
+                },
+                "QSS3KeyPrefix": {
+                    "default": "Quick Start S3 Key Prefix"
+                },
+                "NumberOfManagers": {
+                    "default": "Number of Docker Swarm Managers"
+                },
+                "NumberOfNodes": {
+                    "default": "Number of Container Worker Nodes"
+                },
+                "NodeAMIOS": {
+                    "default": "Node AMI Type"
+                },
+                "NodeInstanceType": {
+                    "default": "Node Instance Type"
+                }
+            }
         }
-      ],
-      "ParameterLabels": {
+    },
+    "Parameters":{
         "AvailabilityZones": {
-          "default": "Availability Zones"
+            "Type": "List<AWS::EC2::AvailabilityZone::Name>",
+            "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets and less or equal to Number of Container Worker Nodes, or else the cluster will not work."
         },
         "NumberOfAZs": {
-          "default": "Number of Availability Zones"
+            "AllowedValues": [
+                "1",
+                "2",
+                "3"
+            ],
+            "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
+            "Default": "3",
+            "Type": "String"
         },
-        "VPCID": {
-          "default": "VPC ID"
+        "VPCID":{
+            "Type":"AWS::EC2::VPC::Id",
+            "Description":"Select a VPC that allows instances to access the Internet."
         },
         "PrivateSubnet1ID": {
-          "default": "Private Subnet 1 ID"
+            "Type": "AWS::EC2::Subnet::Id",
+            "Description": "The first existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
         },
         "PrivateSubnet2ID": {
-          "default": "Private Subnet 2 ID"
+            "Type": "AWS::EC2::Subnet::Id",
+            "Description": "The second existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
         },
         "PrivateSubnet3ID": {
-          "default": "Private Subnet 3 ID"
+            "Type": "AWS::EC2::Subnet::Id",
+            "Description": "The third existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
         },
+
         "BastionSecurityGroupID": {
-          "default": "Bastion Security Group ID"
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "The BastionSecurityGroup to SSH to the nodes."
         },
 
-        "KeyPairName": {
-          "default": "Key Pair Name"
+        "KeyPairName":{
+            "Type":"AWS::EC2::KeyPair::KeyName",
+            "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
         },
 
-        "ContainerPlatform": {
-          "default": "Container Platform"
+        "ContainerPlatform":{
+            "Type": "String",
+            "Default": "ecs",
+            "AllowedValues" : [ "ecs", "swarm" ],
+            "Description":"The container orchestration platform."
         },
-        "ClusterName": {
-          "default": "Cluster Name"
+        "ClusterName":{
+            "Type":"String",
+            "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
+            "MinLength": "1",
+            "MaxLength": "54",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+            "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
         },
         "Release": {
-          "default": "CloudStax FireCamp System Services Release Version"
+            "Type": "String",
+            "Default": "latest",
+            "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
+            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
         },
         "CatalogRelease": {
-          "default": "CloudStax FireCamp Catalog Service Release Version"
+            "Type": "String",
+            "Default": "latest",
+            "AllowedValues": [ "latest" ],
+            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
         },
         "QSS3BucketName": {
-          "default": "Quick Start S3 Bucket Name"
+            "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+            "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Default": "cloudstax",
+            "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+            "Type": "String"
         },
         "QSS3KeyPrefix": {
-          "default": "Quick Start S3 Key Prefix"
+            "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
+            "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+            "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
+            "Default": "firecamp/releases/latest/",
+            "Type": "String"
         },
-        "NumberOfManagers": {
-          "default": "Number of Docker Swarm Managers"
+        "NumberOfManagers":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
         },
-        "NumberOfNodes": {
-          "default": "Number of Container Worker Nodes"
+        "NumberOfNodes":{
+            "Type":"Number",
+            "Default":"3",
+            "Description":"Number of instances to launch. Make sure it's greater or equal to the number of Availability Zones. For Swarm, this is the number of worker nodes."
         },
         "NodeAMIOS": {
-          "default": "Node AMI Type"
+            "AllowedValues": [
+                "Amazon-Linux-HVM"
+            ],
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the service instances",
+            "Type": "String"
         },
-        "NodeInstanceType": {
-          "default": "Node Instance Type"
+        "NodeInstanceType":{
+            "Description":"EC2 instance type",
+            "Type":"String",
+            "Default":"m4.xlarge",
+            "AllowedValues":[
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t2.xlarge",
+                "t2.2xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "r4.large",
+                "r4.xlarge",
+                "r4.2xlarge",
+                "r4.4xlarge",
+                "r4.8xlarge",
+                "r4.16xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "c5.large",
+                "c5.xlarge",
+                "c5.2xlarge",
+                "c5.4xlarge",
+                "c5.9xlarge",
+                "c5.18xlarge"
+            ],
+            "ConstraintDescription":"Please choose a valid instance type."
         }
-      }
-    }
-  },
-  "Parameters":{
-    "AvailabilityZones": {
-      "Type": "List<AWS::EC2::AvailabilityZone::Name>",
-      "Description": "The Availability Zones for the Subnets. Please make sure the AvailabilityZones match the Subnets and less or equal to Number of Container Worker Nodes, or else the cluster will not work."
     },
-    "NumberOfAZs": {
-      "AllowedValues": [
-        "1",
-        "2",
-        "3"
-      ],
-      "Description": "Number of Availability Zones to use in the VPC. This MUST match your selections in the list of Availability Zones parameter. Please use 3 AZs for the production system.",
-      "Default": "3",
-      "Type": "String"
-    },
-    "VPCID":{
-      "Type":"AWS::EC2::VPC::Id",
-      "Description":"Select a VPC that allows instances to access the Internet."
-    },
-    "PrivateSubnet1ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "The first existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
-    },
-    "PrivateSubnet2ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "The second existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
-    },
-    "PrivateSubnet3ID": {
-      "Type": "AWS::EC2::Subnet::Id",
-      "Description": "The third existing SubnetID in your VPC where you want to deploy node(s). Please make sure the Subnet is in the AvailabilityZones."
-    },
-
-    "BastionSecurityGroupID": {
-      "Type": "AWS::EC2::SecurityGroup::Id",
-      "Description": "The BastionSecurityGroup to SSH to the nodes."
-    },
-
-    "KeyPairName":{
-      "Type":"AWS::EC2::KeyPair::KeyName",
-      "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
-    },
-
-    "ContainerPlatform":{
-      "Type": "String",
-      "Default": "ecs",
-      "AllowedValues" : [ "ecs", "swarm" ],
-      "Description":"The container orchestration platform."
-    },
-    "ClusterName":{
-      "Type":"String",
-      "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
-      "MinLength": "1",
-      "MaxLength": "54",
-      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
-      "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
-    },
-    "Release": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest", "0.9.6", "0.9.5" ],
-      "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
-    },
-    "CatalogRelease": {
-      "Type": "String",
-      "Default": "latest",
-      "AllowedValues": [ "latest" ],
-      "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
-    },
-    "QSS3BucketName": {
-      "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-      "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Default": "cloudstax",
-      "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-      "Type": "String"
-    },
-    "QSS3KeyPrefix": {
-      "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
-      "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-      "Default": "firecamp/releases/latest/",
-      "Type": "String"
-    },
-    "NumberOfManagers":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
-    },
-    "NumberOfNodes":{
-      "Type":"Number",
-      "Default":"3",
-      "Description":"Number of instances to launch. Make sure it's greater or equal to the number of Availability Zones. For Swarm, this is the number of worker nodes."
-    },
-    "NodeAMIOS": {
-      "AllowedValues": [
-        "Amazon-Linux-HVM"
-      ],
-      "Default": "Amazon-Linux-HVM",
-      "Description": "The Linux distribution for the AMI to be used for the service instances",
-      "Type": "String"
-    },
-    "NodeInstanceType":{
-      "Description":"EC2 instance type",
-      "Type":"String",
-      "Default":"m4.xlarge",
-      "AllowedValues":[
-        "t2.micro",
-        "t2.small",
-        "t2.medium",
-        "t2.large",
-        "t2.xlarge",
-        "t2.2xlarge",
-        "m3.medium",
-        "m3.large",
-        "m3.xlarge",
-        "m3.2xlarge",
-        "m4.large",
-        "m4.xlarge",
-        "m4.2xlarge",
-        "m4.4xlarge",
-        "m4.10xlarge",
-        "r3.large",
-        "r3.xlarge",
-        "r3.2xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.large",
-        "r4.xlarge",
-        "r4.2xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
-        "c4.large",
-        "c4.xlarge",
-        "c4.2xlarge",
-        "c4.4xlarge",
-        "c4.8xlarge",
-        "c5.large",
-        "c5.xlarge",
-        "c5.2xlarge",
-        "c5.4xlarge",
-        "c5.9xlarge",
-        "c5.18xlarge"
-      ],
-      "ConstraintDescription":"Please choose a valid instance type."
-    }
-  },
-  "Conditions": {
-    "1AZCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "NumberOfAZs"
-        },
-        1
-      ]
-    },
-    "2AZCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "NumberOfAZs"
-        },
-        2
-      ]
-    },
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
-        },
-        "us-gov-west-1"
-      ]
-    }
-  },
-  "Resources":{
-    "AppAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "Application instances with access to the services in cluster"
-      }
-    },
-    "ServiceSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The access ports to the services in cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27040",
-            "ToPort": "27040",
-            "SourceSecurityGroupId": {
-              "Ref": "BastionSecurityGroupID"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27017",
-            "ToPort": "27017",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27018",
-            "ToPort": "27018",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "27019",
-            "ToPort": "27019",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5432",
-            "ToPort": "5432",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9042",
-            "ToPort": "9042",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "7199",
-            "ToPort": "7199",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9160",
-            "ToPort": "9160",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2181",
-            "ToPort": "2181",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9092",
-            "ToPort": "9092",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8083",
-            "ToPort": "8083",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "6379",
-            "ToPort": "6379",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5984",
-            "ToPort": "5984",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "6984",
-            "ToPort": "6984",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8300",
-            "ToPort": "8300",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "8301",
-            "ToPort": "8301",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9200",
-            "ToPort": "9200",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5601",
-            "ToPort": "5601",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9600",
-            "ToPort": "9600",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "5044",
-            "ToPort": "5044",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "9000",
-            "ToPort": "9000",
-            "SourceSecurityGroupId": {
-              "Ref": "AppAccessSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-    "InternalAccessSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPCID"
-        },
-        "GroupDescription": "The inter-server access ports in cluster",
-        "SecurityGroupIngress": [
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "2000",
-            "ToPort": "30000",
-            "SourceSecurityGroupId": {
-              "Ref": "ServiceSecurityGroup"
-            }
-          }
-        ]
-      }
-    },
-
-    "FireCampStack": {
-      "Type": "AWS::CloudFormation::Stack",
-      "Properties": {
-        "TemplateURL": {
-          "Fn::Sub": [
-            "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-common.template",
-            {
-              "QSS3Region": {
-                "Fn::If": [
-                  "GovCloudCondition",
-                  "s3-us-gov-west-1",
-                  "s3"
-                ]
-              }
-            }
-          ]
-        },
-        "Parameters": {
-          "ContainerPlatform": {
-            "Ref": "ContainerPlatform"
-          },
-          "ClusterName": {
-            "Ref": "ClusterName"
-          },
-          "Release": {
-            "Ref": "Release"
-          },
-          "CatalogRelease": {
-            "Ref": "CatalogRelease"
-          },
-          "QSS3BucketName": {
-            "Ref": "QSS3BucketName"
-          },
-          "QSS3KeyPrefix": {
-            "Ref": "QSS3KeyPrefix"
-          },
-          "ServiceSecurityGroupID": {
-            "Ref": "ServiceSecurityGroup"
-          },
-          "InternalAccessSecurityGroupID": {
-            "Ref": "InternalAccessSecurityGroup"
-          },
-          "KeyPairName": {
-            "Ref": "KeyPairName"
-          },
-          "VPCID": {
-            "Ref": "VPCID"
-          },
-          "SubnetIDs": {
-            "Fn::If": [
-              "1AZCondition",
-              {
-                "Fn::Join": [
-                  ",",
-                  [
-                    {"Ref": "PrivateSubnet1ID"}
-                  ]
-                ]
-              },
-              {
-                "Fn::If": [
-                  "2AZCondition",
-                  {
-                    "Fn::Join": [
-                      ",",
-                      [
-                        {"Ref": "PrivateSubnet1ID"},
-                        {"Ref": "PrivateSubnet2ID"}
-                      ]
-                    ]
-                  },
-                  {
-                    "Fn::Join": [
-                      ",",
-                      [
-                        {"Ref": "PrivateSubnet1ID"},
-                        {"Ref": "PrivateSubnet2ID"},
-                        {"Ref": "PrivateSubnet3ID"}
-                      ]
-                    ]
-                  }
-                ]
-              }
+    "Conditions": {
+        "1AZCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "NumberOfAZs"
+                },
+                1
             ]
-          },
-          "AvailabilityZones": {
-            "Fn::Join": [
-              ",",
-              {
-                "Ref": "AvailabilityZones"
-              }
+        },
+        "2AZCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "NumberOfAZs"
+                },
+                2
             ]
-          },
-          "NumberOfManagers": {
-            "Ref": "NumberOfManagers"
-          },
-          "NumberOfNodes": {
-            "Ref": "NumberOfNodes"
-          },
-          "NodeAMIOS": {
-            "Ref": "NodeAMIOS"
-          },
-          "NodeInstanceType": {
-            "Ref": "NodeInstanceType"
-          }
+        },
+        "GovCloudCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AWS::Region"
+                },
+                "us-gov-west-1"
+            ]
         }
-      }
+    },
+    "Resources":{
+        "AppAccessSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "GroupDescription": "Application instances with access to the services in cluster"
+            }
+        },
+        "ServiceSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "GroupDescription": "The access ports to the services in cluster",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "SourceSecurityGroupId": {
+                            "Ref": "BastionSecurityGroupID"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27040",
+                        "ToPort": "27040",
+                        "SourceSecurityGroupId": {
+                            "Ref": "BastionSecurityGroupID"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27017",
+                        "ToPort": "27017",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27018",
+                        "ToPort": "27018",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "27019",
+                        "ToPort": "27019",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5432",
+                        "ToPort": "5432",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9042",
+                        "ToPort": "9042",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "7199",
+                        "ToPort": "7199",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9160",
+                        "ToPort": "9160",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "2181",
+                        "ToPort": "2181",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9092",
+                        "ToPort": "9092",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8083",
+                        "ToPort": "8083",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "6379",
+                        "ToPort": "6379",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5984",
+                        "ToPort": "5984",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "6984",
+                        "ToPort": "6984",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8300",
+                        "ToPort": "8300",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8301",
+                        "ToPort": "8301",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9200",
+                        "ToPort": "9200",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5601",
+                        "ToPort": "5601",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9600",
+                        "ToPort": "9600",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5044",
+                        "ToPort": "5044",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "9000",
+                        "ToPort": "9000",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppAccessSecurityGroup"
+                        }
+                    }
+                ]
+            }
+        },
+        "InternalAccessSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "GroupDescription": "The inter-server access ports in cluster",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "2000",
+                        "ToPort": "30000",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ServiceSecurityGroup"
+                        }
+                    }
+                ]
+            }
+        },
+
+        "FireCampStack": {
+            "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/firecamp-common.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "ContainerPlatform": {
+                        "Ref": "ContainerPlatform"
+                    },
+                    "ClusterName": {
+                        "Ref": "ClusterName"
+                    },
+                    "Release": {
+                        "Ref": "Release"
+                    },
+                    "CatalogRelease": {
+                        "Ref": "CatalogRelease"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    },
+                    "ServiceSecurityGroupID": {
+                        "Ref": "ServiceSecurityGroup"
+                    },
+                    "InternalAccessSecurityGroupID": {
+                        "Ref": "InternalAccessSecurityGroup"
+                    },
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "VPCID": {
+                        "Ref": "VPCID"
+                    },
+                    "SubnetIDs": {
+                        "Fn::If": [
+                            "1AZCondition",
+                            {
+                                "Fn::Join": [
+                                    ",",
+                                    [
+                                        {"Ref": "PrivateSubnet1ID"}
+                                    ]
+                                ]
+                            },
+                            {
+                                "Fn::If": [
+                                    "2AZCondition",
+                                    {
+                                        "Fn::Join": [
+                                            ",",
+                                            [
+                                                {"Ref": "PrivateSubnet1ID"},
+                                                {"Ref": "PrivateSubnet2ID"}
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "Fn::Join": [
+                                            ",",
+                                            [
+                                                {"Ref": "PrivateSubnet1ID"},
+                                                {"Ref": "PrivateSubnet2ID"},
+                                                {"Ref": "PrivateSubnet3ID"}
+                                            ]
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "AvailabilityZones": {
+                        "Fn::Join": [
+                            ",",
+                            {
+                                "Ref": "AvailabilityZones"
+                            }
+                        ]
+                    },
+                    "NumberOfManagers": {
+                        "Ref": "NumberOfManagers"
+                    },
+                    "NumberOfNodes": {
+                        "Ref": "NumberOfNodes"
+                    },
+                    "NodeAMIOS": {
+                        "Ref": "NodeAMIOS"
+                    },
+                    "NodeInstanceType": {
+                        "Ref": "NodeInstanceType"
+                    }
+                }
+            }
+        }
+    },
+    "Outputs":{
+        "AppAccessSecurityGroup":{
+            "Value":{
+                "Ref": "AppAccessSecurityGroup"
+            }
+        }
     }
-  },
-  "Outputs":{
-    "AppAccessSecurityGroup":{
-      "Value":{
-        "Ref": "AppAccessSecurityGroup"
-      }
-    }
-  }
 }
