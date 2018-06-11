@@ -372,12 +372,12 @@ func createCatalogService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logI
 	serviceUUID := common.SystemName
 
 	// create the log group
-	err := logIns.InitializeServiceLogConfig(ctx, cluster, common.CatalogServerName, serviceUUID)
+	err := logIns.InitializeServiceLogConfig(ctx, cluster, common.CatalogService, serviceUUID)
 	if err != nil {
-		glog.Fatalln("create the catalog service log group error", err, common.CatalogServerName)
+		glog.Fatalln("create the catalog service log group error", err, common.CatalogService)
 	}
 
-	logConfig := logIns.CreateStreamLogConfig(ctx, cluster, common.CatalogServerName, serviceUUID, common.CatalogServerName)
+	logConfig := logIns.CreateStreamLogConfig(ctx, cluster, common.CatalogService, serviceUUID, common.CatalogService)
 
 	commonOpts := &containersvc.CommonOptions{
 		Cluster:        cluster,

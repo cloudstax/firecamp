@@ -83,8 +83,8 @@ const (
 	DBTypeMemDB   = "memdb"   // in-memory db, for test only
 
 	CatalogServerHTTPPort = 27041
-	CatalogServerName     = "catalogserver"
-	CatalogServiceName    = SystemName + NameSeparator + CatalogServerName
+	CatalogService        = "catalogservice"
+	CatalogServiceName    = SystemName + NameSeparator + CatalogService
 	CatalogContainerImage = OrgName + CatalogServiceName + ":" + CatalogVersion
 
 	ManageHTTPServerPort  = 27040
