@@ -114,7 +114,7 @@ func GenDefaultCreateServiceRequest(platform string, region string, cluster stri
 
 func genServiceConfigs(opts *catalog.CatalogTelegrafOptions) []*manage.ConfigFileContent {
 	// create service.conf file
-	content := fmt.Sprintf(servicefileContent, opts.CollectIntervalSecs, opts.MonitorServiceName)
+	content := fmt.Sprintf(servicefileContent, opts.CollectIntervalSecs, opts.MonitorServiceName, opts.MonitorServiceType)
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -141,5 +141,6 @@ const (
 	servicefileContent = `
 CollectIntervalSecs=%d
 MonitorServiceName=%s
+MonitorServiceType=%s
 `
 )
