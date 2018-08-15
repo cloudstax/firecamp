@@ -16,7 +16,7 @@ fi
 # for now, simply pass all configs in env variables. later, we may put all configs in service.conf
 if [ "$CONTAINER_PLATFORM" = "ecs" -o "$CONTAINER_PLATFORM" = "swarm" ]; then
   # select one service member, update member dns and write the member dns name to /etc/firecamp-member.
-  /firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -container-platform=$CONTAINER_PLATFORM
+  /kafka-manager-${KM_VERSION}/firecamp-selectmember -cluster=$CLUSTER -service-name=$SERVICE_NAME -container-platform=$CONTAINER_PLATFORM
 
   # load member configs
   . /etc/firecamp-member
