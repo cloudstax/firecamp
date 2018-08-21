@@ -19,8 +19,11 @@ RUN set -ex; \
   git checkout ${KM_REVISION}; \
   echo 'scalacOptions ++= Seq("-Xmax-classfile-name", "200")' >> build.sbt; \
   ./sbt clean dist 2>&1 | tee sbt-out.log; \
+  c=0; \
   while $(grep -q FAILED sbt-out.log); do \
+    [ $c -gt 5 ] && exit 255; \
     ./sbt clean dist 2>&1 | tee sbt-out.log; \
+    c=$((c+1)); \
   done; \
   unzip  -d / ./target/universal/kafka-manager-${KM_VERSION}.zip; \
   rm -fr /tmp/* /root/.sbt /root/.ivy2; \
