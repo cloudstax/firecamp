@@ -8,7 +8,7 @@ Checkout cloudstax amazon-ecs-agent branch, git clone https://github.com/cloudst
 
 2. Build the docker images for FireCamp manage service, plugins and stateful services.
 
-Update the "org" in Makefile and "OrgName" in common/types.go to "mydockeraccount/". Then 'make docker' to build and upload all docker images.
+Update the "org" in Makefile and "OrgName" in api/common/types.go to "mydockeraccount/". Then 'make docker' to build and upload all docker images.
 
 3. Create your own bucket for the CloudFormation templates.
 

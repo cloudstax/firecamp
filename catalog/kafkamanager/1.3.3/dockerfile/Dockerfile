@@ -4,8 +4,8 @@ RUN apt-get update && \
   apt-get install -t jessie-backports -y openjdk-8-jre-headless && \
   rm -rf /var/lib/apt/lists/*
 
-ENV KM_VERSION=1.3.3.16 \
-  KM_REVISION=6062369708ac7c968a307d7bde028b3282a629b9 \
+ENV KM_VERSION=1.3.3.18 \
+  KM_REVISION=8dcdbf8fabb0001691c9b52b447b656f498b4d7b \
   KM_CONFIGFILE="conf/application.conf"
 
 RUN set -ex; \
@@ -18,7 +18,13 @@ RUN set -ex; \
   cd /tmp/kafka-manager; \
   git checkout ${KM_REVISION}; \
   echo 'scalacOptions ++= Seq("-Xmax-classfile-name", "200")' >> build.sbt; \
-  ./sbt clean dist; \
+  ./sbt clean dist 2>&1 | tee sbt-out.log; \
+  c=0; \
+  while $(grep -q FAILED sbt-out.log); do \
+    [ $c -gt 5 ] && exit 255; \
+    ./sbt clean dist 2>&1 | tee sbt-out.log; \
+    c=$((c+1)); \
+  done; \
   unzip  -d / ./target/universal/kafka-manager-${KM_VERSION}.zip; \
   rm -fr /tmp/* /root/.sbt /root/.ivy2; \
   apt-get purge -y --auto-remove $buildDeps; \
