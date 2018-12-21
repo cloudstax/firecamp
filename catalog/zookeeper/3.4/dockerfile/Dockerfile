@@ -11,7 +11,7 @@ RUN set -x \
   && adduser -D "$ZOO_USER"
 
 ARG GPG_KEY=D0BC8D8A4E90A40AFDFC43B3E22A746A68E327C1
-ARG DISTRO_NAME=zookeeper-3.4.11
+ARG DISTRO_NAME=zookeeper-3.4.13
 
 
 # Download Apache Zookeeper, verify its PGP signature, untar and clean up
