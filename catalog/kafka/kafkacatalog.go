@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultVersion = "1.0"
+	defaultVersion = "2.1"
 	// ContainerImage is the main running container.
 	ContainerImage = common.ContainerNamePrefix + "kafka:" + defaultVersion
 
@@ -82,6 +82,10 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 
 	// generate member ReplicaConfigs
 	replicaCfgs := genMemberConfigs(platform, cluster, service, azs, opts)
+
+	envkvs := []*common.EnvKeyValuePair{
+		&common.EnvKeyValuePair{Name: ENV_JMX_PORT, Value: jmxPort},
+	}
 
 	portMappings := []common.PortMapping{
 		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
