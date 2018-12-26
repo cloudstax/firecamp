@@ -86,7 +86,7 @@ if [ -f "$servicecfgfile" ]; then
   chmod 0400 $ZOOCFGDIR/jmxremote.access
 
   # set java env
-  export JVMFLAGS="-Xmx${HEAP_SIZE_MB}m -Djava.rmi.server.hostname=$SERVICE_MEMBER -Dcom.sun.management.jmxremote.password.file=${ZOOCFGDIR}/jmxremote.password -Dcom.sun.management.jmxremote.access.file=${ZOOCFGDIR}/jmxremote.access"
+  export JVMFLAGS="-Xmx${HEAP_SIZE_MB}m -Djava.rmi.server.hostname=$SERVICE_MEMBER -Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT -Dcom.sun.management.jmxremote.password.file=${ZOOCFGDIR}/jmxremote.password -Dcom.sun.management.jmxremote.access.file=${ZOOCFGDIR}/jmxremote.access"
   export JMXPORT=$JMX_PORT
   export JMXAUTH=true
   export JMXSSL=false
