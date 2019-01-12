@@ -1,5 +1,5 @@
 {
-    "AWSTemplateFormatVersion":"2010-09-09",
+    "AWSTemplateFormatVersion": "2010-09-09",
     "Description": "This template creates a new VPC and an AWS ECS or Swarm cluster with the FireCamp software. The BastionSecurityGroup is the only one that is allowed to ssh to the cluster nodes and access the firecamp manage http server. License: Apache 2.0 (Please do not remove) Feb,14,2018 (qs-1o5bijc54)",
     "Metadata": {
         "AWS::CloudFormation::Interface": {
@@ -95,11 +95,9 @@
                 "RemoteAccessCIDR": {
                     "default": "Allowed Bastion External Access CIDR"
                 },
-
                 "KeyPairName": {
                     "default": "Key Pair Name"
                 },
-
                 "BastionAMIOS": {
                     "default": "Bastion AMI Operating System"
                 },
@@ -109,7 +107,6 @@
                 "NumBastionHosts": {
                     "default": "Number of Bastion Hosts"
                 },
-
                 "ContainerPlatform": {
                     "default": "Container Platform"
                 },
@@ -134,7 +131,6 @@
                 "NodeInstanceType": {
                     "default": "Node Instance Type"
                 },
-
                 "QSS3BucketName": {
                     "default": "Quick Start S3 Bucket Name"
                 },
@@ -144,7 +140,7 @@
             }
         }
     },
-    "Parameters":{
+    "Parameters": {
         "AvailabilityZones": {
             "Description": "List of Availability Zones to use for the subnets in the VPC. This MUST match the number of AvailabilityZones. Please use 3 AvailabilityZones for the production system.",
             "Type": "List<AWS::EC2::AvailabilityZone::Name>"
@@ -213,12 +209,10 @@
             "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
             "Description": "Allowed CIDR block for external SSH access to the Bastion nodes. MUST be in the form x.x.x.x/x"
         },
-
-        "KeyPairName":{
-            "Type":"AWS::EC2::KeyPair::KeyName",
-            "Description":"Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
+        "KeyPairName": {
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the Bastion and cluster nodes."
         },
-
         "BastionAMIOS": {
             "AllowedValues": [
                 "Amazon-Linux-HVM",
@@ -273,30 +267,32 @@
             "Description": "Enter the number of bastion hosts to create",
             "Type": "String"
         },
-
-        "ContainerPlatform":{
+        "ContainerPlatform": {
             "Type": "String",
             "Default": "ecs",
-            "AllowedValues" : [ "ecs", "swarm" ],
-            "Description":"The container orchestration platform."
+            "AllowedValues": [
+                "ecs",
+                "swarm"
+            ],
+            "Description": "The container orchestration platform."
         },
-        "ClusterName":{
-            "Type":"String",
-            "Description":"Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
+        "ClusterName": {
+            "Type": "String",
+            "Description": "Name of the ECS or Swarm cluster. The cluster domain will be ClusterName-firecamp.com. Each label of the domain name can be up to 63 bytes long. The ClusterName can be up to 54 bytes.",
             "MinLength": "1",
             "MaxLength": "54",
             "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
             "ConstraintDescription": "Cluster name must start with a letter and can only contain letters, numbers, or hyphens."
         },
-        "NumberOfManagers":{
-            "Type":"Number",
-            "Default":"3",
-            "Description":"Number of the Swarm manager instances to launch. This field will be ignored for ECS."
+        "NumberOfManagers": {
+            "Type": "Number",
+            "Default": "3",
+            "Description": "Number of the Swarm manager instances to launch. This field will be ignored for ECS."
         },
-        "NumberOfNodes":{
-            "Type":"Number",
-            "Default":"3",
-            "Description":"Number of container instances to launch in the cluster."
+        "NumberOfNodes": {
+            "Type": "Number",
+            "Default": "3",
+            "Description": "Number of container instances to launch in the cluster."
         },
         "NodeAMIOS": {
             "AllowedValues": [
@@ -309,13 +305,19 @@
         "Release": {
             "Type": "String",
             "Default": "latest",
-            "AllowedValues": [ "latest", "1.0" ],
+            "AllowedValues": [
+                "latest",
+                "1.0"
+            ],
             "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
             "Default": "latest",
-            "AllowedValues": [ "latest", "1.0" ],
+            "AllowedValues": [
+                "latest",
+                "1.0"
+            ],
             "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
         },
         "QSS3BucketName": {
@@ -332,11 +334,11 @@
             "Default": "firecamp/releases/latest/",
             "Type": "String"
         },
-        "NodeInstanceType":{
-            "Description":"EC2 instance type",
-            "Type":"String",
-            "Default":"m4.xlarge",
-            "AllowedValues":[
+        "NodeInstanceType": {
+            "Description": "EC2 instance type",
+            "Type": "String",
+            "Default": "m4.xlarge",
+            "AllowedValues": [
                 "t2.micro",
                 "t2.small",
                 "t2.medium",
@@ -375,7 +377,7 @@
                 "c5.9xlarge",
                 "c5.18xlarge"
             ],
-            "ConstraintDescription":"Please choose a valid instance type."
+            "ConstraintDescription": "Please choose a valid instance type."
         }
     },
     "Conditions": {
@@ -396,7 +398,7 @@
             ]
         }
     },
-    "Resources":{
+    "Resources": {
         "VPCStack": {
             "Type": "AWS::CloudFormation::Stack",
             "Properties": {
@@ -515,7 +517,6 @@
                 }
             }
         },
-
         "AppAccessSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
@@ -754,7 +755,6 @@
                 ]
             }
         },
-
         "FireCampStack": {
             "DependsOn": "BastionStack",
             "Type": "AWS::CloudFormation::Stack",
@@ -880,18 +880,120 @@
             }
         }
     },
-    "Outputs":{
+    "Outputs": {
         "VPCID": {
-            "Value":{
+            "Value": {
                 "Fn::GetAtt": [
                     "VPCStack",
                     "Outputs.VPCID"
                 ]
             }
         },
-        "AppAccessSecurityGroup":{
-            "Value":{
+        "AppAccessSecurityGroup": {
+            "Value": {
                 "Ref": "AppAccessSecurityGroup"
+            }
+        },
+        "PrivateSubnetIDs": {
+            "Value": {
+                "Fn::If": [
+                    "2AZCondition",
+                    {
+                        "Fn::Join": [
+                            ",",
+                            [
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PrivateSubnet1AID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PrivateSubnet2AID"
+                                    ]
+                                }
+                            ]
+                        ]
+                    },
+                    {
+                        "Fn::Join": [
+                            ",",
+                            [
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PrivateSubnet1AID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PrivateSubnet2AID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PrivateSubnet3AID"
+                                    ]
+                                }
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "PublicSubnetIDs": {
+            "Value": {
+                "Fn::If": [
+                    "2AZCondition",
+                    {
+                        "Fn::Join": [
+                            ",",
+                            [
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PublicSubnet1ID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PublicSubnet2ID"
+                                    ]
+                                }
+                            ]
+                        ]
+                    },
+                    {
+                        "Fn::Join": [
+                            ",",
+                            [
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PublicSubnet1ID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PublicSubnet2ID"
+                                    ]
+                                },
+                                {
+                                    "Fn::GetAtt": [
+                                        "VPCStack",
+                                        "Outputs.PublicSubnet3ID"
+                                    ]
+                                }
+                            ]
+                        ]
+                    }
+                ]
             }
         }
     }
