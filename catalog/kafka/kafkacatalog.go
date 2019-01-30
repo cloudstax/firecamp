@@ -83,10 +83,6 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	// generate member ReplicaConfigs
 	replicaCfgs := genMemberConfigs(platform, cluster, service, azs, opts)
 
-	envkvs := []*common.EnvKeyValuePair{
-		&common.EnvKeyValuePair{Name: ENV_JMX_PORT, Value: jmxPort},
-	}
-
 	portMappings := []common.PortMapping{
 		{ContainerPort: ListenPort, HostPort: ListenPort, IsServicePort: true},
 		{ContainerPort: jmxPort, HostPort: jmxPort},
