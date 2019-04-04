@@ -2,9 +2,9 @@
 
 **CloudStax is shutting down. As a result, work on FireCamp will end and the Github repository will be archived.**
 
-**FireCamp is an open source platform to easily setup, manage and scale the stateful services. The customer could easily run any service with no management overhead on any cloud.**
+FireCamp is an open source platform to easily setup, manage and scale the stateful services. The customer could easily run any service with no management overhead on any cloud.
 
-**The FireCamp platform is one big step towards the free Serverless Cloud. FireCamp decouples the Function-as-a-Service (FaaS) engine from the Vendor’s services, such as DynamoDB. The single function could then run on any FaaS engine, and simply talk to the same stateful services, such as Cassandra, on any cloud. It makes it easy to develop and test the functions locally with the stateful service, and run in any cloud at scale with the same stateful service.**
+The FireCamp platform is one big step towards the free Serverless Cloud. FireCamp decouples the Function-as-a-Service (FaaS) engine from the Vendor’s services, such as DynamoDB. The single function could then run on any FaaS engine, and simply talk to the same stateful services, such as Cassandra, on any cloud. It makes it easy to develop and test the functions locally with the stateful service, and run in any cloud at scale with the same stateful service.
 
 FireCamp Dockerizes the stateful services and run them on top of the popular container orchestration frameworks, such as [Amazon EC2 Container Service](https://aws.amazon.com/ecs/), [Docker Swarm](https://docs.docker.com/engine/swarm/), [Mesos](http://mesos.apache.org/) and [Kubernetes](https://kubernetes.io). FireCamp deeply integrates with the popular open source stateful services, such as MongoDB, Cassandra, Kafka, PostgreSQL, MySQL, ZooKeeper, Redis, ElasticSearch, etc. FireCamp manages the service members, such as MongoDB replicas, and their data volumes together. When the container of a service member moves to a different node, FireCamp will maintain the membership and move the data volume as well.
 
