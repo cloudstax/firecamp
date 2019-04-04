@@ -1,5 +1,7 @@
 # [FireCamp](https://github.com/cloudstax/firecamp)
 
+**CloudStax is shutting down. As a result, work on FireCamp will end and the Github repository will be archived.**
+
 **FireCamp is an open source platform to easily setup, manage and scale the stateful services. The customer could easily run any service with no management overhead on any cloud.**
 
 **The FireCamp platform is one big step towards the free Serverless Cloud. FireCamp decouples the Function-as-a-Service (FaaS) engine from the Vendor’s services, such as DynamoDB. The single function could then run on any FaaS engine, and simply talk to the same stateful services, such as Cassandra, on any cloud. It makes it easy to develop and test the functions locally with the stateful service, and run in any cloud at scale with the same stateful service.**
