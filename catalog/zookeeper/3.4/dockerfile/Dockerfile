@@ -10,8 +10,8 @@ ENV ZOO_USER=zookeeper
 RUN set -x \
   && adduser -D "$ZOO_USER"
 
-ARG GPG_KEY=767E7473
-ARG DISTRO_NAME=zookeeper-3.4.13
+#ARG GPG_KEY=FFE35B7F15DFA1BA
+ARG DISTRO_NAME=zookeeper-3.4.14
 
 
 # Download Apache Zookeeper, verify its PGP signature, untar and clean up
@@ -23,6 +23,7 @@ RUN set -ex; \
     wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz"; \
     wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz.asc"; \
     export GNUPGHOME="$(mktemp -d)"; \
+    export GPG_KEY=$(gpg --keyid-format=short --list-packets "$DISTRO_NAME.tar.gz.asc" | grep -oE 'keyid .*' | cut -f2 -d' '); \
     gpg --keyserver ha.pool.sks-keyservers.net --recv-key "$GPG_KEY" || \
     gpg --keyserver pgp.mit.edu --recv-keys "$GPG_KEY" || \
     gpg --keyserver keyserver.pgp.com --recv-keys "$GPG_KEY"; \

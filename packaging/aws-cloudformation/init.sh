@@ -6,7 +6,7 @@ containerPlatform=$3
 containerPlatformRole=$4
 azs=$5
 
-org="cloudstax/"
+org="jazzl0ver/"
 
 if [ "$version" = "" -o "$clusterName" = "" -o "$azs" = "" ]; then
   echo "version $version, clusterName $clusterName and azs $azs should not be empty"

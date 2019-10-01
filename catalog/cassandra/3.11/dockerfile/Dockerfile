@@ -29,7 +29,7 @@ RUN set -x \
 	&& export GNUPGHOME="$(mktemp -d)" \
 	&& gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
 	&& gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
-	&& rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc \
+	&& rm -rf "$GNUPGHOME" /usr/local/bin/gosu.asc \
 	&& chmod +x /usr/local/bin/gosu \
 	&& gosu nobody true \
 	&& apt-get purge -y --auto-remove ca-certificates wget
@@ -46,10 +46,10 @@ RUN set -ex; \
 		gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
 	done; \
 	gpg --export $GPG_KEYS > /etc/apt/trusted.gpg.d/cassandra.gpg; \
-	rm -r "$GNUPGHOME"; \
+	rm -rf "$GNUPGHOME"; \
 	apt-key list
 
-ENV CASSANDRA_VERSION 3.11.2
+ENV CASSANDRA_VERSION 3.11.4
 
 RUN set -ex; \
   mkdir -p /usr/share/man/man1/; \

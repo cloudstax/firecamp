@@ -63,9 +63,18 @@
           "Statement":[{
             "Effect":"Allow",
             "Action":[
+              "ssm:GetDocument",
+              "ssm:PutInventory",
               "ssm:ListAssociations",
               "ssm:ListInstanceAssociations",
               "ssm:UpdateInstanceInformation",
+              "ssm:UpdateInstanceAssociationStatus",
+              "ssmmessages:CreateControlChannel",
+              "ssmmessages:CreateDataChannel",
+              "ssmmessages:OpenControlChannel",
+              "ssmmessages:OpenDataChannel",
+              "ec2messages:AcknowledgeMessage",
+              "ec2messages:SendReply",
               "ec2messages:GetMessages"
             ],
             "Resource":"*"
@@ -119,6 +128,13 @@
             "Effect":"Allow",
             "Action":[
               "cloudwatch:PutMetricData"
+            ],
+            "Resource":"*"
+          },
+          {
+            "Effect":"Allow",
+            "Action":[
+              "sns:Publish"
             ],
             "Resource":"*"
           },

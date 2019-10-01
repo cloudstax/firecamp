@@ -150,7 +150,7 @@
                             "Fn::Join": [
                                 ":",
                                 [
-                                    "cloudstax/firecamp-manageserver",
+                                    "jazzl0ver/firecamp-manageserver",
                                     {
                                         "Ref": "Release"
                                     }
@@ -275,7 +275,7 @@
                             "Fn::Join": [
                                 ":",
                                 [
-                                    "cloudstax/firecamp-catalogservice",
+                                    "jazzl0ver/firecamp-catalogservice",
                                     {
                                         "Ref": "CatalogRelease"
                                     }

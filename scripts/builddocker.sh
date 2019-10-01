@@ -202,8 +202,8 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:1.0"
-  path="${TOPWD}/catalog/kafka/1.0/dockerfile/"
+  image="${org}${target}:2.1"
+  path="${TOPWD}/catalog/kafka/2.1/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -263,15 +263,15 @@ BuildCatalogImages() {
   # build couchdb docker image
   echo
   target=$system"-couchdb"
-  image="${org}${target}:2.1"
-  path="${TOPWD}/catalog/couchdb/2.1/dockerfile/"
+  image="${org}${target}:2.3"
+  path="${TOPWD}/catalog/couchdb/2.3/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-couchdb-init"
-  image="${org}${target}:2.1"
-  path="${TOPWD}/catalog/couchdb/2.1/init-task-dockerfile/"
+  image="${org}${target}:2.3"
+  path="${TOPWD}/catalog/couchdb/2.3/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   docker build -q -t $image $path
   rm -f ${path}/waitdns.sh
