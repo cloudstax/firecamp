@@ -1,9 +1,9 @@
 package common
 
 const (
-	Version        = "latest"
-	CatalogVersion = "latest"
-	Version1       = "1.0"
+	Version        = "1.1"
+	CatalogVersion = "1.1"
+	Version1       = "1.1"
 
 	CloudPlatformAWS = "aws"
 

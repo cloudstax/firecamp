@@ -315,6 +315,7 @@
             "Default": "latest",
             "AllowedValues": [
                 "latest",
+                "1.1",
                 "1.0"
             ],
             "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
@@ -324,6 +325,7 @@
             "Default": "latest",
             "AllowedValues": [
                 "latest",
+                "1.1",
                 "1.0"
             ],
             "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
