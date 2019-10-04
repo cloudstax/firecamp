@@ -193,8 +193,8 @@ BuildCatalogImages() {
   # build zookeeper docker image
   echo
   target=$system"-zookeeper"
-  image="${org}${target}:3.4"
-  path="${TOPWD}/catalog/zookeeper/3.4/dockerfile/"
+  image="${org}${target}:3.5"
+  path="${TOPWD}/catalog/zookeeper/3.5/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -202,8 +202,8 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:2.1"
-  path="${TOPWD}/catalog/kafka/2.1/dockerfile/"
+  image="${org}${target}:2.3"
+  path="${TOPWD}/catalog/kafka/2.3/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -211,8 +211,8 @@ BuildCatalogImages() {
   echo
   target=$system"-kafka-manager"
   # see catalog/kafkamanager/kafkamanagercatalog.go for why version is included
-  image="${org}${target}:1.3.3-${version}"
-  path="${TOPWD}/catalog/kafkamanager/1.3.3/dockerfile/"
+  image="${org}${target}:2.0.0-${version}"
+  path="${TOPWD}/catalog/kafkamanager/2.0.0/dockerfile/"
   cp ${GOPATH}/bin/firecamp-selectmember ${path}
   docker build -q -t $image $path
   rm -f ${path}/firecamp-selectmember

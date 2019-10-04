@@ -171,13 +171,13 @@
             "Type": "String",
             "Default": "latest",
             "AllowedValues": [ "latest", "1.1", "1.0" ],
-            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
             "Default": "latest",
             "AllowedValues": [ "latest", "1.1", "1.0" ],
-            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/jazzl0verx/firecamp/releases."
         },
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
