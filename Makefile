@@ -2,8 +2,8 @@
 .PHONY: install docker test
 
 org="jazzl0ver/"
-version="1.2"
-catalogversion="1.2"
+version="latest"
+catalogversion="latest"
 
 all: install
 
