@@ -82,7 +82,7 @@ Currently the template supports 2 and 3 AZs. It is recommended to use 3 AZs for 
 ```
 #!/bin/sh
 
-aws cloudformation create-stack --stack-name t1 --disable-rollback --capabilities CAPABILITY_IAM --template-url https://s3.amazonaws.com/quickstart-reference/cloudstax/firecamp/latest/templates/firecamp-master.template --parameters file://stack-master.json
+aws cloudformation create-stack --stack-name t1 --disable-rollback --capabilities CAPABILITY_IAM --template-url path_to_your_s3_bucket/firecamp/1.2/templates/firecamp-master.template --parameters file://stack-master.json
 ```
 
 ## Install the Application Cluster
