@@ -264,14 +264,20 @@ if [ "$containerPlatform" = "swarm" ]; then
     exit 2
   fi
 
+  if [ "$version" = "latest" ]; then
+    ver=$version
+  else
+    ver="v$version"
+  fi
+
   # get swarminit command to init swarm
   for i in `seq 1 3`
   do
-    wget -O /tmp/firecamp-swarminit.tgz https://github.com/jazzl0ver/firecamp/releases/download/latest/firecamp-swarminit.tgz
+    wget -O /tmp/firecamp-swarminit.tgz https://github.com/jazzl0ver/firecamp/releases/download/$ver/firecamp-swarminit.tgz
     if [ "$?" = "0" ]; then
       break
     elif [ "$i" = "3" ]; then
-      echo "failed to get https://github.com/jazzl0ver/firecamp/releases/download/latest/firecamp-swarminit.tgz"
+      echo "failed to get https://github.com/jazzl0ver/firecamp/releases/download/$ver/firecamp-swarminit.tgz"
       exit 2
     else
       # wget fail, sleep and retry

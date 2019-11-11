@@ -49,7 +49,7 @@ RUN set -ex; \
 	rm -rf "$GNUPGHOME"; \
 	apt-key list
 
-ENV CASSANDRA_VERSION 3.11.4
+ENV CASSANDRA_VERSION 3.11.5
 
 RUN set -ex; \
   mkdir -p /usr/share/man/man1/; \
