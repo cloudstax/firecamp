@@ -69,6 +69,7 @@
               "ssm:ListInstanceAssociations",
               "ssm:UpdateInstanceInformation",
               "ssm:UpdateInstanceAssociationStatus",
+              "ssm:PutComplianceItems",
               "ssmmessages:CreateControlChannel",
               "ssmmessages:CreateDataChannel",
               "ssmmessages:OpenControlChannel",
