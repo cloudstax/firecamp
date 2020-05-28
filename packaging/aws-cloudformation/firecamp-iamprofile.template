@@ -45,7 +45,8 @@
               "ecs:RegisterContainerInstance",
               "ecs:StartTelemetrySession",
               "ecs:Submit*",
-              "ecs:Update*"
+              "ecs:Update*",
+              "ecs:TagResource"
             ],
             "Resource":"*"
           }]
