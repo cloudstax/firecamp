@@ -59,6 +59,10 @@
             "Default": "quickstart-cloudstax-firecamp/",
             "Type": "String"
         },
+        "SNSTopicARN": {
+            "Default": "",
+            "Type": "String"
+        },
         "Release": {
             "Type": "String",
             "Default": "latest",
@@ -412,6 +416,9 @@
                     },
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
+                    },
+                    "SNSTopicARN": {
+                        "Ref": "SNSTopicARN"
                     }
                 }
             }
