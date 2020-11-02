@@ -86,6 +86,10 @@
             "Default": "quickstart-cloudstax-firecamp/",
             "Type": "String"
         },
+        "SNSTopicARN": {
+            "Default": "",
+            "Type": "String"
+        },
         "LatestAMIId": {
     	    "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
     	    "Default": "/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-gp2"

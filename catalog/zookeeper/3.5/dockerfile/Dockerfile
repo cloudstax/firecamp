@@ -10,7 +10,7 @@ ENV ZOO_USER=zookeeper
 RUN set -x \
   && adduser -D "$ZOO_USER"
 
-ARG DISTRO_FOLDER=zookeeper-3.5.6
+ARG DISTRO_FOLDER=zookeeper-3.5.8
 ARG DISTRO_NAME=apache-$DISTRO_FOLDER-bin
 
 

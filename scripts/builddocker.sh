@@ -202,8 +202,8 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:2.3"
-  path="${TOPWD}/catalog/kafka/2.3/dockerfile/"
+  image="${org}${target}:2.6"
+  path="${TOPWD}/catalog/kafka/2.6/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -211,8 +211,8 @@ BuildCatalogImages() {
   echo
   target=$system"-kafka-manager"
   # see catalog/kafkamanager/kafkamanagercatalog.go for why version is included
-  image="${org}${target}:2.0.0-${version}"
-  path="${TOPWD}/catalog/kafkamanager/2.0.0/dockerfile/"
+  image="${org}${target}:3.0.0-${version}"
+  path="${TOPWD}/catalog/kafkamanager/3.0.0/dockerfile/"
   cp ${GOPATH}/bin/firecamp-selectmember ${path}
   docker build -q -t $image $path
   rm -f ${path}/firecamp-selectmember
