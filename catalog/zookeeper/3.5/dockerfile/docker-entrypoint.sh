@@ -57,6 +57,8 @@ fi
 
 # allow the container to be started with `--user`
 if [ "$1" = 'zkServer.sh' -a "$(id -u)" = '0' ]; then
+  sed -i 's/#autopurge.snapRetainCount=.*/autopurge.snapRetainCount=5/g' $zoocfgfile
+  sed -i 's/#autopurge.purgeInterval=.*/autopurge.purgeInterval=24/g' $zoocfgfile
   cp $zoocfgfile $ZOOCFGDIR
   cp $logcfgfile $ZOOCFGDIR
   chown -R $ZOO_USER $ZOOCFGDIR
