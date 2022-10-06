@@ -7,10 +7,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/catalog/cassandra"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/manage/error"
+	"github.com/jazzl0ver/firecamp/catalog/cassandra"
 )
 
 func (s *CatalogHTTPServer) createCasService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {

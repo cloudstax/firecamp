@@ -1,10 +1,10 @@
-* [Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow)
-* [Service Creation Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-creation-flow)
+* [Service Scheduling Flow](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows#service-scheduling-flow)
+* [Service Creation Flow](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows#service-creation-flow)
 
 # Service Scheduling Flow
 When service starts running or service container moves from one node to another, the container orchestration framework will schedule the container to one node. The container will invoke the FireCamp container plugin. The FireCamp container plugin will talk with the FireCamp KeyValue DB to find out which member the container belongs to. Then the container plugin will update the member address to the Registry Service, or reassign the IP from the old node to the current node if the service requires the static IP. And the container plugin will mount the volume to the local worker node.
 
-![Service Scheduling Flow](https://s3.amazonaws.com/cloudstax/firecamp/docs/firecamp+service+scheduling+flow.png)
+![Service Scheduling Flow](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/firecamp+service+scheduling+flow.png)
 
 # Service Creation Flow
 Users send the service creation request to the Catalog service. The Catalog service creates the volumes, such as AWS EBS volume, assigns the DNS names to each member, and persists the service related metadata into the FireCamp KeyValue DB.
@@ -13,5 +13,5 @@ Then the Catalog service talks with the underline container orchestration framew
 
 After the service is created and initialized, the Catalog service returns success to the user.
 
-![Service Creation Flow](https://s3.amazonaws.com/cloudstax/firecamp/docs/firecamp+service+creation+flow.png)
+![Service Creation Flow](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/firecamp+service+creation+flow.png)
 

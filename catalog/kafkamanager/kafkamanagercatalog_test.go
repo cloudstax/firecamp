@@ -3,9 +3,9 @@ package kmcatalog
 import (
 	"testing"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/catalog/zookeeper"
+	"github.com/jazzl0ver/firecamp/api/common"
 )
 
 func TestKafkaManagerCatalog(t *testing.T) {

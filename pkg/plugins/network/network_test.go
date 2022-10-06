@@ -3,9 +3,9 @@ package dockernetwork
 import (
 	"testing"
 
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/server"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/server"
 )
 
 func TestNetworkAddDelIP(t *testing.T) {

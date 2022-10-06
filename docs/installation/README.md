@@ -1,53 +1,53 @@
-* [Installation on AWS](https://github.com/cloudstax/firecamp/tree/master/docs/installation#installation-on-aws)
-  * [Install the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-firecamp-cluster)
-  * [Install the Application Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#install-the-application-cluster)
-  * [Delete the FireCamp Cluster](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-firecamp-cluster)
-* [The FireCamp Service CLI](https://github.com/cloudstax/firecamp/tree/master/docs/installation#the-firecamp-service-cli)
-  * [Create the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#create-the-stateful-service)
-  * [Delete the Stateful Service](https://github.com/cloudstax/firecamp/tree/master/docs/installation#delete-the-stateful-service)
+* [Installation on AWS](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#installation-on-aws)
+  * [Install the FireCamp Cluster](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#install-the-firecamp-cluster)
+  * [Install the Application Cluster](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#install-the-application-cluster)
+  * [Delete the FireCamp Cluster](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#delete-the-firecamp-cluster)
+* [The FireCamp Service CLI](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#the-firecamp-service-cli)
+  * [Create the Stateful Service](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#create-the-stateful-service)
+  * [Delete the Stateful Service](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation#delete-the-stateful-service)
 
 # Installation on AWS
 
 ## Install the FireCamp Cluster
-The FireCamp cluster can be easily installed via [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/). It will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
+The FireCamp cluster can be easily installed via [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/jazzl0ver-firecamp/). It will create an ECS or Docker Swarm cluster across 3 AvailabilityZones. So the stateful services such as MongoDB could have 3 replicas on 3 AvailabilityZones, to tolerate the single availability zone failure.
 
-AWS FireCamp QuickStart does not install the latest developing build. If you want to test/develop the latest build, please use the "cloudstax" bucket or create your own bucket. The "cloudstax" bucket has the [master template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp-master.template) and [existingvpc template](https://s3.amazonaws.com/cloudstax/firecamp/releases/latest/templates/firecamp.template). If you use your own bucket, please remember to update the "QSS3BucketName" and "QSS3KeyPrefix" accordingly.
+AWS FireCamp QuickStart does not install the latest developing build. If you want to test/develop the latest build, please use the "jazzl0ver" bucket or create your own bucket. The "jazzl0ver" bucket has the [master template](https://s3.amazonaws.com/jazzl0ver/firecamp/releases/latest/templates/firecamp-master.template) and [existingvpc template](https://s3.amazonaws.com/jazzl0ver/firecamp/releases/latest/templates/firecamp.template). If you use your own bucket, please remember to update the "QSS3BucketName" and "QSS3KeyPrefix" accordingly.
 
-1. Go to [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/), click "Deploy on AWS into a new VPC", then click "Next".
+1. Go to [AWS FireCamp QuickStart](https://aws.amazon.com/quickstart/architecture/jazzl0ver-firecamp/), click "Deploy on AWS into a new VPC", then click "Next".
 
 2. "Specify Details": specify below fields, then click "Next".
 * Specify the "Stack name", such as "t1".
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+StackName.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cfstack+StackName.png)
 
 * Select 3 "AvailabilityZones".
 
-![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+AvailabilityZones.png)
+![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cfstack+AvailabilityZones.png)
 
 * Specify the "ClusterName", such as "t1".
 
-![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cf+clustername.png)
+![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cf+clustername.png)
 
 * Select the "ContainerPlatform", "ecs" or "swarm".
 
-![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cf+platform.png)
+![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cf+platform.png)
 
 * Select the "KeyPairName" for SSH to the Bastion and cluster nodes.
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cf+stack+KeyPairName.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cf+stack+KeyPairName.png)
 
 * Select the cluster node Instance Type. For the simple function tests, you may select t2.micro type.
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+NodeInstanceType.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cfstack+NodeInstanceType.png)
 
 * Modify the "RemoteAccessCIDR" that could SSH to the Bastion nodes.
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+RemoteAccessCIDR.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cfstack+RemoteAccessCIDR.png)
 
 3. "Options": click "Next".
 4. "Review": check the acknowledge for IAM, and click "Create".
 
-![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cfstack+AckIAM.png)
+![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cfstack+AckIAM.png)
 
 
 You could also use AWS CLI to create a cluster:
@@ -90,7 +90,7 @@ The application could be run on a separate cluster or the FireCamp cluster. The 
 
 The AppAccessSecurityGroup and VPCID could be found in the CloudFormation Stack output.
 
-![](https://s3.amazonaws.com/cloudstax/firecamp/docs/install/cf+outputs.png)
+![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/install/cf+outputs.png)
 
 ## Delete the FireCamp Cluster
 Use firecamp-service-cli to delete all stateful services created on the cluster. **If any stateful service is not deleted, the cloudformation stack deletion will fail.** There is no need to delete the manage service, CloudFormation will automatically clean up it at deletion.
@@ -117,7 +117,7 @@ firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east
 
 To encrypt the data and/or journal volumes add **-volume-encrypted=true** and/or **-journal-volume-encrypted=true** to the **firecamp-service-cli** command line. It works in AWS environments only.
 
-For more details, please refer to each service's tutorials in the service's readme, such as [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb).
+For more details, please refer to each service's tutorials in the service's readme, such as [MongoDB](https://github.com/jazzl0ver/firecamp/tree/master/catalog/mongodb).
 
 The general service creation steps:
 1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.

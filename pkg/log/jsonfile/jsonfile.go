@@ -3,7 +3,7 @@ package jsonfilelog
 import (
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/pkg/log"
+	"github.com/jazzl0ver/firecamp/pkg/log"
 )
 
 type Log struct {

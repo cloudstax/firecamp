@@ -9,15 +9,15 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/containersvc/awsecs"
-	"github.com/cloudstax/firecamp/pkg/containersvc/swarm"
-	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/pkg/dns/awsroute53"
-	"github.com/cloudstax/firecamp/pkg/plugins/network"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/awsecs"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/swarm"
+	"github.com/jazzl0ver/firecamp/pkg/db/awsdynamodb"
+	"github.com/jazzl0ver/firecamp/pkg/dns/awsroute53"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/network"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // This tool is used to select the member in the entrypoint.sh of the service's docker container.

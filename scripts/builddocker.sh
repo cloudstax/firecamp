@@ -24,7 +24,7 @@ BuildPlugin() {
   containername="$system-buildtest"
   docker rm $containername || true
   # the build container not exist, create and run it
-  docker run --name $containername -v ${TOPWD}:/go/src/github.com/cloudstax/firecamp $image
+  docker run --name $containername -v ${TOPWD}:/go/src/github.com/jazzl0ver/firecamp $image
 
   # build the volume plugin
   volumePluginPath="${TOPWD}/syssvc/firecamp-dockervolume/dockerfile"
@@ -133,17 +133,17 @@ BuildCatalogImages() {
   target=$system"-mongodb"
   image="${org}${target}:3.4"
   path="${TOPWD}/catalog/mongodb/3.4/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
   echo
   target=$system"-mongodb-init"
   image="${org}${target}:3.4"
   path="${TOPWD}/catalog/mongodb/3.4/init-task-dockerfile/"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
 
   # build postgres docker image
@@ -151,10 +151,10 @@ BuildCatalogImages() {
   target=$system"-postgres"
   image="${org}${target}:9.6"
   path="${TOPWD}/catalog/postgres/9.6/dockerfile/"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
   # build postgres postgis docker image
   echo
@@ -162,24 +162,24 @@ BuildCatalogImages() {
   image="${org}${target}:9.6"
   path="${TOPWD}/catalog/postgres/9.6/postgis-dockerfile/"
   cd $path
-  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
-  docker build -q -t $image .
-  docker push $image
-  rm -f Dockerfile
+#  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
+#  docker build -q -t $image .
+#  docker push $image
+#  rm -f Dockerfile
   cd -
 
   # build cassandra docker image
   echo
   target=$system"-cassandra"
-  image="${org}${target}:3.11"
-  path="${TOPWD}/catalog/cassandra/3.11/dockerfile/"
+  image="${org}${target}:4.0"
+  path="${TOPWD}/catalog/cassandra/4.0/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-cassandra-init"
-  image="${org}${target}:3.11"
-  path="${TOPWD}/catalog/cassandra/3.11/init-task-dockerfile/"
+  image="${org}${target}:4.0"
+  path="${TOPWD}/catalog/cassandra/4.0/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   cd $path
   sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
@@ -193,8 +193,8 @@ BuildCatalogImages() {
   # build zookeeper docker image
   echo
   target=$system"-zookeeper"
-  image="${org}${target}:3.5"
-  path="${TOPWD}/catalog/zookeeper/3.5/dockerfile/"
+  image="${org}${target}:3.8"
+  path="${TOPWD}/catalog/zookeeper/3.8/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -202,8 +202,8 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:2.6"
-  path="${TOPWD}/catalog/kafka/2.6/dockerfile/"
+  image="${org}${target}:3.3"
+  path="${TOPWD}/catalog/kafka/3.3/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
@@ -224,20 +224,20 @@ BuildCatalogImages() {
   # see catalog/kafkaconnect/kccatalog.go for why version is included
   image="${org}${target}:4.0-${version}"
   path="${TOPWD}/catalog/kafkaconnect/4.0/dockerfile/"
-  cp ${GOPATH}/bin/firecamp-selectmember ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/firecamp-selectmember
-  docker push $image
+#  cp ${GOPATH}/bin/firecamp-selectmember ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/firecamp-selectmember
+#  docker push $image
 
   # build sink-elasticsearch init task docker image
   echo
   target=$system"-kafka-sink-elasticsearch-init"
   image="${org}${target}:4.0"
   path="${TOPWD}/catalog/kafkaconnect/4.0/sink-elasticsearch-init-dockerfile"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
 
   # build redis docker image
@@ -245,19 +245,19 @@ BuildCatalogImages() {
   target=$system"-redis"
   image="${org}${target}:4.0"
   path="${TOPWD}/catalog/redis/4.0/dockerfile/"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
   echo
   target=$system"-redis-init"
   image="${org}${target}:4.0"
   path="${TOPWD}/catalog/redis/4.0/init-task-dockerfile/"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
 
   # build couchdb docker image
@@ -265,17 +265,17 @@ BuildCatalogImages() {
   target=$system"-couchdb"
   image="${org}${target}:2.3"
   path="${TOPWD}/catalog/couchdb/2.3/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
   echo
   target=$system"-couchdb-init"
   image="${org}${target}:2.3"
   path="${TOPWD}/catalog/couchdb/2.3/init-task-dockerfile/"
-  cp ${TOPWD}/catalog/waitdns.sh ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/waitdns.sh
-  docker push $image
+#  cp ${TOPWD}/catalog/waitdns.sh ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/waitdns.sh
+#  docker push $image
 
 
   # build consul docker image
@@ -283,8 +283,8 @@ BuildCatalogImages() {
   target=$system"-consul"
   image="${org}${target}:1.0"
   path="${TOPWD}/catalog/consul/1.0/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
 
   # build elasticsearch docker image
@@ -292,8 +292,8 @@ BuildCatalogImages() {
   target=$system"-elasticsearch"
   image="${org}${target}:5.6"
   path="${TOPWD}/catalog/elasticsearch/5.6/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
 
   # build kibana docker image
@@ -301,8 +301,8 @@ BuildCatalogImages() {
   target=$system"-kibana"
   image="${org}${target}:5.6"
   path="${TOPWD}/catalog/kibana/5.6/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
 
   # build logstash docker image
@@ -310,8 +310,8 @@ BuildCatalogImages() {
   target=$system"-logstash"
   image="${org}${target}:5.6"
   path="${TOPWD}/catalog/logstash/5.6/dockerfile/"
-  docker build -q -t $image $path
-  docker push $image
+#  docker build -q -t $image $path
+#  docker push $image
 
   # build logstash docker image with couchdb input plugin
   echo
@@ -319,10 +319,10 @@ BuildCatalogImages() {
   image="${org}${target}:5.6"
   path="${TOPWD}/catalog/logstash/5.6/input-couchdb-dockerfile/"
   cd $path
-  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
-  docker build -q -t $image .
-  docker push $image
-  rm -f Dockerfile
+#  sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
+#  docker build -q -t $image .
+#  docker push $image
+#  rm -f Dockerfile
   cd -
 
   # build telegraf docker image
@@ -330,10 +330,10 @@ BuildCatalogImages() {
   target=$system"-telegraf"
   image="${org}${target}:1.5"
   path="${TOPWD}/catalog/telegraf/1.5/dockerfile/"
-  cp ${GOPATH}/bin/firecamp-getserviceconf ${path}
-  docker build -q -t $image $path
-  rm -f ${path}/firecamp-getserviceconf
-  docker push $image
+#  cp ${GOPATH}/bin/firecamp-getserviceconf ${path}
+#  docker build -q -t $image $path
+#  rm -f ${path}/firecamp-getserviceconf
+#  docker push $image
 }
 
 if [ "$buildtarget" = "all" ]; then

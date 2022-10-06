@@ -9,14 +9,14 @@ To build a new release, a few steps are required. This will be enhanced in the f
 Update the README.md and docs/installation/README.md to the new version as well.
 
 2. Upload the new files
-Create the new release folder in the "cloudstax" bucket, such as firecamp/releases/1.0. Create subfolders: "templates", "scripts", "packages". Upload all templates under packages/aws-cloudformation/ to "templates", upload packages/aws-cloudformation/init.sh to "scripts", and upload $GOPATH/bin/firecamp-service-cli.tgz and $GOPATH/bin/firecamp-swarminit.tgz to "packages". The swarminit command is used by packaging/aws-cloudformation/init.sh to initialize the Docker Swarm cluster.
+Create the new release folder in the "jazzl0ver" bucket, such as firecamp/releases/1.0. Create subfolders: "templates", "scripts", "packages". Upload all templates under packages/aws-cloudformation/ to "templates", upload packages/aws-cloudformation/init.sh to "scripts", and upload $GOPATH/bin/firecamp-service-cli.tgz and $GOPATH/bin/firecamp-swarminit.tgz to "packages". The swarminit command is used by packaging/aws-cloudformation/init.sh to initialize the Docker Swarm cluster.
 
 Note: the default template allows '.' in the QSS3KeyPrefix. AWS QuickStart always points to the latest version, such as aws/vpc/latest for QSAWSVPCS3KeyPrefix, and '.' is not allowed in the key prefix. For the new release, when updating the AWS QuickStart git, remove '.' in the QSS3KeyPrefix and point to the latest version in QuickStart.
-Also change "QSS3BucketName" from "cloudstax" to "quickstart-reference".
+Also change "QSS3BucketName" from "jazzl0ver" to "quickstart-reference".
 
 
 3. Docker Images
-make docker to build the docker images for this release, and upload to docker hub. If Amazon ECS agent git creates a new version, update cloudstax/amazon-ecs-agent, build a new container and push to docker hub.
+make docker to build the docker images for this release, and upload to docker hub. If Amazon ECS agent git creates a new version, update jazzl0ver/amazon-ecs-agent, build a new container and push to docker hub.
 
 
 4. The plugin log file rotates

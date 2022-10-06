@@ -83,7 +83,7 @@
             "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
         },
         "QSS3KeyPrefix": {
-            "Default": "quickstart-cloudstax-firecamp/",
+            "Default": "quickstart-jazzl0ver-firecamp/",
             "Type": "String"
         },
         "SNSTopicARN": {

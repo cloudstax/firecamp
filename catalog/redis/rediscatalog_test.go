@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
 )
 
 func TestRedisConfigs(t *testing.T) {

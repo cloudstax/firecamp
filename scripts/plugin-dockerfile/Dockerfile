@@ -1,6 +1,6 @@
 FROM golang:1.8-alpine
 
-RUN mkdir -p /go/src/github.com/cloudstax
+RUN mkdir -p /go/src/github.com/jazzl0ver
 
 RUN set -ex \
     && apk add --no-cache --virtual .build-deps \

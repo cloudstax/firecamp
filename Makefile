@@ -34,4 +34,4 @@ clean:
 	-rm -fr build || true
 
 cleanall: clean
-	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/cloudstax/firecamp
+	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/jazzl0ver/firecamp

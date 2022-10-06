@@ -10,13 +10,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	manageclient "github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	manageclient "github.com/jazzl0ver/firecamp/api/manage/client"
+	"github.com/jazzl0ver/firecamp/api/manage/error"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const (

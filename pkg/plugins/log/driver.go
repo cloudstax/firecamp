@@ -12,16 +12,16 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cloudstax/firecamp/pkg/plugins/log/awslogs"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/log/awslogs"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
 	protoio "github.com/gogo/protobuf/io"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fifo"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/log"
-	"github.com/cloudstax/firecamp/pkg/plugins"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/log"
+	"github.com/jazzl0ver/firecamp/pkg/plugins"
 )
 
 const (
