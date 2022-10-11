@@ -29,6 +29,10 @@
             "Type":"AWS::EC2::KeyPair::KeyName",
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
+        "KMSARN": {
+            "Type":"String",
+            "Description": "KMS key ARN for encrypted SSM sessions"
+        },
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
             "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
@@ -160,7 +164,10 @@
                 "Parameters": {
                     "ContainerPlatform": {
                         "Ref": "ContainerPlatform"
-                    }
+                    },
+                    "KMSARN": {
+                        "Ref": "KMSARN"
+                    },
                 }
             }
         },

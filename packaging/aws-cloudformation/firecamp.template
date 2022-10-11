@@ -23,7 +23,8 @@
                         "default": "Security Configuration"
                     },
                     "Parameters": [
-                        "KeyPairName"
+                        "KeyPairName",
+			"KMSARN"
                     ]
                 },
                 {
@@ -77,6 +78,10 @@
 
                 "KeyPairName": {
                     "default": "Key Pair Name"
+                },
+
+                "KMSARN": {
+                    "default": "KMS key ARN for encrypted SSM sessions"
                 },
 
                 "ContainerPlatform": {
@@ -155,6 +160,11 @@
         "KeyPairName":{
             "Type":"AWS::EC2::KeyPair::KeyName",
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
+        },
+
+        "KMSARN":{
+            "Type":"String",
+            "Description":"ARN of KMS key to use for SSM session encryption"
         },
 
         "ContainerPlatform":{
@@ -603,6 +613,9 @@
                     },
                     "KeyPairName": {
                         "Ref": "KeyPairName"
+                    },
+                    "KMSARN": {
+                        "Ref": "KMSARN"
                     },
                     "VPCID": {
                         "Ref": "VPCID"

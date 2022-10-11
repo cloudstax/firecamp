@@ -55,7 +55,7 @@ if [ "$1" = 'kafka-server-start.sh' -a "$(id -u)" = '0' ]; then
   fi
   chown -R "$KAFKA_USER" "$confdir"
 
-  exec su-exec "$KAFKA_USER" "$BASH_SOURCE" "$@"
+  exec gosu "$KAFKA_USER" "$BASH_SOURCE" "$@"
 fi
 
 # copy config files to /kafka/config

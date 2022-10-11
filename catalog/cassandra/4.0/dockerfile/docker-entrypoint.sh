@@ -62,6 +62,12 @@ if [ "$(id -u)" = '0' ]; then
   fi
 fi
 
+# first arg is `-f` or `--some-option`
+# or there are no args
+if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ]; then
+    set -- cassandra -f "$@"
+fi
+
 # allow the container to be started with `--user`
 if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
   commitlogdiruser=$(stat -c "%U" $COMMITLOG_DIR)
@@ -90,11 +96,17 @@ if [ -f "$servicecfgfile" ]; then
   sed -ri 's/(cluster_name:).*/\1 '\'$CLUSTER\''/' $DefaultYaml
 
   sed -i 's/# hints_directory:.*/hints_directory: \/data\/hints/g' $DefaultYaml
-  sed -i 's/- \/var\/lib\/cassandra\/data/- \/data\/data/g' $DefaultYaml
-  sed -i 's/commitlog_directory:.*/commitlog_directory: \/journal/g' $DefaultYaml
-  sed -i 's/saved_caches_directory:.*/saved_caches_directory: \/data\/saved_caches/g' $DefaultYaml
+  sed -i 's/# data_file_directories:/data_file_directories:/g' $DefaultYaml
+  sed -i 's/#[ ]* - \/var\/lib\/cassandra\/data/- \/data\/data/g' $DefaultYaml
+  sed -i 's/# commitlog_directory:.*/commitlog_directory: \/journal/g' $DefaultYaml
+  sed -i 's/# saved_caches_directory:.*/saved_caches_directory: \/data\/saved_caches/g' $DefaultYaml
+
+  sed -i 's/num_tokens: 16/num_tokens: 256/g' $DefaultYaml
+  sed -i '/^audit_logging_options:/{n;s/enabled:.*/enabled: true/;}' $DefaultYaml
+  sed -i 's/class_name: BinAuditLogger/class_name: FileAuditLogger/g' $DefaultYaml
 
   sed -ri 's/(- seeds:).*/\1 "'"$CASSANDRA_SEEDS"'"/' $DefaultYaml
+
 
   ListenAddr=$SERVICE_MEMBER
   if [ "$PLATFORM" = "swarm" ]; then
@@ -108,7 +120,8 @@ if [ -f "$servicecfgfile" ]; then
   sed -i 's/endpoint_snitch:.*/endpoint_snitch: GossipingPropertyFileSnitch/g' $DefaultYaml
 
   sed -i 's/authenticator:.*/authenticator: PasswordAuthenticator/g' $DefaultYaml
-  sed -i 's/authorizer:.*/authorizer: CassandraAuthorizer/g' $DefaultYaml
+  sed -i 's/^authorizer:.*/authorizer: CassandraAuthorizer/g' $DefaultYaml
+  sed -i 's/network_authorizer:.*/network_authorizer: CassandraNetworkAuthorizer/g' $DefaultYaml
 
   sed -ie 's/batch_size_warn_threshold_in_kb: 5/batch_size_warn_threshold_in_kb: 100/' $DefaultYaml
   sed -ie 's/batch_size_fail_threshold_in_kb: 50/batch_size_fail_threshold_in_kb: 1000/' $DefaultYaml

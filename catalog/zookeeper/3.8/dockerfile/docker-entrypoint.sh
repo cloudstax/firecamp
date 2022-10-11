@@ -69,7 +69,7 @@ if [ "$1" = 'zkServer.sh' -a "$(id -u)" = '0' ]; then
   fi
   chown -R "$ZOO_USER" "$confdir"
 
-  exec su-exec "$ZOO_USER" "$BASH_SOURCE" "$@"
+  exec gosu "$ZOO_USER" "$BASH_SOURCE" "$@"
 fi
 
 # copy myid file if it doesn't exist

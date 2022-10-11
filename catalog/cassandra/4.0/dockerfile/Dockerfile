@@ -150,11 +150,8 @@ RUN set -eux; \
 			;; \
 	esac; \
 	\
-	mkdir -p "$CASSANDRA_CONF" /var/lib/cassandra /var/log/cassandra; \
-	chown -R cassandra:cassandra "$CASSANDRA_CONF" /var/lib/cassandra /var/log/cassandra; \
-	chmod 777 "$CASSANDRA_CONF" /var/lib/cassandra /var/log/cassandra; \
-	chmod -R a+rwX "$CASSANDRA_CONF"; \
-	ln -sT /var/lib/cassandra "$CASSANDRA_HOME/data"; \
+	mkdir -p "$CASSANDRA_CONF" /var/log/cassandra; \
+	chmod 777 "$CASSANDRA_CONF" /var/log/cassandra; \
 	ln -sT /var/log/cassandra "$CASSANDRA_HOME/logs"; \
 	\
 # smoke test
@@ -166,7 +163,7 @@ RUN set -eux; \
 #ENTRYPOINT ["docker-entrypoint.sh"]
 
 # set the JVM TTL.
-RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /usr/lib/jvm/java-11-openjdk-amd64/jre/lib/security/java.security
+RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /opt/java/openjdk/conf/security/java.security
 
 # get jolokia jvm agent
 RUN set -ex; \
@@ -177,7 +174,7 @@ RUN set -ex; \
 	rm -rf /var/lib/apt/lists/*
 
 COPY docker-entrypoint.sh /
-ENTRYPOINT ["/docker-entrypoint.sh", "cassandra", "-f"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # 7000: intra-node communication
 # 7001: TLS intra-node communication
@@ -188,3 +185,4 @@ EXPOSE 7000 7001 7199 9042 9160
 
 # jolokia default port
 EXPOSE 8778
+CMD ["cassandra", "-f"]

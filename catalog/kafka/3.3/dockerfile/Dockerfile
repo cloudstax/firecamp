@@ -1,22 +1,34 @@
-FROM openjdk:11-jre-alpine
-
-# Install required packages
-RUN apk add --no-cache \
-  bash \
-  su-exec
+FROM openjdk:11-jre-slim
 
 ENV KAFKA_USER=kafka
 
-RUN set -x \
-  && adduser -D "$KAFKA_USER"
+# Add a user with an explicit UID/GID 
+RUN set -eux; \
+    groupadd -r $KAFKA_USER --gid=1000; \
+    useradd -r -g $KAFKA_USER --uid=1000 $KAFKA_USER;
 
 ENV KAFKA_VERSION 3.3.1
 ENV KAFKA_SCALA_VERSION 2.13
 ENV KAFKA_RELEASE kafka_${KAFKA_SCALA_VERSION}-${KAFKA_VERSION}
 
+# Install required packges
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        dirmngr \
+        gosu \
+        gnupg \
+        netcat \
+        wget; \
+    rm -rf /var/lib/apt/lists/*; \
+# Verify that gosu binary works
+    gosu nobody true
+
 # Download Kafka Zookeeper, verify its digest integrity, untar and clean up
 RUN set -x \
-  && wget -q http://www.us.apache.org/dist/kafka/${KAFKA_VERSION}/${KAFKA_RELEASE}.tgz \
+  && wget -q https://downloads.apache.org/kafka/${KAFKA_VERSION}/${KAFKA_RELEASE}.tgz \
   && tar -zx -C / -f ${KAFKA_RELEASE}.tgz \
   && mv /${KAFKA_RELEASE} /kafka \
   && chown -R $KAFKA_USER /kafka \
@@ -26,7 +38,7 @@ ENV PATH=$PATH:/kafka/bin
 
 # set the JVM TTL.
 # https://www.confluent.io/blog/design-and-deployment-considerations-for-deploying-apache-kafka-on-aws/
-RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_HOME/lib/security/java.security
+RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' $JAVA_HOME/conf/security/java.security
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh", "kafka-server-start.sh", "/kafka/config/server.properties"]

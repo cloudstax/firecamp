@@ -195,18 +195,14 @@
                                     "Ref": "Release"
                                 },
                                 "\n",
+                                "rel=$version\n",
+                                "[ \"$rel\" = \"latest\" ] && rel=\"master\"\n",
                                 "# get and install the checking disks script\n",
                                 "for i in 1 2 3\n",
                                 "do\n",
-                                "  wget -O /usr/local/bin/check_disks_and_alert_by_sns.sh https://s3.amazonaws.com/",
-                                {
-                                    "Ref": "QSS3BucketName"
-                                },
-                                "/",
-                                {
-                                    "Ref": "QSS3KeyPrefix"
-                                },
-                                "scripts/check_disks_and_alert_by_sns.sh\n",
+                                "  wget -O /usr/local/bin/check_disks_and_alert_by_sns.sh https://raw.githubusercontent.com/jazzl0ver/firecamp/",
+                                "$rel/",
+                                "packaging/aws-cloudformation/check_disks_and_alert_by_sns.sh\n",
                                 "  if [ \"$?\" = \"0\" ]; then\n",
                                 "    break\n",
                                 "  elif [ \"$i\" = \"3\" ]; then\n",
@@ -225,15 +221,9 @@
                                 "# get and run the node init script\n",
                                 "for i in 1 2 3\n",
                                 "do\n",
-                                "  wget -O /tmp/init.sh https://s3.amazonaws.com/",
-                                {
-                                    "Ref": "QSS3BucketName"
-                                },
-                                "/",
-                                {
-                                    "Ref": "QSS3KeyPrefix"
-                                },
-                                "scripts/init.sh\n",
+                                "  wget -O /tmp/init.sh https://raw.githubusercontent.com/jazzl0ver/firecamp/",
+                                "$rel/",
+                                "packaging/aws-cloudformation/init.sh\n",
                                 "  if [ \"$?\" = \"0\" ]; then\n",
                                 "    break\n",
                                 "  elif [ \"$i\" = \"3\" ]; then\n",
