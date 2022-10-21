@@ -24,7 +24,9 @@
                     },
                     "Parameters": [
                         "KeyPairName",
-			"KMSARN"
+						"KMSARN",
+						"WazuhManager",
+						"WazuhGroup"
                     ]
                 },
                 {
@@ -82,6 +84,13 @@
 
                 "KMSARN": {
                     "default": "KMS key ARN for encrypted SSM sessions"
+                },
+
+                "WazuhManager": {
+                    "default": "Wazuh Manager FQDN (leave empty to disable Wazuh Agent installation)"
+                },
+                "WazuhGroup": {
+                    "default": "Wazuh Agent Group (leave empty to use the default one)"
                 },
 
                 "ContainerPlatform": {
@@ -167,6 +176,15 @@
             "Description":"ARN of KMS key to use for SSM session encryption"
         },
 
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
+
         "ContainerPlatform":{
             "Type": "String",
             "Default": "ecs",
@@ -184,13 +202,13 @@
         "Release": {
             "Type": "String",
             "Default": "latest",
-            "AllowedValues": [ "latest", "1.3", "1.2", "1.1", "1.0" ],
+            "AllowedValues": [ "latest", "1.4", "1.3", "1.2", "1.1", "1.0" ],
             "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
             "Default": "latest",
-            "AllowedValues": [ "latest", "1.3", "1.2", "1.1", "1.0" ],
+            "AllowedValues": [ "latest", "1.4", "1.3", "1.2", "1.1", "1.0" ],
             "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/jazzl0verx/firecamp/releases."
         },
         "QSS3BucketName": {
@@ -617,6 +635,12 @@
                     "KMSARN": {
                         "Ref": "KMSARN"
                     },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+					"WazuhGroup": {
+						"Ref": "WazuhGroup"
+					},
                     "VPCID": {
                         "Ref": "VPCID"
                     },

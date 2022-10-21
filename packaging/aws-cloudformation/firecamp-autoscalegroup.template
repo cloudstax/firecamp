@@ -33,6 +33,14 @@
             "Type": "AWS::EC2::KeyPair::KeyName",
             "Description": "Name of an existing EC2 KeyPair to enable SSH access to the cluster instances."
         },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
         "Release": {
             "Type": "String",
             "Default": "latest",
@@ -195,8 +203,8 @@
                                     "Ref": "Release"
                                 },
                                 "\n",
-                                "rel=$version\n",
-                                "[ \"$rel\" = \"latest\" ] && rel=\"master\"\n",
+                                "rel=v$version\n",
+                                "[ \"$rel\" = \"vlatest\" ] && rel=\"master\"\n",
                                 "# get and install the checking disks script\n",
                                 "for i in 1 2 3\n",
                                 "do\n",
@@ -258,6 +266,20 @@
                                 "\n",
                                 "res=$?\n",
                                 "echo $res\n",
+								"wazuh_group=\"",
+                                {
+                                    "Ref": "WazuhGroup"
+                                },
+                                "\"\n",
+								"wazuh_manager=\"",
+                                {
+                                    "Ref": "WazuhManager"
+                                },
+                                "\"\n",
+								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.3.8-1.x86_64.rpm -y",
+								"\n",
+								"service wazuh-agent start && chkconfig wazuh-agent on",
+								"\n",
                                 "# Signal init result\n",
                                 "/opt/aws/bin/cfn-signal -e $res ",
                                 "         --stack ",

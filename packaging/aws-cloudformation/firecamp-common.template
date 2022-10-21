@@ -33,6 +33,14 @@
             "Type":"String",
             "Description": "KMS key ARN for encrypted SSM sessions"
         },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+			"Type":"String",
+			"Description": "Wazuh Agent Group"
+		},
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
             "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
@@ -167,7 +175,7 @@
                     },
                     "KMSARN": {
                         "Ref": "KMSARN"
-                    },
+                    }
                 }
             }
         },
@@ -224,6 +232,12 @@
                     },
                     "KeyPairName": {
                         "Ref": "KeyPairName"
+                    },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+                    "WazuhGroup": {
+                        "Ref": "WazuhGroup"
                     },
                     "AvailabilityZones": {
                         "Fn::Join": [
@@ -306,6 +320,12 @@
                     },
                     "KeyPairName": {
                         "Ref": "KeyPairName"
+                    },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+                    "WazuhGroup": {
+                        "Ref": "WazuhGroup"
                     },
                     "AvailabilityZones": {
                         "Fn::Join": [

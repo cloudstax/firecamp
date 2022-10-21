@@ -15,6 +15,14 @@
             "Type":"AWS::EC2::KeyPair::KeyName",
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
         "DBType": {
             "AllowedValues": [
                 "clouddb"
@@ -374,6 +382,12 @@
                     "KeyPairName": {
                         "Ref": "KeyPairName"
                     },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+					"WazuhGroup": {
+						"Ref": "WazuhGroup"
+					},
                     "Release": {
                         "Ref": "Release"
                     },
