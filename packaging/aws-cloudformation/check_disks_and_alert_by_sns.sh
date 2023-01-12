@@ -7,7 +7,7 @@
 TOPIC_ARN=$1
 MAX_USAGE=90
 
-[ "$TOPIC_ARN" = "" ] && { echo "SNS topic ARN is not set, exiting.."; exit; }
+[ "$TOPIC_ARN" = "" ] && exit
 
 EC2_AVAIL_ZONE=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone`
 EC2_REGION="`echo \"$EC2_AVAIL_ZONE\" | sed 's/[a-z]$//'`"

@@ -102,8 +102,15 @@ if [ -f "$servicecfgfile" ]; then
   sed -i 's/# saved_caches_directory:.*/saved_caches_directory: \/data\/saved_caches/g' $DefaultYaml
 
   sed -i 's/num_tokens: 16/num_tokens: 256/g' $DefaultYaml
-  sed -i '/^audit_logging_options:/{n;s/enabled:.*/enabled: true/;}' $DefaultYaml
-  sed -i 's/class_name: BinAuditLogger/class_name: FileAuditLogger/g' $DefaultYaml
+
+  [ -n "$AUDIT_LOGGING_ENABLED" ] && sed -i '/^audit_logging_options:/{n;s/enabled:.*/enabled: '"$AUDIT_LOGGING_ENABLED"'/;}' $DefaultYaml
+  [ -n "$AUDIT_LOGGING_CLASSNAME" ] && sed -i 's/class_name: BinAuditLogger/class_name: '"$AUDIT_LOGGING_CLASSNAME"'/' $DefaultYaml
+  [ -n "$AUDIT_INCLUDED_KEYSPACES" ] && sed -i 's/# included_keyspaces:.*/included_keyspaces: '"$AUDIT_INCLUDED_KEYSPACES"'/' $DefaultYaml
+  [ -n "$AUDIT_EXCLUDED_KEYSPACES" ] && sed -i 's/# excluded_keyspaces:.*/excluded_keyspaces: '"$AUDIT_EXCLUDED_KEYSPACES"'/' $DefaultYaml
+  [ -n "$AUDIT_INCLUDED_CATEGORIES" ] && sed -i 's/# included_categories:.*/included_categories: '"$AUDIT_INCLUDED_CATEGORIES"'/' $DefaultYaml
+  [ -n "$AUDIT_EXCLUDED_CATEGORIES" ] && sed -i 's/# excluded_categories:.*/excluded_categories: '"$AUDIT_EXCLUDED_CATEGORIES"'/' $DefaultYaml
+  [ -n "$AUDIT_INCLUDED_USERS" ] && sed -i 's/# included_users:.*/included_users: '"$AUDIT_INCLUDED_USERS"'/' $DefaultYaml
+  [ -n "$AUDIT_EXCLUDED_USERS" ] && sed -i 's/# excluded_users:.*/excluded_users: '"$AUDIT_EXCLUDED_USERS"'/' $DefaultYaml
 
   sed -ri 's/(- seeds:).*/\1 "'"$CASSANDRA_SEEDS"'"/' $DefaultYaml
 
