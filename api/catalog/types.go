@@ -104,6 +104,15 @@ type CatalogCassandraOptions struct {
 	// The password for the JMX remote access. If empty, a uuid will be generated
 	// as the password. This will be used by nodetool to access replica remotely.
 	JmxRemotePasswd string
+	// Cassandra audit logging settings
+        AuditLoggingEnabled string
+        AuditLoggingClassName string
+        AuditIncludedKeyspaces string
+        AuditExcludedKeyspaces string
+        AuditIncludedCategories string
+        AuditExcludedCategories string
+        AuditIncludedUsers string
+        AuditExcludedUsers string
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.

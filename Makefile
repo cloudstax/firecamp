@@ -2,8 +2,8 @@
 .PHONY: install docker test
 
 org="jazzl0ver/"
-version="1.4"
-catalogversion="1.4"
+version="1.5"
+catalogversion="1.5"
 
 all: install
 
@@ -13,6 +13,9 @@ cli:
 
 install:
 	./scripts/install.sh
+
+s3:
+	./scripts/update-s3-bucket.sh $(org) $(version)
 
 docker: install
 	./scripts/builddocker.sh $(org) $(version) $(catalogversion) all

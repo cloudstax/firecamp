@@ -51,7 +51,7 @@ For Docker Swarm, we would have to use some [workarounds](https://residentsummer
 **Tcp tuning**
 
 The idle connection timeout is adjusted. The socket memory is increased to handle thousands of concurrent connections.
-'''
+```
 net.ipv4.tcp_keepalive_time=60
 net.ipv4.tcp_keepalive_probes=3
 net.ipv4.tcp_keepalive_intvl=10
@@ -62,7 +62,7 @@ net.core.wmem_default=16777216
 net.core.optmem_max=40960
 net.ipv4.tcp_rmem=4096 87380 16777216
 net.ipv4.tcp_wmem=4096 65536 16777216
-'''
+```
 
 **Memory Configs**
 
