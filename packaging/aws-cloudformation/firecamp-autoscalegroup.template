@@ -276,7 +276,7 @@
                                     "Ref": "WazuhManager"
                                 },
                                 "\"\n",
-								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.3.8-1.x86_64.rpm -y",
+								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.4.1-1.x86_64.rpm -y",
 								"\n",
 								"service wazuh-agent start && chkconfig wazuh-agent on",
 								"\n",

@@ -136,7 +136,7 @@ Follow the [Installation](https://github.com/jazzl0ver/firecamp/pkg/tree/master/
 firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10 -cas-heap-size=8192 -cas-audit-logging-enabled=true -cas-audit-included-keyspaces="ks1,ks2" -cas-audit-included-categories="QUERY,DDL,DCL" -cas-audit-included-users="myuser"
 ```
 
-This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512. Audit logging is enabled for certain keyspaces and users only (https://cassandra.apache.org/doc/4.0/cassandra/operating/audit_logging.html)
+This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512. Audit logging is enabled for certain keyspaces and users only (https://cassandra.apache.org/doc/4.1/cassandra/operating/audit_logging.html)
 
 The Cassandra service creation steps:
 1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.

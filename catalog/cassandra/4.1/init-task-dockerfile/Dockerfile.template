@@ -1,4 +1,4 @@
-FROM %%OrgName%%firecamp-cassandra:3.11
+FROM %%OrgName%%firecamp-cassandra:4.1
 
 RUN set -ex; \
   apt-get update; \

@@ -201,14 +201,14 @@
         },
         "Release": {
             "Type": "String",
-            "Default": "1.5",
-            "AllowedValues": [ "1.5", "1.4", "1.3", "1.2", "1.1", "1.0" ],
+            "Default": "1.6",
+            "AllowedValues": [ "1.6", "1.5", "1.4", "1.3", "1.2", "1.1", "1.0" ],
             "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
-            "Default": "1.5",
-            "AllowedValues": [ "1.5", "1.4", "1.3", "1.2", "1.1", "1.0" ],
+            "Default": "1.6",
+            "AllowedValues": [ "1.6", "1.5", "1.4", "1.3", "1.2", "1.1", "1.0" ],
             "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/jazzl0verx/firecamp/releases."
         },
         "QSS3BucketName": {
@@ -222,7 +222,7 @@
             "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
             "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
             "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-            "Default": "firecamp/releases/1.5/",
+            "Default": "firecamp/releases/1.6/",
             "Type": "String"
         },
         "SNSTopicARN": {

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultVersion = "4.0"
+	defaultVersion = "4.1"
 	// ContainerImage is the main Cassandra running container.
 	ContainerImage = common.ContainerNamePrefix + "cassandra:" + defaultVersion
 	// InitContainerImage initializes the Cassandra cluster.

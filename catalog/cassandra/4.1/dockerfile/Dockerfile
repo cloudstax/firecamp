@@ -35,11 +35,11 @@ RUN set -eux; \
 
 # grab gosu for easy step-down from root
 # https://github.com/tianon/gosu/releases
-ENV GOSU_VERSION 1.14
+ENV GOSU_VERSION 1.16
 RUN set -eux; \
 	savedAptMark="$(apt-mark showmanual)"; \
 	apt-get update; \
-	apt-get install -y --no-install-recommends ca-certificates dirmngr gnupg wget; \
+	apt-get install -y --no-install-recommends ca-certificates gnupg wget; \
 	rm -rf /var/lib/apt/lists/*; \
 	dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
 	wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
@@ -84,15 +84,19 @@ ENV GPG_KEYS \
 # Ekaterina Buryanova Dimitrova (CODE SIGNING KEY) <e.dimitrova@gmail.com>
 	3E9C876907A560ACA00964F363E9BAD215BBF5F0 \
 # Sam Tunnicliffe (CODE SIGNING KEY) <samt@apache.org>
-	F8B7FD00E05C932991A2CD6150EE103D162C5A55
+	F8B7FD00E05C932991A2CD6150EE103D162C5A55 \
+# Stefan Miklosovic <smiklosovic@apache.org>
+	7464AAD9068241C50BA6A26232F35CB2F546D93E \
+# Berenguer Blasi (Code Signing Key) <bereng@apache.org>
+	CEC5C50B9C629EF0F5AB2706650B72EB14CCD622
 
-ENV CASSANDRA_VERSION 4.0.6
-ENV CASSANDRA_SHA512 07c2a2f018c5921bfe0d7afba877a23d0ac5bbda05b9414abc60b4fae761115d0fb650eb226247b66d62c450d7eeadc95b6e270ebf0339d8263222fe5d49b07b
+ENV CASSANDRA_VERSION 4.1.1
+ENV CASSANDRA_SHA512 dc11ce5c0485d2d54d0fff3ae35d1b7f1c3e32055c0699206f59a5bbe983b50972ceb4638bfe65a7c80a6db5052b70ad75718525eef812ba9ae6a301fd5bc8be
 
 RUN set -eux; \
 	savedAptMark="$(apt-mark showmanual)"; \
 	apt-get update; \
-	apt-get install -y --no-install-recommends ca-certificates dirmngr gnupg wget; \
+	apt-get install -y --no-install-recommends ca-certificates gnupg wget; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
 	ddist() { \
@@ -158,9 +162,6 @@ RUN set -eux; \
 	cassandra -v
 
 #VOLUME /var/lib/cassandra
-
-#COPY docker-entrypoint.sh /usr/local/bin/
-#ENTRYPOINT ["docker-entrypoint.sh"]
 
 # set the JVM TTL.
 RUN sed -i 's/#networkaddress.cache.ttl=-1/networkaddress.cache.ttl=10/g' /opt/java/openjdk/conf/security/java.security

@@ -171,15 +171,15 @@ BuildCatalogImages() {
   # build cassandra docker image
   echo
   target=$system"-cassandra"
-  image="${org}${target}:4.0"
-  path="${TOPWD}/catalog/cassandra/4.0/dockerfile/"
+  image="${org}${target}:4.1"
+  path="${TOPWD}/catalog/cassandra/4.1/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 
   echo
   target=$system"-cassandra-init"
-  image="${org}${target}:4.0"
-  path="${TOPWD}/catalog/cassandra/4.0/init-task-dockerfile/"
+  image="${org}${target}:4.1"
+  path="${TOPWD}/catalog/cassandra/4.1/init-task-dockerfile/"
   cp ${TOPWD}/catalog/waitdns.sh ${path}
   cd $path
   sed -r "$replaceOrgName" Dockerfile.template > Dockerfile
