@@ -100,7 +100,7 @@
         },
         "LatestAMIId": {
     	    "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-    	    "Default": "/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-gp2"
+    	    "Default": "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id"
         }
     },
     "Resources": {
@@ -197,7 +197,7 @@
                             "",
                             [
                                 "#!/bin/bash -x\n",
-                                "yum install -y aws-cfn-bootstrap\n",
+                                "yum install -y aws-cfn-bootstrap wget\n",
                                 "version=",
                                 {
                                     "Ref": "Release"
@@ -276,9 +276,9 @@
                                     "Ref": "WazuhManager"
                                 },
                                 "\"\n",
-								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.4.1-1.x86_64.rpm -y",
+								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.7.0-1.x86_64.rpm -y",
 								"\n",
-								"service wazuh-agent start && chkconfig wazuh-agent on",
+								"[ \"$wazuh_group\" = \"\" ] || systemctl enable --now wazuh-agent",
 								"\n",
                                 "# Signal init result\n",
                                 "/opt/aws/bin/cfn-signal -e $res ",

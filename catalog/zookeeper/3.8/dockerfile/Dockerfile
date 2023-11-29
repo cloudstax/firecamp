@@ -7,7 +7,7 @@ RUN set -eux; \
     groupadd -r zookeeper --gid=1000; \
     useradd -r -g zookeeper --uid=1000 zookeeper;
 
-ARG DISTRO_FOLDER=zookeeper-3.8.0
+ARG DISTRO_FOLDER=zookeeper-3.8.3
 ARG DISTRO_NAME=apache-$DISTRO_FOLDER-bin
 
 # Install required packges
@@ -25,9 +25,9 @@ RUN set -eux; \
 # Verify that gosu binary works
     gosu nobody true
 
-ARG GPG_KEY=BBE7232D7991050B54C8EA0ADC08637CA615D22C
-ARG SHORT_DISTRO_NAME=zookeeper-3.8.0
-ARG DISTRO_NAME=apache-zookeeper-3.8.0-bin
+ARG GPG_KEY=3F7A1D16FA4217B1DC75E1C9FFE35B7F15DFA1BA
+ARG SHORT_DISTRO_NAME=zookeeper-3.8.3
+ARG DISTRO_NAME=apache-zookeeper-3.8.3-bin
 
 # Download Apache Zookeeper, verify its PGP signature, untar and clean up
 RUN set -eux; \

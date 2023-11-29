@@ -1,0 +1,215 @@
+diff --git a/Makefile b/Makefile
+index 15d129901..f11a642fe 100644
+--- a/Makefile
++++ b/Makefile
+@@ -32,8 +32,7 @@ endif
+ 
+ export GO111MODULE=auto
+ 
+-org="jazzl0ver/"
+-all: firecampdocker
++all: docker
+ 
+ # Dynamic go build; useful in that it does not have -a so it won't recompile
+ # everything every time
+@@ -93,13 +92,6 @@ else
+     BUILD=cleanbuild
+ endif
+ 
+-# 'firecampdocker' builds the agent dockerfile from the current sourcecode tree, dirty
+-# or not
+-firecampdocker: certs build-in-docker pause-container-release cni-plugins
+-	@cd scripts && ./create-amazon-ecs-scratch
+-	@docker build -f scripts/dockerfiles/Dockerfile.release -t "${org}firecamp-amazon-ecs-agent:latest" .
+-	@echo "Built Docker image \"${org}firecamp-amazon-ecs-agent:latest\""
+-
+ # 'docker-release' builds the agent from a clean snapshot of the git repo in
+ # 'RELEASE' mode
+ # TODO: make this idempotent
+diff --git a/README.md b/README.md
+index c18400552..bc6645de1 100644
+--- a/README.md
++++ b/README.md
+@@ -7,8 +7,6 @@ The Amazon ECS Container Agent is a component of Amazon Elastic Container Servic
+ 
+ This repository comes with ECS-Init, which is a [systemd](http://www.freedesktop.org/wiki/Software/systemd/) based service to support the Amazon ECS Container Agent and keep it running. It is used for systems that utilize `systemd` as init systems and is packaged as deb or rpm. The source for ECS-Init is available in this repository at `./ecs-init` while the packaging is available at `./packaging`.
+ 
+-// Firecamp support added //
+-
+ ## Usage
+ 
+ The best source of information on running this software is the
+diff --git a/VERSION b/VERSION
+index f739eb4ec..3a76d1e78 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-1.79.1-firecamp
++1.79.1
+diff --git a/agent/config/config.go b/agent/config/config.go
+index 4dacac752..9350c0490 100644
+--- a/agent/config/config.go
++++ b/agent/config/config.go
+@@ -133,7 +133,7 @@ const (
+ 	DefaultTaskMetadataBurstRate = 60
+ 
+ 	//Known cached image names
+-	CachedImageNameAgentContainer = "jazzl0ver/amazon-ecs-agent:latest"
++	CachedImageNameAgentContainer = "amazon/amazon-ecs-agent:latest"
+ 
+ 	// DefaultNvidiaRuntime is the name of the runtime to pass Nvidia GPUs to containers
+ 	DefaultNvidiaRuntime = "nvidia"
+diff --git a/agent/engine/docker_task_engine.go b/agent/engine/docker_task_engine.go
+index 0d7278624..92a7fcd23 100644
+--- a/agent/engine/docker_task_engine.go
++++ b/agent/engine/docker_task_engine.go
+@@ -59,7 +59,6 @@ import (
+ 	"github.com/docker/docker/api/types"
+ 	dockercontainer "github.com/docker/docker/api/types/container"
+ 	"github.com/pkg/errors"
+-	"github.com/cihub/seelog"
+ )
+ 
+ const (
+@@ -1724,17 +1723,6 @@ func (engine *DockerTaskEngine) createContainer(task *apitask.Task, container *a
+ 
+ 		dockerContainerName = "ecs-" + task.Family + "-" + task.Version + "-" + name + "-" + utils.RandHex()
+ 
+-		seelog.Infof("firecamp volume task.Family %s, task.Version %s, task %s", task.Family, task.Version, task)
+-		seelog.Infof("firecamp volume creating container name %s, DockerConfig %s, VolumesFrom %s, MountPoints %s, Links %s, container %s", dockerContainerName, container.DockerConfig, container.VolumesFrom, container.MountPoints, container.Links, container)
+-		seelog.Infof("firecamp volume hostConfig Binds %s, VolumesFrom %s, VolumeDriver %s, hostConfig %s", hostConfig.Binds, hostConfig.VolumesFrom, hostConfig.VolumeDriver, hostConfig)
+-
+-		hostConfig, vderr := AddVolumeDriver(hostConfig, container, engine.cfg.Cluster, task.Arn, task.Family)
+-		if vderr != nil {
+-			return dockerapi.DockerContainerMetadata{Error: apierrors.NamedError(vderr)}
+-		}
+-
+-		seelog.Infof("firecamp volume updated hostConfig Binds %s, VolumeDriver %s, LogConfig %s, hostConfig %s", hostConfig.Binds, hostConfig.VolumeDriver, hostConfig.LogConfig, hostConfig)
+-
+ 		// Pre-add the container in case we stop before the next, more useful,
+ 		// AddContainer call. This ensures we have a way to get the container if
+ 		// we die before 'createContainer' returns because we can inspect by
+diff --git a/agent/engine/firecamp_task_engine.go b/agent/engine/firecamp_task_engine.go
+deleted file mode 100644
+index 921d11653..000000000
+--- a/agent/engine/firecamp_task_engine.go
++++ /dev/null
+@@ -1,118 +0,0 @@
+-package engine
+-
+-import (
+-	"errors"
+-	"strings"
+-
+-	api "github.com/aws/amazon-ecs-agent/agent/api/container"
+-
+-	"github.com/cihub/seelog"
+-	docker "github.com/docker/docker/api/types/container"
+-)
+-
+-type VolumeDriverConfigError struct {
+-	msg string
+-}
+-
+-func (err *VolumeDriverConfigError) Error() string     { return err.msg }
+-func (err *VolumeDriverConfigError) ErrorName() string { return "VolumeDriverConfigError" }
+-
+-// Define here again to avoid the dependency on githut.com/cloudstax/firecamp
+-const (
+-	org                 = "jazzl0ver/"
+-	volumeDriver        = org + "firecamp-volume"
+-	logDriver           = org + "firecamp-log"
+-	logGroupKey         = "awslogs-group"
+-	logServiceUUIDKey   = "ServiceUUID"
+-	logDriverMinVersion = "0.9.3"
+-	versionKey          = "VERSION"
+-)
+-
+-// Create a taskDefinition at AWS ECS console, created one volume, "Name" my-ecs-volume,
+-// "Source Path" /test-volume. Then in "Container Definitions", create "Mount Points",
+-// "Container Path" /usr/test-volume, "Source Volume" my-ecs-volume.
+-//
+-// ECS will not pass my-ecs-volume to agent. agent.createContainer() will directly get
+-// "/test-volume:/usr/test-volume" in docker.HostConfig.
+-// So to pass in the ServiceUUID, when creating volume at ECS console, should set both
+-// "Name" and "Source Path" to ServiceUUID.
+-//
+-// docker.Config is not the place for volume. At createContainer(), task.DockerConfig()
+-// calls task.dockerConfigVolumes(), which looks does nothing. comments say, "you can
+-// handle most volume mount types in the HostConfig at run-time".
+-
+-// AddVolumeDriver updates the docker container volume config, if the task
+-// belongs to the service registered to us.
+-// update HostConfig with "-v volumename:/data --volume-driver=ourDriver"
+-func AddVolumeDriver(hostConfig *docker.HostConfig, container *api.Container, cluster string, taskArn string, taskDef string) (newConfig *docker.HostConfig, err *VolumeDriverConfigError) {
+-	if isFirecampService, serviceUUID := setVolumeDriver(hostConfig, cluster, taskArn, taskDef); isFirecampService {
+-		// get the volume driver version from environment
+-		version, ok := container.Environment[versionKey]
+-		if !ok {
+-			err := errors.New("firecamp container environment does not have version")
+-			seelog.Error("firecamp container environment does not have version", container.Environment,
+-				"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-			return nil, &VolumeDriverConfigError{err.Error()}
+-		}
+-
+-		// set volume-driver in docker HostConfig
+-		hostConfig.VolumeDriver = volumeDriver + ":" + version
+-
+-		// set the log driver in docker HostConfig
+-		if version >= logDriverMinVersion {
+-			hostConfig.LogConfig = docker.LogConfig{
+-				Type: logDriver + ":" + version,
+-				Config: map[string]string{
+-					logGroupKey:       hostConfig.LogConfig.Config[logGroupKey],
+-					logServiceUUIDKey: serviceUUID,
+-				},
+-			}
+-		}
+-
+-		seelog.Info("add firecamp log driver", hostConfig.LogConfig, "and volume driver", hostConfig.VolumeDriver,
+-			"to HostConfig Binds", hostConfig.Binds,
+-			"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-	}
+-
+-	return hostConfig, nil
+-}
+-
+-func setVolumeDriver(hostConfig *docker.HostConfig, cluster string, taskArn string, taskDef string) (isFirecampService bool, serviceUUID string) {
+-	if len(hostConfig.VolumesFrom) != 0 {
+-		seelog.Info("task HostConfig has VolumeFrom, not a valid volume, cluster",
+-			cluster, "taskArn", taskArn, "taskDef", taskDef)
+-		return false, ""
+-	}
+-
+-	if len(hostConfig.Binds) == 0 || len(hostConfig.Binds) > 2 {
+-		// some service, such as Cassandra, has 2 volumes. One for journal, one for data.
+-		seelog.Info("HostConfig binds 0 volume or more than 2 volume2", hostConfig.Binds,
+-			"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-		return false, ""
+-	}
+-
+-	// binds one volume, further check whether is valid volume.
+-	// currently only support one volume per task
+-
+-	// check if HostConfig Binds is correct, should be ServiceUUID:/mountPathInContainer
+-	// TODO we should add firecamp as prefix, such as firecamp-ServiceUUID:/mountPathInContainer
+-	volSep := ":/"
+-	s := strings.Split(hostConfig.Binds[0], volSep)
+-	if len(s) != 2 {
+-		seelog.Info("Bad HostConfig Binds", hostConfig.Binds,
+-			"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-		return false, ""
+-	}
+-
+-	// TODO should we check if service is created in DB? For now, ECS allows non-path
+-	// style "Source Path" for one volume.
+-	if strings.HasPrefix(s[0], "/") {
+-		seelog.Info("HostConfig Binds is for local path", hostConfig.Binds,
+-			"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-		return false, ""
+-	}
+-
+-	seelog.Info("HostConfig binds the valid volume", hostConfig.Binds,
+-		"cluster", cluster, "taskArn", taskArn, "taskDef", taskDef)
+-	return true, s[0]
+-}

@@ -64,6 +64,7 @@
           "Statement":[{
             "Effect":"Allow",
             "Action":[
+              "ecs:CreateCluster",
               "ecs:CreateService",
               "ecs:DeleteService",
               "ecs:Describe*",

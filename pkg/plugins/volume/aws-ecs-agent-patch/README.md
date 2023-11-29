@@ -1,9 +1,13 @@
 AWS ECS currently does not support to specify volume driver. See ECS Open Issue [Volume Driver support](https://github.com/aws/amazon-ecs-agent/issues/236). Once AWS ECS supports the custom volume driver, there is no need to patch ecs-agent.
 
-Apply patch
+Apply patch aws-ecs-agent.patch by:
+cp aws-ecs-agent.patch ~/firecamp/amazon-ecs-agent; cd ~/firecamp/amazon-ecs-agent; patch -p1 < aws-ecs-agent.patch
+
+or manually:
 1. copy firecamp_task_engine.go to jazzl0ver/amazon-ecs-agent/agent/engine/
 2. apply docker_task_engine_patch to agent/engine/docker_task_engine.go
 3. apply makefile_patch to Makefile
+4. update VERSION (for example, to v1.79.0-firecamp) and README
 
 Then simply sudo make to build the ecs-agent container image.
 

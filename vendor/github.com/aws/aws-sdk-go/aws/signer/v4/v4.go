@@ -3,21 +3,21 @@
 // Provides request signing for request that need to be signed with
 // AWS V4 Signatures.
 //
-// Standalone Signer
+// # Standalone Signer
 //
 // Generally using the signer outside of the SDK should not require any additional
 // logic when using Go v1.5 or higher. The signer does this by taking advantage
 // of the URL.EscapedPath method. If your request URI requires additional escaping
-// you many need to use the URL.Opaque to define what the raw URI should be sent
+// you may need to use the URL.Opaque to define what the raw URI should be sent
 // to the service as.
 //
 // The signer will first check the URL.Opaque field, and use its value if set.
 // The signer does require the URL.Opaque field to be set in the form of:
 //
-//     "//<hostname>/<path>"
+//	"//<hostname>/<path>"
 //
-//     // e.g.
-//     "//example.com/some/path"
+//	// e.g.
+//	"//example.com/some/path"
 //
 // The leading "//" and hostname are required or the URL.Opaque escaping will
 // not work correctly.
@@ -55,7 +55,6 @@
 package v4
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -72,54 +71,61 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/internal/sdkio"
 	"github.com/aws/aws-sdk-go/private/protocol/rest"
 )
 
 const (
+	authorizationHeader     = "Authorization"
+	authHeaderSignatureElem = "Signature="
+	signatureQueryKey       = "X-Amz-Signature"
+
 	authHeaderPrefix = "AWS4-HMAC-SHA256"
 	timeFormat       = "20060102T150405Z"
 	shortTimeFormat  = "20060102"
+	awsV4Request     = "aws4_request"
 
 	// emptyStringSHA256 is a SHA256 of an empty string
 	emptyStringSHA256 = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
 )
 
 var ignoredHeaders = rules{
-	blacklist{
+	excludeList{
 		mapRule{
-			"Authorization":   struct{}{},
-			"User-Agent":      struct{}{},
-			"X-Amzn-Trace-Id": struct{}{},
+			authorizationHeader: struct{}{},
+			"User-Agent":        struct{}{},
+			"X-Amzn-Trace-Id":   struct{}{},
 		},
 	},
 }
 
-// requiredSignedHeaders is a whitelist for build canonical headers.
+// requiredSignedHeaders is a allow list for build canonical headers.
 var requiredSignedHeaders = rules{
-	whitelist{
+	allowList{
 		mapRule{
-			"Cache-Control":                                               struct{}{},
-			"Content-Disposition":                                         struct{}{},
-			"Content-Encoding":                                            struct{}{},
-			"Content-Language":                                            struct{}{},
-			"Content-Md5":                                                 struct{}{},
-			"Content-Type":                                                struct{}{},
-			"Expires":                                                     struct{}{},
-			"If-Match":                                                    struct{}{},
-			"If-Modified-Since":                                           struct{}{},
-			"If-None-Match":                                               struct{}{},
-			"If-Unmodified-Since":                                         struct{}{},
-			"Range":                                                       struct{}{},
-			"X-Amz-Acl":                                                   struct{}{},
-			"X-Amz-Copy-Source":                                           struct{}{},
-			"X-Amz-Copy-Source-If-Match":                                  struct{}{},
-			"X-Amz-Copy-Source-If-Modified-Since":                         struct{}{},
-			"X-Amz-Copy-Source-If-None-Match":                             struct{}{},
-			"X-Amz-Copy-Source-If-Unmodified-Since":                       struct{}{},
-			"X-Amz-Copy-Source-Range":                                     struct{}{},
+			"Cache-Control":                         struct{}{},
+			"Content-Disposition":                   struct{}{},
+			"Content-Encoding":                      struct{}{},
+			"Content-Language":                      struct{}{},
+			"Content-Md5":                           struct{}{},
+			"Content-Type":                          struct{}{},
+			"Expires":                               struct{}{},
+			"If-Match":                              struct{}{},
+			"If-Modified-Since":                     struct{}{},
+			"If-None-Match":                         struct{}{},
+			"If-Unmodified-Since":                   struct{}{},
+			"Range":                                 struct{}{},
+			"X-Amz-Acl":                             struct{}{},
+			"X-Amz-Copy-Source":                     struct{}{},
+			"X-Amz-Copy-Source-If-Match":            struct{}{},
+			"X-Amz-Copy-Source-If-Modified-Since":   struct{}{},
+			"X-Amz-Copy-Source-If-None-Match":       struct{}{},
+			"X-Amz-Copy-Source-If-Unmodified-Since": struct{}{},
+			"X-Amz-Copy-Source-Range":               struct{}{},
 			"X-Amz-Copy-Source-Server-Side-Encryption-Customer-Algorithm": struct{}{},
 			"X-Amz-Copy-Source-Server-Side-Encryption-Customer-Key":       struct{}{},
 			"X-Amz-Copy-Source-Server-Side-Encryption-Customer-Key-Md5":   struct{}{},
+			"X-Amz-Expected-Bucket-Owner":                                 struct{}{},
 			"X-Amz-Grant-Full-control":                                    struct{}{},
 			"X-Amz-Grant-Read":                                            struct{}{},
 			"X-Amz-Grant-Read-Acp":                                        struct{}{},
@@ -130,20 +136,24 @@ var requiredSignedHeaders = rules{
 			"X-Amz-Request-Payer":                                         struct{}{},
 			"X-Amz-Server-Side-Encryption":                                struct{}{},
 			"X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id":                 struct{}{},
+			"X-Amz-Server-Side-Encryption-Context":                        struct{}{},
 			"X-Amz-Server-Side-Encryption-Customer-Algorithm":             struct{}{},
 			"X-Amz-Server-Side-Encryption-Customer-Key":                   struct{}{},
 			"X-Amz-Server-Side-Encryption-Customer-Key-Md5":               struct{}{},
 			"X-Amz-Storage-Class":                                         struct{}{},
+			"X-Amz-Tagging":                                               struct{}{},
 			"X-Amz-Website-Redirect-Location":                             struct{}{},
+			"X-Amz-Content-Sha256":                                        struct{}{},
 		},
 	},
 	patterns{"X-Amz-Meta-"},
+	patterns{"X-Amz-Object-Lock-"},
 }
 
-// allowedHoisting is a whitelist for build query headers. The boolean value
+// allowedHoisting is a allow list for build query headers. The boolean value
 // represents whether or not it is a pattern.
 var allowedQueryHoisting = inclusiveRules{
-	blacklist{requiredSignedHeaders},
+	excludeList{requiredSignedHeaders},
 	patterns{"X-Amz-"},
 }
 
@@ -180,7 +190,7 @@ type Signer struct {
 	// http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 	DisableURIPathEscaping bool
 
-	// Disales the automatical setting of the HTTP request's Body field with the
+	// Disables the automatical setting of the HTTP request's Body field with the
 	// io.ReadSeeker passed in to the signer. This is useful if you're using a
 	// custom wrapper around the body for the io.ReadSeeker and want to preserve
 	// the Body value on the Request.Body.
@@ -227,11 +237,9 @@ type signingCtx struct {
 
 	DisableURIPathEscaping bool
 
-	credValues         credentials.Value
-	isPresign          bool
-	formattedTime      string
-	formattedShortTime string
-	unsignedPayload    bool
+	credValues      credentials.Value
+	isPresign       bool
+	unsignedPayload bool
 
 	bodyDigest       string
 	signedHeaders    string
@@ -269,7 +277,7 @@ type signingCtx struct {
 // "X-Amz-Content-Sha256" header with a precomputed value. The signer will
 // only compute the hash if the request header value is empty.
 func (v4 Signer) Sign(r *http.Request, body io.ReadSeeker, service, region string, signTime time.Time) (http.Header, error) {
-	return v4.signWithBody(r, body, service, region, 0, signTime)
+	return v4.signWithBody(r, body, service, region, 0, false, signTime)
 }
 
 // Presign signs AWS v4 requests with the provided body, service name, region
@@ -303,10 +311,10 @@ func (v4 Signer) Sign(r *http.Request, body io.ReadSeeker, service, region strin
 // presigned request's signature you can set the "X-Amz-Content-Sha256"
 // HTTP header and that will be included in the request's signature.
 func (v4 Signer) Presign(r *http.Request, body io.ReadSeeker, service, region string, exp time.Duration, signTime time.Time) (http.Header, error) {
-	return v4.signWithBody(r, body, service, region, exp, signTime)
+	return v4.signWithBody(r, body, service, region, exp, true, signTime)
 }
 
-func (v4 Signer) signWithBody(r *http.Request, body io.ReadSeeker, service, region string, exp time.Duration, signTime time.Time) (http.Header, error) {
+func (v4 Signer) signWithBody(r *http.Request, body io.ReadSeeker, service, region string, exp time.Duration, isPresign bool, signTime time.Time) (http.Header, error) {
 	currentTimeFn := v4.currentTimeFn
 	if currentTimeFn == nil {
 		currentTimeFn = time.Now
@@ -318,7 +326,7 @@ func (v4 Signer) signWithBody(r *http.Request, body io.ReadSeeker, service, regi
 		Query:                  r.URL.Query(),
 		Time:                   signTime,
 		ExpireTime:             exp,
-		isPresign:              exp != 0,
+		isPresign:              isPresign,
 		ServiceName:            service,
 		Region:                 region,
 		DisableURIPathEscaping: v4.DisableURIPathEscaping,
@@ -335,13 +343,16 @@ func (v4 Signer) signWithBody(r *http.Request, body io.ReadSeeker, service, regi
 	}
 
 	var err error
-	ctx.credValues, err = v4.Credentials.Get()
+	ctx.credValues, err = v4.Credentials.GetWithContext(requestContext(r))
 	if err != nil {
 		return http.Header{}, err
 	}
 
+	ctx.sanitizeHostForHeader()
 	ctx.assignAmzQueryValues()
-	ctx.build(v4.DisableHeaderHoisting)
+	if err := ctx.build(v4.DisableHeaderHoisting); err != nil {
+		return nil, err
+	}
 
 	// If the request is not presigned the body should be attached to it. This
 	// prevents the confusion of wanting to send a signed request without
@@ -362,6 +373,10 @@ func (v4 Signer) signWithBody(r *http.Request, body io.ReadSeeker, service, regi
 	}
 
 	return ctx.SignedHeaderVals, nil
+}
+
+func (ctx *signingCtx) sanitizeHostForHeader() {
+	request.SanitizeHostForHeader(ctx.Request)
 }
 
 func (ctx *signingCtx) handlePresignRemoval() {
@@ -405,7 +420,7 @@ var SignRequestHandler = request.NamedHandler{
 // request handler should only be used with the SDK's built in service client's
 // API operation requests.
 //
-// This function should not be used on its on its own, but in conjunction with
+// This function should not be used on its own, but in conjunction with
 // an AWS service client's API operation call. To sign a standalone request
 // not created by a service client's API operation method use the "Sign" or
 // "Presign" functions of the "Signer" type.
@@ -413,7 +428,7 @@ var SignRequestHandler = request.NamedHandler{
 // If the credentials of the request's config are set to
 // credentials.AnonymousCredentials the request will not be signed.
 func SignSDKRequest(req *request.Request) {
-	signSDKRequestWithCurrTime(req, time.Now)
+	SignSDKRequestWithCurrentTime(req, time.Now)
 }
 
 // BuildNamedHandler will build a generic handler for signing.
@@ -421,12 +436,15 @@ func BuildNamedHandler(name string, opts ...func(*Signer)) request.NamedHandler 
 	return request.NamedHandler{
 		Name: name,
 		Fn: func(req *request.Request) {
-			signSDKRequestWithCurrTime(req, time.Now, opts...)
+			SignSDKRequestWithCurrentTime(req, time.Now, opts...)
 		},
 	}
 }
 
-func signSDKRequestWithCurrTime(req *request.Request, curTimeFn func() time.Time, opts ...func(*Signer)) {
+// SignSDKRequestWithCurrentTime will sign the SDK's request using the time
+// function passed in. Behaves the same as SignSDKRequest with the exception
+// the request is signed with the value returned by the current time function.
+func SignSDKRequestWithCurrentTime(req *request.Request, curTimeFn func() time.Time, opts ...func(*Signer)) {
 	// If the request does not need to be signed ignore the signing of the
 	// request if the AnonymousCredentials object is used.
 	if req.Config.Credentials == credentials.AnonymousCredentials {
@@ -462,13 +480,9 @@ func signSDKRequestWithCurrTime(req *request.Request, curTimeFn func() time.Time
 		opt(v4)
 	}
 
-	signingTime := req.Time
-	if !req.LastSignedAt.IsZero() {
-		signingTime = req.LastSignedAt
-	}
-
+	curTime := curTimeFn()
 	signedHeaders, err := v4.signWithBody(req.HTTPRequest, req.GetBody(),
-		name, region, req.ExpireTime, signingTime,
+		name, region, req.ExpireTime, req.ExpireTime > 0, curTime,
 	)
 	if err != nil {
 		req.Error = err
@@ -477,7 +491,7 @@ func signSDKRequestWithCurrTime(req *request.Request, curTimeFn func() time.Time
 	}
 
 	req.SignedHeaderVals = signedHeaders
-	req.LastSignedAt = curTimeFn()
+	req.LastSignedAt = curTime
 }
 
 const logSignInfoMsg = `DEBUG: Request Signature:
@@ -499,9 +513,13 @@ func (v4 *Signer) logSigningInfo(ctx *signingCtx) {
 	v4.Logger.Log(msg)
 }
 
-func (ctx *signingCtx) build(disableHeaderHoisting bool) {
+func (ctx *signingCtx) build(disableHeaderHoisting bool) error {
 	ctx.buildTime()             // no depends
 	ctx.buildCredentialString() // no depends
+
+	if err := ctx.buildBodyDigest(); err != nil {
+		return err
+	}
 
 	unsignedHeaders := ctx.Request.Header
 	if ctx.isPresign {
@@ -514,44 +532,62 @@ func (ctx *signingCtx) build(disableHeaderHoisting bool) {
 		}
 	}
 
-	ctx.buildBodyDigest()
 	ctx.buildCanonicalHeaders(ignoredHeaders, unsignedHeaders)
 	ctx.buildCanonicalString() // depends on canon headers / signed headers
 	ctx.buildStringToSign()    // depends on canon string
 	ctx.buildSignature()       // depends on string to sign
 
 	if ctx.isPresign {
-		ctx.Request.URL.RawQuery += "&X-Amz-Signature=" + ctx.signature
+		ctx.Request.URL.RawQuery += "&" + signatureQueryKey + "=" + ctx.signature
 	} else {
 		parts := []string{
 			authHeaderPrefix + " Credential=" + ctx.credValues.AccessKeyID + "/" + ctx.credentialString,
 			"SignedHeaders=" + ctx.signedHeaders,
-			"Signature=" + ctx.signature,
+			authHeaderSignatureElem + ctx.signature,
 		}
-		ctx.Request.Header.Set("Authorization", strings.Join(parts, ", "))
+		ctx.Request.Header.Set(authorizationHeader, strings.Join(parts, ", "))
 	}
+
+	return nil
+}
+
+// GetSignedRequestSignature attempts to extract the signature of the request.
+// Returning an error if the request is unsigned, or unable to extract the
+// signature.
+func GetSignedRequestSignature(r *http.Request) ([]byte, error) {
+
+	if auth := r.Header.Get(authorizationHeader); len(auth) != 0 {
+		ps := strings.Split(auth, ", ")
+		for _, p := range ps {
+			if idx := strings.Index(p, authHeaderSignatureElem); idx >= 0 {
+				sig := p[len(authHeaderSignatureElem):]
+				if len(sig) == 0 {
+					return nil, fmt.Errorf("invalid request signature authorization header")
+				}
+				return hex.DecodeString(sig)
+			}
+		}
+	}
+
+	if sig := r.URL.Query().Get("X-Amz-Signature"); len(sig) != 0 {
+		return hex.DecodeString(sig)
+	}
+
+	return nil, fmt.Errorf("request not signed")
 }
 
 func (ctx *signingCtx) buildTime() {
-	ctx.formattedTime = ctx.Time.UTC().Format(timeFormat)
-	ctx.formattedShortTime = ctx.Time.UTC().Format(shortTimeFormat)
-
 	if ctx.isPresign {
 		duration := int64(ctx.ExpireTime / time.Second)
-		ctx.Query.Set("X-Amz-Date", ctx.formattedTime)
+		ctx.Query.Set("X-Amz-Date", formatTime(ctx.Time))
 		ctx.Query.Set("X-Amz-Expires", strconv.FormatInt(duration, 10))
 	} else {
-		ctx.Request.Header.Set("X-Amz-Date", ctx.formattedTime)
+		ctx.Request.Header.Set("X-Amz-Date", formatTime(ctx.Time))
 	}
 }
 
 func (ctx *signingCtx) buildCredentialString() {
-	ctx.credentialString = strings.Join([]string{
-		ctx.formattedShortTime,
-		ctx.Region,
-		ctx.ServiceName,
-		"aws4_request",
-	}, "/")
+	ctx.credentialString = buildSigningScope(ctx.Region, ctx.ServiceName, ctx.Time)
 
 	if ctx.isPresign {
 		ctx.Query.Set("X-Amz-Credential", ctx.credValues.AccessKeyID+"/"+ctx.credentialString)
@@ -575,8 +611,7 @@ func (ctx *signingCtx) buildCanonicalHeaders(r rule, header http.Header) {
 	var headers []string
 	headers = append(headers, "host")
 	for k, v := range header {
-		canonicalKey := http.CanonicalHeaderKey(k)
-		if !r.IsValid(canonicalKey) {
+		if !r.IsValid(k) {
 			continue // ignored header
 		}
 		if ctx.SignedHeaderVals == nil {
@@ -601,21 +636,25 @@ func (ctx *signingCtx) buildCanonicalHeaders(r rule, header http.Header) {
 		ctx.Query.Set("X-Amz-SignedHeaders", ctx.signedHeaders)
 	}
 
-	headerValues := make([]string, len(headers))
+	headerItems := make([]string, len(headers))
 	for i, k := range headers {
 		if k == "host" {
 			if ctx.Request.Host != "" {
-				headerValues[i] = "host:" + ctx.Request.Host
+				headerItems[i] = "host:" + ctx.Request.Host
 			} else {
-				headerValues[i] = "host:" + ctx.Request.URL.Host
+				headerItems[i] = "host:" + ctx.Request.URL.Host
 			}
 		} else {
-			headerValues[i] = k + ":" +
-				strings.Join(ctx.SignedHeaderVals[k], ",")
+			headerValues := make([]string, len(ctx.SignedHeaderVals[k]))
+			for i, v := range ctx.SignedHeaderVals[k] {
+				headerValues[i] = strings.TrimSpace(v)
+			}
+			headerItems[i] = k + ":" +
+				strings.Join(headerValues, ",")
 		}
 	}
-
-	ctx.canonicalHeaders = strings.Join(stripExcessSpaces(headerValues), "\n")
+	stripExcessSpaces(headerItems)
+	ctx.canonicalHeaders = strings.Join(headerItems, "\n")
 }
 
 func (ctx *signingCtx) buildCanonicalString() {
@@ -640,37 +679,54 @@ func (ctx *signingCtx) buildCanonicalString() {
 func (ctx *signingCtx) buildStringToSign() {
 	ctx.stringToSign = strings.Join([]string{
 		authHeaderPrefix,
-		ctx.formattedTime,
+		formatTime(ctx.Time),
 		ctx.credentialString,
-		hex.EncodeToString(makeSha256([]byte(ctx.canonicalString))),
+		hex.EncodeToString(hashSHA256([]byte(ctx.canonicalString))),
 	}, "\n")
 }
 
 func (ctx *signingCtx) buildSignature() {
-	secret := ctx.credValues.SecretAccessKey
-	date := makeHmac([]byte("AWS4"+secret), []byte(ctx.formattedShortTime))
-	region := makeHmac(date, []byte(ctx.Region))
-	service := makeHmac(region, []byte(ctx.ServiceName))
-	credentials := makeHmac(service, []byte("aws4_request"))
-	signature := makeHmac(credentials, []byte(ctx.stringToSign))
+	creds := deriveSigningKey(ctx.Region, ctx.ServiceName, ctx.credValues.SecretAccessKey, ctx.Time)
+	signature := hmacSHA256(creds, []byte(ctx.stringToSign))
 	ctx.signature = hex.EncodeToString(signature)
 }
 
-func (ctx *signingCtx) buildBodyDigest() {
+func (ctx *signingCtx) buildBodyDigest() error {
 	hash := ctx.Request.Header.Get("X-Amz-Content-Sha256")
 	if hash == "" {
-		if ctx.unsignedPayload || (ctx.isPresign && ctx.ServiceName == "s3") {
+		includeSHA256Header := ctx.unsignedPayload ||
+			ctx.ServiceName == "s3" ||
+			ctx.ServiceName == "s3-object-lambda" ||
+			ctx.ServiceName == "glacier" ||
+			ctx.ServiceName == "s3-outposts"
+
+		s3Presign := ctx.isPresign &&
+			(ctx.ServiceName == "s3" ||
+				ctx.ServiceName == "s3-object-lambda")
+
+		if ctx.unsignedPayload || s3Presign {
 			hash = "UNSIGNED-PAYLOAD"
+			includeSHA256Header = !s3Presign
 		} else if ctx.Body == nil {
 			hash = emptyStringSHA256
 		} else {
-			hash = hex.EncodeToString(makeSha256Reader(ctx.Body))
+			if !aws.IsReaderSeekable(ctx.Body) {
+				return fmt.Errorf("cannot use unseekable request body %T, for signed request with body", ctx.Body)
+			}
+			hashBytes, err := makeSha256Reader(ctx.Body)
+			if err != nil {
+				return err
+			}
+			hash = hex.EncodeToString(hashBytes)
 		}
-		if ctx.unsignedPayload || ctx.ServiceName == "s3" || ctx.ServiceName == "glacier" {
+
+		if includeSHA256Header {
 			ctx.Request.Header.Set("X-Amz-Content-Sha256", hash)
 		}
 	}
 	ctx.bodyDigest = hash
+
+	return nil
 }
 
 // isRequestSigned returns if the request is currently signed or presigned
@@ -696,66 +752,106 @@ func (ctx *signingCtx) removePresign() {
 	ctx.Query.Del("X-Amz-SignedHeaders")
 }
 
-func makeHmac(key []byte, data []byte) []byte {
+func hmacSHA256(key []byte, data []byte) []byte {
 	hash := hmac.New(sha256.New, key)
 	hash.Write(data)
 	return hash.Sum(nil)
 }
 
-func makeSha256(data []byte) []byte {
+func hashSHA256(data []byte) []byte {
 	hash := sha256.New()
 	hash.Write(data)
 	return hash.Sum(nil)
 }
 
-func makeSha256Reader(reader io.ReadSeeker) []byte {
+func makeSha256Reader(reader io.ReadSeeker) (hashBytes []byte, err error) {
 	hash := sha256.New()
-	start, _ := reader.Seek(0, 1)
-	defer reader.Seek(start, 0)
+	start, err := reader.Seek(0, sdkio.SeekCurrent)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		// ensure error is return if unable to seek back to start of payload.
+		_, err = reader.Seek(start, sdkio.SeekStart)
+	}()
 
-	io.Copy(hash, reader)
-	return hash.Sum(nil)
+	// Use CopyN to avoid allocating the 32KB buffer in io.Copy for bodies
+	// smaller than 32KB. Fall back to io.Copy if we fail to determine the size.
+	size, err := aws.SeekerLen(reader)
+	if err != nil {
+		io.Copy(hash, reader)
+	} else {
+		io.CopyN(hash, reader, size)
+	}
+
+	return hash.Sum(nil), nil
 }
 
-const doubleSpaces = "  "
+const doubleSpace = "  "
 
-var doubleSpaceBytes = []byte(doubleSpaces)
+// stripExcessSpaces will rewrite the passed in slice's string values to not
+// contain multiple side-by-side spaces.
+func stripExcessSpaces(vals []string) {
+	var j, k, l, m, spaces int
+	for i, str := range vals {
+		// Trim trailing spaces
+		for j = len(str) - 1; j >= 0 && str[j] == ' '; j-- {
+		}
 
-func stripExcessSpaces(headerVals []string) []string {
-	vals := make([]string, len(headerVals))
-	for i, str := range headerVals {
-		// Trim leading and trailing spaces
-		trimmed := strings.TrimSpace(str)
+		// Trim leading spaces
+		for k = 0; k < j && str[k] == ' '; k++ {
+		}
+		str = str[k : j+1]
 
-		idx := strings.Index(trimmed, doubleSpaces)
-		if idx < 0 {
-			vals[i] = trimmed
+		// Strip multiple spaces.
+		j = strings.Index(str, doubleSpace)
+		if j < 0 {
+			vals[i] = str
 			continue
 		}
 
-		buf := []byte(trimmed)
-		for idx > -1 {
-			stripToIdx := -1
-			for j := idx + 1; j < len(buf); j++ {
-				if buf[j] != ' ' {
-					buf = append(buf[:idx+1], buf[j:]...)
-					stripToIdx = j - idx - 1
-					break
+		buf := []byte(str)
+		for k, m, l = j, j, len(buf); k < l; k++ {
+			if buf[k] == ' ' {
+				if spaces == 0 {
+					// First space.
+					buf[m] = buf[k]
+					m++
 				}
-			}
-
-			if stripToIdx >= 0 {
-				// Find next double space
-				idx = bytes.Index(buf[stripToIdx:], doubleSpaceBytes)
-				if idx >= 0 {
-					idx += stripToIdx
-				}
+				spaces++
 			} else {
-				idx = -1
+				// End of multiple spaces.
+				spaces = 0
+				buf[m] = buf[k]
+				m++
 			}
 		}
 
-		vals[i] = string(buf)
+		vals[i] = string(buf[:m])
 	}
-	return vals
+}
+
+func buildSigningScope(region, service string, dt time.Time) string {
+	return strings.Join([]string{
+		formatShortTime(dt),
+		region,
+		service,
+		awsV4Request,
+	}, "/")
+}
+
+func deriveSigningKey(region, service, secretKey string, dt time.Time) []byte {
+	kDate := hmacSHA256([]byte("AWS4"+secretKey), []byte(formatShortTime(dt)))
+	kRegion := hmacSHA256(kDate, []byte(region))
+	kService := hmacSHA256(kRegion, []byte(service))
+	signingKey := hmacSHA256(kService, []byte(awsV4Request))
+	return signingKey
+}
+
+func formatShortTime(dt time.Time) string {
+	return dt.UTC().Format(shortTimeFormat)
+}
+
+func formatTime(dt time.Time) string {
+	return dt.UTC().Format(timeFormat)
 }

@@ -202,8 +202,8 @@ BuildCatalogImages() {
   # build kafka docker image
   echo
   target=$system"-kafka"
-  image="${org}${target}:3.3"
-  path="${TOPWD}/catalog/kafka/3.3/dockerfile/"
+  image="${org}${target}:3.6"
+  path="${TOPWD}/catalog/kafka/3.6/dockerfile/"
   docker build -q -t $image $path
   docker push $image
 

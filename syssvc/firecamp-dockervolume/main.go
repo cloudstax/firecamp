@@ -73,6 +73,13 @@ func main() {
 
 	cfg := aws.NewConfig().WithRegion(region)
 	sess, err := session.NewSession(cfg)
+/*
+	sess, err := session.NewSession(&aws.Config{
+	    Region: aws.String(region),
+	    CredentialsChainVerboseErrors: aws.Bool(true),
+	    LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
+	})
+*/
 	if err != nil {
 		glog.Fatalln("failed to create session, error", err)
 	}
