@@ -1,5 +1,5 @@
-* [FireCamp Cassandra Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/cassandra#firecamp-cassandra-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/cassandra#tutorials)
+* [FireCamp Cassandra Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/cassandra#firecamp-cassandra-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/cassandra#tutorials)
 
 # FireCamp Cassandra Internals
 
@@ -13,7 +13,7 @@ Only one region is supported currently. The multi-regions Cassandra will be supp
 
 ## Monitor
 
-FireCamp supports to monitor Cassandra service using Telegraf. Please refer to [FireCamp Telegraf Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf#firecamp-telegraf-internals) for more details. If you customize the metrics you want to monitor, please pay attention to the data format in the metrics file. Each line includes one metric. Every metric should have the quotation marks and end with comma. The last metri should not end with comma. Example:
+FireCamp supports to monitor Cassandra service using Telegraf. Please refer to [FireCamp Telegraf Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/telegraf#firecamp-telegraf-internals) for more details. If you customize the metrics you want to monitor, please pay attention to the data format in the metrics file. Each line includes one metric. Every metric should have the quotation marks and end with comma. The last metri should not end with comma. Example:
 ```
     "/org.apache.cassandra.metrics:type=ClientRequest,scope=Read,name=Latency",
     "/org.apache.cassandra.metrics:type=ClientRequest,scope=Write,name=Latency",
@@ -105,7 +105,7 @@ By default, JVM caches a successful DNS lookup forever. If you use Cassandra Jav
 
 **System Configs**
 
-Follow the [Cassandra Recommended Settings](https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html). The number of file descriptors and threads are increased. The TCP tunings are applied. The memory swapping is disabled, memlock is set to unlimited, and vm_map_count is increased. Please refer to [FireCamp system configs](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/README.md) for the detail configs.
+Follow the [Cassandra Recommended Settings](https://docs.datastax.com/en/dse/5.1/dse-dev/datastax_enterprise/config/configRecommendedSettings.html). The number of file descriptors and threads are increased. The TCP tunings are applied. The memory swapping is disabled, memlock is set to unlimited, and vm_map_count is increased. Please refer to [FireCamp system configs](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/README.md) for the detail configs.
 
 ## Update the Service
 
@@ -131,12 +131,12 @@ Refs:
 This is a simple tutorial about how to create a Cassandra service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Cassandra service name is "mycas".
 
 ## Create a Cassandra service
-Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Cassandra cluster:
+Follow the [Installation](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Cassandra cluster:
 ```
-firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10 -cas-heap-size=8192
+firecamp-service-cli -op=create-service -service-type=cassandra -region=us-east-1 -cluster=t1 -service-name=mycas -replicas=3 -volume-size=100 -journal-volume-size=10 -cas-heap-size=8192 -cas-audit-logging-enabled=true -cas-audit-included-keyspaces="ks1,ks2" -cas-audit-included-categories="QUERY,DDL,DCL" -cas-audit-included-users="myuser"
 ```
 
-This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512.
+This creates a 3 replicas Cassandra on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The DNS names of the replicas would be: mycas-0.t1-firecamp.com, mycas-1.t1-firecamp.com, mycas-2.t1-firecamp.com. To reduce the heap size for the simple test, could set such as -cas-heap-size=512. Audit logging is enabled for certain keyspaces and users only (https://cassandra.apache.org/doc/4.1/cassandra/operating/audit_logging.html)
 
 The Cassandra service creation steps:
 1. Create the Volumes and persist the metadata to the FireCamp DB. This is usually very fast. But if AWS is slow at creating the Volume, this step will be slow as well.

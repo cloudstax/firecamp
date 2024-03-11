@@ -29,6 +29,18 @@
             "Type":"AWS::EC2::KeyPair::KeyName",
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
+        "KMSARN": {
+            "Type":"String",
+            "Description": "KMS key ARN for encrypted SSM sessions"
+        },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+			"Type":"String",
+			"Description": "Wazuh Agent Group"
+		},
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
             "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
@@ -37,7 +49,11 @@
             "Type": "String"
         },
         "QSS3KeyPrefix": {
-            "Default": "quickstart-cloudstax-firecamp/",
+            "Default": "quickstart-jazzl0ver-firecamp/",
+            "Type": "String"
+        },
+        "SNSTopicARN": {
+            "Default": "SNSTopicARN",
             "Type": "String"
         },
         "Release": {
@@ -156,6 +172,9 @@
                 "Parameters": {
                     "ContainerPlatform": {
                         "Ref": "ContainerPlatform"
+                    },
+                    "KMSARN": {
+                        "Ref": "KMSARN"
                     }
                 }
             }
@@ -214,6 +233,12 @@
                     "KeyPairName": {
                         "Ref": "KeyPairName"
                     },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+                    "WazuhGroup": {
+                        "Ref": "WazuhGroup"
+                    },
                     "AvailabilityZones": {
                         "Fn::Join": [
                             ",",
@@ -257,6 +282,9 @@
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
                     },
+                    "SNSTopicARN": {
+                        "Ref": "SNSTopicARN"
+                    },
                     "NodeAMIOS": {
                         "Ref": "NodeAMIOS"
                     },
@@ -292,6 +320,12 @@
                     },
                     "KeyPairName": {
                         "Ref": "KeyPairName"
+                    },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+                    "WazuhGroup": {
+                        "Ref": "WazuhGroup"
                     },
                     "AvailabilityZones": {
                         "Fn::Join": [

@@ -11,7 +11,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const (

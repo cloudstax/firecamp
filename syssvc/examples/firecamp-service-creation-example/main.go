@@ -12,14 +12,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/manage/client"
+	"github.com/jazzl0ver/firecamp/catalog/cassandra"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // The tool is a simple demo for how to create the non-catalog service.

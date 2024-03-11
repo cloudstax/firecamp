@@ -11,16 +11,16 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc/k8s"
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/pkg/db/k8sconfigdb"
-	"github.com/cloudstax/firecamp/pkg/dns/awsroute53"
-	"github.com/cloudstax/firecamp/pkg/plugins/network"
-	"github.com/cloudstax/firecamp/pkg/plugins/volume"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/k8s"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/db/awsdynamodb"
+	"github.com/jazzl0ver/firecamp/pkg/db/k8sconfigdb"
+	"github.com/jazzl0ver/firecamp/pkg/dns/awsroute53"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/network"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/volume"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // For now, the init container is only used by K8s.

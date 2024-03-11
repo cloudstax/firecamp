@@ -22,7 +22,7 @@ spec:
       hostNetwork: true
       containers:
       - name: firecamp-manageserver
-        image: cloudstax/firecamp-manageserver
+        image: jazzl0ver/firecamp-manageserver
         imagePullPolicy: Always
         ports:
         - containerPort: 27040

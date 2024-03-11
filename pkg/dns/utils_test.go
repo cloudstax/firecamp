@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/common"
 )
 
 func TestDomain(t *testing.T) {

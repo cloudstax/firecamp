@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstax/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
 )
 
 func TestServerTask(t *testing.T) {

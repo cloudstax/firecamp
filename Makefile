@@ -1,9 +1,9 @@
 
 .PHONY: install docker test
 
-org="cloudstax/"
-version="latest"
-catalogversion="latest"
+org="jazzl0ver/"
+version="2.0"
+catalogversion="2.0"
 
 all: install
 
@@ -13,6 +13,9 @@ cli:
 
 install:
 	./scripts/install.sh
+
+s3:
+	./scripts/update-s3-bucket.sh $(org) $(version)
 
 docker: install
 	./scripts/builddocker.sh $(org) $(version) $(catalogversion) all
@@ -34,4 +37,4 @@ clean:
 	-rm -fr build || true
 
 cleanall: clean
-	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/cloudstax/firecamp
+	-rm -fr $(GOPATH)/pkg/linux_amd64/github.com/jazzl0ver/firecamp

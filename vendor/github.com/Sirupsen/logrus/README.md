@@ -27,14 +27,14 @@
 
   <meta name="viewport" content="width=device-width">
   
-  <title>firecamp/README.md at b10ecb85f675c0346007637dde5daf9445e87af5 · cloudstax/firecamp · GitHub</title>
+  <title>firecamp/README.md at b10ecb85f675c0346007637dde5daf9445e87af5 · jazzl0ver/firecamp · GitHub</title>
     <meta name="description" content="GitHub is where people build software. More than 27 million people use GitHub to discover, fork, and contribute to over 80 million projects.">
   <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
   <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
   <meta property="fb:app_id" content="1401488693436528">
 
     
-    <meta property="og:image" content="https://avatars0.githubusercontent.com/u/28817916?s=400&amp;v=4" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="cloudstax/firecamp" /><meta property="og:url" content="https://github.com/cloudstax/firecamp" /><meta property="og:description" content="firecamp - Serverless Platform for the stateful services" />
+    <meta property="og:image" content="https://avatars0.githubusercontent.com/u/28817916?s=400&amp;v=4" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="jazzl0ver/firecamp" /><meta property="og:url" content="https://github.com/jazzl0ver/firecamp" /><meta property="og:description" content="firecamp - Serverless Platform for the stateful services" />
 
   <link rel="assets" href="https://assets-cdn.github.com/">
   
@@ -76,15 +76,15 @@
   <meta http-equiv="x-pjax-version" content="10c80ea533591cecc9bf0d03e9bbdc45">
   
 
-      <link href="https://github.com/cloudstax/firecamp/commits/b10ecb85f675c0346007637dde5daf9445e87af5.atom" rel="alternate" title="Recent Commits to firecamp:b10ecb85f675c0346007637dde5daf9445e87af5" type="application/atom+xml">
+      <link href="https://github.com/jazzl0ver/firecamp/commits/b10ecb85f675c0346007637dde5daf9445e87af5.atom" rel="alternate" title="Recent Commits to firecamp:b10ecb85f675c0346007637dde5daf9445e87af5" type="application/atom+xml">
 
   <meta name="description" content="firecamp - Serverless Platform for the stateful services">
-  <meta name="go-import" content="github.com/cloudstax/firecamp git https://github.com/cloudstax/firecamp.git">
+  <meta name="go-import" content="github.com/jazzl0ver/firecamp git https://github.com/jazzl0ver/firecamp.git">
 
-  <meta name="octolytics-dimension-user_id" content="28817916" /><meta name="octolytics-dimension-user_login" content="cloudstax" /><meta name="octolytics-dimension-repository_id" content="91901894" /><meta name="octolytics-dimension-repository_nwo" content="cloudstax/firecamp" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="91901894" /><meta name="octolytics-dimension-repository_network_root_nwo" content="cloudstax/firecamp" /><meta name="octolytics-dimension-repository_explore_github_marketplace_ci_cta_shown" content="false" />
+  <meta name="octolytics-dimension-user_id" content="28817916" /><meta name="octolytics-dimension-user_login" content="jazzl0ver" /><meta name="octolytics-dimension-repository_id" content="91901894" /><meta name="octolytics-dimension-repository_nwo" content="jazzl0ver/firecamp" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="91901894" /><meta name="octolytics-dimension-repository_network_root_nwo" content="jazzl0ver/firecamp" /><meta name="octolytics-dimension-repository_explore_github_marketplace_ci_cta_shown" content="false" />
 
 
-    <link rel="canonical" href="https://github.com/cloudstax/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md" data-pjax-transient>
+    <link rel="canonical" href="https://github.com/jazzl0ver/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md" data-pjax-transient>
 
 
   <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
@@ -155,9 +155,9 @@
       <div class="d-flex">
           <div class="d-lg-flex flex-items-center mr-3">
             <div class="header-search scoped-search site-scoped-search js-site-search" role="search">
-  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="js-site-search-form" data-scoped-search-url="/cloudstax/firecamp/search" data-unscoped-search-url="/search" action="/cloudstax/firecamp/search" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" />
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="js-site-search-form" data-scoped-search-url="/jazzl0ver/firecamp/search" data-unscoped-search-url="/search" action="/jazzl0ver/firecamp/search" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" />
     <label class="form-control header-search-wrapper  js-chromeless-input-container">
-          <a class="header-search-scope no-underline" href="/cloudstax/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">This repository</a>
+          <a class="header-search-scope no-underline" href="/jazzl0ver/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">This repository</a>
       <input type="text"
         class="form-control header-search-input  js-site-search-focus js-site-search-field is-clearable"
         data-hotkey="s,/"
@@ -177,7 +177,7 @@
 
         <span class="d-inline-block">
             <div class="HeaderNavlink px-0 py-2 m-0">
-              <a class="text-bold text-white no-underline" href="/login?return_to=%2Fcloudstax%2Ffirecamp%2Fblob%2Fb10ecb85f675c0346007637dde5daf9445e87af5%2Fvendor%2Fgithub.com%2FSirupsen%2Flogrus%2FREADME.md" data-ga-click="(Logged out) Header, clicked Sign in, text:sign-in">Sign in</a>
+              <a class="text-bold text-white no-underline" href="/login?return_to=%2Fjazzl0ver%2Ffirecamp%2Fblob%2Fb10ecb85f675c0346007637dde5daf9445e87af5%2Fvendor%2Fgithub.com%2FSirupsen%2Flogrus%2FREADME.md" data-ga-click="(Logged out) Header, clicked Sign in, text:sign-in">Sign in</a>
                 <span class="text-gray">or</span>
                 <a class="text-bold text-white no-underline" href="/join?source=header-repo" data-ga-click="(Logged out) Header, clicked Sign up, text:sign-up">Sign up</a>
             </div>
@@ -212,13 +212,13 @@
 
       <ul class="pagehead-actions">
   <li>
-      <a href="/login?return_to=%2Fcloudstax%2Ffirecamp"
+      <a href="/login?return_to=%2Fjazzl0ver%2Ffirecamp"
     class="btn btn-sm btn-with-count tooltipped tooltipped-n"
     aria-label="You must be signed in to watch a repository" rel="nofollow">
     <svg class="octicon octicon-eye" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6C13 14 16 8 16 8s-3-6-7.94-6zM8 12c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4zm2-4c0 1.11-.89 2-2 2-1.11 0-2-.89-2-2 0-1.11.89-2 2-2 1.11 0 2 .89 2 2z"/></svg>
     Watch
   </a>
-  <a class="social-count" href="/cloudstax/firecamp/watchers"
+  <a class="social-count" href="/jazzl0ver/firecamp/watchers"
      aria-label="14 users are watching this repository">
     14
   </a>
@@ -226,14 +226,14 @@
   </li>
 
   <li>
-      <a href="/login?return_to=%2Fcloudstax%2Ffirecamp"
+      <a href="/login?return_to=%2Fjazzl0ver%2Ffirecamp"
     class="btn btn-sm btn-with-count tooltipped tooltipped-n"
     aria-label="You must be signed in to star a repository" rel="nofollow">
     <svg class="octicon octicon-star" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74z"/></svg>
     Star
   </a>
 
-    <a class="social-count js-social-count" href="/cloudstax/firecamp/stargazers"
+    <a class="social-count js-social-count" href="/jazzl0ver/firecamp/stargazers"
       aria-label="118 users starred this repository">
       118
     </a>
@@ -241,14 +241,14 @@
   </li>
 
   <li>
-      <a href="/login?return_to=%2Fcloudstax%2Ffirecamp"
+      <a href="/login?return_to=%2Fjazzl0ver%2Ffirecamp"
         class="btn btn-sm btn-with-count tooltipped tooltipped-n"
         aria-label="You must be signed in to fork a repository" rel="nofollow">
         <svg class="octicon octicon-repo-forked" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 1a1.993 1.993 0 0 0-1 3.72V6L5 8 3 6V4.72A1.993 1.993 0 0 0 2 1a1.993 1.993 0 0 0-1 3.72V6.5l3 3v1.78A1.993 1.993 0 0 0 5 15a1.993 1.993 0 0 0 1-3.72V9.5l3-3V4.72A1.993 1.993 0 0 0 8 1zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3 10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3-10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
         Fork
       </a>
 
-    <a href="/cloudstax/firecamp/network" class="social-count"
+    <a href="/jazzl0ver/firecamp/network" class="social-count"
        aria-label="8 users forked this repository">
       8
     </a>
@@ -257,9 +257,9 @@
 
       <h1 class="public ">
   <svg class="octicon octicon-repo" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M4 9H3V8h1v1zm0-3H3v1h1V6zm0-2H3v1h1V4zm0-2H3v1h1V2zm8-1v12c0 .55-.45 1-1 1H6v2l-1.5-1.5L3 16v-2H1c-.55 0-1-.45-1-1V1c0-.55.45-1 1-1h10c.55 0 1 .45 1 1zm-1 10H1v2h2v-1h3v1h5v-2zm0-10H2v9h9V1z"/></svg>
-  <span class="author" itemprop="author"><a class="url fn" rel="author" href="/cloudstax">cloudstax</a></span><!--
+  <span class="author" itemprop="author"><a class="url fn" rel="author" href="/jazzl0ver">jazzl0ver</a></span><!--
 --><span class="path-divider">/</span><!--
---><strong itemprop="name"><a data-pjax="#js-repo-pjax-container" href="/cloudstax/firecamp">firecamp</a></strong>
+--><strong itemprop="name"><a data-pjax="#js-repo-pjax-container" href="/jazzl0ver/firecamp">firecamp</a></strong>
 
 </h1>
 
@@ -272,14 +272,14 @@
      data-pjax="#js-repo-pjax-container">
 
   <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
-    <a class="js-selected-navigation-item selected reponav-item" itemprop="url" data-hotkey="g c" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages /cloudstax/firecamp" href="/cloudstax/firecamp">
+    <a class="js-selected-navigation-item selected reponav-item" itemprop="url" data-hotkey="g c" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages /jazzl0ver/firecamp" href="/jazzl0ver/firecamp">
       <svg class="octicon octicon-code" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M9.5 3L8 4.5 11.5 8 8 11.5 9.5 13 14 8 9.5 3zm-5 0L0 8l4.5 5L6 11.5 2.5 8 6 4.5 4.5 3z"/></svg>
       <span itemprop="name">Code</span>
       <meta itemprop="position" content="1">
 </a>  </span>
 
     <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
-      <a itemprop="url" data-hotkey="g i" class="js-selected-navigation-item reponav-item" data-selected-links="repo_issues repo_labels repo_milestones /cloudstax/firecamp/issues" href="/cloudstax/firecamp/issues">
+      <a itemprop="url" data-hotkey="g i" class="js-selected-navigation-item reponav-item" data-selected-links="repo_issues repo_labels repo_milestones /jazzl0ver/firecamp/issues" href="/jazzl0ver/firecamp/issues">
         <svg class="octicon octicon-issue-opened" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"/></svg>
         <span itemprop="name">Issues</span>
         <span class="Counter">4</span>
@@ -287,24 +287,24 @@
 </a>    </span>
 
   <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
-    <a data-hotkey="g p" itemprop="url" class="js-selected-navigation-item reponav-item" data-selected-links="repo_pulls checks /cloudstax/firecamp/pulls" href="/cloudstax/firecamp/pulls">
+    <a data-hotkey="g p" itemprop="url" class="js-selected-navigation-item reponav-item" data-selected-links="repo_pulls checks /jazzl0ver/firecamp/pulls" href="/jazzl0ver/firecamp/pulls">
       <svg class="octicon octicon-git-pull-request" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11 11.28V5c-.03-.78-.34-1.47-.94-2.06C9.46 2.35 8.78 2.03 8 2H7V0L4 3l3 3V4h1c.27.02.48.11.69.31.21.2.3.42.31.69v6.28A1.993 1.993 0 0 0 10 15a1.993 1.993 0 0 0 1-3.72zm-1 2.92c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zM4 3c0-1.11-.89-2-2-2a1.993 1.993 0 0 0-1 3.72v6.56A1.993 1.993 0 0 0 2 15a1.993 1.993 0 0 0 1-3.72V4.72c.59-.34 1-.98 1-1.72zm-.8 10c0 .66-.55 1.2-1.2 1.2-.65 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
       <span itemprop="name">Pull requests</span>
       <span class="Counter">0</span>
       <meta itemprop="position" content="3">
 </a>  </span>
 
-    <a data-hotkey="g b" class="js-selected-navigation-item reponav-item" data-selected-links="repo_projects new_repo_project repo_project /cloudstax/firecamp/projects" href="/cloudstax/firecamp/projects">
+    <a data-hotkey="g b" class="js-selected-navigation-item reponav-item" data-selected-links="repo_projects new_repo_project repo_project /jazzl0ver/firecamp/projects" href="/jazzl0ver/firecamp/projects">
       <svg class="octicon octicon-project" viewBox="0 0 15 16" version="1.1" width="15" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 12h3V2h-3v10zm-4-2h3V2H6v8zm-4 4h3V2H2v12zm-1 1h13V1H1v14zM14 0H1a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1z"/></svg>
       Projects
       <span class="Counter" >0</span>
 </a>
-    <a class="js-selected-navigation-item reponav-item" data-hotkey="g w" data-selected-links="repo_wiki /cloudstax/firecamp/wiki" href="/cloudstax/firecamp/wiki">
+    <a class="js-selected-navigation-item reponav-item" data-hotkey="g w" data-selected-links="repo_wiki /jazzl0ver/firecamp/wiki" href="/jazzl0ver/firecamp/wiki">
       <svg class="octicon octicon-book" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M3 5h4v1H3V5zm0 3h4V7H3v1zm0 2h4V9H3v1zm11-5h-4v1h4V5zm0 2h-4v1h4V7zm0 2h-4v1h4V9zm2-6v9c0 .55-.45 1-1 1H9.5l-1 1-1-1H2c-.55 0-1-.45-1-1V3c0-.55.45-1 1-1h5.5l1 1 1-1H15c.55 0 1 .45 1 1zm-8 .5L7.5 3H2v9h6V3.5zm7-.5H9.5l-.5.5V12h6V3z"/></svg>
       Wiki
 </a>
 
-  <a class="js-selected-navigation-item reponav-item" data-selected-links="repo_graphs repo_contributors dependency_graph pulse /cloudstax/firecamp/pulse" href="/cloudstax/firecamp/pulse">
+  <a class="js-selected-navigation-item reponav-item" data-selected-links="repo_graphs repo_contributors dependency_graph pulse /jazzl0ver/firecamp/pulse" href="/jazzl0ver/firecamp/pulse">
     <svg class="octicon octicon-graph" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M16 14v1H0V0h1v14h15zM5 13H3V8h2v5zm4 0H7V3h2v10zm4 0h-2V6h2v7z"/></svg>
     Insights
 </a>
@@ -318,7 +318,7 @@
   <div class="repository-content ">
 
     
-  <a class="d-none js-permalink-shortcut" data-hotkey="y" href="/cloudstax/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Permalink</a>
+  <a class="d-none js-permalink-shortcut" data-hotkey="y" href="/jazzl0ver/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Permalink</a>
 
   <!-- blob contrib key: blob_contributors:v21:152fb4933e977ec21de97678bf35a6ab -->
 
@@ -362,7 +362,7 @@
 
 
             <a class="select-menu-item js-navigation-item js-navigation-open "
-               href="/cloudstax/firecamp/blob/master/vendor/github.com/Sirupsen/logrus/README.md"
+               href="/jazzl0ver/firecamp/blob/master/vendor/github.com/Sirupsen/logrus/README.md"
                data-name="master"
                data-skip-pjax="true"
                rel="nofollow">
@@ -372,7 +372,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-               href="/cloudstax/firecamp/blob/refactor-service-template/vendor/github.com/Sirupsen/logrus/README.md"
+               href="/jazzl0ver/firecamp/blob/refactor-service-template/vendor/github.com/Sirupsen/logrus/README.md"
                data-name="refactor-service-template"
                data-skip-pjax="true"
                rel="nofollow">
@@ -391,7 +391,7 @@
 
 
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9.5/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9.5/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9.5"
               data-skip-pjax="true"
               rel="nofollow">
@@ -401,7 +401,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9.4/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9.4/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9.4"
               data-skip-pjax="true"
               rel="nofollow">
@@ -411,7 +411,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9.3/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9.3/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9.3"
               data-skip-pjax="true"
               rel="nofollow">
@@ -421,7 +421,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9.2/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9.2/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9.2"
               data-skip-pjax="true"
               rel="nofollow">
@@ -431,7 +431,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9.1/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9.1/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9.1"
               data-skip-pjax="true"
               rel="nofollow">
@@ -441,7 +441,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.9/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.9/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.9"
               data-skip-pjax="true"
               rel="nofollow">
@@ -451,7 +451,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.8.1/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.8.1/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.8.1"
               data-skip-pjax="true"
               rel="nofollow">
@@ -461,7 +461,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.8/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.8/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.8"
               data-skip-pjax="true"
               rel="nofollow">
@@ -471,7 +471,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.7.1/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.7.1/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.7.1"
               data-skip-pjax="true"
               rel="nofollow">
@@ -481,7 +481,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.7/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.7/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.7"
               data-skip-pjax="true"
               rel="nofollow">
@@ -491,7 +491,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.6/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.6/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.6"
               data-skip-pjax="true"
               rel="nofollow">
@@ -501,7 +501,7 @@
               </span>
             </a>
             <a class="select-menu-item js-navigation-item js-navigation-open "
-              href="/cloudstax/firecamp/tree/v0.5-alpha/vendor/github.com/Sirupsen/logrus/README.md"
+              href="/jazzl0ver/firecamp/tree/v0.5-alpha/vendor/github.com/Sirupsen/logrus/README.md"
               data-name="v0.5-alpha"
               data-skip-pjax="true"
               rel="nofollow">
@@ -520,7 +520,7 @@
 </div>
 
     <div class="BtnGroup float-right">
-      <a href="/cloudstax/firecamp/find/b10ecb85f675c0346007637dde5daf9445e87af5"
+      <a href="/jazzl0ver/firecamp/find/b10ecb85f675c0346007637dde5daf9445e87af5"
             class="js-pjax-capture-input btn btn-sm BtnGroup-item"
             data-pjax
             data-hotkey="t">
@@ -535,12 +535,12 @@
       </clipboard-copy>
     </div>
     <div id="blob-path" class="breadcrumb">
-      <span class="repo-root js-repo-root"><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/cloudstax/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5"><span>firecamp</span></a></span></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/cloudstax/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor"><span>vendor</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/cloudstax/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com"><span>github.com</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/cloudstax/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen"><span>Sirupsen</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/cloudstax/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus"><span>logrus</span></a></span><span class="separator">/</span><strong class="final-path">README.md</strong>
+      <span class="repo-root js-repo-root"><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/jazzl0ver/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5"><span>firecamp</span></a></span></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/jazzl0ver/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor"><span>vendor</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/jazzl0ver/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com"><span>github.com</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/jazzl0ver/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen"><span>Sirupsen</span></a></span><span class="separator">/</span><span class="js-path-segment"><a data-pjax="true" rel="nofollow" href="/jazzl0ver/firecamp/tree/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus"><span>logrus</span></a></span><span class="separator">/</span><strong class="final-path">README.md</strong>
     </div>
   </div>
 
 
-  <include-fragment src="/cloudstax/firecamp/contributors/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md" class="commit-tease">
+  <include-fragment src="/jazzl0ver/firecamp/contributors/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md" class="commit-tease">
     <div>
       Fetching contributors&hellip;
     </div>
@@ -557,9 +557,9 @@
   <div class="file-actions">
 
     <div class="BtnGroup">
-      <a id="raw-url" class="btn btn-sm BtnGroup-item" href="/cloudstax/firecamp/raw/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Raw</a>
-        <a class="btn btn-sm js-update-url-with-hash BtnGroup-item" data-hotkey="b" href="/cloudstax/firecamp/blame/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Blame</a>
-      <a rel="nofollow" class="btn btn-sm BtnGroup-item" href="/cloudstax/firecamp/commits/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">History</a>
+      <a id="raw-url" class="btn btn-sm BtnGroup-item" href="/jazzl0ver/firecamp/raw/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Raw</a>
+        <a class="btn btn-sm js-update-url-with-hash BtnGroup-item" data-hotkey="b" href="/jazzl0ver/firecamp/blame/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">Blame</a>
+      <a rel="nofollow" class="btn btn-sm BtnGroup-item" href="/jazzl0ver/firecamp/commits/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/README.md">History</a>
     </div>
 
 
@@ -721,7 +721,7 @@ seen as a hint you should add a field, however, you can still use the
 <p>You can add hooks for logging levels. For example to send errors to an exception
 tracking service on <code>Error</code>, <code>Fatal</code> and <code>Panic</code>, info to StatsD or log to
 multiple places simultaneously, e.g. syslog.</p>
-<p>Logrus comes with <a href="/cloudstax/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/hooks">built-in hooks</a>. Add those, or your custom hook, in
+<p>Logrus comes with <a href="/jazzl0ver/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/hooks">built-in hooks</a>. Add those, or your custom hook, in
 <code>init</code>:</p>
 <div class="highlight highlight-source-go"><pre><span class="pl-k">import</span> (
   log <span class="pl-s"><span class="pl-pds">"</span>github.com/Sirupsen/logrus<span class="pl-pds">"</span></span>
@@ -743,7 +743,7 @@ multiple places simultaneously, e.g. syslog.</p>
     log.<span class="pl-c1">AddHook</span>(hook)
   }
 }</pre></div>
-<p>Note: Syslog hook also support connecting to local syslog (Ex. "/dev/log" or "/var/run/syslog" or "/var/run/log"). For the detail, please check the <a href="/cloudstax/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/hooks/syslog/README.md">syslog hook README</a>.</p>
+<p>Note: Syslog hook also support connecting to local syslog (Ex. "/dev/log" or "/var/run/syslog" or "/var/run/log"). For the detail, please check the <a href="/jazzl0ver/firecamp/blob/b10ecb85f675c0346007637dde5daf9445e87af5/vendor/github.com/Sirupsen/logrus/hooks/syslog/README.md">syslog hook README</a>.</p>
 <table>
 <thead>
 <tr>

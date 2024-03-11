@@ -7,15 +7,15 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/api/manage/error"
-	"github.com/cloudstax/firecamp/catalog/elasticsearch"
-	"github.com/cloudstax/firecamp/catalog/kafka"
-	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
-	"github.com/cloudstax/firecamp/catalog/kafkamanager"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/manage/error"
+	"github.com/jazzl0ver/firecamp/catalog/elasticsearch"
+	"github.com/jazzl0ver/firecamp/catalog/kafka"
+	"github.com/jazzl0ver/firecamp/catalog/kafkaconnect"
+	"github.com/jazzl0ver/firecamp/catalog/kafkamanager"
+	"github.com/jazzl0ver/firecamp/catalog/zookeeper"
 )
 
 func (s *CatalogHTTPServer) createKafkaService(ctx context.Context, w http.ResponseWriter, r *http.Request, requuid string) error {

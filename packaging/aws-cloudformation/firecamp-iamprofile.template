@@ -7,6 +7,10 @@
       "Default": "ecs",
       "AllowedValues" : [ "ecs", "swarm" ],
       "Description":"The container orchestration platform."
+    },
+    "KMSARN":{
+      "Type":"String",
+      "Description":"ARN of KMS key to use for SSM session encryption"
     }
   },
   "Conditions": {
@@ -17,9 +21,40 @@
         },
         "ecs"
       ]
+    },
+    "KMSARNCondition": {
+	  "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "KMSARN"
+            },
+            ""
+          ]
+        }
+	  ]    
     }
   },
   "Resources": {
+      "KMSPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Condition": "KMSARNCondition",
+      "Properties": {
+        "PolicyName":"firecamp-kms-policy",
+        "PolicyDocument":{
+          "Statement":[{
+            "Effect":"Allow",
+            "Action":[
+              "kms:Decrypt"
+            ],
+            "Resource": { "Ref": "KMSARN" }
+          }]
+        },
+        "Roles": [
+          { "Ref": "EC2Role" }
+        ]
+      }
+    },
     "ECSPolicy": {
       "Type": "AWS::IAM::Policy",
       "Condition": "ECSContainerPlatformCondition",
@@ -29,6 +64,7 @@
           "Statement":[{
             "Effect":"Allow",
             "Action":[
+              "ecs:CreateCluster",
               "ecs:CreateService",
               "ecs:DeleteService",
               "ecs:Describe*",
@@ -45,7 +81,8 @@
               "ecs:RegisterContainerInstance",
               "ecs:StartTelemetrySession",
               "ecs:Submit*",
-              "ecs:Update*"
+              "ecs:Update*",
+              "ecs:TagResource"
             ],
             "Resource":"*"
           }]
@@ -63,9 +100,19 @@
           "Statement":[{
             "Effect":"Allow",
             "Action":[
+              "ssm:GetDocument",
+              "ssm:PutInventory",
               "ssm:ListAssociations",
               "ssm:ListInstanceAssociations",
               "ssm:UpdateInstanceInformation",
+              "ssm:UpdateInstanceAssociationStatus",
+              "ssm:PutComplianceItems",
+              "ssmmessages:CreateControlChannel",
+              "ssmmessages:CreateDataChannel",
+              "ssmmessages:OpenControlChannel",
+              "ssmmessages:OpenDataChannel",
+              "ec2messages:AcknowledgeMessage",
+              "ec2messages:SendReply",
               "ec2messages:GetMessages"
             ],
             "Resource":"*"
@@ -119,6 +166,13 @@
             "Effect":"Allow",
             "Action":[
               "cloudwatch:PutMetricData"
+            ],
+            "Resource":"*"
+          },
+          {
+            "Effect":"Allow",
+            "Action":[
+              "sns:Publish"
             ],
             "Resource":"*"
           },

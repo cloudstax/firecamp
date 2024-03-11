@@ -1,15 +1,15 @@
-* [The Stateful Service Requirements](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-stateful-service-requirements)
-* [Design Considerations](https://github.com/cloudstax/firecamp/tree/master/docs/architect#design-considerations)
-  * [Storage](https://github.com/cloudstax/firecamp/tree/master/docs/architect#storage)
-  * [Network](https://github.com/cloudstax/firecamp/tree/master/docs/architect#network)
-    * [Static IP](https://github.com/cloudstax/firecamp/tree/master/docs/architect#static-ip)
-* [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect#architecture)
-* [Components](https://github.com/cloudstax/firecamp/tree/master/docs/architect#components)
-  * [Key-Value Database](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-key-value-database)
-  * [Registry Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-registry-service)
-  * [Container Plugin](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-container-plugin)
-  * [Catalog Service](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-catalog-service)
-  * [Common Services](https://github.com/cloudstax/firecamp/tree/master/docs/architect#the-common-services)
+* [The Stateful Service Requirements](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-stateful-service-requirements)
+* [Design Considerations](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#design-considerations)
+  * [Storage](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#storage)
+  * [Network](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#network)
+    * [Static IP](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#static-ip)
+* [Architecture](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#architecture)
+* [Components](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#components)
+  * [Key-Value Database](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-key-value-database)
+  * [Registry Service](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-registry-service)
+  * [Container Plugin](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-container-plugin)
+  * [Catalog Service](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-catalog-service)
+  * [Common Services](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect#the-common-services)
 
 # The Stateful Service Requirements
 **The stateful services have 2 basic requirements: membership and data.** Every service member, such as DB replica, needs to have a unique and stable network identity. So the members could talk with each other to form a cluster. And every service member will have a volume to persist data.
@@ -65,10 +65,10 @@ The FireCamp platform is built on top of Clouds and Container Orchestration fram
 
 The following picture illustrates FireCamp's architecture.
 
-![Architecture](https://s3.amazonaws.com/cloudstax/firecamp/docs/arch.png)
+![Architecture](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/arch.png)
 
 # Components
-FireCamp has 5 major components. The Catalog service and Container Plugin are 2 key components that work with the orchestration framework and coordinates other components. Please refer to [Work Flows](https://github.com/cloudstax/firecamp/tree/master/docs/workflows) for how the components work together.
+FireCamp has 5 major components. The Catalog service and Container Plugin are 2 key components that work with the orchestration framework and coordinates other components. Please refer to [Work Flows](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows) for how the components work together.
 
 ## The Key-Value Database
 The database is the central place to store all stateful services related metadata. The database keeps the service's attributes, including the service uuid, the service members, member names, data volumes, the service config files, etc.
@@ -83,14 +83,14 @@ If the service requires static IP, every member will also get a static IP. The m
 ## The Container Plugin
 The FireCamp Container plugin is the central coordinator between the container orchestration framework and other FireCamp components.
 
-When the container orchestration framework schedules a service container to a worker node, the plugin will talk with the database to find out which member the container serves, updates the registry service (update the member's DNS record or move the member's static IP), and mounts the member's data volume. By this, the service will recognize the new container as the original member. Please refer to [Service Scheduling Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-scheduling-flow) for more details.
+When the container orchestration framework schedules a service container to a worker node, the plugin will talk with the database to find out which member the container serves, updates the registry service (update the member's DNS record or move the member's static IP), and mounts the member's data volume. By this, the service will recognize the new container as the original member. Please refer to [Service Scheduling Flow](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows#service-scheduling-flow) for more details.
 
 For Kubernetes, FireCamp leverages the [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), which binds the volume with one pod. The StatefulSets also binds one internal DNS name with one pod. FireCamp reuses the StatefulSets volume binding, and simply registers the external DNS name with the public cloud DNS service, such as AWS Route53.
 
 ## The Catalog Service
 The Catalog service manages the lifecycle of the stateful services, including deployment, upgrade, scaling, data management, etc. The Catalog service understands the differences of each service, and drives the container orchestration framework to work accordingly.
 
-For example, to create a MongoDB ReplicaSet, users simply calls one FireCamp cli command. The Catalog service will deploy a 3 replicas MongoDB ReplicaSet on 3 availability zones of one AWS region. The Catalog service will store the service information in the Key-Value Database and manage the corresponding services/tasks on the underline container orchestration framework. For more details, please refer to [Service Creation Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows#service-creation-flow).
+For example, to create a MongoDB ReplicaSet, users simply calls one FireCamp cli command. The Catalog service will deploy a 3 replicas MongoDB ReplicaSet on 3 availability zones of one AWS region. The Catalog service will store the service information in the Key-Value Database and manage the corresponding services/tasks on the underline container orchestration framework. For more details, please refer to [Service Creation Flow](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows#service-creation-flow).
 
 When users ask to upgrade the stateful service, the Catalog service will perform the service aware upgrade. For example, when upgrade a MongoDB ReplicaSet, the Catalog service will automatically detect who is the primary member, gracefully stop the mongod daemon, upgrade the primary member's container first, and then upgrade other members one by one.
 

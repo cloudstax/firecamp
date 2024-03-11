@@ -19,9 +19,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const (

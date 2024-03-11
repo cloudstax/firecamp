@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/api/manage/error"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/manage/error"
 )
 
 // ManageClient is the client to talk with the management service.

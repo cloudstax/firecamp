@@ -10,9 +10,9 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/log"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/log"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const (
@@ -59,7 +59,7 @@ func (l *Log) CreateServiceLogConfig(ctx context.Context, cluster string, servic
 	opts[logGroup] = cloudlog.GenServiceLogGroupName(cluster, service, serviceUUID, l.k8snamespace)
 
 	// not set the log stream name. By default, awslogs uses container id as the log stream name.
-	// FireCamp has a log driver cloudstax/firecamp-log, which creates the log stream with the
+	// FireCamp has a log driver jazzl0ver/firecamp-log, which creates the log stream with the
 	// service member name as prefix. So we could easily track the logs of one service member.
 	// While, AWS ECS does not support custom log driver. FireCamp amazon-ecs-agent will replace
 	// the log driver with firecamp-log plugin. We still set awslogs as the default driver.

@@ -10,9 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // CreateServiceMember creates one EBS serviceMember in DB

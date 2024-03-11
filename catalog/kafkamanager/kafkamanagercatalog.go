@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
 )
 
 const (
-	defaultVersion = "1.3.3"
+	defaultVersion = "3.0.0"
 	// ContainerImage is the main running container.
 	ContainerImage        = common.ContainerNamePrefix + "kafka-manager:" + defaultVersion
 	ReleaseContainerImage = ContainerImage + common.NameSeparator + common.Version

@@ -12,10 +12,10 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/containersvc/k8s"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/k8s"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 var (
@@ -183,7 +183,7 @@ func createService(ctx context.Context, svc *k8ssvc.K8sSvc, cluster string, serv
 			Cluster:        cluster,
 			ServiceName:    service,
 			ServiceUUID:    serviceuuid,
-			ContainerImage: "cloudstax/firecamp-busybox",
+			ContainerImage: "jazzl0ver/firecamp-busybox",
 			Resource: &common.Resources{
 				MaxCPUUnits:     common.DefaultMaxCPUUnits,
 				ReserveCPUUnits: common.DefaultReserveCPUUnits,
@@ -326,7 +326,7 @@ func testTask(svc *k8ssvc.K8sSvc) {
 			Cluster:        cluster,
 			ServiceName:    service,
 			ServiceUUID:    serviceuuid,
-			ContainerImage: "cloudstax/firecamp-busybox",
+			ContainerImage: "jazzl0ver/firecamp-busybox",
 			Resource: &common.Resources{
 				MaxCPUUnits:     common.DefaultMaxCPUUnits,
 				ReserveCPUUnits: common.DefaultReserveCPUUnits,

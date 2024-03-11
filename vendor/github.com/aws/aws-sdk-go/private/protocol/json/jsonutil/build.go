@@ -4,7 +4,6 @@ package jsonutil
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -12,7 +11,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/private/protocol"
+)
+
+const (
+	floatNaN    = "NaN"
+	floatInf    = "Infinity"
+	floatNegInf = "-Infinity"
 )
 
 var timeType = reflect.ValueOf(time.Time{}).Type()
@@ -49,7 +55,10 @@ func buildAny(value reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) err
 				t = "list"
 			}
 		case reflect.Map:
-			t = "map"
+			// cannot be a JSONValue map
+			if _, ok := value.Interface().(aws.JSONValue); !ok {
+				t = "map"
+			}
 		}
 	}
 
@@ -78,13 +87,17 @@ func buildStruct(value reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) 
 		field, _ := value.Type().FieldByName(payload)
 		tag = field.Tag
 		value = elemOf(value.FieldByName(payload))
-
-		if !value.IsValid() {
+		if !value.IsValid() && tag.Get("type") != "structure" {
 			return nil
 		}
 	}
 
 	buf.WriteByte('{')
+	defer buf.WriteString("}")
+
+	if !value.IsValid() {
+		return nil
+	}
 
 	t := value.Type()
 	first := true
@@ -139,8 +152,6 @@ func buildStruct(value reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) 
 		}
 
 	}
-
-	buf.WriteString("}")
 
 	return nil
 }
@@ -205,19 +216,32 @@ func buildScalar(v reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) erro
 		buf.Write(strconv.AppendInt(scratch[:0], value.Int(), 10))
 	case reflect.Float64:
 		f := value.Float()
-		if math.IsInf(f, 0) || math.IsNaN(f) {
-			return &json.UnsupportedValueError{Value: v, Str: strconv.FormatFloat(f, 'f', -1, 64)}
+		switch {
+		case math.IsNaN(f):
+			writeString(floatNaN, buf)
+		case math.IsInf(f, 1):
+			writeString(floatInf, buf)
+		case math.IsInf(f, -1):
+			writeString(floatNegInf, buf)
+		default:
+			buf.Write(strconv.AppendFloat(scratch[:0], f, 'f', -1, 64))
 		}
-		buf.Write(strconv.AppendFloat(scratch[:0], f, 'f', -1, 64))
 	default:
-		switch value.Type() {
-		case timeType:
-			converted := v.Interface().(*time.Time)
+		switch converted := value.Interface().(type) {
+		case time.Time:
+			format := tag.Get("timestampFormat")
+			if len(format) == 0 {
+				format = protocol.UnixTimeFormatName
+			}
 
-			buf.Write(strconv.AppendInt(scratch[:0], converted.UTC().Unix(), 10))
-		case byteSliceType:
+			ts := protocol.FormatTime(format, converted)
+			if format != protocol.UnixTimeFormatName {
+				ts = `"` + ts + `"`
+			}
+
+			buf.WriteString(ts)
+		case []byte:
 			if !value.IsNil() {
-				converted := value.Interface().([]byte)
 				buf.WriteByte('"')
 				if len(converted) < 1024 {
 					// for small buffers, using Encode directly is much faster.
@@ -233,6 +257,12 @@ func buildScalar(v reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) erro
 				}
 				buf.WriteByte('"')
 			}
+		case aws.JSONValue:
+			str, err := protocol.EncodeJSONValue(converted, protocol.QuotedEscape)
+			if err != nil {
+				return fmt.Errorf("unable to encode JSONValue, %v", err)
+			}
+			buf.WriteString(str)
 		default:
 			return fmt.Errorf("unsupported JSON value %v (%s)", value.Interface(), value.Type())
 		}

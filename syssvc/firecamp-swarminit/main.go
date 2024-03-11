@@ -15,13 +15,13 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/containersvc/swarm"
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/pkg/log/awscloudwatch"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/swarm"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/db/awsdynamodb"
+	"github.com/jazzl0ver/firecamp/pkg/log/awscloudwatch"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
 )
 
 var (
@@ -294,7 +294,7 @@ func getJoinToken(ctx context.Context, dbIns *awsdynamodb.DynamoDB, cluster stri
 // --publish mode=host,target=27040,published=27040 \
 // --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 // -e CONTAINER_PLATFORM=swarm -e DB_TYPE=clouddb -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 \
-// cloudstax/firecamp-manageserver
+// jazzl0ver/firecamp-manageserver
 func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIns *awscloudwatch.Log, cluster string) {
 	serviceUUID := common.SystemName
 
@@ -367,7 +367,7 @@ func createManageService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIn
 // docker service create --name mgt --replicas 1 \
 // --publish mode=host,target=27041,published=27041 \
 // -e CONTAINER_PLATFORM=swarm -e AVAILABILITY_ZONES=us-east-1a -e CLUSTER=c1 \
-// cloudstax/firecamp-catalogservice
+// jazzl0ver/firecamp-catalogservice
 func createCatalogService(ctx context.Context, swarmSvc *swarmsvc.SwarmSvc, logIns *awscloudwatch.Log, cluster string) {
 	serviceUUID := common.SystemName
 

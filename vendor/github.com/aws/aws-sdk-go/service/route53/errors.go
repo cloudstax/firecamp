@@ -4,31 +4,58 @@ package route53
 
 const (
 
+	// ErrCodeCidrBlockInUseException for service response error code
+	// "CidrBlockInUseException".
+	//
+	// This CIDR block is already in use.
+	ErrCodeCidrBlockInUseException = "CidrBlockInUseException"
+
+	// ErrCodeCidrCollectionAlreadyExistsException for service response error code
+	// "CidrCollectionAlreadyExistsException".
+	//
+	// A CIDR collection with this name and a different caller reference already
+	// exists in this account.
+	ErrCodeCidrCollectionAlreadyExistsException = "CidrCollectionAlreadyExistsException"
+
+	// ErrCodeCidrCollectionInUseException for service response error code
+	// "CidrCollectionInUseException".
+	//
+	// This CIDR collection is in use, and isn't empty.
+	ErrCodeCidrCollectionInUseException = "CidrCollectionInUseException"
+
+	// ErrCodeCidrCollectionVersionMismatchException for service response error code
+	// "CidrCollectionVersionMismatchException".
+	//
+	// The CIDR collection version you provided, doesn't match the one in the ListCidrCollections
+	// operation.
+	ErrCodeCidrCollectionVersionMismatchException = "CidrCollectionVersionMismatchException"
+
 	// ErrCodeConcurrentModification for service response error code
 	// "ConcurrentModification".
 	//
-	// Another user submitted a request to update the object at the same time that
-	// you did. Retry the request.
+	// Another user submitted a request to create, update, or delete the object
+	// at the same time that you did. Retry the request.
 	ErrCodeConcurrentModification = "ConcurrentModification"
 
 	// ErrCodeConflictingDomainExists for service response error code
 	// "ConflictingDomainExists".
 	//
-	// The cause of this error depends on whether you're trying to create a public
-	// or a private hosted zone:
+	// The cause of this error depends on the operation that you're performing:
 	//
-	//    * Public hosted zone: Two hosted zones that have the same name or that
-	//    have a parent/child relationship (example.com and test.example.com) can't
-	//    have any common name servers. You tried to create a hosted zone that has
-	//    the same name as an existing hosted zone or that's the parent or child
-	//    of an existing hosted zone, and you specified a delegation set that shares
-	//    one or more name servers with the existing hosted zone.
+	//    * Create a public hosted zone: Two hosted zones that have the same name
+	//    or that have a parent/child relationship (example.com and test.example.com)
+	//    can't have any common name servers. You tried to create a hosted zone
+	//    that has the same name as an existing hosted zone or that's the parent
+	//    or child of an existing hosted zone, and you specified a delegation set
+	//    that shares one or more name servers with the existing hosted zone. For
+	//    more information, see CreateReusableDelegationSet (https://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateReusableDelegationSet.html).
 	//
-	//    * Private hosted zone: You specified an Amazon VPC that you're already
-	//    using for another hosted zone, and the domain that you specified for one
-	//    of the hosted zones is a subdomain of the domain that you specified for
-	//    the other hosted zone. For example, you can't use the same Amazon VPC
-	//    for the hosted zones for example.com and test.example.com.
+	//    * Create a private hosted zone: A hosted zone with the specified name
+	//    already exists and is already associated with the Amazon VPC that you
+	//    specified.
+	//
+	//    * Associate VPCs with a private hosted zone: The VPC that you specified
+	//    is already associated with another hosted zone that has the same name.
 	ErrCodeConflictingDomainExists = "ConflictingDomainExists"
 
 	// ErrCodeConflictingTypes for service response error code
@@ -38,6 +65,12 @@ const (
 	// that has a different DNS type than the current type for the instance. You
 	// specified the type in the JSON document in the CreateTrafficPolicy or CreateTrafficPolicyVersionrequest.
 	ErrCodeConflictingTypes = "ConflictingTypes"
+
+	// ErrCodeDNSSECNotFound for service response error code
+	// "DNSSECNotFound".
+	//
+	// The hosted zone doesn't have any DNSSEC resources.
+	ErrCodeDNSSECNotFound = "DNSSECNotFound"
 
 	// ErrCodeDelegationSetAlreadyCreated for service response error code
 	// "DelegationSetAlreadyCreated".
@@ -65,8 +98,8 @@ const (
 	// You can create a hosted zone that has the same name as an existing hosted
 	// zone (example.com is common), but there is a limit to the number of hosted
 	// zones that have the same name. If you get this error, Amazon Route 53 has
-	// reached that limit. If you own the domain name and Amazon Route 53 generates
-	// this error, contact Customer Support.
+	// reached that limit. If you own the domain name and Route 53 generates this
+	// error, contact Customer Support.
 	ErrCodeDelegationSetNotAvailable = "DelegationSetNotAvailable"
 
 	// ErrCodeDelegationSetNotReusable for service response error code
@@ -122,6 +155,19 @@ const (
 	// The specified HostedZone can't be found.
 	ErrCodeHostedZoneNotFound = "HostedZoneNotFound"
 
+	// ErrCodeHostedZoneNotPrivate for service response error code
+	// "HostedZoneNotPrivate".
+	//
+	// The specified hosted zone is a public hosted zone, not a private hosted zone.
+	ErrCodeHostedZoneNotPrivate = "HostedZoneNotPrivate"
+
+	// ErrCodeHostedZonePartiallyDelegated for service response error code
+	// "HostedZonePartiallyDelegated".
+	//
+	// The hosted zone nameservers don't match the parent nameservers. The hosted
+	// zone and parent must have the same nameservers.
+	ErrCodeHostedZonePartiallyDelegated = "HostedZonePartiallyDelegated"
+
 	// ErrCodeIncompatibleVersion for service response error code
 	// "IncompatibleVersion".
 	//
@@ -129,10 +175,33 @@ const (
 	// 53 endpoint.
 	ErrCodeIncompatibleVersion = "IncompatibleVersion"
 
+	// ErrCodeInsufficientCloudWatchLogsResourcePolicy for service response error code
+	// "InsufficientCloudWatchLogsResourcePolicy".
+	//
+	// Amazon Route 53 doesn't have the permissions required to create log streams
+	// and send query logs to log streams. Possible causes include the following:
+	//
+	//    * There is no resource policy that specifies the log group ARN in the
+	//    value for Resource.
+	//
+	//    * The resource policy that includes the log group ARN in the value for
+	//    Resource doesn't have the necessary permissions.
+	//
+	//    * The resource policy hasn't finished propagating yet.
+	//
+	//    * The Key management service (KMS) key you specified doesn’t exist or
+	//    it can’t be used with the log group associated with query log. Update
+	//    or provide a resource policy to grant permissions for the KMS key.
+	//
+	//    * The Key management service (KMS) key you specified is marked as disabled
+	//    for the log group associated with query log. Update or provide a resource
+	//    policy to grant permissions for the KMS key.
+	ErrCodeInsufficientCloudWatchLogsResourcePolicy = "InsufficientCloudWatchLogsResourcePolicy"
+
 	// ErrCodeInvalidArgument for service response error code
 	// "InvalidArgument".
 	//
-	// Parameter name is invalid.
+	// Parameter name is not valid.
 	ErrCodeInvalidArgument = "InvalidArgument"
 
 	// ErrCodeInvalidChangeBatch for service response error code
@@ -154,15 +223,45 @@ const (
 	// The input is not valid.
 	ErrCodeInvalidInput = "InvalidInput"
 
+	// ErrCodeInvalidKMSArn for service response error code
+	// "InvalidKMSArn".
+	//
+	// The KeyManagementServiceArn that you specified isn't valid to use with DNSSEC
+	// signing.
+	ErrCodeInvalidKMSArn = "InvalidKMSArn"
+
+	// ErrCodeInvalidKeySigningKeyName for service response error code
+	// "InvalidKeySigningKeyName".
+	//
+	// The key-signing key (KSK) name that you specified isn't a valid name.
+	ErrCodeInvalidKeySigningKeyName = "InvalidKeySigningKeyName"
+
+	// ErrCodeInvalidKeySigningKeyStatus for service response error code
+	// "InvalidKeySigningKeyStatus".
+	//
+	// The key-signing key (KSK) status isn't valid or another KSK has the status
+	// INTERNAL_FAILURE.
+	ErrCodeInvalidKeySigningKeyStatus = "InvalidKeySigningKeyStatus"
+
 	// ErrCodeInvalidPaginationToken for service response error code
 	// "InvalidPaginationToken".
+	//
+	// The value that you specified to get the second or subsequent page of results
+	// is invalid.
 	ErrCodeInvalidPaginationToken = "InvalidPaginationToken"
+
+	// ErrCodeInvalidSigningStatus for service response error code
+	// "InvalidSigningStatus".
+	//
+	// Your hosted zone status isn't valid for this operation. In the hosted zone,
+	// change the status to enable DNSSEC or disable DNSSEC.
+	ErrCodeInvalidSigningStatus = "InvalidSigningStatus"
 
 	// ErrCodeInvalidTrafficPolicyDocument for service response error code
 	// "InvalidTrafficPolicyDocument".
 	//
 	// The format of the traffic policy document that you specified in the Document
-	// element is invalid.
+	// element is not valid.
 	ErrCodeInvalidTrafficPolicyDocument = "InvalidTrafficPolicyDocument"
 
 	// ErrCodeInvalidVPCId for service response error code
@@ -171,6 +270,33 @@ const (
 	// The VPC ID that you specified either isn't a valid ID or the current account
 	// is not authorized to access this VPC.
 	ErrCodeInvalidVPCId = "InvalidVPCId"
+
+	// ErrCodeKeySigningKeyAlreadyExists for service response error code
+	// "KeySigningKeyAlreadyExists".
+	//
+	// You've already created a key-signing key (KSK) with this name or with the
+	// same customer managed key ARN.
+	ErrCodeKeySigningKeyAlreadyExists = "KeySigningKeyAlreadyExists"
+
+	// ErrCodeKeySigningKeyInParentDSRecord for service response error code
+	// "KeySigningKeyInParentDSRecord".
+	//
+	// The key-signing key (KSK) is specified in a parent DS record.
+	ErrCodeKeySigningKeyInParentDSRecord = "KeySigningKeyInParentDSRecord"
+
+	// ErrCodeKeySigningKeyInUse for service response error code
+	// "KeySigningKeyInUse".
+	//
+	// The key-signing key (KSK) that you specified can't be deactivated because
+	// it's the only KSK for a currently-enabled DNSSEC. Disable DNSSEC signing,
+	// or add or enable another KSK.
+	ErrCodeKeySigningKeyInUse = "KeySigningKeyInUse"
+
+	// ErrCodeKeySigningKeyWithActiveStatusNotFound for service response error code
+	// "KeySigningKeyWithActiveStatusNotFound".
+	//
+	// A key-signing key (KSK) with ACTIVE status wasn't found.
+	ErrCodeKeySigningKeyWithActiveStatusNotFound = "KeySigningKeyWithActiveStatusNotFound"
 
 	// ErrCodeLastVPCAssociation for service response error code
 	// "LastVPCAssociation".
@@ -183,7 +309,10 @@ const (
 	// ErrCodeLimitsExceeded for service response error code
 	// "LimitsExceeded".
 	//
-	// The limits specified for a resource have been exceeded.
+	// This operation can't be completed because the current account has reached
+	// the limit on the resource you are trying to create. To request a higher limit,
+	// create a case (http://aws.amazon.com/route53-request) with the Amazon Web
+	// Services Support Center.
 	ErrCodeLimitsExceeded = "LimitsExceeded"
 
 	// ErrCodeNoSuchChange for service response error code
@@ -191,6 +320,24 @@ const (
 	//
 	// A change with the specified change ID does not exist.
 	ErrCodeNoSuchChange = "NoSuchChange"
+
+	// ErrCodeNoSuchCidrCollectionException for service response error code
+	// "NoSuchCidrCollectionException".
+	//
+	// The CIDR collection you specified, doesn't exist.
+	ErrCodeNoSuchCidrCollectionException = "NoSuchCidrCollectionException"
+
+	// ErrCodeNoSuchCidrLocationException for service response error code
+	// "NoSuchCidrLocationException".
+	//
+	// The CIDR collection location doesn't match any locations in your account.
+	ErrCodeNoSuchCidrLocationException = "NoSuchCidrLocationException"
+
+	// ErrCodeNoSuchCloudWatchLogsLogGroup for service response error code
+	// "NoSuchCloudWatchLogsLogGroup".
+	//
+	// There is no CloudWatch Logs log group with the specified ARN.
+	ErrCodeNoSuchCloudWatchLogsLogGroup = "NoSuchCloudWatchLogsLogGroup"
 
 	// ErrCodeNoSuchDelegationSet for service response error code
 	// "NoSuchDelegationSet".
@@ -201,14 +348,15 @@ const (
 	// ErrCodeNoSuchGeoLocation for service response error code
 	// "NoSuchGeoLocation".
 	//
-	// Amazon Route 53 doesn't support the specified geolocation.
+	// Amazon Route 53 doesn't support the specified geographic location. For a
+	// list of supported geolocation codes, see the GeoLocation (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GeoLocation.html)
+	// data type.
 	ErrCodeNoSuchGeoLocation = "NoSuchGeoLocation"
 
 	// ErrCodeNoSuchHealthCheck for service response error code
 	// "NoSuchHealthCheck".
 	//
-	// No health check exists with the ID that you specified in the DeleteHealthCheck
-	// request.
+	// No health check exists with the specified ID.
 	ErrCodeNoSuchHealthCheck = "NoSuchHealthCheck"
 
 	// ErrCodeNoSuchHostedZone for service response error code
@@ -216,6 +364,18 @@ const (
 	//
 	// No hosted zone exists with the ID that you specified.
 	ErrCodeNoSuchHostedZone = "NoSuchHostedZone"
+
+	// ErrCodeNoSuchKeySigningKey for service response error code
+	// "NoSuchKeySigningKey".
+	//
+	// The specified key-signing key (KSK) doesn't exist.
+	ErrCodeNoSuchKeySigningKey = "NoSuchKeySigningKey"
+
+	// ErrCodeNoSuchQueryLoggingConfig for service response error code
+	// "NoSuchQueryLoggingConfig".
+	//
+	// There is no DNS query logging configuration with the specified ID.
+	ErrCodeNoSuchQueryLoggingConfig = "NoSuchQueryLoggingConfig"
 
 	// ErrCodeNoSuchTrafficPolicy for service response error code
 	// "NoSuchTrafficPolicy".
@@ -241,8 +401,8 @@ const (
 	//
 	// If Amazon Route 53 can't process a request before the next request arrives,
 	// it will reject subsequent requests for the same hosted zone and return an
-	// HTTP 400 error (Bad request). If Amazon Route 53 returns this error repeatedly
-	// for the same request, we recommend that you wait, in intervals of increasing
+	// HTTP 400 error (Bad request). If Route 53 returns this error repeatedly for
+	// the same request, we recommend that you wait, in intervals of increasing
 	// duration, before you try the request again.
 	ErrCodePriorRequestNotComplete = "PriorRequestNotComplete"
 
@@ -253,6 +413,13 @@ const (
 	// 53 doesn't support associating a VPC with a public hosted zone.
 	ErrCodePublicZoneVPCAssociation = "PublicZoneVPCAssociation"
 
+	// ErrCodeQueryLoggingConfigAlreadyExists for service response error code
+	// "QueryLoggingConfigAlreadyExists".
+	//
+	// You can create only one query logging configuration for a hosted zone, and
+	// a query logging configuration already exists for this hosted zone.
+	ErrCodeQueryLoggingConfigAlreadyExists = "QueryLoggingConfigAlreadyExists"
+
 	// ErrCodeThrottlingException for service response error code
 	// "ThrottlingException".
 	//
@@ -262,34 +429,93 @@ const (
 	// ErrCodeTooManyHealthChecks for service response error code
 	// "TooManyHealthChecks".
 	//
-	// You have reached the maximum number of active health checks for an AWS account.
-	// The default limit is 100. To request a higher limit, create a case (http://aws.amazon.com/route53-request)
-	// with the AWS Support Center.
+	// This health check can't be created because the current account has reached
+	// the limit on the number of active health checks.
+	//
+	// For information about default limits, see Limits (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html)
+	// in the Amazon Route 53 Developer Guide.
+	//
+	// For information about how to get the current limit for an account, see GetAccountLimit
+	// (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetAccountLimit.html).
+	// To request a higher limit, create a case (http://aws.amazon.com/route53-request)
+	// with the Amazon Web Services Support Center.
+	//
+	// You have reached the maximum number of active health checks for an Amazon
+	// Web Services account. To request a higher limit, create a case (http://aws.amazon.com/route53-request)
+	// with the Amazon Web Services Support Center.
 	ErrCodeTooManyHealthChecks = "TooManyHealthChecks"
 
 	// ErrCodeTooManyHostedZones for service response error code
 	// "TooManyHostedZones".
 	//
-	// This hosted zone can't be created because the hosted zone limit is exceeded.
-	// To request a limit increase, go to the Amazon Route 53 Contact Us (http://aws.amazon.com/route53-request/)
-	// page.
+	// This operation can't be completed either because the current account has
+	// reached the limit on the number of hosted zones or because you've reached
+	// the limit on the number of hosted zones that can be associated with a reusable
+	// delegation set.
+	//
+	// For information about default limits, see Limits (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html)
+	// in the Amazon Route 53 Developer Guide.
+	//
+	// To get the current limit on hosted zones that can be created by an account,
+	// see GetAccountLimit (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetAccountLimit.html).
+	//
+	// To get the current limit on hosted zones that can be associated with a reusable
+	// delegation set, see GetReusableDelegationSetLimit (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetReusableDelegationSetLimit.html).
+	//
+	// To request a higher limit, create a case (http://aws.amazon.com/route53-request)
+	// with the Amazon Web Services Support Center.
 	ErrCodeTooManyHostedZones = "TooManyHostedZones"
+
+	// ErrCodeTooManyKeySigningKeys for service response error code
+	// "TooManyKeySigningKeys".
+	//
+	// You've reached the limit for the number of key-signing keys (KSKs). Remove
+	// at least one KSK, and then try again.
+	ErrCodeTooManyKeySigningKeys = "TooManyKeySigningKeys"
 
 	// ErrCodeTooManyTrafficPolicies for service response error code
 	// "TooManyTrafficPolicies".
 	//
-	// You've created the maximum number of traffic policies that can be created
-	// for the current AWS account. You can request an increase to the limit on
-	// the Contact Us (http://aws.amazon.com/route53-request/) page.
+	// This traffic policy can't be created because the current account has reached
+	// the limit on the number of traffic policies.
+	//
+	// For information about default limits, see Limits (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html)
+	// in the Amazon Route 53 Developer Guide.
+	//
+	// To get the current limit for an account, see GetAccountLimit (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetAccountLimit.html).
+	//
+	// To request a higher limit, create a case (http://aws.amazon.com/route53-request)
+	// with the Amazon Web Services Support Center.
 	ErrCodeTooManyTrafficPolicies = "TooManyTrafficPolicies"
 
 	// ErrCodeTooManyTrafficPolicyInstances for service response error code
 	// "TooManyTrafficPolicyInstances".
 	//
-	// You've created the maximum number of traffic policy instances that can be
-	// created for the current AWS account. You can request an increase to the limit
-	// on the Contact Us (http://aws.amazon.com/route53-request/) page.
+	// This traffic policy instance can't be created because the current account
+	// has reached the limit on the number of traffic policy instances.
+	//
+	// For information about default limits, see Limits (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html)
+	// in the Amazon Route 53 Developer Guide.
+	//
+	// For information about how to get the current limit for an account, see GetAccountLimit
+	// (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetAccountLimit.html).
+	//
+	// To request a higher limit, create a case (http://aws.amazon.com/route53-request)
+	// with the Amazon Web Services Support Center.
 	ErrCodeTooManyTrafficPolicyInstances = "TooManyTrafficPolicyInstances"
+
+	// ErrCodeTooManyTrafficPolicyVersionsForCurrentPolicy for service response error code
+	// "TooManyTrafficPolicyVersionsForCurrentPolicy".
+	//
+	// This traffic policy version can't be created because you've reached the limit
+	// of 1000 on the number of versions that you can create for the current traffic
+	// policy.
+	//
+	// To create more traffic policy versions, you can use GetTrafficPolicy (https://docs.aws.amazon.com/Route53/latest/APIReference/API_GetTrafficPolicy.html)
+	// to get the traffic policy document for a specified traffic policy version,
+	// and then use CreateTrafficPolicy (https://docs.aws.amazon.com/Route53/latest/APIReference/API_CreateTrafficPolicy.html)
+	// to create a new traffic policy using the traffic policy document.
+	ErrCodeTooManyTrafficPolicyVersionsForCurrentPolicy = "TooManyTrafficPolicyVersionsForCurrentPolicy"
 
 	// ErrCodeTooManyVPCAssociationAuthorizations for service response error code
 	// "TooManyVPCAssociationAuthorizations".
@@ -317,7 +543,7 @@ const (
 	// ErrCodeTrafficPolicyInstanceAlreadyExists for service response error code
 	// "TrafficPolicyInstanceAlreadyExists".
 	//
-	// Traffic policy instance with given Id already exists.
+	// There is already a traffic policy instance with the specified ID.
 	ErrCodeTrafficPolicyInstanceAlreadyExists = "TrafficPolicyInstanceAlreadyExists"
 
 	// ErrCodeVPCAssociationAuthorizationNotFound for service response error code

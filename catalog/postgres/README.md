@@ -1,5 +1,5 @@
-* [FireCamp PostgreSQL Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/postgres#firecamp-postgresql-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/postgres#tutorials)
+* [FireCamp PostgreSQL Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/postgres#firecamp-postgresql-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/postgres#tutorials)
 
 # FireCamp PostgreSQL Internals
 
@@ -27,7 +27,7 @@ When the standby container starts at the first time, the standby will use pg_bas
 
 **Custom Plugins**
 
-The PostGIS is supported as the example for how to customize your PostgreSQL, catalog/postgres/9.6/postgis-dockerfile. To create a PostgreSQL cluster with PostGIS, specify -pg-image=cloudstax/firecamp-postgres-postgis:9.6 at the service creation.
+The PostGIS is supported as the example for how to customize your PostgreSQL, catalog/postgres/9.6/postgis-dockerfile. To create a PostgreSQL cluster with PostGIS, specify -pg-image=jazzl0ver/firecamp-postgres-postgis:9.6 at the service creation.
 
 If the additional custom plugin is required, we could follow the same way to create a new docker image and specify it when creating the service. Note, this is currently disabled until we hear the actual requirement.
 
@@ -51,9 +51,9 @@ The custom logging driver is supported from Docker 17.05. Once Amazone Linux AMI
 This is a simple tutorial about how to create a PostgreSQL service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the PostgreSQL service name is "mypg".
 
 ## Create a PostgreSQL service
-Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a PostgreSQL cluster:
+Follow the [Installation](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a PostgreSQL cluster:
 ```
-firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -volume-size=100 -journal-volume-size=10 -password=changeme -pg-image=cloudstax/firecamp-postgres:9.6 -pg-repluser=repluser -pg-replpasswd=replpassword
+firecamp-service-cli -op=create-service -service-type=postgresql -region=us-east-1 -cluster=t1 -service-name=mypg -replicas=3 -volume-size=100 -journal-volume-size=10 -password=changeme -pg-image=jazzl0ver/firecamp-postgres:9.6 -pg-repluser=repluser -pg-replpasswd=replpassword
 ```
 
 This creates a 3 replicas PostgreSQL on 3 availability zones. Each replica has 2 volumes, 10GB volume for journal and 100GB volume for data. The PostgreSQL admin is "postgres", password is "changeme". The PostgreSQL replication user is "repluser", password is "replpassword". The DNS names of the replicas would be: mypg-0.t1-firecamp.com, mypg-1.t1-firecamp.com, mypg-2.t1-firecamp.com. By default the first replica, mypg-0 will be the primary.

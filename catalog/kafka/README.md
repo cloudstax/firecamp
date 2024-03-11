@@ -1,5 +1,5 @@
-* [FireCamp Kafka Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/kafka#firecamp-kafka-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/kafka#tutorials)
+* [FireCamp Kafka Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/kafka#firecamp-kafka-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/kafka#tutorials)
 
 # FireCamp Kafka Internals
 
@@ -66,7 +66,7 @@ Refs
 This is a simple tutorial about how to create a Kafka service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Kafka service name is "mykafka".
 
 ## Create a Kafka ZooKeeper service
-Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
+Follow the [Installation](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Could create a ZooKeeper cluster by:
 ```
 firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20
 ```

@@ -2,7 +2,7 @@
 
 The ultimate goal is to connect the open source Stateful Services with FaaS, such as AWS Lambda, Apache OpenWhisk, etc. So data could easily move from application to stateful service, from one stateful service to another stateful service, or from stateful service to application.
 
-The release plans are briefly described here. For the full list of features and fixes of one release, please refer to the [release docs](https://github.com/cloudstax/firecamp/tree/master/docs/releases).
+The release plans are briefly described here. For the full list of features and fixes of one release, please refer to the [release docs](https://github.com/jazzl0ver/firecamp/tree/master/docs/releases).
 
 The plan will be adjusted by the requirements. If you prefer to have some other features, please feel free to open an issue or join slack to propose your idea.
 

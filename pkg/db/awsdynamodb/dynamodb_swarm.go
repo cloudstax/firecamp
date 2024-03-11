@@ -7,9 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // Swarm DynamoDB helps to coordinate the Swarm cluster initialization.

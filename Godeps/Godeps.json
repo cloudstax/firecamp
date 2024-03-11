@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/cloudstax/firecamp",
+	"ImportPath": "github.com/jazzl0ver/firecamp",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
 	"Packages": [

@@ -9,6 +9,8 @@ package defaults
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/internal/shareddefaults"
 )
 
 // A Defaults provides a collection of default values for SDK clients.
@@ -72,6 +75,8 @@ func Handlers() request.Handlers {
 	handlers.Validate.PushBackNamed(corehandlers.ValidateEndpointHandler)
 	handlers.Validate.AfterEachFn = request.HandlerListStopOnError
 	handlers.Build.PushBackNamed(corehandlers.SDKVersionUserAgentHandler)
+	handlers.Build.PushBackNamed(corehandlers.AddAwsInternal)
+	handlers.Build.PushBackNamed(corehandlers.AddHostExecEnvUserAgentHander)
 	handlers.Build.AfterEachFn = request.HandlerListStopOnError
 	handlers.Sign.PushBackNamed(corehandlers.BuildContentLengthHandler)
 	handlers.Send.PushBackNamed(corehandlers.ValidateReqSigHandler)
@@ -90,18 +95,51 @@ func Handlers() request.Handlers {
 func CredChain(cfg *aws.Config, handlers request.Handlers) *credentials.Credentials {
 	return credentials.NewCredentials(&credentials.ChainProvider{
 		VerboseErrors: aws.BoolValue(cfg.CredentialsChainVerboseErrors),
-		Providers: []credentials.Provider{
-			&credentials.EnvProvider{},
-			&credentials.SharedCredentialsProvider{Filename: "", Profile: ""},
-			RemoteCredProvider(*cfg, handlers),
-		},
+		Providers:     CredProviders(cfg, handlers),
 	})
 }
 
+// CredProviders returns the slice of providers used in
+// the default credential chain.
+//
+// For applications that need to use some other provider (for example use
+// different  environment variables for legacy reasons) but still fall back
+// on the default chain of providers. This allows that default chaint to be
+// automatically updated
+func CredProviders(cfg *aws.Config, handlers request.Handlers) []credentials.Provider {
+	return []credentials.Provider{
+		&credentials.EnvProvider{},
+		&credentials.SharedCredentialsProvider{Filename: "", Profile: ""},
+		RemoteCredProvider(*cfg, handlers),
+	}
+}
+
 const (
-	httpProviderEnvVar     = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
-	ecsCredsProviderEnvVar = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
+	httpProviderAuthorizationEnvVar = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
+	httpProviderAuthFileEnvVar      = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE"
+	httpProviderEnvVar              = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
 )
+
+// direct representation of the IPv4 address for the ECS container
+// "169.254.170.2"
+var ecsContainerIPv4 net.IP = []byte{
+	169, 254, 170, 2,
+}
+
+// direct representation of the IPv4 address for the EKS container
+// "169.254.170.23"
+var eksContainerIPv4 net.IP = []byte{
+	169, 254, 170, 23,
+}
+
+// direct representation of the IPv6 address for the EKS container
+// "fd00:ec2::23"
+var eksContainerIPv6 net.IP = []byte{
+	0xFD, 0, 0xE, 0xC2,
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+	0, 0, 0, 0x23,
+}
 
 // RemoteCredProvider returns a credentials provider for the default remote
 // endpoints such as EC2 or ECS Roles.
@@ -110,12 +148,44 @@ func RemoteCredProvider(cfg aws.Config, handlers request.Handlers) credentials.P
 		return localHTTPCredProvider(cfg, handlers, u)
 	}
 
-	if uri := os.Getenv(ecsCredsProviderEnvVar); len(uri) > 0 {
-		u := fmt.Sprintf("http://169.254.170.2%s", uri)
+	if uri := os.Getenv(shareddefaults.ECSCredsProviderEnvVar); len(uri) > 0 {
+		u := fmt.Sprintf("%s%s", shareddefaults.ECSContainerCredentialsURI, uri)
 		return httpCredProvider(cfg, handlers, u)
 	}
 
 	return ec2RoleProvider(cfg, handlers)
+}
+
+var lookupHostFn = net.LookupHost
+
+// isAllowedHost allows host to be loopback or known ECS/EKS container IPs
+//
+// host can either be an IP address OR an unresolved hostname - resolution will
+// be automatically performed in the latter case
+func isAllowedHost(host string) (bool, error) {
+	if ip := net.ParseIP(host); ip != nil {
+		return isIPAllowed(ip), nil
+	}
+
+	addrs, err := lookupHostFn(host)
+	if err != nil {
+		return false, err
+	}
+
+	for _, addr := range addrs {
+		if ip := net.ParseIP(addr); ip == nil || !isIPAllowed(ip) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func isIPAllowed(ip net.IP) bool {
+	return ip.IsLoopback() ||
+		ip.Equal(ecsContainerIPv4) ||
+		ip.Equal(eksContainerIPv4) ||
+		ip.Equal(eksContainerIPv6)
 }
 
 func localHTTPCredProvider(cfg aws.Config, handlers request.Handlers, u string) credentials.Provider {
@@ -124,8 +194,17 @@ func localHTTPCredProvider(cfg aws.Config, handlers request.Handlers, u string) 
 	parsed, err := url.Parse(u)
 	if err != nil {
 		errMsg = fmt.Sprintf("invalid URL, %v", err)
-	} else if host := aws.URLHostname(parsed); !(host == "localhost" || host == "127.0.0.1") {
-		errMsg = fmt.Sprintf("invalid host address, %q, only localhost and 127.0.0.1 are valid.", host)
+	} else {
+		host := aws.URLHostname(parsed)
+		if len(host) == 0 {
+			errMsg = "unable to parse host from local HTTP cred provider URL"
+		} else if parsed.Scheme == "http" {
+			if isAllowedHost, allowHostErr := isAllowedHost(host); allowHostErr != nil {
+				errMsg = fmt.Sprintf("failed to resolve host %q, %v", host, allowHostErr)
+			} else if !isAllowedHost {
+				errMsg = fmt.Sprintf("invalid endpoint host, %q, only loopback/ecs/eks hosts are allowed.", host)
+			}
+		}
 	}
 
 	if len(errMsg) > 0 {
@@ -145,6 +224,16 @@ func httpCredProvider(cfg aws.Config, handlers request.Handlers, u string) crede
 	return endpointcreds.NewProviderClient(cfg, handlers, u,
 		func(p *endpointcreds.Provider) {
 			p.ExpiryWindow = 5 * time.Minute
+			p.AuthorizationToken = os.Getenv(httpProviderAuthorizationEnvVar)
+			if authFilePath := os.Getenv(httpProviderAuthFileEnvVar); authFilePath != "" {
+				p.AuthorizationTokenProvider = endpointcreds.TokenProviderFunc(func() (string, error) {
+					if contents, err := ioutil.ReadFile(authFilePath); err != nil {
+						return "", fmt.Errorf("failed to read authorization token from %v: %v", authFilePath, err)
+					} else {
+						return string(contents), nil
+					}
+				})
+			}
 		},
 	)
 }

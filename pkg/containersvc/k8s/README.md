@@ -10,11 +10,11 @@ FireCamp distributes the members of one stateful service across Availability Zon
 
 **Integrate with AWS network**
 
-FireCamp minimizes the dependency on the external components. FireCamp does not rely on any third party network plugin, such as Calico. FireCamp directly integrate with [AWS Route53](https://aws.amazon.com/route53/) for DNS and [EC2 Secondary Private IP](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/MultipleIP.html) for the Static IP support. The application running on EC2, Container or Lambda could easily talk with the stateful service without the need to setup such as the Proxy Verb. For more details, please refer to [FireCamp Architect](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/architect#network).
+FireCamp minimizes the dependency on the external components. FireCamp does not rely on any third party network plugin, such as Calico. FireCamp directly integrate with [AWS Route53](https://aws.amazon.com/route53/) for DNS and [EC2 Secondary Private IP](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/MultipleIP.html) for the Static IP support. The application running on EC2, Container or Lambda could easily talk with the stateful service without the need to setup such as the Proxy Verb. For more details, please refer to [FireCamp Architect](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/architect#network).
 
 **Send logs to AWS CloudWatch**
 
-Kubernetes does not support the custom log driver. FireCamp deploys a Fluentd DaemonSet. The Fluentd is configured to create the log stream for each service member under the same log group. For the detail log stream and group name, please refer to the [Catalog Service Log](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog#logging).
+Kubernetes does not support the custom log driver. FireCamp deploys a Fluentd DaemonSet. The Fluentd is configured to create the log stream for each service member under the same log group. For the detail log stream and group name, please refer to the [Catalog Service Log](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog#logging).
 
 
 ## FireCamp Kubernetes StatefulSet

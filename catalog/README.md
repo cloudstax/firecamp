@@ -2,7 +2,7 @@ This doc discusses about the common mechanisms shared by all catalog services.
 
 # Monitoring
 
-FireCamp integrates with Telegraf to monitor the stateful services. You could create one telegraf service for one stateful service. For more details, please refer to[FireCamp Telegraf](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf).
+FireCamp integrates with Telegraf to monitor the stateful services. You could create one telegraf service for one stateful service. For more details, please refer to[FireCamp Telegraf](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/telegraf).
 
 
 # Max Memory and CPU
@@ -24,7 +24,7 @@ AWS ECS and Docker Swarm have the same log group and stream names.
 
 K8s will be slightly different. K8s does not support custom log driver like AWS ECS and Docker Swarm supports. K8s simply writes the log to the local files. The Fluentd DaemonSet is used to send the logs to CloudWatch. The log group and stream are different, as K8s has namespace and init container concepts.
 
-K8s log group: clustername-namespace-servicename-serviceUUID. K8s log stream: membername/containername/hostname/containerID. FireCamp will set the init/stop container name with the init and stop prefix in the pod. Please refer to [FireCamp K8s Fluentd ConfigMap](https://github.com/cloudstax/firecamp/pkg/tree/master/containersvc/k8s/fluentd-cw-configmap.yaml) for the format.
+K8s log group: clustername-namespace-servicename-serviceUUID. K8s log stream: membername/containername/hostname/containerID. FireCamp will set the init/stop container name with the init and stop prefix in the pod. Please refer to [FireCamp K8s Fluentd ConfigMap](https://github.com/jazzl0ver/firecamp/pkg/tree/master/containersvc/k8s/fluentd-cw-configmap.yaml) for the format.
 
 # FireCamp System Configs
 
@@ -51,7 +51,7 @@ For Docker Swarm, we would have to use some [workarounds](https://residentsummer
 **Tcp tuning**
 
 The idle connection timeout is adjusted. The socket memory is increased to handle thousands of concurrent connections.
-'''
+```
 net.ipv4.tcp_keepalive_time=60
 net.ipv4.tcp_keepalive_probes=3
 net.ipv4.tcp_keepalive_intvl=10
@@ -62,7 +62,7 @@ net.core.wmem_default=16777216
 net.core.optmem_max=40960
 net.ipv4.tcp_rmem=4096 87380 16777216
 net.ipv4.tcp_wmem=4096 65536 16777216
-'''
+```
 
 **Memory Configs**
 

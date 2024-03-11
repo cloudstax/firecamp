@@ -46,7 +46,7 @@ Refs:
 
 This is a simple tutorial about how to create a Kibana service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Kibana service name is "mykb".
 
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
+Follow the [Installation Guide](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
 
 1. Create an ElasticSearch service:
 ```
