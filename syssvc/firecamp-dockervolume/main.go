@@ -11,18 +11,18 @@ import (
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/containersvc"
-	"github.com/cloudstax/firecamp/pkg/containersvc/awsecs"
-	"github.com/cloudstax/firecamp/pkg/containersvc/swarm"
-	"github.com/cloudstax/firecamp/pkg/db"
-	"github.com/cloudstax/firecamp/pkg/db/awsdynamodb"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/dns/awsroute53"
-	"github.com/cloudstax/firecamp/pkg/plugins/volume"
-	"github.com/cloudstax/firecamp/pkg/server"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/awsecs"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/swarm"
+	"github.com/jazzl0ver/firecamp/pkg/db"
+	"github.com/jazzl0ver/firecamp/pkg/db/awsdynamodb"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/dns/awsroute53"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/volume"
+	"github.com/jazzl0ver/firecamp/pkg/server"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const socketAddress = "/run/docker/plugins/" + common.SystemName + "vol.sock"
@@ -73,6 +73,13 @@ func main() {
 
 	cfg := aws.NewConfig().WithRegion(region)
 	sess, err := session.NewSession(cfg)
+/*
+	sess, err := session.NewSession(&aws.Config{
+	    Region: aws.String(region),
+	    CredentialsChainVerboseErrors: aws.Bool(true),
+	    LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
+	})
+*/
 	if err != nil {
 		glog.Fatalln("failed to create session, error", err)
 	}

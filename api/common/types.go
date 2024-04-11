@@ -1,9 +1,9 @@
 package common
 
 const (
-	Version        = "latest"
-	CatalogVersion = "latest"
-	Version1       = "1.0"
+	Version        = "2.0"
+	CatalogVersion = "2.0"
+	Version1       = "2.0"
 
 	CloudPlatformAWS = "aws"
 
@@ -17,7 +17,7 @@ const (
 	ContainerPlatformRoleWorker  = "worker"
 
 	// OrgName and SystemName could not include "-"
-	OrgName             = "cloudstax/"
+	OrgName             = "jazzl0ver/"
 	SystemName          = "firecamp"
 	ContainerNamePrefix = OrgName + SystemName + "-"
 
@@ -35,8 +35,8 @@ const (
 	// Do NOT change the log driver name. If this name is changed,
 	// please update the log driver plugin in scripts/builddocker.sh.
 	LogDriverName = OrgName + SystemName + "-" + "log:" + Version
-	// The LogServiceUUIDKey is set by firecamp_task_engine.go in cloudstax/amazon-ecs-agent.
-	// if you want to change the value here, also need to change in cloudstax/amazon-ecs-agent.
+	// The LogServiceUUIDKey is set by firecamp_task_engine.go in jazzl0ver/amazon-ecs-agent.
+	// if you want to change the value here, also need to change in jazzl0ver/amazon-ecs-agent.
 	LogServiceUUIDKey = "ServiceUUID"
 	// The LogServiceMemberKey is for the single member service, such as the management service.
 	LogServiceMemberKey = "ServiceMember"

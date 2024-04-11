@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/catalog"
 )
 
 // CatalogServiceClient is the client to talk with the catalog management service.

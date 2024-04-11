@@ -4,15 +4,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 const (
-	defaultVersion = "3.11"
+	defaultVersion = "4.1"
 	// ContainerImage is the main Cassandra running container.
 	ContainerImage = common.ContainerNamePrefix + "cassandra:" + defaultVersion
 	// InitContainerImage initializes the Cassandra cluster.
@@ -55,6 +55,9 @@ func ValidateRequest(req *catalog.CatalogCreateCassandraRequest) error {
 	if req.Options.Replicas == 2 {
 		return errors.New("2 nodes are not allowed")
 	}
+	if req.Options.AuditLoggingEnabled != "true" && req.Options.AuditLoggingEnabled != "false" {
+		return errors.New("AuditLoggingEnabled must be true or false")
+	}
 
 	return nil
 }
@@ -68,6 +71,38 @@ func GenDefaultCreateServiceRequest(platform string, region string, azs []string
 	}
 	if len(opts.JmxRemotePasswd) == 0 {
 		opts.JmxRemotePasswd = utils.GenUUID()
+	}
+
+	if len(opts.AuditLoggingEnabled) == 0 {
+		opts.AuditLoggingEnabled = "true"
+	}
+
+	if len(opts.AuditLoggingClassName) == 0 {
+		opts.AuditLoggingClassName = "FileAuditLogger"
+	}
+
+	if len(opts.AuditIncludedKeyspaces) == 0 {
+		opts.AuditIncludedKeyspaces = ""
+	}
+
+	if len(opts.AuditExcludedKeyspaces) == 0 {
+		opts.AuditExcludedKeyspaces = "system, system_schema, system_virtual_schema"
+	}
+
+	if len(opts.AuditIncludedCategories) == 0 {
+		opts.AuditIncludedCategories = ""
+	}
+
+	if len(opts.AuditExcludedCategories) == 0 {
+		opts.AuditExcludedCategories = ""
+	}
+
+	if len(opts.AuditIncludedUsers) == 0 {
+		opts.AuditIncludedUsers = ""
+	}
+
+	if len(opts.AuditExcludedUsers) == 0 {
+		opts.AuditExcludedUsers = ""
 	}
 
 	serviceCfgs := genServiceConfigs(platform, region, cluster, service, azs, opts)
@@ -127,7 +162,16 @@ func genServiceConfigs(platform string, region string, cluster string, service s
 	// create the service.conf file
 	domain := dns.GenDefaultDomainName(cluster)
 	seeds := genSeedHosts(int64(len(azs)), opts.Replicas, service, domain)
-	content := fmt.Sprintf(servicefileContent, platform, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd)
+	content := fmt.Sprintf(servicefileContent, platform, region, cluster, seeds, opts.HeapSizeMB, opts.JmxRemoteUser, opts.JmxRemotePasswd,
+	    opts.AuditLoggingEnabled,
+	    opts.AuditLoggingClassName,
+	    opts.AuditIncludedKeyspaces,
+	    opts.AuditExcludedKeyspaces,
+	    opts.AuditIncludedCategories,
+	    opts.AuditExcludedCategories,
+	    opts.AuditIncludedUsers,
+	    opts.AuditExcludedUsers,
+	    )
 	serviceCfg := &manage.ConfigFileContent{
 		FileName: catalog.SERVICE_FILE_NAME,
 		FileMode: common.DefaultConfigFileMode,
@@ -238,6 +282,14 @@ CASSANDRA_SEEDS=%s
 HEAP_SIZE_MB=%d
 JMX_REMOTE_USER=%s
 JMX_REMOTE_PASSWD=%s
+AUDIT_LOGGING_ENABLED="%s"
+AUDIT_LOGGING_CLASSNAME="%s"
+AUDIT_INCLUDED_KEYSPACES="%s"
+AUDIT_EXCLUDED_KEYSPACES="%s"
+AUDIT_INCLUDED_CATEGORIES="%s"
+AUDIT_EXCLUDED_CATEGORIES="%s"
+AUDIT_INCLUDED_USERS="%s"
+AUDIT_EXCLUDED_USERS="%s"
 `
 
 	memberfileContent = `

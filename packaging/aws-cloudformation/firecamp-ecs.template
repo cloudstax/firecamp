@@ -15,6 +15,14 @@
             "Type":"AWS::EC2::KeyPair::KeyName",
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances."
         },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
         "DBType": {
             "AllowedValues": [
                 "clouddb"
@@ -56,7 +64,11 @@
             "Type": "String"
         },
         "QSS3KeyPrefix": {
-            "Default": "quickstart-cloudstax-firecamp/",
+            "Default": "quickstart-jazzl0ver-firecamp/",
+            "Type": "String"
+        },
+        "SNSTopicARN": {
+            "Default": "",
             "Type": "String"
         },
         "Release": {
@@ -150,7 +162,7 @@
                             "Fn::Join": [
                                 ":",
                                 [
-                                    "cloudstax/firecamp-manageserver",
+                                    "jazzl0ver/firecamp-manageserver",
                                     {
                                         "Ref": "Release"
                                     }
@@ -275,7 +287,7 @@
                             "Fn::Join": [
                                 ":",
                                 [
-                                    "cloudstax/firecamp-catalogservice",
+                                    "jazzl0ver/firecamp-catalogservice",
                                     {
                                         "Ref": "CatalogRelease"
                                     }
@@ -370,6 +382,12 @@
                     "KeyPairName": {
                         "Ref": "KeyPairName"
                     },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+					"WazuhGroup": {
+						"Ref": "WazuhGroup"
+					},
                     "Release": {
                         "Ref": "Release"
                     },
@@ -412,6 +430,9 @@
                     },
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
+                    },
+                    "SNSTopicARN": {
+                        "Ref": "SNSTopicARN"
                     }
                 }
             }

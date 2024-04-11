@@ -6,7 +6,7 @@ containerPlatform=$3
 containerPlatformRole=$4
 azs=$5
 
-org="cloudstax/"
+org="jazzl0ver/"
 
 if [ "$version" = "" -o "$clusterName" = "" -o "$azs" = "" ]; then
   echo "version $version, clusterName $clusterName and azs $azs should not be empty"
@@ -26,9 +26,10 @@ fi
 echo "init version $version, cluster $clusterName, container platform $containerPlatform, role $containerPlatformRole, azs $azs"
 
 # create the tag for EC2's root volume
-EC2_AVAIL_ZONE=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone`
+TOKEN=`curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60"`
+EC2_AVAIL_ZONE=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone`
 EC2_REGION="`echo \"$EC2_AVAIL_ZONE\" | sed 's/[a-z]$//'`"
-EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+EC2_INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 ROOT_DISK_ID=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=${EC2_INSTANCE_ID} --query "Volumes[*].[VolumeId]" --region=${EC2_REGION} --out text)
 aws ec2 create-tags --resources ${ROOT_DISK_ID} --tags Key=Name,Value=${clusterName}-${containerPlatformRole} --region ${EC2_REGION}
 if [ "$?" != "0" ]; then
@@ -82,12 +83,7 @@ echo "vm.overcommit_memory=1" >> /etc/sysctl.conf
 
 sysctl -p /etc/sysctl.conf
 
-# 2. install docker.
-yum install -y docker
-if [ "$?" != "0" ]; then
-  echo "install docker error"
-  exit 2
-fi
+# 2. docker is already installed
 
 # 3. Create the firecamp data directory.
 # The volume plugin will write the service member to the data directory, so the log plugin
@@ -116,6 +112,17 @@ if [ "$containerPlatform" = "ecs" ]; then
 
   sleep 3
 
+  # remove amazon ecs-agent in favor of our own
+  yum remove ecs-init -y
+  res=$?
+  while [ $res -ne 0 ]; do
+    sleep 5
+    yum remove ecs-init -y
+    res=$?
+  done
+
+  dnf upgrade -y --releasever=2023.2.20231113
+
   # follow https://github.com/aws/amazon-ecs-agent#usage to set up ecs agent
   # Set up directories the agent uses
   mkdir -p /var/log/ecs /etc/ecs /var/lib/ecs/data
@@ -137,6 +144,8 @@ if [ "$containerPlatform" = "ecs" ]; then
     --volume=/var/run/docker.sock:/var/run/docker.sock \
     --volume=/var/log/ecs:/log \
     --volume=/var/lib/ecs/data:/data \
+    --volume=/sys/fs/cgroup:/sys/fs/cgroup \
+    --volume=/run/systemd/private:/run/systemd/private \
     --net=host \
     --env-file=/etc/ecs/ecs.config \
     --env=ECS_LOGFILE=/log/ecs-agent.log \
@@ -264,14 +273,20 @@ if [ "$containerPlatform" = "swarm" ]; then
     exit 2
   fi
 
+  if [ "$version" = "latest" ]; then
+    ver=$version
+  else
+    ver="v$version"
+  fi
+
   # get swarminit command to init swarm
   for i in `seq 1 3`
   do
-    wget -O /tmp/firecamp-swarminit.tgz https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz
+    wget -O /tmp/firecamp-swarminit.tgz https://github.com/jazzl0ver/firecamp/releases/download/$ver/firecamp-swarminit.tgz
     if [ "$?" = "0" ]; then
       break
     elif [ "$i" = "3" ]; then
-      echo "failed to get https://s3.amazonaws.com/cloudstax/firecamp/releases/$version/packages/firecamp-swarminit.tgz"
+      echo "failed to get https://github.com/jazzl0ver/firecamp/releases/download/$ver/firecamp-swarminit.tgz"
       exit 2
     else
       # wget fail, sleep and retry

@@ -225,7 +225,7 @@
             "Type": "String"
         },
         "BastionInstanceType": {
-            "Default": "t2.micro",
+            "Default": "t3.micro",
             "Type": "String",
             "Description": "Amazon EC2 instance type for the second bastion instance",
             "AllowedValues": [
@@ -243,9 +243,13 @@
                 "t3.large",
                 "t3.xlarge",
                 "t3.2xlarge",
-                "m3.large",
-                "m3.xlarge",
-                "m3.2xlarge",
+                "t3a.nano",
+                "t3a.micro",
+                "t3a.small",
+                "t3a.medium",
+                "t3a.large",
+                "t3a.xlarge",
+                "t3a.2xlarge",
                 "m4.large",
                 "m4.xlarge",
                 "m4.2xlarge",
@@ -253,7 +257,11 @@
                 "m5.large",
                 "m5.xlarge",
                 "m5.2xlarge",
-                "m5.4xlarge"
+                "m5.4xlarge",
+                "m5a.large",
+                "m5a.xlarge",
+                "m5a.2xlarge",
+                "m5a.4xlarge"
             ]
         },
         "NumBastionHosts": {
@@ -304,26 +312,26 @@
         },
         "Release": {
             "Type": "String",
-            "Default": "latest",
+            "Default": "2.0",
             "AllowedValues": [
-                "latest",
-                "1.0"
+                "2.0",
+                "1.6"
             ],
-            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
-            "Default": "latest",
+            "Default": "2.0",
             "AllowedValues": [
-                "latest",
-                "1.0"
+                "2.0",
+                "1.6"
             ],
-            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
             "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-            "Default": "cloudstax",
+            "Default": "jazzl0ver",
             "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
             "Type": "String"
         },
@@ -331,7 +339,7 @@
             "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
             "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
             "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-            "Default": "firecamp/releases/latest/",
+            "Default": "firecamp/releases/2.0/",
             "Type": "String"
         },
         "NodeInstanceType": {

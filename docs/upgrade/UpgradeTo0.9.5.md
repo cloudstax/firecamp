@@ -10,33 +10,33 @@ For example, if you have a Cassandra service "mycas" running, stop it, `firecamp
 2. Upgrade cluster to 0.9.5
 * Go to AWS CloudFormation Console, and select the root Stack.
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade1.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade1.png)
 
 * Click "Actions" and select "Update Stack".
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade2.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade2.png)
 
-* "Select Template": specify the template URL, https://s3.amazonaws.com/quickstart-reference/cloudstax/firecamp/latest/templates/firecamp.template, and click "Next".
+* "Select Template": specify the template URL, https://s3.amazonaws.com/quickstart-reference/jazzl0ver/firecamp/latest/templates/firecamp.template, and click "Next".
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade3.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade3.png)
 
 * "Specify Details": select Release 0.9.5 and not change any other parameter, and then click "Next".
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade4.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade4.png)
 
 * "Options": click "Next".
 
 * "Review": check the acknowledge for IAM, and click "Update".
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade5.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade5.png)
 
 3. Wait till the stack is successfully upgraded to 0.9.5.
 
-  ![](https://s3.amazonaws.com/cloudstax/firecamp/docs/upgrade/0.9.5/upgrade7.png)
+  ![](https://s3.amazonaws.com/jazzl0ver/firecamp/docs/upgrade/0.9.5/upgrade7.png)
 
 4. Upgrade the existing services.
 
-Download the 0.9.5 CLI, `wget https://s3.amazonaws.com/cloudstax/firecamp/releases/0.9.5/packages/firecamp-service-cli.tgz`. And upgrade the Cassandra service, `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=upgrade-service -service-type=cassandra -service-name=mycas`.
+Download the 0.9.5 CLI, `wget https://s3.amazonaws.com/jazzl0ver/firecamp/releases/0.9.5/packages/firecamp-service-cli.tgz`. And upgrade the Cassandra service, `firecamp-service-cli -region=us-east-1 -cluster=t1 -op=upgrade-service -service-type=cassandra -service-name=mycas`.
 
 5. Start the existing services.
 

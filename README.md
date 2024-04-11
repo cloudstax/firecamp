@@ -1,4 +1,4 @@
-# [FireCamp](https://github.com/cloudstax/firecamp)
+# [FireCamp](https://github.com/jazzl0ver/firecamp)
 
 **CloudStax is shutting down. As a result, work on FireCamp will end and the Github repository will be archived.**
 
@@ -31,7 +31,7 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 * The Bastion node: the Bastion AutoScaleGroup is created and is the only one that could SSH to the FireCamp cluster nodes and talk with the FireCamp manage service.
 * Service security: user and password are required to access the service, such as MongoDB. And other service internal security features are enabled, such as MongoDB access control between members of a ReplicaSet.
 
-**Flexible Custom Plugins**: FireCamp could be easily expanded to support the custom plugins, such as PostGIS for PostgreSQL, CouchDB input plugin for Logstash, etc. The custom container image could be created from the base image, such as [PostGIS](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres/9.6/postgis-dockerfile/Dockerfile), and specify the image when creating the service.
+**Flexible Custom Plugins**: FireCamp could be easily expanded to support the custom plugins, such as PostGIS for PostgreSQL, CouchDB input plugin for Logstash, etc. The custom container image could be created from the base image, such as [PostGIS](https://github.com/jazzl0ver/firecamp/tree/master/catalog/postgres/9.6/postgis-dockerfile/Dockerfile), and specify the image when creating the service.
 
 **Easy Scale**: FireCamp makes it easy to scale out the stateful services. For the primary based service, such as MongoDB, FireCamp integrates with Cloud Volume Snapshot to simplify adding a new replica. For example, to add a new replica to an existing MongoDB ReplicaSet, FireCamp will pause one current replica, create a Snapshot of the replica's Cloud Volume, create a new Volume from the Snapshot, and assign the new volume to the new replica.
 
@@ -45,15 +45,15 @@ With FireCamp, you are able to quickly and efficiently respond to the stateful s
 
 ## How does it work?
 
-Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/cloudstax/firecamp/tree/master/docs/architect) and [Work Flow](https://github.com/cloudstax/firecamp/tree/master/docs/workflows).
+Basically, the FireCamp platform maintains the service membership and data volume for the service. When the container moves from one node to another node, FireCamp could recognize the member of the new container and mount the original data volume. For more details, please refer to [Architecture](https://github.com/jazzl0ver/firecamp/tree/master/docs/architect) and [Work Flow](https://github.com/jazzl0ver/firecamp/tree/master/docs/workflows).
 
 ## Installation
 The FireCamp cluster could be easily installed using AWS CloudFormation for AWS ECS and Docker Swarm.
-1. [Create FireCamp cluster via AWS QuickStart](https://aws.amazon.com/quickstart/architecture/cloudstax-firecamp/). This will create an ECS or Docker Swarm cluster across 3 availability zones. The cluster only has the private network address and not accessible from the external internet. The Bastion node is also created and is the only node that could SSH to the cluster.
-2. SSH to the Bastion node and wget firecamp cli of the installed release. For example, to get the cli of release 1.0, `wget https://s3.amazonaws.com/cloudstax/firecamp/releases/1.0/packages/firecamp-service-cli.tgz`.
-3. Use the firecamp cli to create the stateful service. Refer to each catalog service for the detail tutorials of the service, such as [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb#tutorials).
+1. [Create FireCamp cluster via AWS QuickStart](https://aws.amazon.com/quickstart/architecture/jazzl0ver-firecamp/). This will create an ECS or Docker Swarm cluster across 3 availability zones. The cluster only has the private network address and not accessible from the external internet. The Bastion node is also created and is the only node that could SSH to the cluster.
+2. SSH to the Bastion node and wget firecamp cli of the installed release. For example, to get the cli of release 1.2, `wget https://s3.amazonaws.com/jazzl0ver/firecamp/releases/1.2/packages/firecamp-service-cli.tgz`.
+3. Use the firecamp cli to create the stateful service. Refer to each catalog service for the detail tutorials of the service, such as [MongoDB](https://github.com/jazzl0ver/firecamp/tree/master/catalog/mongodb#tutorials).
 
-For the Installation details, please refer to [Installation](https://github.com/cloudstax/firecamp/tree/master/docs/installation).
+For the Installation details, please refer to [Installation](https://github.com/jazzl0ver/firecamp/tree/master/docs/installation).
 
 ## How do applications access the service?
 
@@ -63,23 +63,23 @@ Every service member will get a unique dns name. For example, the cluster is tes
 
 When the EC2 instance goes down, let's say the EC2 of mycas-1.testcluster-firecamp.com, AutoScaleGroup will start a new EC2. ECS will schedule the Cassandra container to the new EC2. FireCamp will attach the original EBS volumes that belongs to mycas-1.testcluster-firecamp.com, and update the address of mycas-1.testcluster-firecamp.com to the new EC2's privateIP in Route53.
 
-If the applications use JVM, you will need to set JVM TTL. Please check such as [Cassandra Readme](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra): "By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please set JVM TTL to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address."
+If the applications use JVM, you will need to set JVM TTL. Please check such as [Cassandra Readme](https://github.com/jazzl0ver/firecamp/tree/master/catalog/cassandra): "By default, JVM caches a successful DNS lookup forever. If you use Cassandra Java CQL driver, please set JVM TTL to a reasonable value such as 60 seconds. So when Cassandra container moves to another node, Java CQL driver could lookup the new address."
 
 ## Catalog Services
-* [MongoDB](https://github.com/cloudstax/firecamp/tree/master/catalog/mongodb)
-* [PostgreSQL](https://github.com/cloudstax/firecamp/tree/master/catalog/postgres)
-* [Cassandra](https://github.com/cloudstax/firecamp/tree/master/catalog/cassandra)
-* [ZooKeeper](https://github.com/cloudstax/firecamp/tree/master/catalog/zookeeper)
-* [Kafka](https://github.com/cloudstax/firecamp/tree/master/catalog/kafka)
-* [KafkaConnect](https://github.com/cloudstax/firecamp/tree/master/catalog/kafkaconnect)
-* [KafkaManager](https://github.com/cloudstax/firecamp/tree/master/catalog/kafkamanager)
-* [Redis](https://github.com/cloudstax/firecamp/tree/master/catalog/redis)
-* [CouchDB](https://github.com/cloudstax/firecamp/tree/master/catalog/couchdb)
-* [Consul](https://github.com/cloudstax/firecamp/tree/master/catalog/consul)
-* [ElasticSearch](https://github.com/cloudstax/firecamp/tree/master/catalog/elasticsearch)
-* [Kibana](https://github.com/cloudstax/firecamp/tree/master/catalog/kibana)
-* [Logstash](https://github.com/cloudstax/firecamp/tree/master/catalog/logstash)
-* [Telegraf](https://github.com/cloudstax/firecamp/tree/master/catalog/telegraf)
+* [MongoDB](https://github.com/jazzl0ver/firecamp/tree/master/catalog/mongodb)
+* [PostgreSQL](https://github.com/jazzl0ver/firecamp/tree/master/catalog/postgres)
+* [Cassandra](https://github.com/jazzl0ver/firecamp/tree/master/catalog/cassandra)
+* [ZooKeeper](https://github.com/jazzl0ver/firecamp/tree/master/catalog/zookeeper)
+* [Kafka](https://github.com/jazzl0ver/firecamp/tree/master/catalog/kafka)
+* [KafkaConnect](https://github.com/jazzl0ver/firecamp/tree/master/catalog/kafkaconnect)
+* [KafkaManager](https://github.com/jazzl0ver/firecamp/tree/master/catalog/kafkamanager)
+* [Redis](https://github.com/jazzl0ver/firecamp/tree/master/catalog/redis)
+* [CouchDB](https://github.com/jazzl0ver/firecamp/tree/master/catalog/couchdb)
+* [Consul](https://github.com/jazzl0ver/firecamp/tree/master/catalog/consul)
+* [ElasticSearch](https://github.com/jazzl0ver/firecamp/tree/master/catalog/elasticsearch)
+* [Kibana](https://github.com/jazzl0ver/firecamp/tree/master/catalog/kibana)
+* [Logstash](https://github.com/jazzl0ver/firecamp/tree/master/catalog/logstash)
+* [Telegraf](https://github.com/jazzl0ver/firecamp/tree/master/catalog/telegraf)
 * MySQL: coming soon.
 
 ## Questions and Issues

@@ -23,7 +23,10 @@
                         "default": "Security Configuration"
                     },
                     "Parameters": [
-                        "KeyPairName"
+                        "KeyPairName",
+						"KMSARN",
+						"WazuhManager",
+						"WazuhGroup"
                     ]
                 },
                 {
@@ -38,7 +41,8 @@
                         "NumberOfManagers",
                         "NumberOfNodes",
                         "NodeAMIOS",
-                        "NodeInstanceType"
+                        "NodeInstanceType",
+                        "SNSTopicARN"
                     ]
                 },
                 {
@@ -78,6 +82,17 @@
                     "default": "Key Pair Name"
                 },
 
+                "KMSARN": {
+                    "default": "KMS key ARN for encrypted SSM sessions"
+                },
+
+                "WazuhManager": {
+                    "default": "Wazuh Manager FQDN (leave empty to disable Wazuh Agent installation)"
+                },
+                "WazuhGroup": {
+                    "default": "Wazuh Agent Group (leave empty to use the default one)"
+                },
+
                 "ContainerPlatform": {
                     "default": "Container Platform"
                 },
@@ -95,6 +110,9 @@
                 },
                 "QSS3KeyPrefix": {
                     "default": "Quick Start S3 Key Prefix"
+                },
+                "SNSTopicARN": {
+                    "default": "SNS topic ARN to send alerts to"
                 },
                 "NumberOfManagers": {
                     "default": "Number of Docker Swarm Managers"
@@ -153,6 +171,20 @@
             "Description":"Name of an existing EC2 KeyPair to enable SSH access to the cluster nodes."
         },
 
+        "KMSARN":{
+            "Type":"String",
+            "Description":"ARN of KMS key to use for SSM session encryption"
+        },
+
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
+
         "ContainerPlatform":{
             "Type": "String",
             "Default": "ecs",
@@ -169,20 +201,20 @@
         },
         "Release": {
             "Type": "String",
-            "Default": "latest",
-            "AllowedValues": [ "latest", "1.0" ],
-            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Default": "2.0",
+            "AllowedValues": [ "2.0", "1.6" ],
+            "Description": "The FireCamp System Services release version. For the detail release notes, please refer to https://github.com/jazzl0ver/firecamp/releases."
         },
         "CatalogRelease": {
             "Type": "String",
-            "Default": "latest",
-            "AllowedValues": [ "latest", "1.0" ],
-            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/cloudstax/firecamp/releases."
+            "Default": "2.0",
+            "AllowedValues": [ "2.0", "1.6" ],
+            "Description": "The FireCamp Catalog Service release version. For the detail release notes, please refer to https://github.com/jazzl0verx/firecamp/releases."
         },
         "QSS3BucketName": {
             "AllowedPattern": "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
             "ConstraintDescription": "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-            "Default": "cloudstax",
+            "Default": "jazzl0ver",
             "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
             "Type": "String"
         },
@@ -190,7 +222,14 @@
             "AllowedPattern": "^[0-9a-zA-Z-/.]*$",
             "ConstraintDescription": "CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
             "Description": "S3 key prefix for the CloudFormation assets. CloudFormation key prefix can include numbers, lowercase letters, uppercase letters, dot (.), hyphens (-), and forward slash (/).",
-            "Default": "firecamp/releases/latest/",
+            "Default": "firecamp/releases/2.0/",
+            "Type": "String"
+        },
+        "SNSTopicARN": {
+            "AllowedPattern": "^[0-9a-zA-Z-_:]*$",
+            "ConstraintDescription": "SNS topic ARN can include alphanumeric characters, hyphens (-) and underscores (_).",
+            "Description": "SNS topic ARN to send disk space alerts to. Can include alphanumeric characters, hyphens (-) and underscores (_).",
+            "Default": "",
             "Type": "String"
         },
         "NumberOfManagers":{
@@ -214,7 +253,7 @@
         "NodeInstanceType":{
             "Description":"EC2 instance type",
             "Type":"String",
-            "Default":"m4.xlarge",
+            "Default":"m5.xlarge",
             "AllowedValues":[
                 "t2.micro",
                 "t2.small",
@@ -228,10 +267,12 @@
                 "t3.large",
                 "t3.xlarge",
                 "t3.2xlarge",
-                "m3.medium",
-                "m3.large",
-                "m3.xlarge",
-                "m3.2xlarge",
+                "t3a.micro",
+                "t3a.small",
+                "t3a.medium",
+                "t3a.large",
+                "t3a.xlarge",
+                "t3a.2xlarge",
                 "m4.large",
                 "m4.xlarge",
                 "m4.2xlarge",
@@ -243,17 +284,32 @@
                 "m5.4xlarge",
                 "m5.12xlarge",
                 "m5.24xlarge",
-                "r3.large",
-                "r3.xlarge",
-                "r3.2xlarge",
-                "r3.4xlarge",
-                "r3.8xlarge",
+                "m5a.large",
+                "m5a.xlarge",
+                "m5a.2xlarge",
+                "m5a.4xlarge",
+                "m5a.12xlarge",
+                "m5a.24xlarge",
                 "r4.large",
                 "r4.xlarge",
                 "r4.2xlarge",
                 "r4.4xlarge",
                 "r4.8xlarge",
                 "r4.16xlarge",
+                "r5.large",
+                "r5.xlarge",
+                "r5.2xlarge",
+                "r5.4xlarge",
+                "r5.8xlarge",
+                "r5.16xlarge",
+                "r5.24xlarge",
+                "r5a.large",
+                "r5a.xlarge",
+                "r5a.2xlarge",
+                "r5a.4xlarge",
+                "r5a.8xlarge",
+                "r5a.16xlarge",
+                "r5a.24xlarge",
                 "c4.large",
                 "c4.xlarge",
                 "c4.2xlarge",
@@ -564,6 +620,9 @@
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
                     },
+                    "SNSTopicARN": {
+                        "Ref": "SNSTopicARN"
+                    },
                     "ServiceSecurityGroupID": {
                         "Ref": "ServiceSecurityGroup"
                     },
@@ -573,6 +632,15 @@
                     "KeyPairName": {
                         "Ref": "KeyPairName"
                     },
+                    "KMSARN": {
+                        "Ref": "KMSARN"
+                    },
+					"WazuhManager": {
+						"Ref": "WazuhManager"
+					},
+					"WazuhGroup": {
+						"Ref": "WazuhGroup"
+					},
                     "VPCID": {
                         "Ref": "VPCID"
                     },

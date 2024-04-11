@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/common"
 	"golang.org/x/net/context"
 )
 

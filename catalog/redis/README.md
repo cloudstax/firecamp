@@ -1,5 +1,5 @@
-* [FireCamp Redis Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/redis#firecamp-redis-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/redis#tutorials)
+* [FireCamp Redis Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/redis#firecamp-redis-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/redis#tutorials)
 
 # FireCamp Redis Internals
 
@@ -40,7 +40,7 @@ Both Redis Sentinel and Cluster require to use a static IP address to represent 
 
 If the containers fail over to other nodes, the containers' IPs will change. Redis is not able to handle it and will mark the cluster fail. For example, a 3 shards Redis cluster, each shard has 1 master and 2 slaves. If we stop all 9 containers around the same time, container framework will rescheudle all containers. Some containers may run on a different node and have a different ip, which could be used by another container before restart. Redis will be confused about the master-slave relationship and mark the cluster fail.
 
-Basically this requires the ability to bind the static IP with one container. The FireCamp platform follows a simpler way that leverages the multiple IPs ability of one instance. The platform assigns one private IP for every Redis memeber. When container moves to a new node, FireCamp unassigns the secondary ip from the old node and assigns it to the new node. So all members could talk with each other via these assigned static IPs. Every member still gets a unique DNS name, which points to the member's static IP. The application could simply access Redis cluster using the member's DNS name, as long as the application (independent process or function) is running in the same VPC. Please refer to [Architecture wiki](https://github.com/cloudstax/firecamp/pkg/wiki/Architecture#service-member-static-ip) for more details.
+Basically this requires the ability to bind the static IP with one container. The FireCamp platform follows a simpler way that leverages the multiple IPs ability of one instance. The platform assigns one private IP for every Redis memeber. When container moves to a new node, FireCamp unassigns the secondary ip from the old node and assigns it to the new node. So all members could talk with each other via these assigned static IPs. Every member still gets a unique DNS name, which points to the member's static IP. The application could simply access Redis cluster using the member's DNS name, as long as the application (independent process or function) is running in the same VPC. Please refer to [Architecture wiki](https://github.com/jazzl0ver/firecamp/pkg/wiki/Architecture#service-member-static-ip) for more details.
 
 ## Data Persistence
 
@@ -68,7 +68,7 @@ The possibly harmful commands are disabled or renamed. The commands, FLUSHALL (r
 
 ## Monitoring
 
-FireCamp uses Telegraf to monitor Redis and send metrics to AWS CloudWatch. You could create a Telegraf service for the Redis Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/telegraf).
+FireCamp uses Telegraf to monitor Redis and send metrics to AWS CloudWatch. You could create a Telegraf service for the Redis Cluster. Then you can view the metrics and create dashboard on CloudWatch. For more details, refer to [FireCamp Telegraf](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/telegraf).
 
 ## Update the Service
 
@@ -117,7 +117,7 @@ Refs:
 This is a simple tutorial about how to create a Redis service and how to use it. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1", and the Redis service name is "myredis".
 
 ## Create a Redis service
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Redis cluster:
+Follow the [Installation Guide](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Create a Redis cluster:
 ```
 firecamp-service-cli -op=create-service -service-type=redis -region=us-east-1 -cluster=t1 -redis-shards=3 -redis-replicas-pershard=2 -volume-size=20 -service-name=myredis -redis-memory-size=4096 -redis-auth-pass=changeme
 ```

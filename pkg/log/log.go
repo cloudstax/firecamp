@@ -4,7 +4,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// See [Catalog README](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/README.md) for the detail log group and stream formats.
+// See [Catalog README](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/README.md) for the detail log group and stream formats.
 
 // LogConfig contains the configs for the log driver.
 type LogConfig struct {

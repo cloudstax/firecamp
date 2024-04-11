@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 func TestESCatalog(t *testing.T) {

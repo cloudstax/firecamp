@@ -13,27 +13,27 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/catalog"
-	catalogclient "github.com/cloudstax/firecamp/api/catalog/client"
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
-	manageclient "github.com/cloudstax/firecamp/api/manage/client"
-	"github.com/cloudstax/firecamp/catalog/cassandra"
-	"github.com/cloudstax/firecamp/catalog/consul"
-	"github.com/cloudstax/firecamp/catalog/elasticsearch"
-	"github.com/cloudstax/firecamp/catalog/kafka"
-	"github.com/cloudstax/firecamp/catalog/kafkaconnect"
-	"github.com/cloudstax/firecamp/catalog/kafkamanager"
-	"github.com/cloudstax/firecamp/catalog/kibana"
-	"github.com/cloudstax/firecamp/catalog/logstash"
-	"github.com/cloudstax/firecamp/catalog/mongodb"
-	"github.com/cloudstax/firecamp/catalog/postgres"
-	"github.com/cloudstax/firecamp/catalog/redis"
-	"github.com/cloudstax/firecamp/catalog/telegraf"
-	"github.com/cloudstax/firecamp/catalog/zookeeper"
-	"github.com/cloudstax/firecamp/pkg/dns"
-	"github.com/cloudstax/firecamp/pkg/server/awsec2"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/api/catalog"
+	catalogclient "github.com/jazzl0ver/firecamp/api/catalog/client"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
+	manageclient "github.com/jazzl0ver/firecamp/api/manage/client"
+	"github.com/jazzl0ver/firecamp/catalog/cassandra"
+	"github.com/jazzl0ver/firecamp/catalog/consul"
+	"github.com/jazzl0ver/firecamp/catalog/elasticsearch"
+	"github.com/jazzl0ver/firecamp/catalog/kafka"
+	"github.com/jazzl0ver/firecamp/catalog/kafkaconnect"
+	"github.com/jazzl0ver/firecamp/catalog/kafkamanager"
+	"github.com/jazzl0ver/firecamp/catalog/kibana"
+	"github.com/jazzl0ver/firecamp/catalog/logstash"
+	"github.com/jazzl0ver/firecamp/catalog/mongodb"
+	"github.com/jazzl0ver/firecamp/catalog/postgres"
+	"github.com/jazzl0ver/firecamp/catalog/redis"
+	"github.com/jazzl0ver/firecamp/catalog/telegraf"
+	"github.com/jazzl0ver/firecamp/catalog/zookeeper"
+	"github.com/jazzl0ver/firecamp/pkg/dns"
+	"github.com/jazzl0ver/firecamp/pkg/server/awsec2"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // The catalog service command tool to create/query the catalog service.
@@ -65,6 +65,14 @@ const (
 	flagRedisConfigCmd   = "redis-configcmd-name"
 
 	flagCasHeapSize = "cas-heap-size"
+	flagCasAuditLoggingEnabled = "cas-audit-logging-enabled"
+	flagCasAuditLoggingClassName = "cas-audit-logging-classname"
+	flagCasAuditIncludedKeyspaces = "cas-audit-included-keyspaces"
+	flagCasAuditExcludedKeyspaces = "cas-audit-excluded-keyspaces"
+	flagCasAuditIncludedCategories = "cas-audit-included-categories"
+	flagCasAuditExcludedCategories = "cas-audit-excluded-categories"
+	flagCasAuditIncludedUsers = "cas-audit-included-users"
+	flagCasAuditExcludedUsers = "cas-audit-excluded-users"
 
 	flagZkHeapSize = "zk-heap-size"
 )
@@ -109,6 +117,14 @@ var (
 
 	// The Cassandra service specific parameters
 	casHeapSizeMB = flag.Int64(flagCasHeapSize, cascatalog.DefaultHeapMB, "The Cassandra JVM heap size, unit: MB")
+	casAuditLoggingEnabled = flag.String(flagCasAuditLoggingEnabled, "true", "Audit logging enabled")
+	casAuditLoggingClassName = flag.String(flagCasAuditLoggingClassName, "FileAuditLogger", "Class name of the logger/custom logger")
+	casAuditIncludedKeyspaces = flag.String(flagCasAuditIncludedKeyspaces, "", "Comma separated list of keyspaces to be included in audit log, default - includes all keyspaces")
+	casAuditExcludedKeyspaces = flag.String(flagCasAuditExcludedKeyspaces, "system, system_schema, system_virtual_schema", "Comma separated list of keyspaces to be excluded from audit log, default - excludes no keyspace except system, system_schema and system_virtual_schema")
+	casAuditIncludedCategories = flag.String(flagCasAuditIncludedCategories, "", "Comma separated list of Audit Log Categories (QUERY, DML, DDL, DCL, OTHER, AUTH, ERROR, PREPARE) to be included in audit log, default - includes all categories")
+	casAuditExcludedCategories = flag.String(flagCasAuditExcludedCategories, "", "Comma separated list of Audit Log Categories (QUERY, DML, DDL, DCL, OTHER, AUTH, ERROR, PREPARE) to be excluded from audit log, default - excludes no category")
+	casAuditIncludedUsers = flag.String(flagCasAuditIncludedUsers, "", "Comma separated list of users to be included in audit log, default - includes all users")
+	casAuditExcludedUsers = flag.String(flagCasAuditExcludedUsers, "", "Comma separated list of users to be excluded from audit log, default - excludes no user")
 
 	// The postgres service creation specific parameters.
 	pgReplUser       = flag.String("pg-repluser", "repluser", "The PostgreSQL replication user that the standby DB replicates from the primary")
@@ -365,6 +381,14 @@ func usage() {
 				printFlag(flag.Lookup(flagCasHeapSize))
 				printFlag(flag.Lookup(flagJmxUser))
 				printFlag(flag.Lookup(flagJmxPasswd))
+				printFlag(flag.Lookup(flagCasAuditLoggingEnabled))
+				printFlag(flag.Lookup(flagCasAuditLoggingClassName))
+				printFlag(flag.Lookup(flagCasAuditIncludedKeyspaces))
+				printFlag(flag.Lookup(flagCasAuditExcludedKeyspaces))
+				printFlag(flag.Lookup(flagCasAuditIncludedCategories))
+				printFlag(flag.Lookup(flagCasAuditExcludedCategories))
+				printFlag(flag.Lookup(flagCasAuditIncludedUsers))
+				printFlag(flag.Lookup(flagCasAuditExcludedUsers))
 			case common.CatalogService_Redis:
 				printFlag(flag.Lookup("redis-shards"))
 				printFlag(flag.Lookup("redis-replicas-pershard"))
@@ -455,6 +479,14 @@ func usage() {
 				printFlag(flag.Lookup(flagCasHeapSize))
 				printFlag(flag.Lookup(flagJmxUser))
 				printFlag(flag.Lookup(flagJmxPasswd))
+				printFlag(flag.Lookup(flagCasAuditLoggingEnabled))
+				printFlag(flag.Lookup(flagCasAuditLoggingClassName))
+				printFlag(flag.Lookup(flagCasAuditIncludedKeyspaces))
+				printFlag(flag.Lookup(flagCasAuditExcludedKeyspaces))
+				printFlag(flag.Lookup(flagCasAuditIncludedCategories))
+				printFlag(flag.Lookup(flagCasAuditExcludedCategories))
+				printFlag(flag.Lookup(flagCasAuditIncludedUsers))
+				printFlag(flag.Lookup(flagCasAuditExcludedUsers))
 			case common.CatalogService_Redis:
 				printFlag(flag.Lookup(flagRedisMemSize))
 				printFlag(flag.Lookup(flagRedisAuthPass))
@@ -850,6 +882,14 @@ func createCassandraService(ctx context.Context, cli *catalogclient.CatalogServi
 			HeapSizeMB:      *casHeapSizeMB,
 			JmxRemoteUser:   *jmxUser,
 			JmxRemotePasswd: *jmxPasswd,
+			AuditLoggingEnabled: *casAuditLoggingEnabled,
+			AuditLoggingClassName: *casAuditLoggingClassName,
+			AuditIncludedKeyspaces: *casAuditIncludedKeyspaces,
+			AuditExcludedKeyspaces: *casAuditExcludedKeyspaces,
+			AuditIncludedCategories: *casAuditIncludedCategories,
+			AuditExcludedCategories: *casAuditExcludedCategories,
+			AuditIncludedUsers: *casAuditIncludedUsers,
+			AuditExcludedUsers: *casAuditExcludedUsers,
 		},
 	}
 
@@ -903,13 +943,7 @@ func updateCassandraService(ctx context.Context, cli *manageclient.ManageClient,
 		passwd = *jmxPasswd
 	}
 
-	updateServiceHeapAndJMX(ctx, cli, commonReq, heapSizeMB, user, passwd)
-
-	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
-}
-
-func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient, commonReq *manage.ServiceCommonRequest, heapSizeMB int64, jmxUser string, jmxPasswd string) {
-	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
+	err := catalog.ValidateUpdateOptions(heapSizeMB, user, passwd)
 	if err != nil {
 		fmt.Errorf("invalid parameters - %s", err)
 		os.Exit(-1)
@@ -917,7 +951,45 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient
 
 	cfgFile := getServiceConfigFile(ctx, cli, commonReq)
 
-	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
+	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, user, passwd)
+
+	content := newContent
+	lines := strings.Split(newContent, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "AUDIT_LOGGING_ENABLED") && flagset[flagCasAuditLoggingEnabled] {
+			newLine := fmt.Sprintf("AUDIT_LOGGING_ENABLED=%s", *casAuditLoggingEnabled)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_LOGGING_CLASSNAME") && flagset[flagCasAuditLoggingClassName] {
+			newLine := fmt.Sprintf("AUDIT_LOGGING_CLASSNAME=%s", *casAuditLoggingClassName)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_INCLUDED_KEYSPACES") && flagset[flagCasAuditIncludedKeyspaces] {
+			newLine := fmt.Sprintf("AUDIT_INCLUDED_KEYSPACES=%s", *casAuditIncludedKeyspaces)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_EXCLUDED_KEYSPACES") && flagset[flagCasAuditExcludedKeyspaces] {
+			newLine := fmt.Sprintf("AUDIT_EXCLUDED_KEYSPACES=%s", *casAuditExcludedKeyspaces)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_INCLUDED_CATEGORIES") && flagset[flagCasAuditIncludedCategories] {
+			newLine := fmt.Sprintf("AUDIT_INCLUDED_CATEGORIES=%s", *casAuditIncludedCategories)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_EXCLUDED_CATEGORIES") && flagset[flagCasAuditExcludedCategories] {
+			newLine := fmt.Sprintf("AUDIT_EXCLUDED_CATEGORIES=%s", *casAuditExcludedCategories)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_INCLUDED_USERS") && flagset[flagCasAuditIncludedUsers] {
+			newLine := fmt.Sprintf("AUDIT_INCLUDED_USERS=%s", *casAuditIncludedUsers)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+		if strings.HasPrefix(line, "AUDIT_EXCLUDED_USERS") && flagset[flagCasAuditExcludedUsers] {
+			newLine := fmt.Sprintf("AUDIT_EXCLUDED_USERS=%s", *casAuditExcludedUsers)
+			content = strings.Replace(content, line, newLine, 1)
+		}
+	}
+	newContent = content
 
 	// update service config
 	r := &manage.UpdateServiceConfigRequest{
@@ -930,6 +1002,8 @@ func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient
 		fmt.Errorf("update service error %s", err)
 		os.Exit(-2)
 	}
+
+	fmt.Println(time.Now().UTC(), "The catalog service is updated. Please stop and start the service to load the new configs")
 }
 
 func getServiceConfigFile(ctx context.Context, cli *manageclient.ManageClient, commonReq *manage.ServiceCommonRequest) *common.ConfigFile {
@@ -979,6 +1053,30 @@ func waitServiceInit(ctx context.Context, cli *catalogclient.CatalogServiceClien
 
 	fmt.Println(time.Now().UTC(), "The catalog service is not initialized after", maxServiceWaitTime)
 	os.Exit(-1)
+}
+
+func updateServiceHeapAndJMX(ctx context.Context, cli *manageclient.ManageClient, commonReq *manage.ServiceCommonRequest, heapSizeMB int64, jmxUser string, jmxPasswd string) {
+	err := catalog.ValidateUpdateOptions(heapSizeMB, jmxUser, jmxPasswd)
+	if err != nil {
+		fmt.Errorf("invalid parameters - %s", err)
+		os.Exit(-1)
+	}
+
+	cfgFile := getServiceConfigFile(ctx, cli, commonReq)
+
+	newContent := catalog.UpdateServiceConfigHeapAndJMX(cfgFile.Spec.Content, heapSizeMB, jmxUser, jmxPasswd)
+
+	// update service config
+	r := &manage.UpdateServiceConfigRequest{
+		Service:           commonReq,
+		ConfigFileName:    cfgFile.Meta.FileName,
+		ConfigFileContent: newContent,
+	}
+	err = cli.UpdateServiceConfig(ctx, r)
+	if err != nil {
+		fmt.Errorf("update service error %s", err)
+		os.Exit(-2)
+	}
 }
 
 func createZkService(ctx context.Context, cli *catalogclient.CatalogServiceClient, commonReq *manage.ServiceCommonRequest) {

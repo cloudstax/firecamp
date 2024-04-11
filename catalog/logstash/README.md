@@ -1,5 +1,5 @@
-* [FireCamp Logstash Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/logstash#firecamp-logstash-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/logstash#tutorials)
+* [FireCamp Logstash Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/logstash#firecamp-logstash-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/logstash#tutorials)
 
 # FireCamp Logstash Internals
 
@@ -29,7 +29,7 @@ FireCamp Logstash uses the default Pipeline parameters. If you want to tune the 
 
 **Custom Plugins**
 
-The CouchDB input plugin is supported as the example for how to support the custom plugin, catalog/logstash/5.6.3/dockerfile-input-couchdb. To use the CouchDB input plugin, specify -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6 at the service creation.
+The CouchDB input plugin is supported as the example for how to support the custom plugin, catalog/logstash/5.6.3/dockerfile-input-couchdb. To use the CouchDB input plugin, specify -ls-container-image=jazzl0ver/firecamp-logstash-input-couchdb:5.6 at the service creation.
 
 If the additional custom plugin is required, we could follow the same way to create a new docker image and specify it when creating the service. Note, this is currently disabled until we hear the actual requirement.
 
@@ -59,7 +59,7 @@ This is a simple tutorial about how to create a Logstash service and how to use 
 
 ## Create CouchDB, ElasticSearch and Logstash services
 
-Follow the [Installation Guide](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
+Follow the [Installation Guide](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones.
 
 1. Create a CouchDB service and create "fruits" DB.
 ```
@@ -72,7 +72,7 @@ firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-e
 ```
 3. Create a Logstash service:
 ```
-firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=cloudstax/firecamp-logstash-input-couchdb:5.6 -ls-heap-size=2048
+firecamp-service-cli -op=create-service -service-type=logstash -region=us-east-1 -cluster=t1 -replicas=1 -volume-size=10 -service-name=myls -ls-pipeline-file=logstash.conf -ls-container-image=jazzl0ver/firecamp-logstash-input-couchdb:5.6 -ls-heap-size=2048
 ```
 The logstash.conf content:
 ```

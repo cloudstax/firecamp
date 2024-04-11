@@ -7,10 +7,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/common"
 	"github.com/golang/glog"
 )
 
+const ec2MDv2Token = "http://169.254.169.254/latest/api/token"
 const ec2InstanceIDURL = "http://169.254.169.254/latest/meta-data/instance-id"
 const ec2AZURL = "http://169.254.169.254/latest/meta-data/placement/availability-zone"
 const ec2HostnameURL = "http://169.254.169.254/latest/meta-data/hostname"
@@ -75,7 +76,34 @@ func GetLocalEc2VpcID() (string, error) {
 }
 
 func getEc2Metadata(url string) (string, error) {
-	resp, err := http.Get(url)
+	client := &http.Client{}
+	req, err := http.NewRequest("PUT", ec2MDv2Token, nil)
+	if err != nil {
+		glog.Errorln("NewRequest", ec2MDv2Token, "error", err)
+		return "", err
+	}
+	req.Header.Add("X-aws-ec2-metadata-token-ttl-seconds", "60")
+	resp, err := client.Do(req)
+	if err != nil {
+		glog.Errorln("get metadata token", ec2MDv2Token, "error", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	token, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		glog.Errorln("read metadata token error", err, "url", ec2MDv2Token)
+		return "", err
+	}
+
+	client = &http.Client{}
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		glog.Errorln("NewRequest", url, "error", err)
+		return "", err
+	}
+	req.Header.Add("X-aws-ec2-metadata-token", string(token))
+	resp, err = client.Do(req)
 	if err != nil {
 		glog.Errorln("get url", url, "error", err)
 		return "", err

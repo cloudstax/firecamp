@@ -1,8 +1,8 @@
 package catalog
 
 import (
-	"github.com/cloudstax/firecamp/api/common"
-	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/manage"
 )
 
 const (
@@ -75,7 +75,7 @@ type CatalogPostgreSQLOptions struct {
 	Volume        *common.ServiceVolume
 	JournalVolume *common.ServiceVolume
 
-	// The container image for the service, such as cloudstax/firecamp-postgres:version or cloudstax/firecamp-postgres-postgis:version
+	// The container image for the service, such as jazzl0ver/firecamp-postgres:version or jazzl0ver/firecamp-postgres-postgis:version
 	ContainerImage string
 
 	// the default admin user is: postgres
@@ -104,6 +104,15 @@ type CatalogCassandraOptions struct {
 	// The password for the JMX remote access. If empty, a uuid will be generated
 	// as the password. This will be used by nodetool to access replica remotely.
 	JmxRemotePasswd string
+	// Cassandra audit logging settings
+        AuditLoggingEnabled string
+        AuditLoggingClassName string
+        AuditIncludedKeyspaces string
+        AuditExcludedKeyspaces string
+        AuditIncludedCategories string
+        AuditExcludedCategories string
+        AuditIncludedUsers string
+        AuditExcludedUsers string
 }
 
 // CatalogCreateCassandraRequest creates a Cassandra service.
@@ -399,7 +408,7 @@ type CatalogLogstashOptions struct {
 	// Logstash JVM heap size
 	HeapSizeMB int64
 
-	// The container image for the service, such as cloudstax/firecamp-logstash:version or cloudstax/firecamp-logstash-input-couchdb:version
+	// The container image for the service, such as jazzl0ver/firecamp-logstash:version or jazzl0ver/firecamp-logstash-input-couchdb:version
 	ContainerImage string
 
 	// The internal queue model: "memory" or "persisted"

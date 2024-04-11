@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/common"
+	"github.com/jazzl0ver/firecamp/api/common"
 )
 
 func TestMemServer(t *testing.T) {

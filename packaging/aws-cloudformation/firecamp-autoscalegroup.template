@@ -33,6 +33,14 @@
             "Type": "AWS::EC2::KeyPair::KeyName",
             "Description": "Name of an existing EC2 KeyPair to enable SSH access to the cluster instances."
         },
+        "WazuhManager": {
+            "Type":"String",
+            "Description":"Wazuh Manager FQDN"
+        },
+        "WazuhGroup": {
+            "Type":"String",
+            "Description":"Wazuh Agent Group"
+        },
         "Release": {
             "Type": "String",
             "Default": "latest",
@@ -83,12 +91,16 @@
             "Description": "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
         },
         "QSS3KeyPrefix": {
-            "Default": "quickstart-cloudstax-firecamp/",
+            "Default": "quickstart-jazzl0ver-firecamp/",
+            "Type": "String"
+        },
+        "SNSTopicARN": {
+            "Default": "",
             "Type": "String"
         },
         "LatestAMIId": {
     	    "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-    	    "Default": "/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-gp2"
+    	    "Default": "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id"
         }
     },
     "Resources": {
@@ -147,7 +159,7 @@
             },
             "CreationPolicy": {
                 "ResourceSignal": {
-                    "Timeout": "PT10M"
+                    "Timeout": "PT20M"
                 }
             },
             "UpdatePolicy": {
@@ -185,24 +197,41 @@
                             "",
                             [
                                 "#!/bin/bash -x\n",
-                                "yum install -y aws-cfn-bootstrap\n",
+                                "yum install -y aws-cfn-bootstrap wget\n",
                                 "version=",
                                 {
                                     "Ref": "Release"
                                 },
                                 "\n",
+                                "rel=v$version\n",
+                                "[ \"$rel\" = \"vlatest\" ] && rel=\"master\"\n",
+                                "# get and install the checking disks script\n",
+                                "for i in 1 2 3\n",
+                                "do\n",
+                                "  wget -O /usr/local/bin/check_disks_and_alert_by_sns.sh https://raw.githubusercontent.com/jazzl0ver/firecamp/",
+                                "$rel/",
+                                "packaging/aws-cloudformation/check_disks_and_alert_by_sns.sh\n",
+                                "  if [ \"$?\" = \"0\" ]; then\n",
+                                "    break\n",
+                                "  elif [ \"$i\" = \"3\" ]; then\n",
+                                "    echo \"failed to get check_disks_and_alert_by_sns.sh\"\n",
+                                "    exit 2\n",
+                                "  else\n",
+                                "    sleep 4\n",
+                                "  fi\n",
+                                "done\n",
+                                "chmod +x /usr/local/bin/check_disks_and_alert_by_sns.sh\n",
+                                "echo \"0 */1 * * * root /usr/local/bin/check_disks_and_alert_by_sns.sh ",
+                                {
+                                    "Ref": "SNSTopicARN"
+                                },
+                                "\" > /etc/cron.d/check_disks_and_alert_by_sns\n",
                                 "# get and run the node init script\n",
                                 "for i in 1 2 3\n",
                                 "do\n",
-                                "  wget -O /tmp/init.sh https://s3.amazonaws.com/",
-                                {
-                                    "Ref": "QSS3BucketName"
-                                },
-                                "/",
-                                {
-                                    "Ref": "QSS3KeyPrefix"
-                                },
-                                "scripts/init.sh\n",
+                                "  wget -O /tmp/init.sh https://raw.githubusercontent.com/jazzl0ver/firecamp/",
+                                "$rel/",
+                                "packaging/aws-cloudformation/init.sh\n",
                                 "  if [ \"$?\" = \"0\" ]; then\n",
                                 "    break\n",
                                 "  elif [ \"$i\" = \"3\" ]; then\n",
@@ -237,6 +266,20 @@
                                 "\n",
                                 "res=$?\n",
                                 "echo $res\n",
+								"wazuh_group=\"",
+                                {
+                                    "Ref": "WazuhGroup"
+                                },
+                                "\"\n",
+								"wazuh_manager=\"",
+                                {
+                                    "Ref": "WazuhManager"
+                                },
+                                "\"\n",
+								"[ \"$wazuh_group\" = \"\" ] || WAZUH_AGENT_GROUP=$wazuh_group WAZUH_MANAGER=$wazuh_manager yum install https://packages.wazuh.com/4.x/yum/wazuh-agent-4.7.0-1.x86_64.rpm -y",
+								"\n",
+								"[ \"$wazuh_group\" = \"\" ] || systemctl enable --now wazuh-agent",
+								"\n",
                                 "# Signal init result\n",
                                 "/opt/aws/bin/cfn-signal -e $res ",
                                 "         --stack ",

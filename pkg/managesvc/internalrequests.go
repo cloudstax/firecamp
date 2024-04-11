@@ -7,7 +7,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
-	"github.com/cloudstax/firecamp/api/manage"
+	"github.com/jazzl0ver/firecamp/api/manage"
 )
 
 func (s *ManageHTTPServer) internalGetOp(ctx context.Context, w http.ResponseWriter,

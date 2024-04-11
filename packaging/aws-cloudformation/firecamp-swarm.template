@@ -61,7 +61,7 @@
             "Type": "String"
         },
         "QSS3KeyPrefix": {
-            "Default": "quickstart-cloudstax-firecamp/",
+            "Default": "quickstart-jazzl0ver-firecamp/",
             "Type": "String"
         },
         "Release": {

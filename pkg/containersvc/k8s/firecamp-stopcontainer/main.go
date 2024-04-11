@@ -10,9 +10,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/cloudstax/firecamp/pkg/containersvc/k8s"
-	"github.com/cloudstax/firecamp/pkg/plugins/network"
-	"github.com/cloudstax/firecamp/pkg/utils"
+	"github.com/jazzl0ver/firecamp/pkg/containersvc/k8s"
+	"github.com/jazzl0ver/firecamp/pkg/plugins/network"
+	"github.com/jazzl0ver/firecamp/pkg/utils"
 )
 
 // For now, the deletestaticip container is only used on k8s for the service that requires static ip, such as Redis/Consul.

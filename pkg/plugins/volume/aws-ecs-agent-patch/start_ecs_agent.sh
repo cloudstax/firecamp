@@ -16,11 +16,11 @@ docker run --name ecs-agent \
     --volume=/var/run/docker.sock:/var/run/docker.sock \
     --volume=/var/log/ecs:/log \
     --volume=/var/lib/ecs/data:/data \
+    --volume=/sys/fs/cgroup:/sys/fs/cgroup \
     --net=host \
     --env-file=/etc/ecs/ecs.config \
     --env=ECS_LOGFILE=/log/ecs-agent.log \
     --env=ECS_DATADIR=/data/ \
     --env=ECS_ENABLE_TASK_IAM_ROLE=true \
     --env=ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true \
-    cloudstax/firecamp-amazon-ecs-agent:latest
-
+    jazzl0ver/firecamp-amazon-ecs-agent:latest

@@ -17,9 +17,9 @@ type VolumeDriverConfigError struct {
 func (err *VolumeDriverConfigError) Error() string     { return err.msg }
 func (err *VolumeDriverConfigError) ErrorName() string { return "VolumeDriverConfigError" }
 
-// Define here again to avoid the dependency on githut.com/cloudstax/firecamp
+// Define here again to avoid the dependency on githut.com/jazzl0ver/firecamp
 const (
-	org                 = "cloudstax/"
+	org                 = "jazzl0ver/"
 	volumeDriver        = org + "firecamp-volume"
 	logDriver           = org + "firecamp-log"
 	logGroupKey         = "awslogs-group"

@@ -1,5 +1,5 @@
-* [FireCamp Kafka Connect Internals](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/kafkaconnect#firecamp-kafka-connect-internals)
-* [Tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/kafkaconnect#tutorials)
+* [FireCamp Kafka Connect Internals](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/kafkaconnect#firecamp-kafka-connect-internals)
+* [Tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/kafkaconnect#tutorials)
 
 # FireCamp Kafka Connect Internals
 
@@ -87,19 +87,19 @@ The Kafka Connect logs are sent to the Cloud Logs, such as AWS CloudWatch logs. 
 
 This is a simple tutorial about how to create a Kafka Connect service that sinks the data of one Kafka topic to ElasticSearch service. This tutorial assumes the cluster name is "t1", the AWS Region is "us-east-1".
 
-1. Follow the [Installation](https://github.com/cloudstax/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Please make sure the node has enough memory for hosting all services. Or create more nodes, such as 6 nodes, for the cluster.
+1. Follow the [Installation](https://github.com/jazzl0ver/firecamp/pkg/tree/master/docs/installation) guide to create a 3 nodes cluster across 3 availability zones. Please make sure the node has enough memory for hosting all services. Or create more nodes, such as 6 nodes, for the cluster.
 
-2. Follow the [ZooKeeper tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/zookeeper#tutorials) to create a 3 nodes ZooKeeper service.
+2. Follow the [ZooKeeper tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/zookeeper#tutorials) to create a 3 nodes ZooKeeper service.
 ```
 firecamp-service-cli -op=create-service -service-type=zookeeper -region=us-east-1 -cluster=t1 -service-name=myzoo -replicas=3 -volume-size=20 -zk-heap-size=1024
 ```
 
-3. Follow the [Kafka tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/kafka#tutorials) to create a 3 nodes Kafka service.
+3. Follow the [Kafka tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/kafka#tutorials) to create a 3 nodes Kafka service.
 ```
 firecamp-service-cli -op=create-service -service-type=kafka -region=us-east-1 -cluster=t1  -replicas=3 -volume-size=100 -service-name=mykafka -kafka-zk-service=myzoo -kafka-heap-size=1024
 ```
 
-4. Follow the [ElasticSearch tutorials](https://github.com/cloudstax/firecamp/pkg/tree/master/catalog/elasticsearch#tutorials) to create a 3 data nodes ElasticSearch services without the dedicated masters.
+4. Follow the [ElasticSearch tutorials](https://github.com/jazzl0ver/firecamp/pkg/tree/master/catalog/elasticsearch#tutorials) to create a 3 data nodes ElasticSearch services without the dedicated masters.
 ```
 firecamp-service-cli -op=create-service -service-type=elasticsearch -region=us-east-1 -cluster=t1 -replicas=3 -volume-size=10 -service-name=myes -es-heap-size=1024 -es-disable-dedicated-master=true
 ```
